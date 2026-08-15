@@ -1,0 +1,77 @@
+# =============================================================================
+# Aux Content System - 安全扫描
+# =============================================================================
+# 每次 PR 触发，以及每周一 UTC 03:00 定时扫描。
+# 后端：govulncheck 扫描 Go 依赖已知漏洞。
+# 前端：pnpm audit 扫描 npm 依赖漏洞。
+# =============================================================================
+
+name: Security Scan
+
+on:
+  pull_request:
+  schedule:
+    # 每周一 UTC 03:00（北京时间 11:00）定时扫描
+    - cron: '0 3 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 后端安全扫描
+  # ---------------------------------------------------------------------------
+  backend-security:
+    name: Backend govulncheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          check-latest: false
+          cache-dependency-path: backend/go.sum
+
+      - name: Verify Go version
+        working-directory: backend
+        run: go version | grep -q 'go1.26.5'
+
+      - name: Run govulncheck
+        working-directory: backend
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+  # ---------------------------------------------------------------------------
+  # 前端安全扫描
+  # ---------------------------------------------------------------------------
+  frontend-security:
+    name: Frontend pnpm audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Run pnpm audit
+        working-directory: frontend
+        run: |
+          # audit 退出码非 0 表示有满足级别的漏洞；高严重度及以上才失败
+          pnpm audit --prod --audit-level=high

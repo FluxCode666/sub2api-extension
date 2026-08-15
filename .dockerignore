@@ -1,0 +1,56 @@
+# =============================================================================
+# Docker Ignore File for Aux Content System
+# =============================================================================
+# 减小构建上下文，加速 docker build 并避免泄露本地文件。
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# GitHub Actions / CI
+.github/
+
+# 文档
+*.md
+docs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS 文件
+.DS_Store
+Thumbs.db
+
+# 构建产物（容器内重新构建）
+backend/bin/
+frontend/dist/
+frontend/dist-ssr/
+*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
+frontend/postcss.config.js
+
+# Node 依赖（容器内重新安装）
+frontend/node_modules/
+
+# Go vendor（未启用 vendor 模式）
+backend/vendor/
+
+# 环境变量 / 密钥（绝不打包进镜像）
+.env
+.env.*
+*.local
+
+# 部署产物（部署用，不需进构建镜像）
+deploy/.env.prod
+deploy/.env
+
+# 日志 / 测试覆盖率
+logs/
+*.log
+coverage/
+*.lcov
