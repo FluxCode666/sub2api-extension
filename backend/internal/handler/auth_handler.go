@@ -1,0 +1,95 @@
+// Package handler 提供附属内容系统的 HTTP 处理器。
+//
+// AuthHandler 实现 POST /api/aux/admin/session:
+// 收 sub2api token → 转发 sub2api /auth/me 验证 → 角色判定 → 签发附属会话。
+//
+// 此端点在 AdminGuard 之外(调用时尚无附属会话)。
+package handler
+
+import (
+	"errors"
+
+	"aux-system/internal/integration"
+	"aux-system/internal/pkg/response"
+	"aux-system/internal/service"
+
+	"github.com/gin-gonic/gin"
+)
+
+// AuthHandler 处理管理员会话换取。
+type AuthHandler struct {
+	authService *service.AuthService
+}
+
+// NewAuthHandler 创建 auth handler。
+func NewAuthHandler(authService *service.AuthService) *AuthHandler {
+	return &AuthHandler{authService: authService}
+}
+
+// CreateSessionRequest 创建附属管理员会话的请求体。
+type CreateSessionRequest struct {
+	// Token 是 sub2api 管理员持有的 JWT(由 iframe 传入)。
+	Token string `json:"token" binding:"required"`
+}
+
+// CreateSessionResponse 创建会话成功的响应 data。
+type CreateSessionResponse struct {
+	// SessionToken 是附属系统签发的管理员会话 JWT,前端存储后用于访问受守卫端点。
+	SessionToken string `json:"session_token"`
+	// User 是经验证的管理员用户信息。
+	User SessionUser `json:"user"`
+}
+
+// SessionUser 会话中的用户信息。
+type SessionUser struct {
+	ID       int64  `json:"id"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
+	Role     string `json:"role"`
+}
+
+// CreateSession 处理 POST /api/aux/admin/session。
+//
+// 流程:
+//  1. 收 sub2api JWT(请求体 token 字段)
+//  2. 转发 sub2api /auth/me 验证(带 TTL 缓存)
+//  3. 角色判定: 非 admin → 403; 无效/过期 token → 401; sub2api 不可达 → 503
+//  4. 签发附属系统会话 JWT 并返回
+func (h *AuthHandler) CreateSession(c *gin.Context) {
+	var req CreateSessionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "token is required")
+		return
+	}
+
+	user, err := h.authService.VerifyAdminToken(c.Request.Context(), req.Token)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrNotAdmin):
+			response.Forbidden(c, "admin access required")
+		case errors.Is(err, service.ErrInvalidSub2APIToken):
+			response.Unauthorized(c, "invalid or expired sub2api token")
+		case errors.Is(err, integration.ErrSub2APIUnreachable):
+			response.ServiceUnavailable(c, "sub2api unreachable")
+		default:
+			response.ServiceUnavailable(c, "failed to verify admin token")
+		}
+		return
+	}
+
+	sessionToken, err := h.authService.IssueSession(user)
+	if err != nil {
+		response.InternalError(c, "failed to issue session")
+		return
+	}
+
+	response.Success(c, CreateSessionResponse{
+		SessionToken: sessionToken,
+		User: SessionUser{
+			ID:       user.ID,
+			Email:    user.Email,
+			Username: user.Username,
+			Role:     user.Role,
+		},
+	})
+}

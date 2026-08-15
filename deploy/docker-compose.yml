@@ -1,0 +1,150 @@
+# =============================================================================
+# Aux Content System Docker Compose Configuration
+# =============================================================================
+# 附属内容承载系统部署。零侵入 sub2api，独立运行。
+#
+# 两个服务：
+#   - aux-postgres: 附属系统自有 PostgreSQL（独立库，不复用 sub2api 的 postgres）
+#   - aux-backend:  附属系统后端（内嵌前端 dist，单进程同源托管）
+#
+# 网络互联：
+#   加入 sub2api 的 sub2api-network（external）。
+#   - sub2api 经此网络以 iframe URL 访问附属系统（同网络用 http://aux-backend:8787）
+#   - 附属系统经此网络访问 sub2api（http://sub2api:8080）
+#
+# 前置条件：
+#   sub2api 已通过其 deploy/docker-compose.yml 部署，sub2api-network 已存在。
+#
+# 快速开始：
+#   1. 复制 .env.example 到 .env 并配置
+#   2. docker compose up -d
+#   3. 检查日志: docker compose logs -f aux-backend
+#   4. 健康检查: curl http://localhost:${AUX_SERVER_PORT:-8787}/health
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # Aux PostgreSQL（附属系统自有数据库）
+  # ===========================================================================
+  # 独立于 sub2api 的 postgres，承载 page_view / feature_click 等埋点表。
+  # 不复用 sub2api 数据库，满足「自有数据库」要求（R1）。
+  aux-postgres:
+    image: postgres:18-alpine
+    container_name: aux-postgres
+    restart: unless-stopped
+    ulimits:
+      nofile:
+        soft: 100000
+        hard: 100000
+    volumes:
+      - aux-postgres-data:/var/lib/postgresql/data
+    environment:
+      - PGDATA=/var/lib/postgresql/data
+      - POSTGRES_USER=${AUX_POSTGRES_USER:-aux}
+      - POSTGRES_PASSWORD=${AUX_POSTGRES_PASSWORD:?AUX_POSTGRES_PASSWORD is required}
+      - POSTGRES_DB=${AUX_POSTGRES_DB:-auxdb}
+      - TZ=${TZ:-Asia/Shanghai}
+    networks:
+      - sub2api-network
+    # 仅允许宿主机访问（调试用）
+    ports:
+      - "127.0.0.1:${AUX_POSTGRES_HOST_PORT:-15433}:5432"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${AUX_POSTGRES_USER:-aux} -d ${AUX_POSTGRES_DB:-auxdb}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ===========================================================================
+  # Aux Backend（附属系统应用：后端 + 内嵌前端）
+  # ===========================================================================
+  # 多阶段 Dockerfile 构建的单镜像：后端 Go 二进制 + 前端 dist。
+  # 后端通过 AUX_FRONTEND_DIST=/app/frontend/dist 同源托管前端 SPA。
+  # 前端 api-client 使用相对路径 /api/aux，同源避免 CORS。
+  aux-backend:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: aux-system:latest
+    container_name: aux-backend
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "${BIND_HOST:-0.0.0.0}:${AUX_SERVER_PORT:-8787}:8787"
+    environment:
+      # ---- 服务器配置 ----
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8787
+      - SERVER_MODE=${SERVER_MODE:-release}
+
+      # ---- 自有 PostgreSQL 连接（同网络用服务名 aux-postgres）----
+      - DATABASE_HOST=aux-postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USER=${AUX_POSTGRES_USER:-aux}
+      - DATABASE_PASSWORD=${AUX_POSTGRES_PASSWORD:?AUX_POSTGRES_PASSWORD is required}
+      - DATABASE_DBNAME=${AUX_POSTGRES_DB:-auxdb}
+      - DATABASE_SSLMODE=disable
+
+      # ---- sub2api 对接（同网络用 http://sub2api:8080）----
+      # BaseURL: sub2api 后端地址。同 Docker 网络部署用 http://sub2api:8080；
+      #          若附属系统与 sub2api 不在同一网络，用 sub2api 的公网域名。
+      - SUB2API_BASE_URL=${SUB2API_BASE_URL:-http://sub2api:8080}
+      # AdminAPIKey: 在 sub2api 后台「安全」tab 生成的 Admin API Key（见 INTEGRATION.md）
+      - SUB2API_ADMIN_API_KEY=${SUB2API_ADMIN_API_KEY:?SUB2API_ADMIN_API_KEY is required}
+
+      # ---- JWT 配置（附属系统管理员会话签名）----
+      # 重要：设置固定 JWT_SECRET，避免容器重启后会话失效。
+      # 生成: openssl rand -hex 32
+      - JWT_SECRET=${AUX_JWT_SECRET:?AUX_JWT_SECRET is required}
+      - JWT_EXPIRE_HOUR=${AUX_JWT_EXPIRE_HOUR:-24}
+
+      # ---- 前端静态托管（Dockerfile 已默认设置，这里显式声明）----
+      - AUX_FRONTEND_DIST=/app/frontend/dist
+
+      # ---- 时区 ----
+      - TZ=${TZ:-Asia/Shanghai}
+    depends_on:
+      aux-postgres:
+        condition: service_healthy
+    networks:
+      - sub2api-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "-q",
+          "-T",
+          "5",
+          "-O",
+          "/dev/null",
+          "http://localhost:8787/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  aux-postgres-data:
+    driver: local
+
+# =============================================================================
+# Networks
+# =============================================================================
+# sub2api-network 是 sub2api 的 deploy/docker-compose.yml 创建的 bridge 网络。
+# 声明为 external：附属系统加入此网络以与 sub2api 互联，不重复创建。
+# sub2api 经此网络用 iframe URL（如 http://aux-backend:8787/）访问附属系统；
+# 附属系统经此网络用 http://sub2api:8080 访问 sub2api。
+networks:
+  sub2api-network:
+    external: true

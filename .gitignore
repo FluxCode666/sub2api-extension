@@ -1,0 +1,60 @@
+# ============ 依赖 ============
+# Go
+vendor/
+
+# Node
+node_modules/
+pnpm-lock.yaml.bak
+
+# ============ 构建产物 ============
+# Go
+/backend/server
+/backend/aux-system
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# 前端
+/frontend/dist/
+/frontend/dist-ssr/
+*.local
+
+# TypeScript 增量构建缓存
+*.tsbuildinfo
+
+# Vite 编译产物（由 .ts 生成，不入库）
+/frontend/vite.config.js
+/frontend/vite.config.d.ts
+/frontend/postcss.config.js
+
+# ============ 环境 / 密钥 ============
+.env
+.env.*
+!.env.example
+
+# ============ 日志 ============
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ============ 测试 / 覆盖率 ============
+coverage/
+*.lcov
+
+# ============ 编辑器 / OS ============
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
