@@ -110,6 +110,12 @@ func Load() (*Config, error) {
 }
 
 // setDefaults 设置配置默认值。
+//
+// 必需项(database.user/password/dbname、jwt.secret、sub2api.base_url/admin_api_key)
+// 这里也设空串默认值——不是为了提供默认值,而是为了给 viper 注册这些 key,
+// 使 AutomaticEnv 能从环境变量(DATABASE_USER 等)读取它们。
+// 否则 viper 只对已注册的 key 生效,未注册的必需项即使环境变量存在也读不到。
+// 真正的"是否提供"校验由 validate() 负责。
 func setDefaults() {
 	viper.SetDefault("server.host", "0.0.0.0")
 	viper.SetDefault("server.port", 8787)
@@ -121,8 +127,15 @@ func setDefaults() {
 
 	viper.SetDefault("database.host", "localhost")
 	viper.SetDefault("database.port", 5432)
+	viper.SetDefault("database.user", "")
+	viper.SetDefault("database.password", "")
+	viper.SetDefault("database.dbname", "")
 	viper.SetDefault("database.sslmode", "disable")
 
+	viper.SetDefault("sub2api.base_url", "")
+	viper.SetDefault("sub2api.admin_api_key", "")
+
+	viper.SetDefault("jwt.secret", "")
 	viper.SetDefault("jwt.expire_hour", 24)
 }
 
