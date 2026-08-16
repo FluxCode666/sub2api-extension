@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"aux-system/ent"
+	"aux-system/ent/migrate"
 	"aux-system/internal/config"
 	"aux-system/internal/handler"
 	adminhandler "aux-system/internal/handler/admin"
@@ -26,6 +27,7 @@ import (
 	"aux-system/internal/service"
 	"aux-system/internal/web"
 
+	entsql "entgo.io/ent/dialect/sql"
 	_ "github.com/lib/pq"
 )
 
@@ -38,6 +40,7 @@ var (
 
 func main() {
 	showVersion := flag.Bool("version", false, "Show version information")
+	migrateOnly := flag.Bool("migrate", false, "Create database tables (ent auto-migration) and exit")
 	flag.Parse()
 
 	if *showVersion {
@@ -49,6 +52,17 @@ func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	// -migrate: 建表后退出, 不启动 HTTP 服务。
+	// 后端启动时不会自动迁移(避免生产环境意外改 schema),
+	// 开发环境用 `go run ./cmd/server -migrate` 或 `make migrate` 一次性建表。
+	if *migrateOnly {
+		if err := runMigration(cfg); err != nil {
+			log.Fatalf("Migration failed: %v", err)
+		}
+		log.Println("Migration completed successfully")
+		return
 	}
 
 	log.Printf("aux-system %s starting in %s mode", Version, cfg.Server.Mode)
@@ -150,4 +164,25 @@ func initEnt(cfg *config.Config) (*ent.Client, error) {
 
 	log.Println("Ent client connected to PostgreSQL successfully")
 	return client, nil
+}
+
+// runMigration 执行 ent 自动迁移(建表), 不启动 HTTP 服务。
+//
+// 开发环境用 `make migrate` 或 `go run ./cmd/server -migrate` 一次性建表。
+// 生产环境用 Docker(镜像启动时已含 schema)或外部迁移流程, 不依赖此入口。
+func runMigration(cfg *config.Config) error {
+	dsn := cfg.Database.DSN()
+	log.Printf("Running migration against %s:%d/%s", cfg.Database.Host, cfg.Database.Port, cfg.Database.DBName)
+
+	db, err := sql.Open("postgres", dsn)
+	if err != nil {
+		return fmt.Errorf("opening database/sql: %w", err)
+	}
+	defer db.Close()
+
+	drv := entsql.OpenDB("postgres", db)
+	if err := migrate.NewSchema(drv).Create(context.Background()); err != nil {
+		return fmt.Errorf("creating schema: %w", err)
+	}
+	return nil
 }

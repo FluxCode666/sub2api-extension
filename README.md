@@ -140,25 +140,68 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 
 ## 本地开发
 
+开发环境用命令直接启动后端和前端，不依赖 Docker 部署。**数据库与中间件需自行用本地 docker 启动**（本仓库不负责拉起 PostgreSQL）。
+
+### 前置：启动 PostgreSQL 并建库
+
+后端连接 PostgreSQL（默认 `localhost:5432`，库名 `auxdb`，用户 `aux`）。自行用 docker 起一个：
+
+```bash
+docker run -d --name aux-pg -e POSTGRES_USER=aux -e POSTGRES_PASSWORD=aux \
+  -e POSTGRES_DB=auxdb -p 5432:5432 postgres:18-alpine
+```
+
 ### 后端
 
 ```bash
 cd backend
 go mod download
-go run ./cmd/server        # 需配置环境变量或 config.yaml
+
+# 1) 一次性建表（ent 自动迁移，幂等可重复执行）
+make migrate
+
+# 2) 启动开发服务器（debug 模式，监听 8090）
+make dev
 ```
 
-需要可达的 PostgreSQL。可用 `deploy/config.example.yaml` 作为配置参考，或通过环境变量配置（变量名见 `deploy/.env.example`）。
+`make dev` 通过环境变量注入开发配置：
+
+| 变量 | 默认 | 说明 |
+|------|------|------|
+| `DEV_SERVER_PORT` | `8090` | 后端监听端口（与前端 vite 代理一致） |
+| `DEV_DATABASE_HOST` | `localhost` | PG 地址 |
+| `DEV_DATABASE_PORT` | `5432` | PG 端口 |
+| `DEV_DATABASE_USER` | `aux` | PG 用户 |
+| `DEV_DATABASE_PASSWORD` | — | PG 密码（需通过环境变量提供） |
+| `DEV_DATABASE_DBNAME` | `auxdb` | PG 库名 |
+| `JWT_SECRET` | `dev-secret-not-for-production` | 开发用签名密钥 |
+
+> `SUB2API_BASE_URL` / `SUB2API_ADMIN_API_KEY` 可选——不配则管理端转发验证不可用，但公开首页与埋点正常。要联调管理端，在 `make dev` 前导出这两个变量。
+
+PG 密码有特殊字符时，直接导出环境变量再 `make dev`：
+
+```bash
+export DEV_DATABASE_PASSWORD='your@password'
+make dev
+```
 
 ### 前端
 
 ```bash
 cd frontend
 pnpm install
-pnpm dev                     # 开发服务器（默认 5173）
+pnpm dev        # 开发服务器 http://localhost:3100
 ```
 
-开发模式下前后端分离运行。前端用硬编码相对路径 `/api/aux` 调用后端，开发时需配置反向代理（如 Vite 的 `server.proxy`）将 `/api` 转发到后端地址。
+前端 dev server 监听 `3100`，已配置 `/api` 代理到 `http://localhost:8090`（即后端 `make dev` 的端口）。浏览器访问 `http://localhost:3100` 即可。
+
+### 端口约定
+
+| 服务 | 开发端口 | 说明 |
+|------|----------|------|
+| 前端 vite | `3100` | 浏览器访问入口 |
+| 后端 | `8090` | 前端代理目标，`make dev` 默认 |
+| PostgreSQL | `5432` | 本地 docker 容器映射 |
 
 ## 测试
 
