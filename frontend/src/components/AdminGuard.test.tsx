@@ -15,6 +15,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import AdminGuard from './AdminGuard'
 
 // mock admin-auth: 控制 exchangeSession/getAdminSession/clearAdminSession 行为
@@ -38,8 +39,22 @@ beforeEach(() => {
   })
 })
 
-function renderGuard(children: React.ReactNode = <div>protected-content</div>) {
-  return render(<AdminGuard>{children}</AdminGuard>)
+// renderGuard 包裹 MemoryRouter: AdminGuard 现在用 <Navigate>(需 Router 上下文)。
+// loginRoute 若为 true, 注册一个 /login 捕获路由, 用于断言 no-embedded-token 重定向。
+function renderGuard(
+  children: React.ReactNode = <div>protected-content</div>,
+  opts: { loginRoute?: boolean } = {},
+) {
+  return render(
+    <MemoryRouter initialEntries={['/admin']}>
+      <Routes>
+        <Route path="/admin" element={<AdminGuard>{children}</AdminGuard>} />
+        {opts.loginRoute && (
+          <Route path="/login" element={<div>login-page</div>} />
+        )}
+      </Routes>
+    </MemoryRouter>,
+  )
 }
 
 describe('AdminGuard', () => {
@@ -89,7 +104,7 @@ describe('AdminGuard', () => {
   })
 
   const deniedCases: Array<{ error: string; expectedText: string }> = [
-    { error: 'no-embedded-token', expectedText: '缺少 sub2api 身份信息' },
+    // no-embedded-token 不在此列: 它重定向到 /login, 见下方独立测试
     { error: 'forbidden', expectedText: '当前账号非管理员' },
     { error: 'unauthorized', expectedText: 'sub2api 身份已失效' },
     { error: 'unreachable', expectedText: '无法连接 sub2api 服务' },
@@ -110,6 +125,18 @@ describe('AdminGuard', () => {
       // children 不应渲染
       expect(screen.queryByText('protected-content')).not.toBeInTheDocument()
     })
+  })
+
+  it('redirects to /login when no embedded token (independent login entry)', async () => {
+    exchangeSessionMock.mockResolvedValue({ ok: false, error: 'no-embedded-token' })
+    renderGuard(<div>protected-content</div>, { loginRoute: true })
+
+    // 应重定向到 /login (捕获路由渲染 login-page), 不显示拒绝界面
+    await waitFor(() => {
+      expect(screen.getByText('login-page')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('访问被拒绝')).not.toBeInTheDocument()
+    expect(screen.queryByText('protected-content')).not.toBeInTheDocument()
   })
 
   it('defaults to unknown error when error field missing', async () => {

@@ -13,6 +13,7 @@ import PublicLayout from '@/layouts/PublicLayout'
 import AdminLayout from '@/layouts/AdminLayout'
 import AdminGuard from '@/components/AdminGuard'
 import HomePage from '@/pages/HomePage'
+import LoginPage from '@/pages/LoginPage'
 import SampleDynamicPage from '@/pages/SampleDynamicPage'
 import DashboardPage from '@/pages/admin/DashboardPage'
 
@@ -26,6 +27,9 @@ export default function App() {
       {/* 公开页: 无需认证 (对应 sub2api home_content 裸 iframe, KTD6) */}
       <Route element={<PublicLayout />}>
         <Route path="/" element={<HomePage />} />
+        {/* 独立登录入口: AdminGuard 的 no-embedded-token 分支重定向到此。
+            功能路由, 不登记到 page-registry (非内容页, 不污染埋点仪表盘)。 */}
+        <Route path="/login" element={<LoginPage />} />
       </Route>
       {/* 管理端: 需管理员会话 (对应 sub2api custom_menu_items, 传 token) */}
       <Route path="/admin" element={<AdminGuard><AdminLayout /></AdminGuard>}>

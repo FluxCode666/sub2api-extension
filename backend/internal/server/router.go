@@ -142,10 +142,13 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 	// 管理员分组
 	admin := r.Group("/api/aux/admin")
 
-	// session 端点: 在守卫之外。
-	// 它接收 sub2api JWT, 转发验证后签发附属会话。调用时尚无附属会话, 不能被 AdminGuard 保护。
+	// session 与 login 端点: 在守卫之外。
+	// session 接收 sub2api JWT(iframe 流程), 转发验证后签发附属会话。
+	// login 接收账号密码(独立登录入口), 代理 sub2api 登录后签发附属会话。
+	// 两者调用时尚无附属会话, 不能被 AdminGuard 保护。
 	if authHandler != nil {
 		admin.POST("/session", authHandler.CreateSession)
+		admin.POST("/login", authHandler.Login)
 	}
 
 	// 受守卫保护的 admin 端点: AdminGuard 校验附属系统会话 JWT。

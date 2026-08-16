@@ -44,6 +44,9 @@ var ErrNotAdmin = errors.New("sub2api user is not an admin")
 // ErrInvalidSub2APIToken sub2api 判定 token 无效或过期。
 var ErrInvalidSub2APIToken = errors.New("invalid or expired sub2api token")
 
+// ErrTwoFactorRequired 登录账号开启了两步验证(本期不支持, 直接拒绝)。
+var ErrTwoFactorRequired = errors.New("account requires two-factor authentication")
+
 // 不可达错误复用 integration.ErrSub2APIUnreachable(同一哨兵), 避免跨包定义两个
 // 同名同消息的错误导致 errors.Is 失配的混淆风险。service 层用 %w 包装该哨兵,
 // 使 errors.Is(err, integration.ErrSub2APIUnreachable) 对 service 层错误同样成立。
@@ -62,8 +65,11 @@ type AuthService struct {
 }
 
 // adminVerifier 抽象 sub2api 转发验证能力。
+//
+// Login 用账号密码登录 sub2api(供独立登录入口使用, 与 iframe token 换取互补)。
 type adminVerifier interface {
 	VerifyAdminJWT(ctx context.Context, token string) (bool, *integration.Sub2APIUserInfo, error)
+	Login(ctx context.Context, req integration.Sub2APILoginRequest) (*integration.Sub2APILoginResponse, error)
 }
 
 // NewAuthService 创建 auth service。
@@ -152,6 +158,42 @@ func (s *AuthService) VerifyAdminToken(ctx context.Context, sub2apiToken string)
 		return nil, ErrNotAdmin
 	}
 	return user, nil
+}
+
+// LoginAdmin 用账号密码登录 sub2api, 校验角色为 admin 后返回用户信息。
+//
+// 与 VerifyAdminToken 互补: VerifyAdminToken 转发已有 JWT(iframe 流程),
+// LoginAdmin 用账号密码登录(独立登录入口)。两者都不签发会话 —— 签发由 handler
+// 复用 IssueSession 完成, 保持 service 验证 / handler 签发的分层一致。
+//
+// 返回:
+//   - user: 管理员用户信息
+//   - err: ErrTwoFactorRequired / ErrNotAdmin / ErrInvalidCredentials / 包装 ErrSub2APIUnreachable
+func (s *AuthService) LoginAdmin(ctx context.Context, email, password string) (*integration.Sub2APIUserInfo, error) {
+	resp, err := s.client.Login(ctx, integration.Sub2APILoginRequest{
+		Email:    email,
+		Password: password,
+	})
+	if err != nil {
+		if errors.Is(err, integration.ErrInvalidCredentials) {
+			return nil, err
+		}
+		// 网络/不可达/5xx → 失败关闭, 包装 integration 哨兵供调用方判 503。
+		return nil, fmt.Errorf("%w: %v", integration.ErrSub2APIUnreachable, err)
+	}
+
+	// 2FA 分支: sub2api 返回 200 但 requires_2fa=true, 本期不支持。
+	if resp.Requires2FA {
+		return nil, ErrTwoFactorRequired
+	}
+
+	if resp.User.Role != "admin" {
+		return nil, ErrNotAdmin
+	}
+
+	// 复制 User 值返回指针(Sub2APILoginResponse.User 是值类型)。
+	user := resp.User
+	return &user, nil
 }
 
 // IssueSession 签发附属系统管理员会话 JWT。

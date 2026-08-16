@@ -152,6 +152,23 @@ func TestSetupRouter_AdminSessionEndpointOutsideGuard(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, w.Code)
 }
 
+func TestSetupRouter_AdminLoginEndpointOutsideGuard(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cfg := newTestConfig()
+	healthHandler := web.NewHealthHandler()
+	authHandler, authService := newTestAuthDeps()
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestProxyHandler(), newTestTelemetryHandler(), newTestAnalyticsHandler())
+
+	// POST /api/aux/admin/login 在守卫外: 缺 body 应返回 400(而非 401),
+	// 证明它未被 AdminGuard 拦截(独立登录入口, 调用时尚无附属会话)。
+	req := httptest.NewRequest(http.MethodPost, "/api/aux/admin/login", nil)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusBadRequest, w.Code)
+}
+
 func TestSetupRouter_UnknownPathReturns404(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cfg := newTestConfig()

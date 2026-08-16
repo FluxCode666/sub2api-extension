@@ -9,6 +9,7 @@
 package integration
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -117,8 +118,99 @@ func (c *Sub2APIClient) VerifyAdminJWT(ctx context.Context, token string) (isAdm
 	return isAdmin, &info, nil
 }
 
+// Sub2APILoginRequest sub2api 登录请求体。
+// captcha 字段省略: sub2api 未配置验证码提供者时 VerifyCaptcha 直接放行,
+// 传空字段与省略等价(已通过本地联调验证)。
+type Sub2APILoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+// Sub2APILoginResponse sub2api 登录响应的 data 部分。
+//
+// 正常登录: AccessToken/RefreshToken/User 填充, Requires2FA 为 false。
+// 2FA 分支: Requires2FA 为 true, AccessToken 为空, 填充 TempToken/UserEmailMasked。
+// User 复用 Sub2APIUserInfo(sub2api 返回的额外字段如 balance/status 被忽略)。
+type Sub2APILoginResponse struct {
+	AccessToken  string          `json:"access_token"`
+	RefreshToken string          `json:"refresh_token"`
+	ExpiresIn    int             `json:"expires_in"`
+	TokenType    string          `json:"token_type"`
+	User         Sub2APIUserInfo `json:"user"`
+
+	// 2FA 分支字段(requires_2fa=true 时填充)
+	Requires2FA     bool   `json:"requires_2fa,omitempty"`
+	TempToken       string `json:"temp_token,omitempty"`
+	UserEmailMasked string `json:"user_email_masked,omitempty"`
+}
+
+// Login 用账号密码调 sub2api POST /api/v1/auth/login。
+//
+// 返回值:
+//   - resp: 登录响应(含 access_token 与 user;2FA 分支 Requires2FA=true)
+//   - err: ErrInvalidCredentials(账号密码错误 401) / 包装 ErrSub2APIUnreachable(网络) / 其他状态码错误
+//
+// captcha 字段不传: sub2api 未配置验证码提供者时放行(已联调验证)。
+func (c *Sub2APIClient) Login(ctx context.Context, req Sub2APILoginRequest) (*Sub2APILoginResponse, error) {
+	url := c.baseURL + "/api/v1/auth/login"
+
+	bodyBytes, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("encoding login request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(bodyBytes))
+	if err != nil {
+		return nil, fmt.Errorf("building login request to sub2api: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrSub2APIUnreachable, err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading sub2api login response: %w", err)
+	}
+
+	// 账号密码错误: sub2api 返回 401。先判状态码再解 JSON(401 响应体可能非 JSON)。
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, ErrInvalidCredentials
+	}
+
+	var envelope sub2APIEnvelope
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return nil, fmt.Errorf("decoding sub2api login response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("sub2api login returned status %d: %s", resp.StatusCode, envelope.Message)
+	}
+	if envelope.Code != 0 {
+		return nil, fmt.Errorf("sub2api login returned error code %d: %s", envelope.Code, envelope.Message)
+	}
+
+	if len(envelope.Data) == 0 {
+		return nil, fmt.Errorf("sub2api login response missing data field")
+	}
+
+	var loginResp Sub2APILoginResponse
+	if err := json.Unmarshal(envelope.Data, &loginResp); err != nil {
+		return nil, fmt.Errorf("decoding sub2api login data: %w", err)
+	}
+
+	return &loginResp, nil
+}
+
 // ErrInvalidToken 表示 sub2api 判定 token 无效或过期(401)。
 var ErrInvalidToken = errors.New("invalid or expired sub2api token")
+
+// ErrInvalidCredentials 表示 sub2api 判定账号密码错误(登录 401)。
+var ErrInvalidCredentials = errors.New("invalid email or password")
 
 // ErrSub2APIUnreachable 表示 sub2api 网络不可达/超时(供调用方用 errors.Is 判定返回 503)。
 var ErrSub2APIUnreachable = errors.New("sub2api unreachable")

@@ -168,6 +168,13 @@ func mockSub2APIDashboard(handler http.HandlerFunc) *httptest.Server {
 	return httptest.NewServer(mux)
 }
 
+// mockSub2APILogin 启动 mock sub2api server, handler 控制 /api/v1/auth/login 响应。
+func mockSub2APILogin(handler http.HandlerFunc) *httptest.Server {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/auth/login", handler)
+	return httptest.NewServer(mux)
+}
+
 func TestGetDashboardStats_Success(t *testing.T) {
 	srv := mockSub2APIDashboard(func(w http.ResponseWriter, r *http.Request) {
 		// 校验请求带了 x-api-key
@@ -311,6 +318,165 @@ func TestGetDashboardStats_MissingDataField(t *testing.T) {
 
 	client := NewSub2APIClient(srv.URL, "valid-key")
 	_, err := client.GetDashboardStats(context.Background())
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "missing data")
+}
+
+// ============ Login 测试 ============
+
+func TestLogin_AdminSuccess(t *testing.T) {
+	srv := mockSub2APILogin(func(w http.ResponseWriter, r *http.Request) {
+		// 校验请求方法与 Content-Type
+		assert.Equal(t, http.MethodPost, r.Method)
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+
+		// 校验请求体
+		var body map[string]string
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		assert.Equal(t, "admin@example.com", body["email"])
+		assert.Equal(t, "secret-pass", body["password"])
+
+		writeJSON(w, http.StatusOK, map[string]any{
+			"code":    0,
+			"message": "success",
+			"data": map[string]any{
+				"access_token":  "jwt-token-xyz",
+				"refresh_token": "rt-abc",
+				"expires_in":    86400,
+				"token_type":    "Bearer",
+				"user": map[string]any{
+					"id":       1,
+					"email":    "admin@example.com",
+					"username": "admin",
+					"role":     "admin",
+				},
+			},
+		})
+	})
+	defer srv.Close()
+
+	client := NewSub2APIClient(srv.URL, "")
+	resp, err := client.Login(context.Background(), Sub2APILoginRequest{
+		Email: "admin@example.com", Password: "secret-pass",
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "jwt-token-xyz", resp.AccessToken)
+	assert.Equal(t, "admin", resp.User.Role)
+	assert.Equal(t, int64(1), resp.User.ID)
+	assert.False(t, resp.Requires2FA)
+}
+
+func TestLogin_InvalidCredentials(t *testing.T) {
+	srv := mockSub2APILogin(func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusUnauthorized, map[string]any{
+			"code":    401,
+			"message": "invalid email or password",
+			"reason":  "INVALID_CREDENTIALS",
+		})
+	})
+	defer srv.Close()
+
+	client := NewSub2APIClient(srv.URL, "")
+	_, err := client.Login(context.Background(), Sub2APILoginRequest{
+		Email: "x@example.com", Password: "wrong",
+	})
+
+	assert.ErrorIs(t, err, ErrInvalidCredentials)
+}
+
+func TestLogin_TwoFactorRequired(t *testing.T) {
+	srv := mockSub2APILogin(func(w http.ResponseWriter, r *http.Request) {
+		// 2FA 分支: 200 但 requires_2fa=true
+		writeJSON(w, http.StatusOK, map[string]any{
+			"code":    0,
+			"message": "success",
+			"data": map[string]any{
+				"requires_2fa":      true,
+				"temp_token":        "tt-2fa",
+				"user_email_masked": "a***@example.com",
+			},
+		})
+	})
+	defer srv.Close()
+
+	client := NewSub2APIClient(srv.URL, "")
+	resp, err := client.Login(context.Background(), Sub2APILoginRequest{
+		Email: "2fa@example.com", Password: "pass",
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.True(t, resp.Requires2FA)
+	assert.Equal(t, "tt-2fa", resp.TempToken)
+}
+
+func TestLogin_ApplicationErrorInSuccessEnvelope(t *testing.T) {
+	srv := mockSub2APILogin(func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"code":    1001,
+			"message": "captcha verification failed",
+		})
+	})
+	defer srv.Close()
+
+	client := NewSub2APIClient(srv.URL, "")
+	_, err := client.Login(context.Background(), Sub2APILoginRequest{
+		Email: "x@example.com", Password: "pass",
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "error code 1001")
+}
+
+func TestLogin_ServerError(t *testing.T) {
+	srv := mockSub2APILogin(func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{
+			"code":    500,
+			"message": "internal error",
+		})
+	})
+	defer srv.Close()
+
+	client := NewSub2APIClient(srv.URL, "")
+	_, err := client.Login(context.Background(), Sub2APILoginRequest{
+		Email: "x@example.com", Password: "pass",
+	})
+
+	assert.Error(t, err)
+	assert.NotErrorIs(t, err, ErrInvalidCredentials)
+	assert.Contains(t, err.Error(), "status 500")
+}
+
+func TestLogin_Unreachable(t *testing.T) {
+	srv := mockSub2APILogin(func(w http.ResponseWriter, r *http.Request) {})
+	srv.Close() // 立即关闭模拟不可达
+
+	client := NewSub2APIClient(srv.URL, "")
+	_, err := client.Login(context.Background(), Sub2APILoginRequest{
+		Email: "x@example.com", Password: "pass",
+	})
+
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrSub2APIUnreachable)
+}
+
+func TestLogin_MissingDataField(t *testing.T) {
+	srv := mockSub2APILogin(func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"code":    0,
+			"message": "success",
+			// 缺 data
+		})
+	})
+	defer srv.Close()
+
+	client := NewSub2APIClient(srv.URL, "")
+	_, err := client.Login(context.Background(), Sub2APILoginRequest{
+		Email: "x@example.com", Password: "pass",
+	})
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "missing data")

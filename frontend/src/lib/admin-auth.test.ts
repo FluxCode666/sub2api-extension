@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import {
   exchangeSession,
+  loginWithCredentials,
   getAdminSession,
   getAdminSessionToken,
   clearAdminSession,
@@ -199,6 +200,127 @@ describe('admin-auth', () => {
     it('returns null when no session exists', () => {
       expect(getAdminSession()).toBeNull()
       expect(getAdminSessionToken()).toBeNull()
+    })
+  })
+
+  describe('loginWithCredentials', () => {
+    it('logs in with email+password and saves session on success', async () => {
+      fetchMock.mockResolvedValueOnce(
+        mockResponse(200, {
+          code: 0,
+          message: 'success',
+          data: {
+            session_token: 'aux-login-jwt',
+            user: { id: 1, email: 'admin@sub2api.local', username: '', role: 'admin' },
+          },
+        }),
+      )
+
+      const result = await loginWithCredentials('admin@sub2api.local', '123456')
+
+      expect(result.ok).toBe(true)
+      expect(result.session?.token).toBe('aux-login-jwt')
+      expect(result.session?.user.role).toBe('admin')
+      // 会话已保存
+      expect(getAdminSessionToken()).toBe('aux-login-jwt')
+
+      // 请求体应带 email+password
+      const [url, init] = fetchMock.mock.calls[0]
+      expect(url).toBe('/api/aux/admin/login')
+      expect(init.method).toBe('POST')
+      expect(JSON.parse(init.body)).toEqual({
+        email: 'admin@sub2api.local',
+        password: '123456',
+      })
+    })
+
+    it('returns invalid-credentials on 401', async () => {
+      fetchMock.mockResolvedValueOnce(
+        mockResponse(401, { code: 401, message: '邮箱或密码错误' }),
+      )
+
+      const result = await loginWithCredentials('a@b.com', 'wrong')
+      expect(result.ok).toBe(false)
+      expect(result.error).toBe('invalid-credentials')
+    })
+
+    it('returns forbidden on 403 with NOT_ADMIN reason', async () => {
+      fetchMock.mockResolvedValueOnce(
+        mockResponse(403, {
+          code: 403,
+          message: '仅管理员可登录',
+          reason: 'NOT_ADMIN',
+        }),
+      )
+
+      const result = await loginWithCredentials('user@e.com', 'pass')
+      expect(result.ok).toBe(false)
+      expect(result.error).toBe('forbidden')
+    })
+
+    it('returns two-factor on 403 with TWO_FACTOR_REQUIRED reason', async () => {
+      fetchMock.mockResolvedValueOnce(
+        mockResponse(403, {
+          code: 403,
+          message: '该账号已开启两步验证,暂不支持',
+          reason: 'TWO_FACTOR_REQUIRED',
+        }),
+      )
+
+      const result = await loginWithCredentials('2fa@e.com', 'pass')
+      expect(result.ok).toBe(false)
+      expect(result.error).toBe('two-factor')
+    })
+
+    it('returns unreachable on 503', async () => {
+      fetchMock.mockResolvedValueOnce(
+        mockResponse(503, { code: 503, message: '无法连接 sub2api 服务' }),
+      )
+
+      const result = await loginWithCredentials('a@b.com', 'pass')
+      expect(result.ok).toBe(false)
+      expect(result.error).toBe('unreachable')
+    })
+
+    it('returns unreachable on network error (fetch throws)', async () => {
+      fetchMock.mockRejectedValueOnce(new Error('network error'))
+
+      const result = await loginWithCredentials('a@b.com', 'pass')
+      expect(result.ok).toBe(false)
+      expect(result.error).toBe('unreachable')
+    })
+
+    it('returns bad-request on 400', async () => {
+      fetchMock.mockResolvedValueOnce(
+        mockResponse(400, { code: 400, message: 'email and password are required' }),
+      )
+
+      const result = await loginWithCredentials('', '')
+      expect(result.ok).toBe(false)
+      expect(result.error).toBe('bad-request')
+    })
+
+    it('returns unknown on unexpected success envelope', async () => {
+      fetchMock.mockResolvedValueOnce(
+        mockResponse(200, { code: 0, message: 'success' }), // 缺 data
+      )
+
+      const result = await loginWithCredentials('a@b.com', 'pass')
+      expect(result.ok).toBe(false)
+      expect(result.error).toBe('unknown')
+    })
+
+    it('returns unknown when a successful response body is not JSON', async () => {
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => {
+          throw new SyntaxError('Unexpected token')
+        },
+      })
+
+      const result = await loginWithCredentials('a@b.com', 'pass')
+      expect(result).toEqual({ ok: false, error: 'unknown' })
     })
   })
 })

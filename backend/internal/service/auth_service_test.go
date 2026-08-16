@@ -19,6 +19,10 @@ type fakeSub2APIClient struct {
 	isAdmin     bool
 	user        *integration.Sub2APIUserInfo
 	err         error
+
+	// Login 返回控制(供 LoginAdmin 测试)
+	loginResp *integration.Sub2APILoginResponse
+	loginErr  error
 }
 
 func (f *fakeSub2APIClient) callCount() int32 {
@@ -28,6 +32,10 @@ func (f *fakeSub2APIClient) callCount() int32 {
 func (f *fakeSub2APIClient) VerifyAdminJWT(ctx context.Context, token string) (bool, *integration.Sub2APIUserInfo, error) {
 	atomic.AddInt32(&f.verifyCount, 1)
 	return f.isAdmin, f.user, f.err
+}
+
+func (f *fakeSub2APIClient) Login(ctx context.Context, req integration.Sub2APILoginRequest) (*integration.Sub2APILoginResponse, error) {
+	return f.loginResp, f.loginErr
 }
 
 func TestVerifyAdminToken_AdminThroughCache(t *testing.T) {
@@ -199,4 +207,82 @@ func TestVerifyAdminToken_CacheExpiry(t *testing.T) {
 	_, err = svc.VerifyAdminToken(context.Background(), "token-x")
 	require.NoError(t, err)
 	assert.Equal(t, int32(2), fake.callCount(), "TTL 过期后应重新回查")
+}
+
+// ============ LoginAdmin 测试 ============
+
+func newLoginService(fake *fakeSub2APIClient) *AuthService {
+	return &AuthService{
+		client:    fake,
+		secret:    []byte("test-secret"),
+		expireDur: time.Hour,
+		cacheTTL:  5 * time.Minute,
+		cache:     make(map[string]cachedVerification),
+	}
+}
+
+func TestLoginAdmin_AdminSuccess(t *testing.T) {
+	fake := &fakeSub2APIClient{
+		loginResp: &integration.Sub2APILoginResponse{
+			AccessToken: "sub2api-jwt",
+			User: integration.Sub2APIUserInfo{
+				ID: 1, Email: "admin@example.com", Username: "admin", Role: "admin",
+			},
+		},
+	}
+	svc := newLoginService(fake)
+
+	user, err := svc.LoginAdmin(context.Background(), "admin@example.com", "pass")
+	require.NoError(t, err)
+	require.NotNil(t, user)
+	assert.Equal(t, "admin", user.Role)
+	assert.Equal(t, int64(1), user.ID)
+}
+
+func TestLoginAdmin_NotAdmin(t *testing.T) {
+	fake := &fakeSub2APIClient{
+		loginResp: &integration.Sub2APILoginResponse{
+			User: integration.Sub2APIUserInfo{
+				ID: 2, Email: "user@example.com", Role: "user",
+			},
+		},
+	}
+	svc := newLoginService(fake)
+
+	_, err := svc.LoginAdmin(context.Background(), "user@example.com", "pass")
+	assert.ErrorIs(t, err, ErrNotAdmin)
+}
+
+func TestLoginAdmin_TwoFactorRequired(t *testing.T) {
+	fake := &fakeSub2APIClient{
+		loginResp: &integration.Sub2APILoginResponse{
+			Requires2FA: true,
+			TempToken:   "tt-2fa",
+		},
+	}
+	svc := newLoginService(fake)
+
+	_, err := svc.LoginAdmin(context.Background(), "2fa@example.com", "pass")
+	assert.ErrorIs(t, err, ErrTwoFactorRequired)
+}
+
+func TestLoginAdmin_InvalidCredentials(t *testing.T) {
+	fake := &fakeSub2APIClient{
+		loginErr: integration.ErrInvalidCredentials,
+	}
+	svc := newLoginService(fake)
+
+	_, err := svc.LoginAdmin(context.Background(), "x@example.com", "wrong")
+	assert.ErrorIs(t, err, integration.ErrInvalidCredentials)
+}
+
+func TestLoginAdmin_Unreachable(t *testing.T) {
+	fake := &fakeSub2APIClient{
+		loginErr: errors.New("connection refused"),
+	}
+	svc := newLoginService(fake)
+
+	_, err := svc.LoginAdmin(context.Background(), "x@example.com", "pass")
+	// 非 ErrInvalidCredentials 的错误应被包装为 ErrSub2APIUnreachable
+	assert.ErrorIs(t, err, integration.ErrSub2APIUnreachable)
 }

@@ -28,6 +28,13 @@ DEV_DATABASE_PORT ?= 5432
 DEV_DATABASE_USER ?= aux
 DEV_DATABASE_DBNAME ?= auxdb
 
+# sub2api 对接（可选，不配则公开页/埋点正常，管理端转发验证与 sub2api 数据代理不可用）。
+# 联调管理端时导出这两个变量再 make dev:
+#   export SUB2API_BASE_URL=http://localhost:8003   # sub2api 容器映射的宿主机端口
+#   export SUB2API_ADMIN_API_KEY=<在 sub2api 后台「安全」tab 生成>
+DEV_SUB2API_BASE_URL ?= $(SUB2API_BASE_URL)
+DEV_SUB2API_ADMIN_API_KEY ?= $(SUB2API_ADMIN_API_KEY)
+
 # dev: 以 debug 模式启动后端开发服务器。
 # 必需: JWT_SECRET（开发用任意值）、PG 已可达、建表已完成(make migrate)。
 # 可选: SUB2API_BASE_URL / SUB2API_ADMIN_API_KEY（不配则管理端转发验证不可用，公开页正常）。
@@ -40,6 +47,8 @@ dev:
 	DATABASE_PASSWORD=$(DEV_DATABASE_PASSWORD) \
 	DATABASE_DBNAME=$(DEV_DATABASE_DBNAME) \
 	JWT_SECRET=$(or $(JWT_SECRET),dev-secret-not-for-production) \
+	SUB2API_BASE_URL=$(DEV_SUB2API_BASE_URL) \
+	SUB2API_ADMIN_API_KEY=$(DEV_SUB2API_ADMIN_API_KEY) \
 	go run ./cmd/server
 
 # migrate: 一次性建表（ent 自动迁移）。需 PG 已可达且 DATABASE_* 指向正确库。
