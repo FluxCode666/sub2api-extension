@@ -18,6 +18,7 @@ import {
   clearAdminSession,
   type SessionError,
 } from '@/lib/admin-auth'
+import { trackCurrentPageView } from '@/lib/telemetry-sdk'
 
 type GuardState =
   | { status: 'loading' }
@@ -43,7 +44,10 @@ export default function AdminGuard({ children }: { children: ReactNode }) {
       // 已有有效会话 → 放行
       const existing = getAdminSession()
       if (existing) {
-        if (!cancelled) setState({ status: 'authenticated' })
+        if (!cancelled) {
+          trackCurrentPageView()
+          setState({ status: 'authenticated' })
+        }
         return
       }
 
@@ -52,6 +56,7 @@ export default function AdminGuard({ children }: { children: ReactNode }) {
       if (cancelled) return
 
       if (result.ok && result.session) {
+        trackCurrentPageView()
         setState({ status: 'authenticated' })
       } else {
         setState({ status: 'denied', error: result.error ?? 'unknown' })

@@ -4,9 +4,9 @@
  * 覆盖:
  *   1. 渲染表单 (email + password 输入 + 登录按钮)
  *   2. 提交调用 loginWithCredentials(email, password)
- *   3. 成功 → 跳转 /admin (通过捕获路由断言)
+ *   3. 成功 → 跳转 /admin/dashboard (通过捕获路由断言)
  *   4. 失败 → 显示错误信息, 不跳转
- *   5. 已登录用户访问 → 直接跳转 /admin
+ *   5. 已登录用户访问 → 直接跳转 /admin/dashboard
  *   6. 提交中按钮禁用
  */
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
@@ -28,8 +28,8 @@ function renderLogin() {
     <MemoryRouter initialEntries={['/login']}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        {/* 捕获 /admin 跳转目标 */}
-        <Route path="/admin" element={<div>dashboard</div>} />
+        {/* 捕获 canonical dashboard 跳转目标 */}
+        <Route path="/admin/dashboard" element={<div>dashboard</div>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -56,7 +56,7 @@ describe('LoginPage', () => {
     expect(screen.getByRole('button', { name: '登录' })).toBeInTheDocument()
   })
 
-  it('redirects to /admin when already logged in', async () => {
+  it('redirects to /admin/dashboard when already logged in', async () => {
     getAdminSessionMock.mockReturnValue({ token: 'existing', user: { role: 'admin' } })
     renderLogin()
 
@@ -65,7 +65,7 @@ describe('LoginPage', () => {
     })
   })
 
-  it('submits email+password and navigates to /admin on success', async () => {
+  it('submits email+password and navigates to /admin/dashboard on success', async () => {
     loginMock.mockResolvedValue({
       ok: true,
       session: { token: 'new-jwt', user: { role: 'admin' } },
@@ -77,7 +77,7 @@ describe('LoginPage', () => {
     await userEvent.click(screen.getByRole('button', { name: '登录' }))
 
     expect(loginMock).toHaveBeenCalledWith('admin@sub2api.local', '123456')
-    // 成功后跳转 /admin
+    // 成功后跳转 canonical dashboard
     await waitFor(() => {
       expect(screen.getByText('dashboard')).toBeInTheDocument()
     })

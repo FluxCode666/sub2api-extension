@@ -8,13 +8,14 @@
  *   - 访问量/功能使用度计数来自后端埋点聚合(R8/R9)
  *   - 两者按 page id 关联:
  *     * registry 有但埋点库无 → 零访问, 显示 0
- *     * 埋点库有但 registry 无 → 孤儿, 标注"未知页面"
- *   - 功能使用度按计数降序排序(R9/R10: 哪些功能用得更多)
+ *     * 埋点库有但 registry 无 → 历史数据保留但不在当前仪表盘展示
+ *   - 功能使用度仅展示当前 registry 页面, 按计数降序排序
  *
  * Covers U6(R5/R8/R9/R10), AE2(管理员看到页面清单与访问量), F2(管理员看到埋点分析)。
  * 降级: 加载失败显示提示不崩(镜像 SampleDynamicPage 风格)。
  */
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { apiClient, type AuxEnvelope } from '@/lib/api-client'
 import { getPages, type PageEntry } from '@/lib/page-registry'
 import ErrorState from '@/components/ErrorState'
@@ -43,7 +44,6 @@ interface PageRow {
   path: string
   visibility: string
   viewCount: number
-  isOrphan: boolean
 }
 
 type LoadState =
@@ -82,25 +82,13 @@ export default function DashboardPage() {
           path: p.path,
           visibility: p.visibility,
           viewCount: viewCounts.get(p.id) ?? 0,
-          isOrphan: false,
         }))
 
-        // 孤儿页: 后端返回但 registry 无的 page id, 标注"未知页面"。
-        for (const pv of envelope.data.page_views) {
-          if (!registryIds.has(pv.page_id)) {
-            pages.push({
-              pageId: pv.page_id,
-              title: '未知页面',
-              path: '(孤儿)',
-              visibility: 'unknown',
-              viewCount: pv.count,
-              isOrphan: true,
-            })
-          }
-        }
-
-        // 功能使用度已由后端按计数降序排序, 直接使用。
-        setState({ status: 'ok', pages, features: envelope.data.feature_clicks })
+        // 只展示当前页面的功能使用度; 已删除页面的历史数据仍保留在数据库。
+        const features = envelope.data.feature_clicks.filter((feature) =>
+          registryIds.has(feature.page_id),
+        )
+        setState({ status: 'ok', pages, features })
       })
       .catch((err: unknown) => {
         if (cancelled) return
@@ -140,6 +128,10 @@ export default function DashboardPage() {
   }
 
   const totalViews = state.pages.reduce((sum, p) => sum + p.viewCount, 0)
+  const totalFeatureClicks = state.features.reduce(
+    (sum, feature) => sum + feature.count,
+    0,
+  )
 
   return (
     <div className="space-y-6">
@@ -156,10 +148,7 @@ export default function DashboardPage() {
       <section className="grid gap-4 sm:grid-cols-3">
         <SummaryCard label="页面总数" value={state.pages.length} />
         <SummaryCard label="总访问量" value={totalViews} />
-        <SummaryCard
-          label="孤儿页面"
-          value={state.pages.filter((p) => p.isOrphan).length}
-        />
+        <SummaryCard label="功能点击" value={totalFeatureClicks} />
       </section>
 
       {/* 页面清单 + 访问量 (R5/R8/R10) */}
@@ -168,7 +157,7 @@ export default function DashboardPage() {
           页面访问量
         </h2>
         <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <table className="min-w-[760px] divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
                 <Th>页面标题</Th>
@@ -180,23 +169,25 @@ export default function DashboardPage() {
             </thead>
             <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
               {state.pages.map((p) => (
-                <tr
-                  key={p.pageId}
-                  className={p.isOrphan ? 'bg-amber-50 dark:bg-amber-900/20' : ''}
-                >
-                  <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                    {p.title}
-                    {p.isOrphan && (
-                      <span className="ml-2 rounded bg-amber-200 px-1.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-800 dark:text-amber-200">
-                        孤儿
-                      </span>
-                    )}
+                <tr key={p.pageId}>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                    <Link
+                      to={p.path}
+                      className="font-medium text-blue-700 hover:underline dark:text-blue-300"
+                    >
+                      {p.title}
+                    </Link>
                   </td>
-                  <td className="px-4 py-3 text-sm font-mono text-gray-600 dark:text-gray-400">
+                  <td className="whitespace-nowrap px-4 py-3 text-sm font-mono text-gray-600 dark:text-gray-400">
                     {p.pageId}
                   </td>
-                  <td className="px-4 py-3 text-sm font-mono text-gray-600 dark:text-gray-400">
-                    {p.path}
+                  <td className="whitespace-nowrap px-4 py-3 text-sm font-mono">
+                    <Link
+                      to={p.path}
+                      className="text-blue-700 hover:underline dark:text-blue-300"
+                    >
+                      {p.path}
+                    </Link>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                     <VisibilityBadge visibility={p.visibility} />
@@ -209,11 +200,6 @@ export default function DashboardPage() {
             </tbody>
           </table>
         </div>
-        {state.pages.some((p) => p.isOrphan) && (
-          <p className="mt-2 text-xs text-amber-600 dark:text-amber-500">
-            注: 标注"孤儿"的页面有埋点记录但不在当前 page-registry 中(可能已删除)。
-          </p>
-        )}
       </section>
 
       {/* 功能使用度 (R9/R10: 哪些功能用得更多, 按计数降序) */}
@@ -227,7 +213,7 @@ export default function DashboardPage() {
           </p>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <table className="min-w-[640px] divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
                   <Th>排名</Th>
@@ -282,7 +268,7 @@ function Th({
 }) {
   return (
     <th
-      className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 ${className ?? ''}`}
+      className={`whitespace-nowrap px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 ${className ?? ''}`}
     >
       {children}
     </th>

@@ -8,66 +8,63 @@ import {
   getAdminPages,
 } from './page-registry'
 
+const expectedPages = [
+  {
+    id: 'dashboard',
+    title: '分析仪表盘',
+    path: '/admin/dashboard',
+    visibility: 'admin',
+  },
+  {
+    id: 'example-content',
+    title: '静态内容示例',
+    path: '/admin/examples/content',
+    visibility: 'admin',
+  },
+  {
+    id: 'example-interaction',
+    title: '交互与埋点示例',
+    path: '/admin/examples/interaction',
+    visibility: 'admin',
+  },
+  {
+    id: 'example-api',
+    title: 'API 请求示例',
+    path: '/admin/examples/api',
+    visibility: 'admin',
+  },
+]
+
 describe('page-registry', () => {
-  it('declares the expected pages with id/title/path/visibility', () => {
-    // R5: 页面清单从代码派生, 非独立注册表。
-    expect(PAGE_REGISTRY).toHaveLength(2)
-
-    const home = getPageById('home')
-    expect(home).toBeDefined()
-    expect(home?.title).toBe('首页')
-    expect(home?.path).toBe('/')
-    expect(home?.visibility).toBe('public')
-
-    const dashboard = getPageById('dashboard')
-    expect(dashboard).toBeDefined()
-    expect(dashboard?.title).toBe('分析仪表盘')
-    expect(dashboard?.path).toBe('/admin/dashboard')
-    expect(dashboard?.visibility).toBe('admin')
+  it('declares only the current dashboard and example pages', () => {
+    expect(PAGE_REGISTRY).toEqual(expectedPages)
   })
 
-  it('every entry has a unique id (KTD7 shared namespace)', () => {
-    const ids = PAGE_REGISTRY.map((p) => p.id)
+  it('every entry has a unique id and path', () => {
+    const ids = PAGE_REGISTRY.map((page) => page.id)
+    const paths = PAGE_REGISTRY.map((page) => page.path)
+
     expect(new Set(ids).size).toBe(ids.length)
-  })
-
-  it('every entry has a unique path', () => {
-    const paths = PAGE_REGISTRY.map((p) => p.path)
     expect(new Set(paths).size).toBe(paths.length)
   })
 
-  it('page paths match App.tsx registered routes', () => {
-    // 与 App.tsx 路由 path 一致 (KTD7): 清单是路由的真相源。
-    // App.tsx 注册: '/' (HomePage), '/admin' index + '/admin/dashboard' (DashboardPage)
-    const registeredPaths = ['/', '/admin/dashboard']
-    for (const entry of PAGE_REGISTRY) {
-      expect(registeredPaths).toContain(entry.path)
-    }
+  it('does not register the root redirect as an analytics page', () => {
+    expect(getPageById('home')).toBeUndefined()
+    expect(getPageByPath('/')).toBeUndefined()
+    expect(getPublicPages()).toEqual([])
   })
 
-  it('getPageById returns undefined for unknown id', () => {
-    expect(getPageById('does-not-exist')).toBeUndefined()
-  })
-
-  it('getPageByPath finds pages and returns undefined for unknown path', () => {
-    expect(getPageByPath('/')?.id).toBe('home')
-    expect(getPageByPath('/admin/dashboard')?.id).toBe('dashboard')
+  it('finds current pages by id and path', () => {
+    expect(getPageById('example-content')?.path).toBe('/admin/examples/content')
+    expect(getPageByPath('/admin/examples/interaction')?.id).toBe(
+      'example-interaction',
+    )
+    expect(getPageByPath('/admin/examples/api')?.id).toBe('example-api')
     expect(getPageByPath('/nope')).toBeUndefined()
   })
 
-  it('getPublicPages returns only public-visibility pages', () => {
-    const publicPages = getPublicPages()
-    expect(publicPages.every((p) => p.visibility === 'public')).toBe(true)
-    expect(publicPages.map((p) => p.id)).toContain('home')
-  })
-
-  it('getAdminPages returns only admin-visibility pages', () => {
-    const adminPages = getAdminPages()
-    expect(adminPages.every((p) => p.visibility === 'admin')).toBe(true)
-    expect(adminPages.map((p) => p.id)).toContain('dashboard')
-  })
-
-  it('getPages returns the full registry', () => {
-    expect(getPages()).toHaveLength(PAGE_REGISTRY.length)
+  it('returns all registered pages as admin pages', () => {
+    expect(getAdminPages()).toEqual(expectedPages)
+    expect(getPages()).toEqual(expectedPages)
   })
 })

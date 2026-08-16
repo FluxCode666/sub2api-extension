@@ -62,7 +62,7 @@ func TestAnalyticsHandler_GetOverview_Success(t *testing.T) {
 			PageViews: []service.PageViewCountDTO{
 				{PageID: "home", Count: 2},
 				{PageID: "dashboard", Count: 1},
-				{PageID: "ghost-page", Count: 3}, // 孤儿
+				{PageID: "ghost-page", Count: 3}, // 已删除页面的历史计数
 			},
 			FeatureClicks: []service.FeatureClickCountDTO{
 				{PageID: "dashboard", FeatureID: "refresh-btn", Count: 5},
@@ -128,13 +128,13 @@ func TestAnalyticsHandler_GetOverview_StoreError_500(t *testing.T) {
 	assert.Contains(t, env.Message, "failed to fetch")
 }
 
-func TestAnalyticsHandler_GetOverview_OrphanPageReturned(t *testing.T) {
-	// 孤儿页(后端有但 registry 无)应被后端返回, 前端负责标注。
+func TestAnalyticsHandler_GetOverview_HistoricalPageReturned(t *testing.T) {
+	// 已删除页面的历史计数应由后端返回, 前端按当前 registry 过滤。
 	provider := &mockAnalyticsProvider{
 		resp: &service.OverviewResponse{
 			PageViews: []service.PageViewCountDTO{
 				{PageID: "home", Count: 1},
-				{PageID: "deleted-page", Count: 7}, // 孤儿
+				{PageID: "deleted-page", Count: 7}, // 历史数据
 			},
 		},
 	}
@@ -148,10 +148,10 @@ func TestAnalyticsHandler_GetOverview_OrphanPageReturned(t *testing.T) {
 	require.NoError(t, json.Unmarshal(decodeAnalyticsEnvelope(t, w).Data, &data))
 	require.Len(t, data.PageViews, 2)
 
-	// 孤儿页计数应出现在响应中
-	orphans := make(map[string]int)
+	// 历史页计数应出现在响应中。
+	historical := make(map[string]int)
 	for _, pv := range data.PageViews {
-		orphans[pv.PageID] = pv.Count
+		historical[pv.PageID] = pv.Count
 	}
-	assert.Equal(t, 7, orphans["deleted-page"], "孤儿页计数应被后端返回")
+	assert.Equal(t, 7, historical["deleted-page"], "历史页计数应被后端返回")
 }

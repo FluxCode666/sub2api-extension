@@ -4,10 +4,10 @@
 //
 // 设计要点(KTD7: page-registry 与埋点按 page id 关联):
 //   - 后端不持有 page-registry, 只从埋点库聚合计数。
-//   - 后端返回的 page view 计数 = 埋点库中存在记录的 page_id 及计数(含可能的孤儿)。
-//   - 前端用 page-registry 派生完整清单, 与后端计数按 id 关联:
-//     * registry 有但埋点库无 → 零访问(前端显示 0, 后端不返回此项)
-//     * 埋点库有但 registry 无 → 孤儿(后端返回此项, 前端标注/过滤)
+//   - 后端返回埋点库中所有 page_id 的 page view 计数, 不判断页面是否仍存在。
+//   - 前端用 page-registry 派生当前清单, 与后端计数按 id 关联:
+//   - registry 有但埋点库无 → 零访问(前端显示 0, 后端不返回此项)
+//   - 埋点库有但 registry 无 → 历史数据保留, 前端不展示
 //   - 功能使用度按 feature click 计数降序排序(R9/R10: 哪些功能用得更多)。
 //
 // Covers U6(R5/R8/R9/R10), KTD7(按 page id 关联)。
@@ -27,7 +27,7 @@ import (
 type OverviewResponse struct {
 	// PageViews 按 page_id 分组的页面访问计数(仅含有记录的 page, 未排序)。
 	// registry 有但此列表无的 page → 零访问(前端显示 0)。
-	// 此列表有但 registry 无的 page → 孤儿(前端标注)。
+	// 此列表有但 registry 无的 page → 历史数据(前端过滤)。
 	PageViews []PageViewCountDTO `json:"page_views"`
 	// FeatureClicks 按 feature 聚合的功能点击计数, 已按计数降序排序(R9/R10)。
 	FeatureClicks []FeatureClickCountDTO `json:"feature_clicks"`
@@ -61,7 +61,7 @@ func NewAnalyticsService(store AnalyticsStore) *AnalyticsService {
 //   - 各 feature 的点击计数(按 page_id+feature_id 分组, 按计数降序排序)
 //
 // 后端不耦合 page-registry(见 KTD7): 零访问页不在 PageViews 列表(前端显示 0);
-// 孤儿页(后端有但 registry 无)在 PageViews 列表(前端标注)。
+// 已删除页面仍在 PageViews 列表中, 由前端按当前 registry 过滤。
 //
 // 两次聚合查询互不依赖(分别读 page_views 与 feature_clicks 表), 并发执行。
 func (s *AnalyticsService) GetOverview(ctx context.Context) (*OverviewResponse, error) {

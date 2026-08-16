@@ -332,6 +332,42 @@ func TestSetupRouter_AnalyticsEndpointRegistered(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "feature_clicks")
 }
 
+func TestSetupRouter_ExamplesStatusEndpointGuardedWithoutSession(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cfg := newTestConfig()
+	healthHandler := web.NewHealthHandler()
+	authHandler, authService := newTestAuthDeps()
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/aux/admin/examples/status", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestSetupRouter_ExamplesStatusEndpointRegistered(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cfg := newTestConfig()
+	healthHandler := web.NewHealthHandler()
+	authHandler, authService := newTestAuthDeps()
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler())
+
+	token, err := authService.IssueSession(&integration.Sub2APIUserInfo{
+		ID: 1, Email: "a@e.com", Username: "admin", Role: "admin",
+	})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/aux/admin/examples/status", nil)
+	req.Header.Set("X-Aux-Session", token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "aux-system")
+	assert.Contains(t, w.Body.String(), "server_time")
+}
+
 func TestSetupRouter_AnalyticsEndpointNilHandlerSkipped(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cfg := newTestConfig()

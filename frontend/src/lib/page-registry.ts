@@ -38,15 +38,27 @@ export interface PageEntry {
  */
 export const PAGE_REGISTRY: readonly PageEntry[] = [
   {
-    id: 'home',
-    title: '首页',
-    path: '/',
-    visibility: 'public',
-  },
-  {
     id: 'dashboard',
     title: '分析仪表盘',
     path: '/admin/dashboard',
+    visibility: 'admin',
+  },
+  {
+    id: 'example-content',
+    title: '静态内容示例',
+    path: '/admin/examples/content',
+    visibility: 'admin',
+  },
+  {
+    id: 'example-interaction',
+    title: '交互与埋点示例',
+    path: '/admin/examples/interaction',
+    visibility: 'admin',
+  },
+  {
+    id: 'example-api',
+    title: 'API 请求示例',
+    path: '/admin/examples/api',
     visibility: 'admin',
   },
 ] as const

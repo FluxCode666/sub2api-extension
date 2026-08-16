@@ -8,13 +8,15 @@
  * 路由 meta 思路对齐 sub2api frontend/src/router/index.ts:
  *   requiresAuth / requiresAdmin 通过 guard 组件实现 (U3)。
  */
-import { Routes, Route } from 'react-router-dom'
+import { Navigate, Routes, Route } from 'react-router-dom'
 import PublicLayout from '@/layouts/PublicLayout'
 import AdminLayout from '@/layouts/AdminLayout'
 import AdminGuard from '@/components/AdminGuard'
-import HomePage from '@/pages/HomePage'
 import LoginPage from '@/pages/LoginPage'
 import DashboardPage from '@/pages/admin/DashboardPage'
+import ContentExamplePage from '@/pages/examples/ContentExamplePage'
+import InteractionExamplePage from '@/pages/examples/InteractionExamplePage'
+import APIExamplePage from '@/pages/examples/APIExamplePage'
 
 function NotFound() {
   return <h1 className="text-2xl font-bold">404 Not Found</h1>
@@ -23,18 +25,20 @@ function NotFound() {
 export default function App() {
   return (
     <Routes>
-      {/* 公开页: 无需认证 (对应 sub2api home_content 裸 iframe, KTD6) */}
+      <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+      {/* 独立登录入口: AdminGuard 的 no-embedded-token 分支重定向到此。
+          功能路由, 不登记到 page-registry (非内容页, 不污染埋点仪表盘)。 */}
       <Route element={<PublicLayout />}>
-        <Route path="/" element={<HomePage />} />
-        {/* 独立登录入口: AdminGuard 的 no-embedded-token 分支重定向到此。
-            功能路由, 不登记到 page-registry (非内容页, 不污染埋点仪表盘)。 */}
         <Route path="/login" element={<LoginPage />} />
       </Route>
       {/* 管理端: 需管理员会话 (对应 sub2api custom_menu_items, 传 token) */}
       <Route path="/admin" element={<AdminGuard><AdminLayout /></AdminGuard>}>
         {/* U6: 仪表盘为管理端首页 (R10) */}
-        <Route index element={<DashboardPage />} />
+        <Route index element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="examples/content" element={<ContentExamplePage />} />
+        <Route path="examples/interaction" element={<InteractionExamplePage />} />
+        <Route path="examples/api" element={<APIExamplePage />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

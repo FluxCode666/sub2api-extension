@@ -50,6 +50,10 @@ pnpm-debug.log*
 coverage/
 *.lcov
 
+# 本地 agent 与浏览器验收工件
+/.pi/
+/output/playwright/
+
 # ============ 编辑器 / OS ============
 .vscode/*
 !.vscode/extensions.json

@@ -60,13 +60,13 @@ func TestAnalyticsService_GetOverview_PageViewCounts(t *testing.T) {
 	assert.False(t, exists, "零访问页不应在 PageViews 列表")
 }
 
-func TestAnalyticsService_GetOverview_OrphanPageInView(t *testing.T) {
-	// 孤儿: "ghost-page" 在埋点库有记录但不在 page-registry(后端不感知 registry)。
-	// 后端应原样返回此计数(前端识别为孤儿并标注)。
+func TestAnalyticsService_GetOverview_HistoricalPageInView(t *testing.T) {
+	// 历史页: "ghost-page" 在埋点库有记录但不在当前 page-registry。
+	// 后端不感知 registry, 因此仍应原样返回此计数。
 	store := &mockAnalyticsStore{
 		pageViews: []PageViewCount{
 			{PageID: "home", Count: 5},
-			{PageID: "ghost-page", Count: 3}, // 孤儿
+			{PageID: "ghost-page", Count: 3}, // 已删除页面的历史计数
 		},
 	}
 	svc := NewAnalyticsService(store)
@@ -78,9 +78,9 @@ func TestAnalyticsService_GetOverview_OrphanPageInView(t *testing.T) {
 	for _, pv := range resp.PageViews {
 		counts[pv.PageID] = pv.Count
 	}
-	// 孤儿页计数应被返回(前端负责标注/过滤, 后端不耦合 registry)
+	// 历史页计数仍由后端返回, 前端按当前 registry 过滤。
 	assert.Equal(t, 5, counts["home"])
-	assert.Equal(t, 3, counts["ghost-page"], "孤儿页计数应被后端返回, 前端负责标注")
+	assert.Equal(t, 3, counts["ghost-page"], "历史页计数应被后端返回, 前端负责过滤")
 }
 
 func TestAnalyticsService_GetOverview_FeatureClicksSortedDescending(t *testing.T) {

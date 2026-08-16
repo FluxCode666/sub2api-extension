@@ -3,17 +3,19 @@ import {
   initTelemetry,
   trackPageView,
   trackFeatureClick,
+  trackCurrentPageView,
   resetTelemetry,
 } from './telemetry-sdk'
 import { resetVisitorId } from './visitor-id'
+import { getAdminSession } from './admin-auth'
 
 // mock fetch 全局, 拦截上报请求
 const fetchMock = vi.fn()
 vi.stubGlobal('fetch', fetchMock)
 
-// mock admin-auth: 默认无管理员会话
+// mock admin-auth: 每个测试显式控制管理员会话。
 vi.mock('./admin-auth', () => ({
-  getAdminSession: vi.fn(() => null),
+  getAdminSession: vi.fn(),
 }))
 
 describe('telemetry-sdk', () => {
@@ -23,6 +25,7 @@ describe('telemetry-sdk', () => {
     resetVisitorId()
     localStorage.clear()
     resetTelemetry()
+    vi.mocked(getAdminSession).mockReturnValue(null)
   })
 
   afterEach(() => {
@@ -104,102 +107,133 @@ describe('telemetry-sdk', () => {
   })
 
   describe('initTelemetry route tracking', () => {
-    it('reports page_view for the initial route on init', () => {
-      // 设置初始路径为 home (在 page-registry 中)
-      window.history.replaceState({}, '', '/')
+    beforeEach(() => {
+      vi.mocked(getAdminSession).mockReturnValue({
+        token: 'valid-session',
+        user: { id: 1, email: 'a@e.com', username: 'admin', role: 'admin' },
+      })
+    })
+
+    it('does not report a guarded route before authentication', () => {
+      vi.mocked(getAdminSession).mockReturnValue(null)
+      window.history.replaceState({}, '', '/admin/dashboard')
 
       initTelemetry()
 
-      // 初始化时应上报当前页面的首次访问
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('reports the current guarded route once authentication succeeds', () => {
+      vi.mocked(getAdminSession).mockReturnValue(null)
+      window.history.replaceState({}, '', '/admin/dashboard')
+      initTelemetry()
+      expect(fetchMock).not.toHaveBeenCalled()
+
+      vi.mocked(getAdminSession).mockReturnValue({
+        token: 'valid-session',
+        user: { id: 1, email: 'a@e.com', username: 'admin', role: 'admin' },
+      })
+      trackCurrentPageView()
+      trackCurrentPageView()
+
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body as string)
+      expect(body).toMatchObject({ page_id: 'dashboard', is_admin: true })
+    })
+
+    it('reports page_view for the initial registered route on init', () => {
+      window.history.replaceState({}, '', '/admin/dashboard')
+
+      initTelemetry()
+
       expect(fetchMock).toHaveBeenCalledTimes(1)
       const [url, init] = fetchMock.mock.calls[0]
       expect(url).toBe('/api/aux/telemetry/page-view')
       const body = JSON.parse(init.body as string)
-      expect(body.page_id).toBe('home')
+      expect(body.page_id).toBe('dashboard')
     })
 
     it('reports page_view on history.pushState (SPA route change)', () => {
-      window.history.replaceState({}, '', '/')
+      window.history.replaceState({}, '', '/admin/dashboard')
       initTelemetry()
 
-      // 初始上报
       expect(fetchMock).toHaveBeenCalledTimes(1)
 
-      // 模拟 SPA 导航到 /admin/dashboard
-      window.history.pushState({}, '', '/admin/dashboard')
+      window.history.pushState({}, '', '/admin/examples/content')
 
       expect(fetchMock).toHaveBeenCalledTimes(2)
       const [, init] = fetchMock.mock.calls[1]
       const body = JSON.parse(init.body as string)
-      expect(body.page_id).toBe('dashboard')
+      expect(body.page_id).toBe('example-content')
     })
 
     it('does NOT report when path is not in page-registry (e.g. /unknown)', () => {
       window.history.replaceState({}, '', '/unknown')
       initTelemetry()
 
-      // /unknown 不在 page-registry → 不上报
       expect(fetchMock).not.toHaveBeenCalled()
     })
 
-    it('does NOT report for 404 path on route change', () => {
-      window.history.replaceState({}, '', '/')
+    it('does NOT report for an unregistered path after a valid route', () => {
+      window.history.replaceState({}, '', '/admin/dashboard')
       initTelemetry()
 
-      // 初始上报(home)
       expect(fetchMock).toHaveBeenCalledTimes(1)
 
-      // 导航到不在 registry 的路径
       window.history.pushState({}, '', '/some-random-path')
 
-      // 不应新增上报
       expect(fetchMock).toHaveBeenCalledTimes(1)
     })
 
-    it('produces multiple records for repeated route switches (per-visit counting)', () => {
+    it('deduplicates consecutive events for the same path', () => {
       window.history.replaceState({}, '', '/')
       initTelemetry()
 
-      // 初始上报
+      window.history.replaceState({}, '', '/admin/dashboard')
+      window.history.replaceState({}, '', '/admin/dashboard')
+
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body as string)
+      expect(body.page_id).toBe('dashboard')
+    })
+
+    it('produces multiple records after navigating away and returning', () => {
+      window.history.replaceState({}, '', '/admin/dashboard')
+      initTelemetry()
+
       expect(fetchMock).toHaveBeenCalledTimes(1)
 
-      // 来回切换多次
-      window.history.pushState({}, '', '/admin/dashboard')
-      window.history.pushState({}, '', '/')
+      window.history.pushState({}, '', '/admin/examples/content')
+      window.history.pushState({}, '', '/admin/examples/interaction')
       window.history.pushState({}, '', '/admin/dashboard')
 
-      // 每次有效路由切换都上报一条(按访问计,非去重)
       expect(fetchMock).toHaveBeenCalledTimes(4)
     })
 
     it('reports on popstate (browser back/forward)', () => {
-      window.history.replaceState({}, '', '/')
+      window.history.replaceState({}, '', '/admin/dashboard')
       initTelemetry()
 
       expect(fetchMock).toHaveBeenCalledTimes(1)
 
-      // pushState 到另一个页面
-      window.history.pushState({}, '', '/admin/dashboard')
+      window.history.pushState({}, '', '/admin/examples/content')
       expect(fetchMock).toHaveBeenCalledTimes(2)
 
-      // 模拟浏览器后退: 先改变 URL 再触发 popstate 事件
-      // jsdom 的 history.back() 是异步的, 这里直接模拟 popstate 的效果
-      window.history.replaceState({}, '', '/')
+      // jsdom 的 history.back() 是异步的, 直接设置目标 URL 后触发 popstate。
+      window.history.replaceState({}, '', '/admin/dashboard')
       window.dispatchEvent(new PopStateEvent('popstate'))
 
-      // 验证后退到 home 时上报了 home
       const calls = fetchMock.mock.calls
       const lastCall = calls[calls.length - 1]
       const body = JSON.parse(lastCall[1].body as string)
-      expect(body.page_id).toBe('home')
+      expect(body.page_id).toBe('dashboard')
     })
 
     it('is idempotent: calling initTelemetry twice does not double-report', () => {
-      window.history.replaceState({}, '', '/')
+      window.history.replaceState({}, '', '/admin/dashboard')
       initTelemetry()
-      initTelemetry() // 重复调用
+      initTelemetry()
 
-      // 只应上报一次(幂等)
       expect(fetchMock).toHaveBeenCalledTimes(1)
     })
   })

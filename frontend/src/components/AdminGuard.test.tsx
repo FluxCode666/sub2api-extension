@@ -22,11 +22,15 @@ import AdminGuard from './AdminGuard'
 const exchangeSessionMock = vi.fn()
 const getAdminSessionMock = vi.fn()
 const clearAdminSessionMock = vi.fn()
+const trackCurrentPageViewMock = vi.fn()
 vi.mock('@/lib/admin-auth', () => ({
   exchangeSession: (...args: unknown[]) => exchangeSessionMock(...args),
   getAdminSession: () => getAdminSessionMock(),
   clearAdminSession: () => clearAdminSessionMock(),
   ADMIN_SESSION_HEADER: 'X-Aux-Session',
+}))
+vi.mock('@/lib/telemetry-sdk', () => ({
+  trackCurrentPageView: () => trackCurrentPageViewMock(),
 }))
 
 // mock window.location.reload
@@ -62,6 +66,7 @@ describe('AdminGuard', () => {
     exchangeSessionMock.mockReset()
     getAdminSessionMock.mockReset()
     clearAdminSessionMock.mockReset()
+    trackCurrentPageViewMock.mockReset()
     reloadMock.mockReset()
     // 默认无已有会话
     getAdminSessionMock.mockReturnValue(null)
@@ -88,6 +93,7 @@ describe('AdminGuard', () => {
       expect(screen.getByText('protected-content')).toBeInTheDocument()
     })
     expect(exchangeSessionMock).not.toHaveBeenCalled()
+    expect(trackCurrentPageViewMock).toHaveBeenCalledTimes(1)
   })
 
   it('renders children after exchangeSession succeeds', async () => {
@@ -101,6 +107,7 @@ describe('AdminGuard', () => {
       expect(screen.getByText('protected-content')).toBeInTheDocument()
     })
     expect(exchangeSessionMock).toHaveBeenCalledTimes(1)
+    expect(trackCurrentPageViewMock).toHaveBeenCalledTimes(1)
   })
 
   const deniedCases: Array<{ error: string; expectedText: string }> = [
@@ -137,6 +144,7 @@ describe('AdminGuard', () => {
     })
     expect(screen.queryByText('访问被拒绝')).not.toBeInTheDocument()
     expect(screen.queryByText('protected-content')).not.toBeInTheDocument()
+    expect(trackCurrentPageViewMock).not.toHaveBeenCalled()
   })
 
   it('defaults to unknown error when error field missing', async () => {

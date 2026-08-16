@@ -27,6 +27,9 @@ let initialized = false
 /** 当前监听路由变化的 unsubscribe 函数(用于测试重置)。 */
 let unsubscribeHistory: (() => void) | null = null
 
+/** 最近处理的路由身份, 用于合并 StrictMode 等造成的连续相同导航事件。 */
+let lastRouteKey: string | null = null
+
 /**
  * 发送埋点请求(fire-and-forget, 静默丢弃错误)。
  *
@@ -91,11 +94,29 @@ export function trackFeatureClick(pageId: string, featureId: string): void {
  */
 function handleRouteChange(pathname: string): void {
   const page = getPageByPath(pathname)
+  const isAdmin = isCurrentUserAdmin()
+  const routeKey = page
+    ? `${pathname}:${isAdmin ? 'admin' : 'anonymous'}`
+    : `unregistered:${pathname}`
+  if (routeKey === lastRouteKey) return
+  lastRouteKey = routeKey
+
   if (!page) {
     // 路径不在 page-registry → 不上报(KTD7, 避免 404 等噪声)
     return
   }
+  if (page.visibility === 'admin' && !isAdmin) {
+    // 管理路由仅在 AdminGuard 确认会话后统计, 避免把登录跳转算作访问。
+    return
+  }
   trackPageView(page.id)
+}
+
+/** AdminGuard 认证成功后统计当前管理页面。 */
+export function trackCurrentPageView(): void {
+  if (typeof window !== 'undefined') {
+    handleRouteChange(window.location.pathname)
+  }
 }
 
 /**
@@ -153,4 +174,5 @@ export function resetTelemetry(): void {
     unsubscribeHistory = null
   }
   initialized = false
+  lastRouteKey = null
 }

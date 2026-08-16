@@ -19,7 +19,7 @@
 - Modify: `frontend/src/lib/page-registry.test.ts`
 - Delete: `frontend/src/pages/HomePage.tsx`
 
-- [ ] **Step 1: Write failing route and registry tests**
+- [x] **Step 1: Write failing route and registry tests**
 
 Add an application test that renders `App` in a `MemoryRouter` at `/`, replaces `AdminGuard` with a pass-through test double, and asserts both the dashboard marker and `useLocation().pathname === '/admin/dashboard'`. Update registry expectations to exactly these entries:
 
@@ -34,7 +34,7 @@ Add an application test that renders `App` in a `MemoryRouter` at `/`, replaces 
 
 Assert `getPageByPath('/')` is undefined and `getPublicPages()` is empty.
 
-- [ ] **Step 2: Run focused tests and verify RED**
+- [x] **Step 2: Run focused tests and verify RED**
 
 Run:
 
@@ -45,7 +45,7 @@ pnpm test --run src/App.test.tsx src/lib/page-registry.test.ts
 
 Expected: FAIL because `/` still renders `HomePage` and the registry still contains `home`.
 
-- [ ] **Step 3: Implement the root redirect and registry**
+- [x] **Step 3: Implement the root redirect and registry**
 
 Import `Navigate` in `App.tsx`, replace the root element with:
 
@@ -55,7 +55,7 @@ Import `Navigate` in `App.tsx`, replace the root element with:
 
 Register all three example routes under `/admin`, remove the `HomePage` import, delete `HomePage.tsx`, and replace `PAGE_REGISTRY` with the four current admin pages.
 
-- [ ] **Step 4: Run focused tests and verify GREEN**
+- [x] **Step 4: Run focused tests and verify GREEN**
 
 Run the same focused test command. Expected: PASS.
 
@@ -65,7 +65,7 @@ Run the same focused test command. Expected: PASS.
 - Modify: `frontend/src/pages/admin/DashboardPage.tsx`
 - Modify: `frontend/src/pages/admin/DashboardPage.test.tsx`
 
-- [ ] **Step 1: Write failing dashboard tests**
+- [x] **Step 1: Write failing dashboard tests**
 
 Make the registry mock return the four current pages. Return backend page views and feature clicks that also include `home` and `sample-dynamic`. Assert:
 
@@ -74,7 +74,7 @@ Make the registry mock return the four current pages. Return backend page views 
 - Current visit totals exclude deleted IDs.
 - Current feature totals and the feature table exclude deleted IDs.
 
-- [ ] **Step 2: Run the focused test and verify RED**
+- [x] **Step 2: Run the focused test and verify RED**
 
 Run:
 
@@ -85,7 +85,7 @@ pnpm test --run src/pages/admin/DashboardPage.test.tsx
 
 Expected: FAIL because the current component appends orphan rows and renders non-current feature groups.
 
-- [ ] **Step 3: Implement registry intersection and links**
+- [x] **Step 3: Implement registry intersection and links**
 
 Import `Link`. Build rows only from registry entries, filter `feature_clicks` with the registry ID set, remove `isOrphan` and all orphan UI, and render title/path as links. Replace the orphan summary card with:
 
@@ -93,7 +93,7 @@ Import `Link`. Build rows only from registry entries, filter `feature_clicks` wi
 <SummaryCard label="功能点击" value={totalFeatureClicks} />
 ```
 
-- [ ] **Step 4: Run the focused test and verify GREEN**
+- [x] **Step 4: Run the focused test and verify GREEN**
 
 Run the same dashboard test command. Expected: PASS.
 
@@ -105,7 +105,7 @@ Run the same dashboard test command. Expected: PASS.
 - Create: `frontend/src/pages/examples/InteractionExamplePage.tsx`
 - Create: `frontend/src/pages/examples/InteractionExamplePage.test.tsx`
 
-- [ ] **Step 1: Write failing page tests**
+- [x] **Step 1: Write failing page tests**
 
 For the static page, assert its heading, structured status list, and metadata are visible. For the interaction page, mock `trackFeatureClick`, click increment, decrement, and reset controls, assert the counter updates, and assert these calls:
 
@@ -115,7 +115,7 @@ trackFeatureClick('example-interaction', 'decrement-counter')
 trackFeatureClick('example-interaction', 'reset-counter')
 ```
 
-- [ ] **Step 2: Run tests and verify RED**
+- [x] **Step 2: Run tests and verify RED**
 
 Run:
 
@@ -126,11 +126,11 @@ pnpm test --run src/pages/examples/ContentExamplePage.test.tsx src/pages/example
 
 Expected: FAIL because the page modules do not exist.
 
-- [ ] **Step 3: Implement both pages**
+- [x] **Step 3: Implement both pages**
 
 Create a static content page with a concise heading, operating-status list, and metadata definition list. Create the interaction page with a local integer counter and accessible increment, decrement, and reset buttons. Every user action updates local state and emits its stable telemetry feature ID.
 
-- [ ] **Step 4: Run tests and verify GREEN**
+- [x] **Step 4: Run tests and verify GREEN**
 
 Run the same page test command. Expected: PASS.
 
@@ -142,7 +142,7 @@ Run the same page test command. Expected: PASS.
 - Modify: `backend/internal/server/router.go`
 - Modify: `backend/internal/server/router_test.go`
 
-- [ ] **Step 1: Write failing handler and router tests**
+- [x] **Step 1: Write failing handler and router tests**
 
 Add a handler test that asserts HTTP 200 and this data contract:
 
@@ -156,7 +156,7 @@ struct {
 
 Assert `service == "aux-system"`, `status == "ok"`, and `server_time` parses with `time.RFC3339`. Add router tests proving `/api/aux/admin/examples/status` returns 401 without `X-Aux-Session` and 200 with a valid aux session.
 
-- [ ] **Step 2: Run tests and verify RED**
+- [x] **Step 2: Run tests and verify RED**
 
 Run:
 
@@ -167,7 +167,7 @@ go test -race -count=1 ./internal/handler/admin ./internal/server -run 'Example|
 
 Expected: FAIL because the handler and route do not exist.
 
-- [ ] **Step 3: Implement the status handler and guarded route**
+- [x] **Step 3: Implement the status handler and guarded route**
 
 Create `ExampleHandler.GetStatus` returning:
 
@@ -181,7 +181,7 @@ response.Success(c, ExampleStatusResponse{
 
 Instantiate the dependency-free handler during route registration and register `GET /examples/status` inside the existing guarded admin group.
 
-- [ ] **Step 4: Run tests and verify GREEN**
+- [x] **Step 4: Run tests and verify GREEN**
 
 Run the same backend focused test command. Expected: PASS.
 
@@ -192,7 +192,7 @@ Run the same backend focused test command. Expected: PASS.
 - Create: `frontend/src/pages/examples/APIExamplePage.test.tsx`
 - Modify: `frontend/src/App.tsx`
 
-- [ ] **Step 1: Write failing API page tests**
+- [x] **Step 1: Write failing API page tests**
 
 Mock `apiClient.get` and `trackFeatureClick`. Cover initial loading, successful service/status/time rendering, refresh success, request failure, and retry. Assert user refresh/retry calls:
 
@@ -200,7 +200,7 @@ Mock `apiClient.get` and `trackFeatureClick`. Cover initial loading, successful 
 trackFeatureClick('example-api', 'refresh-status')
 ```
 
-- [ ] **Step 2: Run the focused test and verify RED**
+- [x] **Step 2: Run the focused test and verify RED**
 
 Run:
 
@@ -211,11 +211,11 @@ pnpm test --run src/pages/examples/APIExamplePage.test.tsx
 
 Expected: FAIL because the page module does not exist.
 
-- [ ] **Step 3: Implement the API page and route**
+- [x] **Step 3: Implement the API page and route**
 
 Use `apiClient.get<AuxEnvelope<ExampleStatus>>('/admin/examples/status')`. Render deterministic loading, success, and error/retry states. Register the page at `examples/api` under the guarded `/admin` route.
 
-- [ ] **Step 4: Run the focused test and verify GREEN**
+- [x] **Step 4: Run the focused test and verify GREEN**
 
 Run the same API page test command. Expected: PASS.
 
@@ -225,7 +225,7 @@ Run the same API page test command. Expected: PASS.
 - Modify: `docs/superpowers/specs/2026-08-16-root-dashboard-redirect-design.md`
 - Create: `docs/superpowers/plans/2026-08-16-dashboard-entry-and-examples.md`
 
-- [ ] **Step 1: Run all automated gates**
+- [x] **Step 1: Run all automated gates**
 
 ```bash
 cd backend
@@ -240,19 +240,19 @@ pnpm build
 
 Expected: all commands pass.
 
-- [ ] **Step 2: Restart the local backend and verify HTTP behavior**
+- [x] **Step 2: Restart the local backend and verify HTTP behavior**
 
 Verify `/health` is 200, the status endpoint is 401 without a session and 200 with a valid admin session, and the removed sub2api stats endpoint remains 404.
 
-- [ ] **Step 3: Run browser smoke checks**
+- [x] **Step 3: Run browser smoke checks**
 
 Open `http://127.0.0.1:3100/`, verify root navigation reaches `/admin/dashboard` or `/login` according to session state, authenticate if needed, click every dashboard page link, exercise the interaction controls, refresh the API example, and confirm no console errors or overlapping content.
 
-- [ ] **Step 4: Independent review**
+- [x] **Step 4: Independent review**
 
 Review the diff for auth bypass, stale removed-page references, telemetry IDs, route/registry mismatch, accessibility, and test gaps. Fix any findings and rerun affected gates.
 
-- [ ] **Step 5: Commit only task-owned files**
+- [x] **Step 5: Commit only task-owned files**
 
 Do not stage `deploy/.env.example` or `.pi/`. Commit with:
 

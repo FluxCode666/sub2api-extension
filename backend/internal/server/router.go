@@ -163,10 +163,14 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			// U6: 分析仪表盘聚合查询。
 			// analyticsHandler 为 nil 时跳过(最小启动场景)。
 			// 后端不耦合 page-registry, 只返回埋点库聚合计数;
-			// 前端用 registry 关联(零访问页显示 0, 孤儿页标注)。KTD7。
+			// 前端用 registry 关联(零访问页显示 0, 已删除页面过滤)。KTD7。
 			if analyticsHandler != nil {
 				guarded.GET("/analytics/overview", analyticsHandler.GetOverview)
 			}
+
+			// 管理端 API 请求示例: 无数据库或 sub2api 依赖。
+			exampleHandler := adminhandler.NewExampleHandler()
+			guarded.GET("/examples/status", exampleHandler.GetStatus)
 		}
 	}
 }

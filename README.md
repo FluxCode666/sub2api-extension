@@ -8,22 +8,20 @@
 
 sub2api 需要一个承载动态内容与页面分析的子系统，但不能为了它修改自身代码。aux-system 以独立服务的形式提供：
 
-- **硬编码动态页面** —— 通过 sub2api 的 `home_content`（官网首页）与 `custom_menu_items`（控制台菜单）经 iframe 加载
-- **页面分析/埋点** —— 匿名采集页面访问与功能点击，管理仪表盘展示「存在哪些页面、访问量、功能使用度」
+- **独立管理页面** —— 通过 sub2api 的 `custom_menu_items`（控制台菜单）经 iframe 加载，也支持直接登录
+- **页面分析/埋点** —— 采集当前管理页面的访问与功能点击，仪表盘展示「有哪些页面、访问量、功能使用度」
 - **管理员转发验证** —— 管理端页面经 sub2api iframe token 换取附属会话，无需重复登录
 
 ## 架构
 
 ```
 ┌─────────────────── sub2api（外部宿主，不改代码）─────────────────────┐
-│  官网首页                          控制台菜单                          │
-│  home_content → 裸 iframe          custom_menu_items → 带 token iframe │
-│  （不传 token，纯公开）            （传 token，转发验证）               │
-└───────────┬──────────────────────────────────┬─────────────────────────┘
-            ▼                                  ▼
+│  控制台菜单 custom_menu_items → 带 token iframe                       │
+└───────────────────────────────┬──────────────────────────────────────┘
+                                ▼
 ┌──────────────── aux-system（独立部署）─────────────────────────────────┐
 │  前端 React SPA                     后端 Go + Gin + Ent                │
-│  /         公开首页                 /api/aux/*          公开 + 埋点上报 │
+│  / → /admin/dashboard              /api/aux/*          埋点上报       │
 │  /admin/*  管理端（需会话）         /api/aux/admin/*    受 AdminGuard   │
 │                                     转发验证 → sub2api /auth/me        │
 │                                          │                            │
@@ -33,20 +31,15 @@ sub2api 需要一个承载动态内容与页面分析的子系统，但不能为
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
-**两条嵌入路径的关键差异：**
-
-| 路径 | 宿主配置 | 传 token | 附属系统页面 | 认证 |
-|------|----------|----------|--------------|------|
-| 官网首页 | `home_content` | 否（裸 iframe） | `/` 公开首页 | 无 |
-| 控制台菜单 | `custom_menu_items` | 是 | `/admin/*` 管理端 | iframe token → 转发验证 |
+`/` 是 Dashboard 的规范入口：有管理员会话时进入 `/admin/dashboard`，否则跳转 `/login`。
 
 ## 核心特性
 
-- **零侵入 sub2api** —— 所有对接走 sub2api 现有后台配置（`home_content`、`custom_menu_items`），CSP `frame-src` 由 sub2api 自动注入
+- **零侵入 sub2api** —— iframe 对接走 sub2api 现有 `custom_menu_items` 配置，CSP `frame-src` 由 sub2api 自动注入
 - **管理员会话守卫** —— `AdminGuard` 组件用 iframe 传入的 sub2api token 转发验证，签发附属系统自有 JWT（`X-Aux-Session` 头）
 - **匿名埋点** —— 公开写入面（不经守卫），per-IP 令牌桶限流 + 4KB body 限制，防滥用
-- **分析仪表盘** —— 聚合页面访问量与功能使用度，按计数降序排序，孤儿页标注
-- **刷新竞态防护** —— 动态页用递增请求 ID 丢弃过期响应
+- **分析仪表盘** —— 聚合当前注册页面的访问量与功能使用度，历史已删除页面的数据保留但不展示
+- **三个示例页面** —— 静态内容、交互埋点、受保护 API 请求均可从 Dashboard 点击进入
 - **标准 API 信封** —— `{code, message, data?}` 成功 / `{code, message, reason?}` 错误
 - **单镜像部署** —— 多阶段 Docker 构建，后端同源托管前端 dist，无 CORS
 - **CI/CD 流水线** —— GitHub Actions 三条工作流（CI 测试 / 安全扫描 / 生产部署），多架构镜像构建推送 GHCR，SSH 单机部署
@@ -70,7 +63,7 @@ aux-system/
 │   │   ├── config/              # 配置（环境变量 + viper）
 │   │   ├── handler/             # HTTP handler（auth/telemetry/admin）
 │   │   ├── service/             # 业务逻辑（auth/telemetry/analytics）
-│   │   ├── integration/         # sub2api 客户端（转发验证/Admin API）
+│   │   ├── integration/         # sub2api 客户端（登录与身份转发验证）
 │   │   ├── server/              # Gin 路由装配 + middleware（AdminGuard/TelemetryGuard）
 │   │   ├── pkg/response/        # 标准信封工具
 │   │   └── web/                 # 健康检查
@@ -81,7 +74,7 @@ aux-system/
 │       ├── components/          # AdminGuard（会话守卫）
 │       ├── layouts/             # 公开/管理端布局
 │       ├── lib/                 # admin-auth/api-client/telemetry-sdk/page-registry...
-│       └── pages/               # HomePage/admin/DashboardPage
+│       └── pages/               # Dashboard 与 content/interaction/API 示例页面
 ├── deploy/
 │   ├── docker-compose.yml       # 开发用（含 postgres，从源码 build）
 │   ├── docker-compose.prod.yml  # 生产用（仅 aux-backend，GHCR 镜像，无数据库）
@@ -121,7 +114,7 @@ curl http://localhost:8787/health
 # 预期: {"status":"ok","service":"aux-system"}
 ```
 
-开发用 compose 含 `aux-postgres` 服务并从源码构建镜像。附属系统启动后，在 sub2api 后台配置 `home_content` 与 `custom_menu_items` 指向它即可完成嵌入。**完整集成步骤见 [docs/INTEGRATION.md](docs/INTEGRATION.md)。**
+开发用 compose 含 `aux-postgres` 服务并从源码构建镜像。附属系统启动后，在 sub2api 后台用 `custom_menu_items` 添加 `/admin/dashboard` 即可完成嵌入。**完整集成步骤见 [docs/INTEGRATION.md](docs/INTEGRATION.md)。**
 
 ### 生产部署
 
@@ -221,7 +214,7 @@ pnpm typecheck       # tsc --noEmit
 pnpm build           # tsc -b && vite build
 ```
 
-当前基线：后端 7 个测试包全过，前端 93 个测试全过。
+当前基线：后端全量测试通过，前端 119 个测试通过。
 
 ## 配置
 
@@ -240,11 +233,11 @@ pnpm build           # tsc -b && vite build
 ## 约束与边界
 
 - **不修改 sub2api 代码** —— 所有集成通过 sub2api 现有接缝完成
-- **`home_content` 路径不传 token** —— 经官网首页嵌入的公开页收不到访问者身份，只能承载纯公开内容；需身份验证的页面必须经 `custom_menu_items` 嵌入
+- **不配置 `home_content`** —— `/` 会进入受保护 Dashboard，iframe 集成应使用会传 token 的 `custom_menu_items`
 - **自有数据库** —— aux-system 使用独立 PostgreSQL，不复用 sub2api 的数据库
 - **Ent 生成代码** —— `backend/ent/` 是 `ent/schema/*.go` 的生成产物，修改 schema 后需 `go generate ./ent`
 
 ## 文档
 
-- **[docs/INTEGRATION.md](docs/INTEGRATION.md)** —— sub2api 侧集成配置的完整指南（架构、部署、`home_content`/`custom_menu_items` 配置、CSP、验收清单、故障排查）
+- **[docs/INTEGRATION.md](docs/INTEGRATION.md)** —— sub2api 侧 `custom_menu_items` 集成配置指南（架构、部署、CSP、验收清单、故障排查）
 - **[.github/CICD.md](.github/CICD.md)** —— CI/CD 完整文档（三条工作流、Secrets 配置、首次部署指南、手动构建、回滚、故障排除）

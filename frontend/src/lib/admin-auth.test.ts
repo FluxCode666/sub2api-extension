@@ -36,6 +36,14 @@ function mockResponse(status: number, body: unknown) {
   }
 }
 
+function makeSessionToken(expiresInSeconds = 3600): string {
+  const encode = (value: unknown) =>
+    Buffer.from(JSON.stringify(value)).toString('base64url')
+  return `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({
+    exp: Math.floor(Date.now() / 1000) + expiresInSeconds,
+  })}.test-signature`
+}
+
 describe('admin-auth', () => {
   beforeEach(() => {
     fetchMock.mockReset()
@@ -60,12 +68,13 @@ describe('admin-auth', () => {
 
     it('exchanges embedded token for admin session on success', async () => {
       initEmbeddedContext('?token=sub2api-jwt-123')
+      const sessionToken = makeSessionToken()
       fetchMock.mockResolvedValueOnce(
         mockResponse(200, {
           code: 0,
           message: 'success',
           data: {
-            session_token: 'aux-session-jwt',
+            session_token: sessionToken,
             user: { id: 1, email: 'a@e.com', username: 'admin', role: 'admin' },
           },
         }),
@@ -74,7 +83,7 @@ describe('admin-auth', () => {
       const result = await exchangeSession()
 
       expect(result.ok).toBe(true)
-      expect(result.session?.token).toBe('aux-session-jwt')
+      expect(result.session?.token).toBe(sessionToken)
       expect(result.session?.user.role).toBe('admin')
       // 请求体应带 sub2api token
       const [url, init] = fetchMock.mock.calls[0]
@@ -146,17 +155,35 @@ describe('admin-auth', () => {
       expect(result.ok).toBe(false)
       expect(result.error).toBe('unknown')
     })
-  })
 
-  describe('session storage', () => {
-    it('persists and retrieves admin session', async () => {
+    it('rejects an expired session returned by a successful exchange', async () => {
       initEmbeddedContext('?token=sub2api-jwt')
       fetchMock.mockResolvedValueOnce(
         mockResponse(200, {
           code: 0,
           message: 'success',
           data: {
-            session_token: 'persisted-jwt',
+            session_token: makeSessionToken(-60),
+            user: { id: 1, email: 'a@e.com', username: 'admin', role: 'admin' },
+          },
+        }),
+      )
+
+      expect(await exchangeSession()).toEqual({ ok: false, error: 'unknown' })
+      expect(getAdminSession()).toBeNull()
+    })
+  })
+
+  describe('session storage', () => {
+    it('persists and retrieves admin session', async () => {
+      initEmbeddedContext('?token=sub2api-jwt')
+      const sessionToken = makeSessionToken()
+      fetchMock.mockResolvedValueOnce(
+        mockResponse(200, {
+          code: 0,
+          message: 'success',
+          data: {
+            session_token: sessionToken,
             user: { id: 7, email: 'x@y.com', username: 'x', role: 'admin' },
           },
         }),
@@ -166,11 +193,11 @@ describe('admin-auth', () => {
 
       // 从内存取
       const session = getAdminSession()
-      expect(session?.token).toBe('persisted-jwt')
+      expect(session?.token).toBe(sessionToken)
       expect(session?.user.id).toBe(7)
 
       // token 便捷取
-      expect(getAdminSessionToken()).toBe('persisted-jwt')
+      expect(getAdminSessionToken()).toBe(sessionToken)
 
       // 持久化到 localStorage
       expect(localStorageMock.setItem).toHaveBeenCalled()
@@ -183,7 +210,7 @@ describe('admin-auth', () => {
           code: 0,
           message: 'success',
           data: {
-            session_token: 'to-clear',
+            session_token: makeSessionToken(),
             user: { id: 1, email: 'a@b.com', username: 'a', role: 'admin' },
           },
         }),
@@ -201,16 +228,62 @@ describe('admin-auth', () => {
       expect(getAdminSession()).toBeNull()
       expect(getAdminSessionToken()).toBeNull()
     })
+
+    it('clears an expired persisted session', () => {
+      store.aux_admin_session = JSON.stringify({
+        token: makeSessionToken(-60),
+        user: { id: 1, email: 'a@e.com', username: 'admin', role: 'admin' },
+      })
+
+      expect(getAdminSession()).toBeNull()
+      expect(store.aux_admin_session).toBeUndefined()
+    })
+
+    it('clears a malformed persisted session', () => {
+      store.aux_admin_session = JSON.stringify({
+        token: makeSessionToken(),
+        user: { id: 'not-a-number', role: 'admin' },
+      })
+
+      expect(getAdminSession()).toBeNull()
+      expect(store.aux_admin_session).toBeUndefined()
+    })
+
+    it('clears a persisted token with an invalid JWT header', () => {
+      const payload = Buffer.from(
+        JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 }),
+      ).toString('base64url')
+      store.aux_admin_session = JSON.stringify({
+        token: `not-json.${payload}.test-signature`,
+        user: { id: 1, email: 'a@e.com', username: 'admin', role: 'admin' },
+      })
+
+      expect(getAdminSession()).toBeNull()
+      expect(store.aux_admin_session).toBeUndefined()
+    })
+
+    it('clears a persisted token with an invalid signature segment', () => {
+      const token = makeSessionToken().split('.')
+      token[2] = 'invalid+signature'
+      store.aux_admin_session = JSON.stringify({
+        token: token.join('.'),
+        user: { id: 1, email: 'a@e.com', username: 'admin', role: 'admin' },
+      })
+
+      expect(getAdminSession()).toBeNull()
+      expect(store.aux_admin_session).toBeUndefined()
+    })
   })
 
   describe('loginWithCredentials', () => {
     it('logs in with email+password and saves session on success', async () => {
+      const sessionToken = makeSessionToken()
       fetchMock.mockResolvedValueOnce(
         mockResponse(200, {
           code: 0,
           message: 'success',
           data: {
-            session_token: 'aux-login-jwt',
+            session_token: sessionToken,
             user: { id: 1, email: 'admin@sub2api.local', username: '', role: 'admin' },
           },
         }),
@@ -219,10 +292,10 @@ describe('admin-auth', () => {
       const result = await loginWithCredentials('admin@sub2api.local', '123456')
 
       expect(result.ok).toBe(true)
-      expect(result.session?.token).toBe('aux-login-jwt')
+      expect(result.session?.token).toBe(sessionToken)
       expect(result.session?.user.role).toBe('admin')
       // 会话已保存
-      expect(getAdminSessionToken()).toBe('aux-login-jwt')
+      expect(getAdminSessionToken()).toBe(sessionToken)
 
       // 请求体应带 email+password
       const [url, init] = fetchMock.mock.calls[0]
@@ -308,6 +381,25 @@ describe('admin-auth', () => {
       const result = await loginWithCredentials('a@b.com', 'pass')
       expect(result.ok).toBe(false)
       expect(result.error).toBe('unknown')
+    })
+
+    it('rejects a non-admin session returned by a successful login', async () => {
+      fetchMock.mockResolvedValueOnce(
+        mockResponse(200, {
+          code: 0,
+          message: 'success',
+          data: {
+            session_token: makeSessionToken(),
+            user: { id: 2, email: 'user@e.com', username: 'user', role: 'user' },
+          },
+        }),
+      )
+
+      expect(await loginWithCredentials('user@e.com', 'pass')).toEqual({
+        ok: false,
+        error: 'unknown',
+      })
+      expect(getAdminSession()).toBeNull()
     })
 
     it('returns unknown when a successful response body is not JSON', async () => {

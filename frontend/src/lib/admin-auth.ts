@@ -108,7 +108,9 @@ export async function exchangeSession(): Promise<SessionResult> {
         token: env.data.session_token,
         user: env.data.user,
       }
-      saveSession(session)
+      if (!saveSession(session)) {
+        return { ok: false, error: 'unknown' }
+      }
       return { ok: true, session }
     }
     return { ok: false, error: 'unknown' }
@@ -194,7 +196,9 @@ export async function loginWithCredentials(
           token: env.data.session_token,
           user: env.data.user,
         }
-        saveSession(session)
+        if (!saveSession(session)) {
+          return { ok: false, error: 'unknown' }
+        }
         return { ok: true, session }
       }
     } catch {
@@ -231,31 +235,98 @@ export async function loginWithCredentials(
  */
 let cachedSession: AdminSession | null = null
 
-function saveSession(session: AdminSession): void {
+function saveSession(session: AdminSession): boolean {
+  if (!isValidAdminSession(session)) {
+    clearAdminSession()
+    return false
+  }
+
   cachedSession = session
   try {
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session))
   } catch {
     // localStorage 不可用时仅存内存
   }
+  return true
+}
+
+function decodeJWTExpiry(token: string): number | null {
+  try {
+    const segments = token.split('.')
+    const isBase64URL = (segment: string) => /^[A-Za-z0-9_-]+$/.test(segment)
+    if (segments.length !== 3 || !segments.every(isBase64URL)) return null
+
+    const decodeSegment = (segment: string): unknown => {
+      const normalized = segment.replace(/-/g, '+').replace(/_/g, '/')
+      const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=')
+      const binary = atob(padded)
+      const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0))
+      return JSON.parse(new TextDecoder().decode(bytes)) as unknown
+    }
+
+    const header = decodeSegment(segments[0])
+    const payload = decodeSegment(segments[1])
+    if (
+      typeof header !== 'object' ||
+      header === null ||
+      (header as { alg?: unknown }).alg !== 'HS256' ||
+      typeof payload !== 'object' ||
+      payload === null ||
+      !('exp' in payload)
+    ) {
+      return null
+    }
+
+    const expiry = (payload as { exp?: unknown }).exp
+    return typeof expiry === 'number' && Number.isFinite(expiry) ? expiry : null
+  } catch {
+    return null
+  }
+}
+
+function isValidAdminSession(value: unknown): value is AdminSession {
+  if (typeof value !== 'object' || value === null) return false
+
+  const session = value as Partial<AdminSession>
+  const user = session.user as Partial<AdminSession['user']> | undefined
+  if (
+    typeof session.token !== 'string' ||
+    !user ||
+    typeof user.id !== 'number' ||
+    !Number.isFinite(user.id) ||
+    typeof user.email !== 'string' ||
+    typeof user.username !== 'string' ||
+    user.role !== 'admin'
+  ) {
+    return false
+  }
+
+  const expiry = decodeJWTExpiry(session.token)
+  return expiry !== null && expiry > Date.now() / 1000
 }
 
 /**
  * 获取当前管理员会话(优先内存, 其次 localStorage)。
- * 无会话时返回 null。
+ * 会话结构无效或 JWT 已过期时清除并返回 null。
  */
 export function getAdminSession(): AdminSession | null {
   if (cachedSession) {
-    return cachedSession
+    if (isValidAdminSession(cachedSession)) return cachedSession
+    clearAdminSession()
+    return null
   }
   try {
     const raw = localStorage.getItem(SESSION_STORAGE_KEY)
     if (raw) {
-      cachedSession = JSON.parse(raw) as AdminSession
-      return cachedSession
+      const stored: unknown = JSON.parse(raw)
+      if (isValidAdminSession(stored)) {
+        cachedSession = stored
+        return cachedSession
+      }
+      clearAdminSession()
     }
   } catch {
-    // localStorage 不可用或解析失败
+    clearAdminSession()
   }
   return null
 }

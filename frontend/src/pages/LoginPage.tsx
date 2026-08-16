@@ -5,9 +5,9 @@
  * 账号密码直接登录, 不依赖 sub2api iframe 注入 token。
  *
  * 流程:
- *   1. 已有有效附属会话 → 直接跳转 /admin (避免重复登录)
+ *   1. 已有有效附属会话 → 直接跳转 /admin/dashboard (避免重复登录)
  *   2. 提交 email+password → loginWithCredentials → aux 后端代理 sub2api 登录
- *   3. 成功 → saveSession(已在 loginWithCredentials 内完成) + 跳转 /admin
+ *   3. 成功 → saveSession(已在 loginWithCredentials 内完成) + 跳转 /admin/dashboard
  *   4. 失败 → 显示对应错误信息(凭据错误/非管理员/两步验证/不可达)
  *
  * 此路由在 AdminGuard 之外 (App.tsx PublicLayout 下), 不登记到 page-registry
@@ -36,7 +36,7 @@ export default function LoginPage() {
   // 已登录用户访问 /login 直接跳转管理端
   useEffect(() => {
     if (getAdminSession()) {
-      navigate('/admin', { replace: true })
+      navigate('/admin/dashboard', { replace: true })
     }
   }, [navigate])
 
@@ -49,7 +49,7 @@ export default function LoginPage() {
     const result = await loginWithCredentials(email, password)
 
     if (result.ok && result.session) {
-      navigate('/admin', { replace: true })
+      navigate('/admin/dashboard', { replace: true })
       return
     }
 

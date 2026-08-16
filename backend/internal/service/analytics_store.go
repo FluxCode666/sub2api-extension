@@ -6,9 +6,9 @@
 //   - analytics_store(AnalyticsStore): 聚合读取埋点记录(GroupBy + Count)
 //
 // 后端不持有 page-registry(KTD7: registry 在前端), 只返回埋点库中存在的
-// page id 及其计数(含可能的孤儿)。前端用 registry 关联:
+// page id 及其计数(含已删除页面的历史记录)。前端用 registry 关联:
 //   - registry 有但埋点库无 → 零访问(前端显示 0)
-//   - 埋点库有但 registry 无 → 孤儿(前端标注)
+//   - 埋点库有但 registry 无 → 历史数据(前端过滤)
 //
 // Covers U6(R5/R8/R9/R10), KTD7(按 page id 关联)。
 package service
