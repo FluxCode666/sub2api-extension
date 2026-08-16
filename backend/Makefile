@@ -24,7 +24,7 @@ LDFLAGS ?= -s -w -X main.Version=$(VERSION) -X main.Commit=$(COMMIT) -X main.Dat
 # 数据库连接由开发者本地 docker 提供，此处只给默认值，可用环境变量覆盖。
 # deploy/docker-compose.yml 中独立 aux-postgres 的宿主机映射端口为 15433。
 DEV_SERVER_PORT ?= 8090
-DEV_DATABASE_HOST ?= localhost
+DEV_DATABASE_HOST ?= 127.0.0.1
 DEV_DATABASE_PORT ?= 15433
 DEV_DATABASE_USER ?= aux
 # 仅本地开发默认值；与 README 的 aux-pg 容器一致。生产环境必须显式设置密码。

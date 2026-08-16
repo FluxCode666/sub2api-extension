@@ -144,7 +144,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 
 ### 前置：启动 PostgreSQL 并建库
 
-后端连接 PostgreSQL（默认 `localhost:15433`，库名 `auxdb`，用户 `aux`）。自行用 docker 起一个：
+后端连接 PostgreSQL（默认 `127.0.0.1:15433`，库名 `auxdb`，用户 `aux`）。自行用 docker 起一个：
 
 ```bash
 docker run -d --name aux-pg -e POSTGRES_USER=aux -e POSTGRES_PASSWORD=aux \
@@ -169,7 +169,7 @@ make dev
 | 变量 | 默认 | 说明 |
 |------|------|------|
 | `DEV_SERVER_PORT` | `8090` | 后端监听端口（与前端 vite 代理一致） |
-| `DEV_DATABASE_HOST` | `localhost` | PG 地址 |
+| `DEV_DATABASE_HOST` | `127.0.0.1` | PG 地址（与 Docker 的 IPv4 绑定一致） |
 | `DEV_DATABASE_PORT` | `15433` | 独立 aux PostgreSQL 的宿主机端口 |
 | `DEV_DATABASE_USER` | `aux` | PG 用户 |
 | `DEV_DATABASE_PASSWORD` | `aux` | 本地 `aux-pg` 容器的开发密码；生产环境必须显式设置 |
