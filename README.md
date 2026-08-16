@@ -160,7 +160,7 @@ go mod download
 # 1) 一次性建表（ent 自动迁移，幂等可重复执行）
 make migrate
 
-# 2) 启动开发服务器（debug 模式，监听 8090）
+# 2) 启动开发服务器（debug 模式，监听 8004）
 make dev
 ```
 
@@ -168,7 +168,7 @@ make dev
 
 | 变量 | 默认 | 说明 |
 |------|------|------|
-| `DEV_SERVER_PORT` | `8090` | 后端监听端口（与前端 vite 代理一致） |
+| `DEV_SERVER_PORT` | `8004` | 后端监听端口（与前端 vite 代理一致） |
 | `DEV_DATABASE_HOST` | `127.0.0.1` | PG 地址（与 Docker 的 IPv4 绑定一致） |
 | `DEV_DATABASE_PORT` | `15433` | 独立 aux PostgreSQL 的宿主机端口 |
 | `DEV_DATABASE_USER` | `aux` | PG 用户 |
@@ -176,7 +176,7 @@ make dev
 | `DEV_DATABASE_DBNAME` | `auxdb` | PG 库名 |
 | `JWT_SECRET` | `dev-secret-not-for-production` | 开发用签名密钥 |
 
-> `SUB2API_BASE_URL` / `SUB2API_ADMIN_API_KEY` 可选——不配则管理端转发验证不可用，但公开首页与埋点正常。要联调管理端，在 `make dev` 前导出这两个变量。
+> 本地 `SUB2API_BASE_URL` 默认是 `http://127.0.0.1:8003`，可通过环境变量覆盖。`SUB2API_ADMIN_API_KEY` 仅用于 dashboard stats 等只读管理数据代理；账号密码登录不需要该 key。
 
 PG 密码有特殊字符时，直接导出环境变量再 `make dev`：
 
@@ -193,14 +193,14 @@ pnpm install
 pnpm dev        # 开发服务器 http://localhost:3100
 ```
 
-前端 dev server 监听 `3100`，已配置 `/api` 代理到 `http://localhost:8090`（即后端 `make dev` 的端口）。浏览器访问 `http://localhost:3100` 即可。
+前端 dev server 监听 `3100`，已配置 `/api` 代理到 `http://127.0.0.1:8004`（即后端 `make dev` 的端口）。浏览器访问 `http://localhost:3100` 即可。
 
 ### 端口约定
 
 | 服务 | 开发端口 | 说明 |
 |------|----------|------|
 | 前端 vite | `3100` | 浏览器访问入口 |
-| 后端 | `8090` | 前端代理目标，`make dev` 默认 |
+| 后端 | `8004` | 前端代理目标，`make dev` 默认 |
 | PostgreSQL | `15433` | 独立 aux PostgreSQL 的本地 docker 容器映射 |
 
 ## 测试
