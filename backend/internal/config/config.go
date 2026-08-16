@@ -26,7 +26,7 @@ type Config struct {
 type ServerConfig struct {
 	Host              string `mapstructure:"host"`
 	Port              int    `mapstructure:"port"`
-	Mode              string `mapstructure:"mode"` // debug/release
+	Mode              string `mapstructure:"mode"`                // debug/release
 	ReadHeaderTimeout int    `mapstructure:"read_header_timeout"` // 秒
 	ReadTimeout       int    `mapstructure:"read_timeout"`        // 秒
 	WriteTimeout      int    `mapstructure:"write_timeout"`       // 秒
@@ -63,16 +63,15 @@ func (d *DatabaseConfig) DSN() string {
 	)
 }
 
-// Sub2APIConfig sub2api 对接配置（供 U3/U4 调用 sub2api Admin API）。
+// Sub2APIConfig sub2api 对接配置（供管理员身份验证使用）。
 type Sub2APIConfig struct {
-	BaseURL      string `mapstructure:"base_url"`      // sub2api 后端基础 URL
-	AdminAPIKey  string `mapstructure:"admin_api_key"` // sub2api 管理员 API Key
+	BaseURL string `mapstructure:"base_url"` // sub2api 后端基础 URL
 }
 
 // JWTConfig JWT 签名配置（供 U3 管理员鉴权）。
 type JWTConfig struct {
-	Secret      string `mapstructure:"secret"`       // 签名密钥
-	ExpireHour  int    `mapstructure:"expire_hour"`  // Token 有效期（小时）
+	Secret     string `mapstructure:"secret"`      // 签名密钥
+	ExpireHour int    `mapstructure:"expire_hour"` // Token 有效期（小时）
 }
 
 // Load 读取并校验完整配置。缺少必需项时返回清晰错误。
@@ -111,7 +110,7 @@ func Load() (*Config, error) {
 
 // setDefaults 设置配置默认值。
 //
-// 必需项(database.user/password/dbname、jwt.secret、sub2api.base_url/admin_api_key)
+// 必需项(database.user/password/dbname、jwt.secret、sub2api.base_url)
 // 这里也设空串默认值——不是为了提供默认值,而是为了给 viper 注册这些 key,
 // 使 AutomaticEnv 能从环境变量(DATABASE_USER 等)读取它们。
 // 否则 viper 只对已注册的 key 生效,未注册的必需项即使环境变量存在也读不到。
@@ -133,7 +132,6 @@ func setDefaults() {
 	viper.SetDefault("database.sslmode", "disable")
 
 	viper.SetDefault("sub2api.base_url", "")
-	viper.SetDefault("sub2api.admin_api_key", "")
 
 	viper.SetDefault("jwt.secret", "")
 	viper.SetDefault("jwt.expire_hour", 24)
@@ -151,7 +149,6 @@ func normalize(cfg *Config) {
 	cfg.Database.SSLMode = strings.TrimSpace(cfg.Database.SSLMode)
 	cfg.Database.Password = strings.TrimSpace(cfg.Database.Password)
 	cfg.Sub2API.BaseURL = strings.TrimSpace(cfg.Sub2API.BaseURL)
-	cfg.Sub2API.AdminAPIKey = strings.TrimSpace(cfg.Sub2API.AdminAPIKey)
 	cfg.JWT.Secret = strings.TrimSpace(cfg.JWT.Secret)
 }
 
@@ -174,6 +171,9 @@ func validate(cfg *Config) error {
 	}
 	if cfg.JWT.Secret == "" {
 		return fmt.Errorf("config validation: jwt.secret is required")
+	}
+	if cfg.Sub2API.BaseURL == "" {
+		return fmt.Errorf("config validation: sub2api.base_url is required")
 	}
 	return nil
 }
@@ -199,8 +199,7 @@ func LoadFromEnv() (*Config, error) {
 			SSLMode:  getEnv("DATABASE_SSLMODE", "disable"),
 		},
 		Sub2API: Sub2APIConfig{
-			BaseURL:     getEnv("SUB2API_BASE_URL", ""),
-			AdminAPIKey: getEnv("SUB2API_ADMIN_API_KEY", ""),
+			BaseURL: getEnv("SUB2API_BASE_URL", ""),
 		},
 		JWT: JWTConfig{
 			Secret:     getEnv("JWT_SECRET", ""),

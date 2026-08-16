@@ -45,7 +45,7 @@ func TestVerifyAdminJWT_AdminUser(t *testing.T) {
 	})
 	defer srv.Close()
 
-	client := NewSub2APIClient(srv.URL, "")
+	client := NewSub2APIClient(srv.URL)
 	isAdmin, user, err := client.VerifyAdminJWT(context.Background(), "admin-jwt-token")
 
 	require.NoError(t, err)
@@ -72,7 +72,7 @@ func TestVerifyAdminJWT_NormalUser(t *testing.T) {
 	})
 	defer srv.Close()
 
-	client := NewSub2APIClient(srv.URL, "")
+	client := NewSub2APIClient(srv.URL)
 	isAdmin, user, err := client.VerifyAdminJWT(context.Background(), "user-jwt-token")
 
 	require.NoError(t, err)
@@ -91,7 +91,7 @@ func TestVerifyAdminJWT_InvalidToken(t *testing.T) {
 	})
 	defer srv.Close()
 
-	client := NewSub2APIClient(srv.URL, "")
+	client := NewSub2APIClient(srv.URL)
 	isAdmin, user, err := client.VerifyAdminJWT(context.Background(), "bad-token")
 
 	assert.Error(t, err)
@@ -111,7 +111,7 @@ func TestVerifyAdminJWT_NonJSON401(t *testing.T) {
 	})
 	defer srv.Close()
 
-	client := NewSub2APIClient(srv.URL, "")
+	client := NewSub2APIClient(srv.URL)
 	isAdmin, user, err := client.VerifyAdminJWT(context.Background(), "expired-token")
 
 	assert.Error(t, err)
@@ -125,7 +125,7 @@ func TestVerifyAdminJWT_Unreachable(t *testing.T) {
 	srv := mockSub2API(func(w http.ResponseWriter, r *http.Request) {})
 	srv.Close()
 
-	client := NewSub2APIClient(srv.URL, "")
+	client := NewSub2APIClient(srv.URL)
 	isAdmin, user, err := client.VerifyAdminJWT(context.Background(), "some-token")
 
 	assert.Error(t, err)
@@ -144,7 +144,7 @@ func TestVerifyAdminJWT_ServerError(t *testing.T) {
 	})
 	defer srv.Close()
 
-	client := NewSub2APIClient(srv.URL, "")
+	client := NewSub2APIClient(srv.URL)
 	isAdmin, user, err := client.VerifyAdminJWT(context.Background(), "some-token")
 
 	assert.Error(t, err)
@@ -154,18 +154,8 @@ func TestVerifyAdminJWT_ServerError(t *testing.T) {
 }
 
 func TestNewSub2APIClient_TrimsTrailingSlash(t *testing.T) {
-	client := NewSub2APIClient("http://localhost:8090/", "key-123")
+	client := NewSub2APIClient("http://localhost:8090/")
 	assert.Equal(t, "http://localhost:8090", client.BaseURL())
-	assert.Equal(t, "key-123", client.AdminKey())
-}
-
-// ============ GetDashboardStats 测试: 走真实 HTTP mock sub2api ============
-
-// mockSub2APIDashboard 启动一个 mock sub2api server,handler 控制 /api/v1/admin/dashboard/stats 的响应。
-func mockSub2APIDashboard(handler http.HandlerFunc) *httptest.Server {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v1/admin/dashboard/stats", handler)
-	return httptest.NewServer(mux)
 }
 
 // mockSub2APILogin 启动 mock sub2api server, handler 控制 /api/v1/auth/login 响应。
@@ -173,154 +163,6 @@ func mockSub2APILogin(handler http.HandlerFunc) *httptest.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/auth/login", handler)
 	return httptest.NewServer(mux)
-}
-
-func TestGetDashboardStats_Success(t *testing.T) {
-	srv := mockSub2APIDashboard(func(w http.ResponseWriter, r *http.Request) {
-		// 校验请求带了 x-api-key
-		assert.Equal(t, "admin-key-123", r.Header.Get("x-api-key"))
-
-		writeJSON(w, http.StatusOK, map[string]any{
-			"code":    0,
-			"message": "success",
-			"data": map[string]any{
-				"total_users":      100,
-				"today_new_users":  5,
-				"active_users":     20,
-				"total_api_keys":   10,
-				"active_api_keys":  8,
-				"total_accounts":   30,
-				"normal_accounts":  25,
-				"error_accounts":   3,
-				"total_requests":   50000,
-				"total_tokens":     1000000,
-				"total_cost":       12.34,
-				"today_requests":   500,
-				"today_tokens":     10000,
-				"today_cost":       0.56,
-				"uptime":           86400,
-				"rpm":              42,
-				"tpm":              8000,
-				"stats_updated_at": "2026-08-14T10:00:00Z",
-				"stats_stale":      false,
-			},
-		})
-	})
-	defer srv.Close()
-
-	client := NewSub2APIClient(srv.URL, "admin-key-123")
-	stats, err := client.GetDashboardStats(context.Background())
-
-	require.NoError(t, err)
-	require.NotNil(t, stats)
-	assert.Equal(t, int64(100), stats.TotalUsers)
-	assert.Equal(t, int64(5), stats.TodayNewUsers)
-	assert.Equal(t, int64(20), stats.ActiveUsers)
-	assert.Equal(t, int64(10), stats.TotalAPIKeys)
-	assert.Equal(t, int64(8), stats.ActiveAPIKeys)
-	assert.Equal(t, int64(30), stats.TotalAccounts)
-	assert.Equal(t, int64(25), stats.NormalAccounts)
-	assert.Equal(t, int64(3), stats.ErrorAccounts)
-	assert.Equal(t, int64(50000), stats.TotalRequests)
-	assert.Equal(t, int64(1000000), stats.TotalTokens)
-	assert.Equal(t, 12.34, stats.TotalCost)
-	assert.Equal(t, int64(500), stats.TodayRequests)
-	assert.Equal(t, int64(10000), stats.TodayTokens)
-	assert.Equal(t, 0.56, stats.TodayCost)
-	assert.Equal(t, int64(86400), stats.Uptime)
-	assert.Equal(t, int64(42), stats.Rpm)
-	assert.Equal(t, int64(8000), stats.Tpm)
-	assert.Equal(t, "2026-08-14T10:00:00Z", stats.StatsUpdatedAt)
-	assert.False(t, stats.StatsStale)
-}
-
-func TestGetDashboardStats_NoAdminKey(t *testing.T) {
-	srv := mockSub2APIDashboard(func(w http.ResponseWriter, r *http.Request) {})
-	defer srv.Close()
-
-	client := NewSub2APIClient(srv.URL, "")
-	_, err := client.GetDashboardStats(context.Background())
-
-	assert.Error(t, err)
-	assert.True(t, errors.Is(err, ErrAdminAPIKeyMissing))
-}
-
-func TestGetDashboardStats_Unauthorized(t *testing.T) {
-	srv := mockSub2APIDashboard(func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusUnauthorized, map[string]any{
-			"code":    401,
-			"message": "unauthorized",
-		})
-	})
-	defer srv.Close()
-
-	client := NewSub2APIClient(srv.URL, "bad-key")
-	_, err := client.GetDashboardStats(context.Background())
-
-	assert.Error(t, err)
-	assert.False(t, errors.Is(err, ErrAdminAPIKeyMissing))
-	assert.Contains(t, err.Error(), "status 401")
-}
-
-func TestGetDashboardStats_ComplianceBlocked(t *testing.T) {
-	// 模拟 sub2api AdminComplianceGuard 拦截(非 200, 非 401)
-	srv := mockSub2APIDashboard(func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusForbidden, map[string]any{
-			"code":    403,
-			"message": "compliance confirmation required",
-		})
-	})
-	defer srv.Close()
-
-	client := NewSub2APIClient(srv.URL, "valid-key")
-	_, err := client.GetDashboardStats(context.Background())
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "status 403")
-}
-
-func TestGetDashboardStats_ServerError(t *testing.T) {
-	srv := mockSub2APIDashboard(func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{
-			"code":    500,
-			"message": "internal error",
-		})
-	})
-	defer srv.Close()
-
-	client := NewSub2APIClient(srv.URL, "valid-key")
-	_, err := client.GetDashboardStats(context.Background())
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "status 500")
-}
-
-func TestGetDashboardStats_Unreachable(t *testing.T) {
-	srv := mockSub2APIDashboard(func(w http.ResponseWriter, r *http.Request) {})
-	srv.Close() // 立即关闭模拟不可达
-
-	client := NewSub2APIClient(srv.URL, "valid-key")
-	_, err := client.GetDashboardStats(context.Background())
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "unreachable")
-}
-
-func TestGetDashboardStats_MissingDataField(t *testing.T) {
-	srv := mockSub2APIDashboard(func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]any{
-			"code":    0,
-			"message": "success",
-			// 缺 data
-		})
-	})
-	defer srv.Close()
-
-	client := NewSub2APIClient(srv.URL, "valid-key")
-	_, err := client.GetDashboardStats(context.Background())
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "missing data")
 }
 
 // ============ Login 测试 ============
@@ -356,7 +198,7 @@ func TestLogin_AdminSuccess(t *testing.T) {
 	})
 	defer srv.Close()
 
-	client := NewSub2APIClient(srv.URL, "")
+	client := NewSub2APIClient(srv.URL)
 	resp, err := client.Login(context.Background(), Sub2APILoginRequest{
 		Email: "admin@example.com", Password: "secret-pass",
 	})
@@ -379,7 +221,7 @@ func TestLogin_InvalidCredentials(t *testing.T) {
 	})
 	defer srv.Close()
 
-	client := NewSub2APIClient(srv.URL, "")
+	client := NewSub2APIClient(srv.URL)
 	_, err := client.Login(context.Background(), Sub2APILoginRequest{
 		Email: "x@example.com", Password: "wrong",
 	})
@@ -402,7 +244,7 @@ func TestLogin_TwoFactorRequired(t *testing.T) {
 	})
 	defer srv.Close()
 
-	client := NewSub2APIClient(srv.URL, "")
+	client := NewSub2APIClient(srv.URL)
 	resp, err := client.Login(context.Background(), Sub2APILoginRequest{
 		Email: "2fa@example.com", Password: "pass",
 	})
@@ -422,7 +264,7 @@ func TestLogin_ApplicationErrorInSuccessEnvelope(t *testing.T) {
 	})
 	defer srv.Close()
 
-	client := NewSub2APIClient(srv.URL, "")
+	client := NewSub2APIClient(srv.URL)
 	_, err := client.Login(context.Background(), Sub2APILoginRequest{
 		Email: "x@example.com", Password: "pass",
 	})
@@ -440,7 +282,7 @@ func TestLogin_ServerError(t *testing.T) {
 	})
 	defer srv.Close()
 
-	client := NewSub2APIClient(srv.URL, "")
+	client := NewSub2APIClient(srv.URL)
 	_, err := client.Login(context.Background(), Sub2APILoginRequest{
 		Email: "x@example.com", Password: "pass",
 	})
@@ -454,7 +296,7 @@ func TestLogin_Unreachable(t *testing.T) {
 	srv := mockSub2APILogin(func(w http.ResponseWriter, r *http.Request) {})
 	srv.Close() // 立即关闭模拟不可达
 
-	client := NewSub2APIClient(srv.URL, "")
+	client := NewSub2APIClient(srv.URL)
 	_, err := client.Login(context.Background(), Sub2APILoginRequest{
 		Email: "x@example.com", Password: "pass",
 	})
@@ -473,7 +315,7 @@ func TestLogin_MissingDataField(t *testing.T) {
 	})
 	defer srv.Close()
 
-	client := NewSub2APIClient(srv.URL, "")
+	client := NewSub2APIClient(srv.URL)
 	_, err := client.Login(context.Background(), Sub2APILoginRequest{
 		Email: "x@example.com", Password: "pass",
 	})

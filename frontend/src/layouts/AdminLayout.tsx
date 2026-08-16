@@ -3,7 +3,7 @@ import { Outlet, NavLink } from 'react-router-dom'
 /**
  * 管理端外壳布局。
  * 承载附属系统的管理页面, 守卫逻辑 U3 加入。
- * U6: 加导航链接到仪表盘与示例动态页。
+ * U6: 加导航链接到仪表盘。
  */
 export default function AdminLayout() {
   const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -21,9 +21,6 @@ export default function AdminLayout() {
           <nav className="flex gap-2">
             <NavLink to="/admin/dashboard" className={linkClass} end>
               仪表盘
-            </NavLink>
-            <NavLink to="/admin/sample-dynamic" className={linkClass}>
-              示例动态页
             </NavLink>
           </nav>
         </div>

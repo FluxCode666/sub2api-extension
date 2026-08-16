@@ -32,12 +32,12 @@ func (m *mockAnalyticsStore) CountFeatureClicksByFeature(_ context.Context) ([]F
 }
 
 func TestAnalyticsService_GetOverview_PageViewCounts(t *testing.T) {
-	// 模拟埋点库中只有 home(2 次) 和 sample-dynamic(1 次) 有记录。
+	// 模拟埋点库中只有 home(2 次) 和 dashboard(1 次) 有记录。
 	// "third-page" 零访问 → 不在列表(前端用 registry 显示 0)。
 	store := &mockAnalyticsStore{
 		pageViews: []PageViewCount{
 			{PageID: "home", Count: 2},
-			{PageID: "sample-dynamic", Count: 1},
+			{PageID: "dashboard", Count: 1},
 		},
 	}
 	svc := NewAnalyticsService(store)
@@ -54,7 +54,7 @@ func TestAnalyticsService_GetOverview_PageViewCounts(t *testing.T) {
 		counts[pv.PageID] = pv.Count
 	}
 	assert.Equal(t, 2, counts["home"])
-	assert.Equal(t, 1, counts["sample-dynamic"])
+	assert.Equal(t, 1, counts["dashboard"])
 	// "third-page" 不在列表(零访问)
 	_, exists := counts["third-page"]
 	assert.False(t, exists, "零访问页不应在 PageViews 列表")
@@ -89,7 +89,7 @@ func TestAnalyticsService_GetOverview_FeatureClicksSortedDescending(t *testing.T
 	store := &mockAnalyticsStore{
 		featureClicks: []FeatureClickCount{
 			{PageID: "home", FeatureID: "btn-a", Count: 1},
-			{PageID: "sample-dynamic", FeatureID: "refresh-btn", Count: 5},
+			{PageID: "dashboard", FeatureID: "refresh-btn", Count: 5},
 			{PageID: "home", FeatureID: "btn-b", Count: 3},
 		},
 	}
@@ -182,7 +182,7 @@ func TestAnalyticsService_GetOverview_FeatureClickAggregationByPageAndFeature(t 
 		featureClicks: []FeatureClickCount{
 			{PageID: "home", FeatureID: "btn-x", Count: 4},
 			{PageID: "home", FeatureID: "btn-y", Count: 2},
-			{PageID: "sample-dynamic", FeatureID: "btn-x", Count: 1},
+			{PageID: "dashboard", FeatureID: "btn-x", Count: 1},
 		},
 	}
 	svc := NewAnalyticsService(store)
@@ -191,7 +191,7 @@ func TestAnalyticsService_GetOverview_FeatureClickAggregationByPageAndFeature(t 
 	require.NoError(t, err)
 	require.Len(t, resp.FeatureClicks, 3)
 
-	// 降序: home/btn-x(4) > home/btn-y(2) > sample-dynamic/btn-x(1)
+	// 降序: home/btn-x(4) > home/btn-y(2) > dashboard/btn-x(1)
 	assert.Equal(t, "home", resp.FeatureClicks[0].PageID)
 	assert.Equal(t, "btn-x", resp.FeatureClicks[0].FeatureID)
 	assert.Equal(t, 4, resp.FeatureClicks[0].Count)
@@ -199,6 +199,6 @@ func TestAnalyticsService_GetOverview_FeatureClickAggregationByPageAndFeature(t 
 	assert.Equal(t, "home", resp.FeatureClicks[1].PageID)
 	assert.Equal(t, "btn-y", resp.FeatureClicks[1].FeatureID)
 
-	assert.Equal(t, "sample-dynamic", resp.FeatureClicks[2].PageID)
+	assert.Equal(t, "dashboard", resp.FeatureClicks[2].PageID)
 	assert.Equal(t, "btn-x", resp.FeatureClicks[2].FeatureID)
 }

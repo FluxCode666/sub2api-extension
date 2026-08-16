@@ -52,14 +52,14 @@ describe('telemetry-sdk', () => {
 
   describe('trackFeatureClick', () => {
     it('sends a POST to /api/aux/telemetry/feature-click with page_id, feature_id, visitor_id', () => {
-      trackFeatureClick('sample-dynamic', 'refresh-btn')
+      trackFeatureClick('dashboard', 'refresh-btn')
 
       expect(fetchMock).toHaveBeenCalledTimes(1)
       const [url, init] = fetchMock.mock.calls[0]
       expect(url).toBe('/api/aux/telemetry/feature-click')
 
       const body = JSON.parse(init.body as string)
-      expect(body.page_id).toBe('sample-dynamic')
+      expect(body.page_id).toBe('dashboard')
       expect(body.feature_id).toBe('refresh-btn')
       expect(body.visitor_id).toBeTruthy()
       expect(body.is_admin).toBe(false)
@@ -71,7 +71,7 @@ describe('telemetry-sdk', () => {
     })
 
     it('does not send when featureId is empty', () => {
-      trackFeatureClick('sample-dynamic', '')
+      trackFeatureClick('dashboard', '')
       expect(fetchMock).not.toHaveBeenCalled()
     })
   })
@@ -125,13 +125,13 @@ describe('telemetry-sdk', () => {
       // 初始上报
       expect(fetchMock).toHaveBeenCalledTimes(1)
 
-      // 模拟 SPA 导航到 /admin/sample-dynamic
-      window.history.pushState({}, '', '/admin/sample-dynamic')
+      // 模拟 SPA 导航到 /admin/dashboard
+      window.history.pushState({}, '', '/admin/dashboard')
 
       expect(fetchMock).toHaveBeenCalledTimes(2)
       const [, init] = fetchMock.mock.calls[1]
       const body = JSON.parse(init.body as string)
-      expect(body.page_id).toBe('sample-dynamic')
+      expect(body.page_id).toBe('dashboard')
     })
 
     it('does NOT report when path is not in page-registry (e.g. /unknown)', () => {
@@ -164,9 +164,9 @@ describe('telemetry-sdk', () => {
       expect(fetchMock).toHaveBeenCalledTimes(1)
 
       // 来回切换多次
-      window.history.pushState({}, '', '/admin/sample-dynamic')
+      window.history.pushState({}, '', '/admin/dashboard')
       window.history.pushState({}, '', '/')
-      window.history.pushState({}, '', '/admin/sample-dynamic')
+      window.history.pushState({}, '', '/admin/dashboard')
 
       // 每次有效路由切换都上报一条(按访问计,非去重)
       expect(fetchMock).toHaveBeenCalledTimes(4)
@@ -179,7 +179,7 @@ describe('telemetry-sdk', () => {
       expect(fetchMock).toHaveBeenCalledTimes(1)
 
       // pushState 到另一个页面
-      window.history.pushState({}, '', '/admin/sample-dynamic')
+      window.history.pushState({}, '', '/admin/dashboard')
       expect(fetchMock).toHaveBeenCalledTimes(2)
 
       // 模拟浏览器后退: 先改变 URL 再触发 popstate 事件

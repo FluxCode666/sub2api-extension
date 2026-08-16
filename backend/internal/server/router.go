@@ -28,10 +28,9 @@ import (
 // SetupRouter 配置路由器中间件和路由，镜像 sub2api 的 SetupRouter 风格。
 //
 // authHandler 为 nil 时跳过管理员会话路由(用于健康检查等最小启动场景)。
-// proxyHandler 为 nil 时跳过 sub2api 数据代理路由(U4 端点)。
 // telemetryHandler 为 nil 时跳过埋点上报路由(U5 端点)。
 // analyticsHandler 为 nil 时跳过分析仪表盘路由(U6 端点)。
-func SetupRouter(cfg *config.Config, healthHandler *web.HealthHandler, authHandler *handler.AuthHandler, authService *service.AuthService, proxyHandler *handler.ProxyHandler, telemetryHandler *handler.TelemetryHandler, analyticsHandler *adminhandler.AnalyticsHandler) *gin.Engine {
+func SetupRouter(cfg *config.Config, healthHandler *web.HealthHandler, authHandler *handler.AuthHandler, authService *service.AuthService, telemetryHandler *handler.TelemetryHandler, analyticsHandler *adminhandler.AnalyticsHandler) *gin.Engine {
 	if cfg.Server.Mode == "release" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -47,7 +46,7 @@ func SetupRouter(cfg *config.Config, healthHandler *web.HealthHandler, authHandl
 	registerCommonRoutes(r, healthHandler)
 
 	// 附属系统 API 路由分组
-	registerAuxRoutes(r, authHandler, authService, proxyHandler, telemetryHandler, analyticsHandler)
+	registerAuxRoutes(r, authHandler, authService, telemetryHandler, analyticsHandler)
 
 	// 静态前端托管（U7）：当 AUX_FRONTEND_DIST 环境变量指向已构建的前端 dist 目录时，
 	// 由后端托管 SPA。前端 api-client 使用相对路径 /api/aux，同源托管避免 CORS。
@@ -118,9 +117,8 @@ func registerCommonRoutes(r *gin.Engine, healthHandler *web.HealthHandler) {
 //
 // /api/aux/*                  —— 公开端点 + 埋点上报（U5 实现具体路由）
 // /api/aux/admin/session      —— 会话换取(守卫外,用 sub2api token 换附属会话)
-// /api/aux/admin/sub2api/*    —— sub2api 数据代理(守卫内,U4 实现)
 // /api/aux/admin/*（其余）     —— 受 AdminGuard 保护(U4+ 实现具体路由)
-func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authService *service.AuthService, proxyHandler *handler.ProxyHandler, telemetryHandler *handler.TelemetryHandler, analyticsHandler *adminhandler.AnalyticsHandler) {
+func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authService *service.AuthService, telemetryHandler *handler.TelemetryHandler, analyticsHandler *adminhandler.AnalyticsHandler) {
 	// 公开 + 埋点上报分组（U5 实现具体路由）
 	aux := r.Group("/api/aux")
 	{
@@ -161,12 +159,6 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			guarded.GET("", func(c *gin.Context) {
 				response.Success(c, gin.H{"group": "aux-admin", "status": "guarded", "ok": true})
 			})
-
-			// U4: sub2api 数据代理(最小调用面)。
-			// proxyHandler 为 nil 时跳过(最小启动场景)。
-			if proxyHandler != nil {
-				guarded.GET("/sub2api/dashboard-stats", proxyHandler.GetDashboardStats)
-			}
 
 			// U6: 分析仪表盘聚合查询。
 			// analyticsHandler 为 nil 时跳过(最小启动场景)。

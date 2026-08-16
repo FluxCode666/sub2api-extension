@@ -39,15 +39,9 @@ func newTestConfig() *config.Config {
 
 // newTestAuthDeps 装配管理员鉴权依赖(指向不可达的 sub2api, 仅用于路由结构测试)。
 func newTestAuthDeps() (*handler.AuthHandler, *service.AuthService) {
-	client := integration.NewSub2APIClient("http://127.0.0.1:1", "")
+	client := integration.NewSub2APIClient("http://127.0.0.1:1")
 	svc := service.NewAuthService(client, "test-secret", 1, 0)
 	return handler.NewAuthHandler(svc), svc
-}
-
-// newTestProxyHandler 装配 proxy handler(指向不可达的 sub2api, 仅用于路由结构测试)。
-func newTestProxyHandler() *handler.ProxyHandler {
-	client := integration.NewSub2APIClient("http://127.0.0.1:1", "")
-	return handler.NewProxyHandler(client)
 }
 
 // newTestTelemetryHandler 装配 telemetry handler(用 mock store, 仅用于路由结构测试)。
@@ -93,7 +87,7 @@ func TestSetupRouter_HealthEndpoint(t *testing.T) {
 	cfg := newTestConfig()
 	healthHandler := web.NewHealthHandler()
 	authHandler, authService := newTestAuthDeps()
-	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestProxyHandler(), newTestTelemetryHandler(), newTestAnalyticsHandler())
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	w := httptest.NewRecorder()
@@ -109,7 +103,7 @@ func TestSetupRouter_AuxGroupExists(t *testing.T) {
 	cfg := newTestConfig()
 	healthHandler := web.NewHealthHandler()
 	authHandler, authService := newTestAuthDeps()
-	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestProxyHandler(), newTestTelemetryHandler(), newTestAnalyticsHandler())
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler())
 
 	// /api/aux 占位端点应返回 200
 	req := httptest.NewRequest(http.MethodGet, "/api/aux", nil)
@@ -125,7 +119,7 @@ func TestSetupRouter_AuxAdminGuardedWithoutSession(t *testing.T) {
 	cfg := newTestConfig()
 	healthHandler := web.NewHealthHandler()
 	authHandler, authService := newTestAuthDeps()
-	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestProxyHandler(), newTestTelemetryHandler(), newTestAnalyticsHandler())
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler())
 
 	// /api/aux/admin 受守卫保护, 无附属会话 → 401(U3 加守卫后行为)
 	req := httptest.NewRequest(http.MethodGet, "/api/aux/admin", nil)
@@ -140,7 +134,7 @@ func TestSetupRouter_AdminSessionEndpointOutsideGuard(t *testing.T) {
 	cfg := newTestConfig()
 	healthHandler := web.NewHealthHandler()
 	authHandler, authService := newTestAuthDeps()
-	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestProxyHandler(), newTestTelemetryHandler(), newTestAnalyticsHandler())
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler())
 
 	// POST /api/aux/admin/session 在守卫外: 缺 token 应返回 400(而非 401),
 	// 证明它未被 AdminGuard 拦截。
@@ -157,7 +151,7 @@ func TestSetupRouter_AdminLoginEndpointOutsideGuard(t *testing.T) {
 	cfg := newTestConfig()
 	healthHandler := web.NewHealthHandler()
 	authHandler, authService := newTestAuthDeps()
-	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestProxyHandler(), newTestTelemetryHandler(), newTestAnalyticsHandler())
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler())
 
 	// POST /api/aux/admin/login 在守卫外: 缺 body 应返回 400(而非 401),
 	// 证明它未被 AdminGuard 拦截(独立登录入口, 调用时尚无附属会话)。
@@ -174,7 +168,7 @@ func TestSetupRouter_UnknownPathReturns404(t *testing.T) {
 	cfg := newTestConfig()
 	healthHandler := web.NewHealthHandler()
 	authHandler, authService := newTestAuthDeps()
-	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestProxyHandler(), newTestTelemetryHandler(), newTestAnalyticsHandler())
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/api/aux/nonexistent", nil)
 	w := httptest.NewRecorder()
@@ -190,7 +184,7 @@ func TestSetupRouter_UnknownPathReturnsStandardEnvelope(t *testing.T) {
 	cfg := newTestConfig()
 	healthHandler := web.NewHealthHandler()
 	authHandler, authService := newTestAuthDeps()
-	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestProxyHandler(), newTestTelemetryHandler(), newTestAnalyticsHandler())
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/api/aux/nonexistent", nil)
 	w := httptest.NewRecorder()
@@ -206,42 +200,19 @@ func TestSetupRouter_UnknownPathReturnsStandardEnvelope(t *testing.T) {
 	assert.False(t, hasErrorKey, "不应使用旧 gin.H{\"error\":...} 形状")
 }
 
-func TestSetupRouter_ProxyEndpointGuardedWithoutSession(t *testing.T) {
+func TestSetupRouter_RemovedSub2APIStatsEndpointReturns404(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cfg := newTestConfig()
 	healthHandler := web.NewHealthHandler()
 	authHandler, authService := newTestAuthDeps()
-	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestProxyHandler(), newTestTelemetryHandler(), newTestAnalyticsHandler())
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler())
 
-	// /api/aux/admin/sub2api/dashboard-stats 受守卫保护, 无附属会话 → 401
+	// 重复展示 sub2api 统计已移除；这个旧端点不应再被 AdminGuard 接管。
 	req := httptest.NewRequest(http.MethodGet, "/api/aux/admin/sub2api/dashboard-stats", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	require.Equal(t, http.StatusUnauthorized, w.Code)
-}
-
-func TestSetupRouter_ProxyEndpointRegistered(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	cfg := newTestConfig()
-	healthHandler := web.NewHealthHandler()
-	authHandler, authService := newTestAuthDeps()
-	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestProxyHandler(), newTestTelemetryHandler(), newTestAnalyticsHandler())
-
-	// 用一个有效附属会话访问 proxy 端点 → 应路由到 handler(而非 404)
-	// 代理指向不可达 sub2api, 所以会返回 503/502, 证明路由已注册且 handler 被调用
-	token, err := authService.IssueSession(&integration.Sub2APIUserInfo{
-		ID: 1, Email: "a@e.com", Username: "admin", Role: "admin",
-	})
-	require.NoError(t, err)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/aux/admin/sub2api/dashboard-stats", nil)
-	req.Header.Set("X-Aux-Session", token)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-
-	// 不应 404(路由已注册), 应是 503(sub2api 不可达) 或 502
-	assert.NotEqual(t, http.StatusNotFound, w.Code)
+	require.Equal(t, http.StatusNotFound, w.Code)
 }
 
 func TestSetupRouter_ReleaseMode(t *testing.T) {
@@ -249,7 +220,7 @@ func TestSetupRouter_ReleaseMode(t *testing.T) {
 	cfg.Server.Mode = "release"
 	healthHandler := web.NewHealthHandler()
 	authHandler, authService := newTestAuthDeps()
-	SetupRouter(cfg, healthHandler, authHandler, authService, newTestProxyHandler(), newTestTelemetryHandler(), newTestAnalyticsHandler())
+	SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler())
 
 	assert.Equal(t, gin.ReleaseMode, gin.Mode())
 }
@@ -260,7 +231,7 @@ func TestSetupRouter_DevelopMode(t *testing.T) {
 	cfg.Server.Mode = "debug"
 	healthHandler := web.NewHealthHandler()
 	authHandler, authService := newTestAuthDeps()
-	SetupRouter(cfg, healthHandler, authHandler, authService, newTestProxyHandler(), newTestTelemetryHandler(), newTestAnalyticsHandler())
+	SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler())
 
 	// debug 模式不应切换到 release
 	assert.NotEqual(t, gin.ReleaseMode, gin.Mode())
@@ -273,7 +244,7 @@ func TestSetupRouter_TelemetryPageViewEndpointOutsideGuard(t *testing.T) {
 	cfg := newTestConfig()
 	healthHandler := web.NewHealthHandler()
 	authHandler, authService := newTestAuthDeps()
-	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestProxyHandler(), newTestTelemetryHandler(), newTestAnalyticsHandler())
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler())
 
 	// POST /api/aux/telemetry/page-view 在守卫外: 无任何 token/会话,
 	// 缺字段应返回 400(而非 401), 证明它未被 AdminGuard 拦截, 匿名可写。
@@ -290,7 +261,7 @@ func TestSetupRouter_TelemetryFeatureClickEndpointOutsideGuard(t *testing.T) {
 	cfg := newTestConfig()
 	healthHandler := web.NewHealthHandler()
 	authHandler, authService := newTestAuthDeps()
-	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestProxyHandler(), newTestTelemetryHandler(), newTestAnalyticsHandler())
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler())
 
 	// POST /api/aux/telemetry/feature-click 在守卫外: 无任何 token/会话,
 	// 缺字段应返回 400(而非 401)。
@@ -307,7 +278,7 @@ func TestSetupRouter_TelemetryPageViewAcceptsAnonymousPayload(t *testing.T) {
 	cfg := newTestConfig()
 	healthHandler := web.NewHealthHandler()
 	authHandler, authService := newTestAuthDeps()
-	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestProxyHandler(), newTestTelemetryHandler(), newTestAnalyticsHandler())
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler())
 
 	// 匿名访客(无任何 auth 头)提交合法 page-view → 应返回 201(而非 401)。
 	// 这验证埋点端点确实在公开分组, 匿名可写(R8/R11)。
@@ -327,7 +298,7 @@ func TestSetupRouter_AnalyticsEndpointGuardedWithoutSession(t *testing.T) {
 	cfg := newTestConfig()
 	healthHandler := web.NewHealthHandler()
 	authHandler, authService := newTestAuthDeps()
-	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestProxyHandler(), newTestTelemetryHandler(), newTestAnalyticsHandler())
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler())
 
 	// /api/aux/admin/analytics/overview 受守卫保护, 无附属会话 → 401
 	req := httptest.NewRequest(http.MethodGet, "/api/aux/admin/analytics/overview", nil)
@@ -342,7 +313,7 @@ func TestSetupRouter_AnalyticsEndpointRegistered(t *testing.T) {
 	cfg := newTestConfig()
 	healthHandler := web.NewHealthHandler()
 	authHandler, authService := newTestAuthDeps()
-	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestProxyHandler(), newTestTelemetryHandler(), newTestAnalyticsHandler())
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler())
 
 	// 用有效附属会话访问 analytics 端点 → 应返回 200(路由已注册, handler 被调用)
 	token, err := authService.IssueSession(&integration.Sub2APIUserInfo{
@@ -367,7 +338,7 @@ func TestSetupRouter_AnalyticsEndpointNilHandlerSkipped(t *testing.T) {
 	healthHandler := web.NewHealthHandler()
 	authHandler, authService := newTestAuthDeps()
 	// analyticsHandler 传 nil → 路由不注册 → 404
-	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestProxyHandler(), newTestTelemetryHandler(), nil)
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), nil)
 
 	token, err := authService.IssueSession(&integration.Sub2APIUserInfo{
 		ID: 1, Email: "a@e.com", Username: "admin", Role: "admin",
@@ -391,7 +362,7 @@ func TestSetupRouter_FrontendStaticSkippedWithoutEnv(t *testing.T) {
 	cfg := newTestConfig()
 	healthHandler := web.NewHealthHandler()
 	authHandler, authService := newTestAuthDeps()
-	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestProxyHandler(), newTestTelemetryHandler(), newTestAnalyticsHandler())
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/some-spa-route", nil)
 	w := httptest.NewRecorder()
@@ -414,7 +385,7 @@ func TestSetupRouter_FrontendStaticServesIndexForSPARoutes(t *testing.T) {
 	cfg := newTestConfig()
 	healthHandler := web.NewHealthHandler()
 	authHandler, authService := newTestAuthDeps()
-	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestProxyHandler(), newTestTelemetryHandler(), newTestAnalyticsHandler())
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler())
 
 	// SPA history fallback: 非 API 路径返回 index.html
 	req := httptest.NewRequest(http.MethodGet, "/admin/dashboard", nil)
@@ -451,7 +422,7 @@ func TestSetupRouter_FrontendStaticSkippedForNonexistentDir(t *testing.T) {
 	cfg := newTestConfig()
 	healthHandler := web.NewHealthHandler()
 	authHandler, authService := newTestAuthDeps()
-	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestProxyHandler(), newTestTelemetryHandler(), newTestAnalyticsHandler())
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/some-spa-route", nil)
 	w := httptest.NewRecorder()

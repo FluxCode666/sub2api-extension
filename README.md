@@ -26,7 +26,6 @@ sub2api 需要一个承载动态内容与页面分析的子系统，但不能为
 │  /         公开首页                 /api/aux/*          公开 + 埋点上报 │
 │  /admin/*  管理端（需会话）         /api/aux/admin/*    受 AdminGuard   │
 │                                     转发验证 → sub2api /auth/me        │
-│                                     Admin API Key → sub2api /admin/*   │
 │                                          │                            │
 │                                          ▼                            │
 │                                   自有 PostgreSQL                     │
@@ -43,7 +42,7 @@ sub2api 需要一个承载动态内容与页面分析的子系统，但不能为
 
 ## 核心特性
 
-- **零侵入 sub2api** —— 所有对接走 sub2api 现有后台配置（`home_content`、`custom_menu_items`、`admin_api_key`），CSP `frame-src` 由 sub2api 自动注入
+- **零侵入 sub2api** —— 所有对接走 sub2api 现有后台配置（`home_content`、`custom_menu_items`），CSP `frame-src` 由 sub2api 自动注入
 - **管理员会话守卫** —— `AdminGuard` 组件用 iframe 传入的 sub2api token 转发验证，签发附属系统自有 JWT（`X-Aux-Session` 头）
 - **匿名埋点** —— 公开写入面（不经守卫），per-IP 令牌桶限流 + 4KB body 限制，防滥用
 - **分析仪表盘** —— 聚合页面访问量与功能使用度，按计数降序排序，孤儿页标注
@@ -69,8 +68,8 @@ aux-system/
 │   ├── cmd/server/              # 程序入口 + VERSION 文件
 │   ├── internal/
 │   │   ├── config/              # 配置（环境变量 + viper）
-│   │   ├── handler/             # HTTP handler（auth/proxy/telemetry/admin）
-│   │   ├── service/             # 业务逻辑（auth/proxy/telemetry/analytics）
+│   │   ├── handler/             # HTTP handler（auth/telemetry/admin）
+│   │   ├── service/             # 业务逻辑（auth/telemetry/analytics）
 │   │   ├── integration/         # sub2api 客户端（转发验证/Admin API）
 │   │   ├── server/              # Gin 路由装配 + middleware（AdminGuard/TelemetryGuard）
 │   │   ├── pkg/response/        # 标准信封工具
@@ -82,7 +81,7 @@ aux-system/
 │       ├── components/          # AdminGuard（会话守卫）
 │       ├── layouts/             # 公开/管理端布局
 │       ├── lib/                 # admin-auth/api-client/telemetry-sdk/page-registry...
-│       └── pages/               # HomePage/SampleDynamicPage/admin/DashboardPage
+│       └── pages/               # HomePage/admin/DashboardPage
 ├── deploy/
 │   ├── docker-compose.yml       # 开发用（含 postgres，从源码 build）
 │   ├── docker-compose.prod.yml  # 生产用（仅 aux-backend，GHCR 镜像，无数据库）
@@ -111,7 +110,6 @@ cp .env.example .env
 
 ```bash
 AUX_POSTGRES_PASSWORD=<强密码>          # 附属系统自有 PostgreSQL
-SUB2API_ADMIN_API_KEY=<64字符hex密钥>   # 在 sub2api 后台「安全」tab 生成
 AUX_JWT_SECRET=$(openssl rand -hex 32) # 附属系统会话签名密钥
 ```
 
@@ -176,7 +174,7 @@ make dev
 | `DEV_DATABASE_DBNAME` | `auxdb` | PG 库名 |
 | `JWT_SECRET` | `dev-secret-not-for-production` | 开发用签名密钥 |
 
-> 本地 `SUB2API_BASE_URL` 默认是 `http://127.0.0.1:8003`，可通过环境变量覆盖。`SUB2API_ADMIN_API_KEY` 仅用于 dashboard stats 等只读管理数据代理；账号密码登录不需要该 key。
+> 本地 `SUB2API_BASE_URL` 默认是 `http://127.0.0.1:8003`，可通过环境变量覆盖；它用于账号密码登录和 iframe 管理员身份转发验证。
 
 PG 密码有特殊字符时，直接导出环境变量再 `make dev`：
 
@@ -234,7 +232,6 @@ pnpm build           # tsc -b && vite build
 | `AUX_SERVER_PORT` | 宿主机映射端口 | `8787` |
 | `AUX_POSTGRES_PASSWORD` | 自有 PG 密码（**必需**） | — |
 | `SUB2API_BASE_URL` | sub2api 后端地址 | `http://sub2api:8080` |
-| `SUB2API_ADMIN_API_KEY` | sub2api Admin API Key（**必需**） | — |
 | `AUX_JWT_SECRET` | 会话签名密钥（**必需**） | — |
 | `AUX_JWT_EXPIRE_HOUR` | 会话有效期（小时） | `24` |
 | `SERVER_MODE` | `release` / `debug` | `release` |

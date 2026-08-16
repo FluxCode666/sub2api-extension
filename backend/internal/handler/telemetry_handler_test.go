@@ -110,7 +110,7 @@ func TestTelemetryHandler_RecordPageView_AdminFlag(t *testing.T) {
 	r := setupTelemetryRouter(h)
 
 	w := doTelemetryPost(r, "/api/aux/telemetry/page-view", PageViewRequest{
-		PageID:    "sample-dynamic",
+		PageID:    "dashboard",
 		VisitorID: "visitor-admin",
 		IsAdmin:   true,
 	})
@@ -207,7 +207,7 @@ func TestTelemetryHandler_RecordFeatureClick_Success(t *testing.T) {
 	r := setupTelemetryRouter(h)
 
 	w := doTelemetryPost(r, "/api/aux/telemetry/feature-click", FeatureClickRequest{
-		PageID:    "sample-dynamic",
+		PageID:    "dashboard",
 		FeatureID: "refresh-btn",
 		VisitorID: "visitor-xyz",
 		IsAdmin:   true,
@@ -223,7 +223,7 @@ func TestTelemetryHandler_RecordFeatureClick_Success(t *testing.T) {
 
 	require.Len(t, store.featureClicks, 1)
 	rec := store.featureClicks[0]
-	assert.Equal(t, "sample-dynamic", rec.PageID)
+	assert.Equal(t, "dashboard", rec.PageID)
 	assert.Equal(t, "refresh-btn", rec.FeatureID)
 	assert.Equal(t, "visitor-xyz", rec.VisitorID)
 	assert.True(t, rec.IsAdmin)
@@ -236,7 +236,7 @@ func TestTelemetryHandler_RecordFeatureClick_MissingFeatureID_400(t *testing.T) 
 	r := setupTelemetryRouter(h)
 
 	w := doTelemetryPost(r, "/api/aux/telemetry/feature-click", FeatureClickRequest{
-		PageID:    "sample-dynamic",
+		PageID:    "dashboard",
 		VisitorID: "visitor-xyz",
 	})
 
@@ -266,7 +266,7 @@ func TestTelemetryHandler_RecordFeatureClick_StoreError_500(t *testing.T) {
 	r := setupTelemetryRouter(h)
 
 	w := doTelemetryPost(r, "/api/aux/telemetry/feature-click", FeatureClickRequest{
-		PageID:    "sample-dynamic",
+		PageID:    "dashboard",
 		FeatureID: "refresh-btn",
 		VisitorID: "visitor-xyz",
 	})

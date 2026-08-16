@@ -29,7 +29,7 @@ function renderLogin() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         {/* 捕获 /admin 跳转目标 */}
-        <Route path="/admin" element={<div>admin-dashboard</div>} />
+        <Route path="/admin" element={<div>dashboard</div>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -61,7 +61,7 @@ describe('LoginPage', () => {
     renderLogin()
 
     await waitFor(() => {
-      expect(screen.getByText('admin-dashboard')).toBeInTheDocument()
+      expect(screen.getByText('dashboard')).toBeInTheDocument()
     })
   })
 
@@ -79,7 +79,7 @@ describe('LoginPage', () => {
     expect(loginMock).toHaveBeenCalledWith('admin@sub2api.local', '123456')
     // 成功后跳转 /admin
     await waitFor(() => {
-      expect(screen.getByText('admin-dashboard')).toBeInTheDocument()
+      expect(screen.getByText('dashboard')).toBeInTheDocument()
     })
   })
 
@@ -95,7 +95,7 @@ describe('LoginPage', () => {
       expect(screen.getByText('邮箱或密码错误。')).toBeInTheDocument()
     })
     // 仍在登录页
-    expect(screen.queryByText('admin-dashboard')).not.toBeInTheDocument()
+    expect(screen.queryByText('dashboard')).not.toBeInTheDocument()
   })
 
   it('shows two-factor message on two-factor error', async () => {

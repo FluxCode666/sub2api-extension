@@ -53,7 +53,7 @@ func TestTelemetryService_RecordPageView_AdminFlag(t *testing.T) {
 	store := &mockTelemetryStore{}
 	svc := NewTelemetryService(store)
 
-	err := svc.RecordPageView(context.Background(), "sample-dynamic", "visitor-admin", true)
+	err := svc.RecordPageView(context.Background(), "dashboard", "visitor-admin", true)
 	require.NoError(t, err)
 
 	require.Len(t, store.pageViews, 1)
@@ -130,12 +130,12 @@ func TestTelemetryService_RecordFeatureClick_Success(t *testing.T) {
 	store := &mockTelemetryStore{}
 	svc := NewTelemetryService(store)
 
-	err := svc.RecordFeatureClick(context.Background(), "sample-dynamic", "refresh-btn", "visitor-xyz", true)
+	err := svc.RecordFeatureClick(context.Background(), "dashboard", "refresh-btn", "visitor-xyz", true)
 	require.NoError(t, err)
 
 	require.Len(t, store.featureClicks, 1)
 	rec := store.featureClicks[0]
-	assert.Equal(t, "sample-dynamic", rec.PageID)
+	assert.Equal(t, "dashboard", rec.PageID)
 	assert.Equal(t, "refresh-btn", rec.FeatureID)
 	assert.Equal(t, "visitor-xyz", rec.VisitorID)
 	assert.True(t, rec.IsAdmin)
@@ -155,7 +155,7 @@ func TestTelemetryService_RecordFeatureClick_EmptyFeatureID(t *testing.T) {
 	store := &mockTelemetryStore{}
 	svc := NewTelemetryService(store)
 
-	err := svc.RecordFeatureClick(context.Background(), "sample-dynamic", "", "visitor-xyz", false)
+	err := svc.RecordFeatureClick(context.Background(), "dashboard", "", "visitor-xyz", false)
 	require.ErrorIs(t, err, ErrEmptyFeatureID)
 	assert.Empty(t, store.featureClicks)
 }
@@ -164,7 +164,7 @@ func TestTelemetryService_RecordFeatureClick_EmptyVisitorID(t *testing.T) {
 	store := &mockTelemetryStore{}
 	svc := NewTelemetryService(store)
 
-	err := svc.RecordFeatureClick(context.Background(), "sample-dynamic", "refresh-btn", "", false)
+	err := svc.RecordFeatureClick(context.Background(), "dashboard", "refresh-btn", "", false)
 	require.ErrorIs(t, err, ErrEmptyVisitorID)
 	assert.Empty(t, store.featureClicks)
 }
@@ -173,7 +173,7 @@ func TestTelemetryService_RecordFeatureClick_StoreError(t *testing.T) {
 	store := &mockTelemetryStore{createErr: assert.AnError}
 	svc := NewTelemetryService(store)
 
-	err := svc.RecordFeatureClick(context.Background(), "sample-dynamic", "refresh-btn", "visitor-xyz", false)
+	err := svc.RecordFeatureClick(context.Background(), "dashboard", "refresh-btn", "visitor-xyz", false)
 	require.Error(t, err)
 }
 
@@ -182,10 +182,10 @@ func TestTelemetryService_PageViewAggregatableByPageID(t *testing.T) {
 	store := &mockTelemetryStore{}
 	svc := NewTelemetryService(store)
 
-	// home 访问 2 次, sample-dynamic 访问 1 次
+	// home 访问 2 次, dashboard 访问 1 次
 	_ = svc.RecordPageView(context.Background(), "home", "v1", false)
 	_ = svc.RecordPageView(context.Background(), "home", "v2", false)
-	_ = svc.RecordPageView(context.Background(), "sample-dynamic", "v1", true)
+	_ = svc.RecordPageView(context.Background(), "dashboard", "v1", true)
 
 	// 按 page_id 聚合
 	counts := make(map[string]int)
@@ -193,7 +193,7 @@ func TestTelemetryService_PageViewAggregatableByPageID(t *testing.T) {
 		counts[rec.PageID]++
 	}
 	assert.Equal(t, 2, counts["home"])
-	assert.Equal(t, 1, counts["sample-dynamic"])
+	assert.Equal(t, 1, counts["dashboard"])
 }
 
 // 验证记录含 created_at, 可按时间排序(供 U6 时间范围聚合)。

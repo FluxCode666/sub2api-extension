@@ -95,9 +95,6 @@ services:
       # BaseURL: sub2api 后端地址。同 Docker 网络部署用 http://sub2api:8080；
       #          若附属系统与 sub2api 不在同一网络，用 sub2api 的公网域名。
       - SUB2API_BASE_URL=${SUB2API_BASE_URL:-http://sub2api:8080}
-      # AdminAPIKey: 在 sub2api 后台「安全」tab 生成的 Admin API Key（见 INTEGRATION.md）
-      - SUB2API_ADMIN_API_KEY=${SUB2API_ADMIN_API_KEY:?SUB2API_ADMIN_API_KEY is required}
-
       # ---- JWT 配置（附属系统管理员会话签名）----
       # 重要：设置固定 JWT_SECRET，避免容器重启后会话失效。
       # 生成: openssl rand -hex 32

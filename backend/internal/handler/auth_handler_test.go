@@ -77,7 +77,7 @@ func TestCreateSession_AdminUser_Success(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	client := integration.NewSub2APIClient(srv.URL, "")
+	client := integration.NewSub2APIClient(srv.URL)
 	svc := service.NewAuthService(client, "test-secret", 1, 5*time.Minute)
 	r := setupHandlerRouter(svc)
 
@@ -110,7 +110,7 @@ func TestCreateSession_NonAdmin_Forbidden(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	client := integration.NewSub2APIClient(srv.URL, "")
+	client := integration.NewSub2APIClient(srv.URL)
 	svc := service.NewAuthService(client, "test-secret", 1, 5*time.Minute)
 	r := setupHandlerRouter(svc)
 
@@ -133,7 +133,7 @@ func TestCreateSession_InvalidToken_Unauthorized(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	client := integration.NewSub2APIClient(srv.URL, "")
+	client := integration.NewSub2APIClient(srv.URL)
 	svc := service.NewAuthService(client, "test-secret", 1, 5*time.Minute)
 	r := setupHandlerRouter(svc)
 
@@ -148,7 +148,7 @@ func TestCreateSession_Sub2APIUnreachable_ServiceUnavailable(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	srv.Close() // 立即关闭模拟不可达
 
-	client := integration.NewSub2APIClient(srv.URL, "")
+	client := integration.NewSub2APIClient(srv.URL)
 	svc := service.NewAuthService(client, "test-secret", 1, 5*time.Minute)
 	r := setupHandlerRouter(svc)
 
@@ -160,7 +160,7 @@ func TestCreateSession_Sub2APIUnreachable_ServiceUnavailable(t *testing.T) {
 }
 
 func TestCreateSession_MissingToken_BadRequest(t *testing.T) {
-	client := integration.NewSub2APIClient("http://localhost:1", "")
+	client := integration.NewSub2APIClient("http://localhost:1")
 	svc := service.NewAuthService(client, "test-secret", 1, 5*time.Minute)
 	r := setupHandlerRouter(svc)
 
@@ -185,7 +185,7 @@ func TestCreateSession_CacheHit_OnlyOneSub2APICall(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	client := integration.NewSub2APIClient(srv.URL, "")
+	client := integration.NewSub2APIClient(srv.URL)
 	svc := service.NewAuthService(client, "test-secret", 1, 5*time.Minute)
 	r := setupHandlerRouter(svc)
 
@@ -223,7 +223,7 @@ func TestLogin_AdminSuccess(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	client := integration.NewSub2APIClient(srv.URL, "")
+	client := integration.NewSub2APIClient(srv.URL)
 	svc := service.NewAuthService(client, "test-secret", 1, 5*time.Minute)
 	r := setupHandlerRouter(svc)
 
@@ -257,7 +257,7 @@ func TestLogin_NonAdmin_ForbiddenWithReason(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	client := integration.NewSub2APIClient(srv.URL, "")
+	client := integration.NewSub2APIClient(srv.URL)
 	svc := service.NewAuthService(client, "test-secret", 1, 5*time.Minute)
 	r := setupHandlerRouter(svc)
 
@@ -285,7 +285,7 @@ func TestLogin_TwoFactor_ForbiddenWithReason(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	client := integration.NewSub2APIClient(srv.URL, "")
+	client := integration.NewSub2APIClient(srv.URL)
 	svc := service.NewAuthService(client, "test-secret", 1, 5*time.Minute)
 	r := setupHandlerRouter(svc)
 
@@ -308,7 +308,7 @@ func TestLogin_InvalidCredentials_Unauthorized(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	client := integration.NewSub2APIClient(srv.URL, "")
+	client := integration.NewSub2APIClient(srv.URL)
 	svc := service.NewAuthService(client, "test-secret", 1, 5*time.Minute)
 	r := setupHandlerRouter(svc)
 
@@ -325,7 +325,7 @@ func TestLogin_Sub2APIUnreachable_ServiceUnavailable(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	srv.Close() // 模拟不可达
 
-	client := integration.NewSub2APIClient(srv.URL, "")
+	client := integration.NewSub2APIClient(srv.URL)
 	svc := service.NewAuthService(client, "test-secret", 1, 5*time.Minute)
 	r := setupHandlerRouter(svc)
 

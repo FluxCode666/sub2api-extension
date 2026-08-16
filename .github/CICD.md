@@ -204,7 +204,6 @@ vim .env.prod
 #    - DATABASE_HOST=...                       (外部 PostgreSQL 地址)
 #    - DATABASE_PASSWORD=...
 #    - SUB2API_BASE_URL=http://sub2api:8080    (或 sub2api 公网域名)
-#    - SUB2API_ADMIN_API_KEY=...               (在 sub2api 后台生成)
 #    - AUX_JWT_SECRET=...                      (openssl rand -hex 32)
 
 # 5. 登录 GHCR（拉取私有镜像需要）
@@ -371,7 +370,7 @@ make vet
 | 部署后健康检查超时 | 检查 `docker compose logs aux-backend`；确认 `DATABASE_HOST` 可达、`SUB2API_BASE_URL` 正确 |
 | GHCR 镜像拉取失败 | 确认服务器已 `docker login ghcr.io`；检查 `GHCR_PAT` 是否有效（`read:packages`） |
 | 部署 SSH 连接失败 | 确认 `AUX_DEPLOY_HOST` 正确、密码正确、服务器已开启 `PasswordAuthentication yes` |
-| 容器启动后立即退出 | 查看日志：`docker compose -f docker-compose.prod.yml logs aux-backend`；常见为 `AUX_JWT_SECRET` / `SUB2API_ADMIN_API_KEY` 未设置 |
+| 容器启动后立即退出 | 查看日志：`docker compose -f docker-compose.prod.yml logs aux-backend`；确认 `AUX_JWT_SECRET` 与 `SUB2API_BASE_URL` 已设置 |
 | 无法连接 sub2api | 确认 `SUB2API_BASE_URL` 正确；同网络用 `http://sub2api:8080`，跨网络用公网域名 |
 | 无法连接数据库 | 确认 `DATABASE_HOST` / `DATABASE_PORT` / 凭据正确；外部数据库需允许本机访问 |
 | sub2api-network 不存在 | sub2api 未部署或未创建该网络；改用本地网络（见「跨网络部署」） |

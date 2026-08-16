@@ -61,11 +61,11 @@ func TestAnalyticsHandler_GetOverview_Success(t *testing.T) {
 		resp: &service.OverviewResponse{
 			PageViews: []service.PageViewCountDTO{
 				{PageID: "home", Count: 2},
-				{PageID: "sample-dynamic", Count: 1},
+				{PageID: "dashboard", Count: 1},
 				{PageID: "ghost-page", Count: 3}, // 孤儿
 			},
 			FeatureClicks: []service.FeatureClickCountDTO{
-				{PageID: "sample-dynamic", FeatureID: "refresh-btn", Count: 5},
+				{PageID: "dashboard", FeatureID: "refresh-btn", Count: 5},
 				{PageID: "home", FeatureID: "btn-a", Count: 1},
 			},
 		},

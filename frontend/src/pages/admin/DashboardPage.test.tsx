@@ -11,17 +11,17 @@ vi.mock('@/lib/api-client', () => ({
 }))
 
 // mock page-registry: 控制页面清单(R5: 清单从代码派生)。
-// 用 3 个页面测零访问场景: home(2), sample-dynamic(1), zero-page(0)。
+// 用 3 个页面测零访问场景: home(2), dashboard(1), zero-page(0)。
 vi.mock('@/lib/page-registry', () => ({
   getPages: () => [
     { id: 'home', title: '首页', path: '/', visibility: 'public' },
-    { id: 'sample-dynamic', title: '示例动态页', path: '/admin/sample-dynamic', visibility: 'admin' },
+    { id: 'dashboard', title: '分析仪表盘', path: '/admin/dashboard', visibility: 'admin' },
     { id: 'zero-page', title: '零访问页', path: '/zero', visibility: 'public' },
   ],
   getPageById: (id: string) => {
     const pages: Record<string, { id: string; title: string; path: string; visibility: string }> = {
       'home': { id: 'home', title: '首页', path: '/', visibility: 'public' },
-      'sample-dynamic': { id: 'sample-dynamic', title: '示例动态页', path: '/admin/sample-dynamic', visibility: 'admin' },
+      'dashboard': { id: 'dashboard', title: '分析仪表盘', path: '/admin/dashboard', visibility: 'admin' },
       'zero-page': { id: 'zero-page', title: '零访问页', path: '/zero', visibility: 'public' },
     }
     return pages[id]
@@ -41,10 +41,10 @@ function renderPage() {
 const mockOverview = {
   page_views: [
     { page_id: 'home', count: 2 },
-    { page_id: 'sample-dynamic', count: 1 },
+    { page_id: 'dashboard', count: 1 },
   ],
   feature_clicks: [
-    { page_id: 'sample-dynamic', feature_id: 'refresh-btn', count: 5 },
+    { page_id: 'dashboard', feature_id: 'refresh-btn', count: 5 },
     { page_id: 'home', feature_id: 'btn-a', count: 1 },
   ],
 }
@@ -70,10 +70,10 @@ describe('DashboardPage', () => {
 
     // 3 个页面都应显示(registry 派生, R5)
     expect(screen.getByText('首页')).toBeInTheDocument()
-    expect(screen.getByText('示例动态页')).toBeInTheDocument()
+    expect(screen.getAllByText('dashboard').length).toBeGreaterThan(0)
     expect(screen.getByText('零访问页')).toBeInTheDocument()
 
-    // 验证访问量: home=2, sample-dynamic=1, zero-page=0
+    // 验证访问量: home=2, dashboard=1, zero-page=0
     // 用 getAllByText 因为 "1" 和 "0" 可能出现在多处(概览卡片 + 表格)
     expect(screen.getAllByText('2').length).toBeGreaterThan(0)
     expect(screen.getAllByText('1').length).toBeGreaterThan(0)
@@ -202,7 +202,7 @@ describe('DashboardPage', () => {
 
     renderPage()
 
-    // home=2, sample-dynamic=1, zero-page=0 → 总访问量=3
+    // home=2, dashboard=1, zero-page=0 → 总访问量=3
     await waitFor(() => {
       expect(screen.getByText('总访问量')).toBeInTheDocument()
     })

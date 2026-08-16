@@ -33,13 +33,10 @@ DEV_DATABASE_DBNAME ?= auxdb
 
 # sub2api 对接。开发环境默认连接宿主机 8003 端口，可通过
 # SUB2API_BASE_URL 或 DEV_SUB2API_BASE_URL 覆盖。
-# Admin API Key 仅用于只读管理数据代理；账号密码登录不需要该 key。
 DEV_SUB2API_BASE_URL ?= $(if $(SUB2API_BASE_URL),$(SUB2API_BASE_URL),http://127.0.0.1:8003)
-DEV_SUB2API_ADMIN_API_KEY ?= $(SUB2API_ADMIN_API_KEY)
 
 # dev: 以 debug 模式启动后端开发服务器。
 # 必需: JWT_SECRET（开发用任意值）、PG 已可达、建表已完成(make migrate)。
-# 可选: SUB2API_ADMIN_API_KEY（不配则 dashboard stats 代理不可用）。
 dev:
 	SERVER_MODE=debug \
 	SERVER_PORT=$(DEV_SERVER_PORT) \
@@ -50,7 +47,6 @@ dev:
 	DATABASE_DBNAME=$(DEV_DATABASE_DBNAME) \
 	JWT_SECRET=$(or $(JWT_SECRET),dev-secret-not-for-production) \
 	SUB2API_BASE_URL=$(DEV_SUB2API_BASE_URL) \
-	SUB2API_ADMIN_API_KEY=$(DEV_SUB2API_ADMIN_API_KEY) \
 	go run ./cmd/server
 
 # migrate: 一次性建表（ent 自动迁移）。需 PG 已可达且 DATABASE_* 指向正确库。

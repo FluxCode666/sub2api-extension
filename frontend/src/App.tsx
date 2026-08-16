@@ -14,7 +14,6 @@ import AdminLayout from '@/layouts/AdminLayout'
 import AdminGuard from '@/components/AdminGuard'
 import HomePage from '@/pages/HomePage'
 import LoginPage from '@/pages/LoginPage'
-import SampleDynamicPage from '@/pages/SampleDynamicPage'
 import DashboardPage from '@/pages/admin/DashboardPage'
 
 function NotFound() {
@@ -36,7 +35,6 @@ export default function App() {
         {/* U6: 仪表盘为管理端首页 (R10) */}
         <Route index element={<DashboardPage />} />
         <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="sample-dynamic" element={<SampleDynamicPage />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

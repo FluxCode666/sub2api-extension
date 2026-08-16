@@ -2,7 +2,7 @@
 
 本指南说明如何在 sub2api 侧做**配置**（不改任何代码），让 sub2api 的官网首页与控制台菜单通过 iframe 加载附属内容承载系统的页面。
 
-**核心原则：零代码改动 sub2api**（KTD2）。所有对接走 sub2api 现有的后台配置项：`home_content`、`custom_menu_items`、`admin_api_key`。CSP `frame-src` 自动注入，无需手动配置。
+**核心原则：零代码改动 sub2api**（KTD2）。所有对接走 sub2api 现有的后台配置项：`home_content`、`custom_menu_items`。CSP `frame-src` 自动注入，无需手动配置。
 
 ---
 
@@ -11,14 +11,13 @@
 1. [架构概览](#1-架构概览)
 2. [前置条件](#2-前置条件)
 3. [步骤一：部署附属系统](#步骤一部署附属系统)
-4. [步骤二：生成 Admin API Key](#步骤二生成-admin-api-key)
-5. [步骤三：配置 home_content（替换官网首页）](#步骤三配置-home_content替换官网首页)
-6. [步骤四：配置 custom_menu_items（控制台菜单）](#步骤四配置-custom_menu_items控制台菜单)
-7. [步骤五：CSP 自动注入说明](#步骤五csp-自动注入说明)
-8. [验收清单](#验收清单)
-9. [home_content 裸 iframe 限制（重要）](#home_content-裸-iframe-限制重要)
-10. [两种部署场景的 URL 选择](#两种部署场景的-url-选择)
-11. [故障排查](#故障排查)
+4. [步骤二：配置 home_content（替换官网首页）](#步骤二配置-home_content替换官网首页)
+5. [步骤三：配置 custom_menu_items（控制台菜单）](#步骤三配置-custom_menu_items控制台菜单)
+6. [步骤四：CSP 自动注入说明](#步骤四csp-自动注入说明)
+7. [验收清单](#验收清单)
+8. [home_content 裸 iframe 限制（重要）](#home_content-裸-iframe-限制重要)
+9. [两种部署场景的 URL 选择](#两种部署场景的-url-选择)
+10. [故障排查](#故障排查)
 
 ---
 
@@ -45,7 +44,6 @@
 │  /  (HomePage, 公开)               /api/aux/*  (公开 + 埋点上报)                │
 │  /admin/* (管理端, 需会话)          /api/aux/admin/* (受 AdminGuard 保护)        │
 │                                    转发验证 → sub2api /auth/me                  │
-│                                    Admin API Key → sub2api /api/v1/admin/*       │
 │                                         │                                      │
 │                                         ▼                                      │
 │                                  自有 PostgreSQL                               │
@@ -85,9 +83,6 @@ cp .env.example .env
 # 附属系统自有 PostgreSQL 密码
 AUX_POSTGRES_PASSWORD=<一个强密码>
 
-# sub2api 对接（见步骤二生成）
-SUB2API_ADMIN_API_KEY=<在步骤二获取>
-
 # 附属系统 JWT 密钥（生成：openssl rand -hex 32）
 AUX_JWT_SECRET=<openssl rand -hex 32 的输出>
 ```
@@ -115,42 +110,11 @@ docker compose logs -f aux-backend
 
 ---
 
-## 步骤二：生成 Admin API Key
-
-附属系统后端需要一个 Admin API Key 来读取 sub2api 的数据（如 dashboard stats）。
-
-1. 登录 sub2api 管理员后台。
-2. 进入**「安全」**tab。
-3. 找到 **"Admin API Key"** 卡片。
-4. 点击**「创建」**或**「重新生成」**，生成一个 64 字符的 hex 密钥。
-5. 复制此密钥。
-
-### 填入附属系统配置
-
-将密钥填入附属系统的 `.env`：
-
-```bash
-SUB2API_ADMIN_API_KEY=<刚生成的 64 字符密钥>
-```
-
-重启附属系统使配置生效：
-
-```bash
-cd aux-system/deploy
-docker compose restart aux-backend
-```
-
-**Admin API Key 使用方式：** 附属系统后端用请求头 `x-api-key: <admin-api-key>` 调用 sub2api `/api/v1/admin/*` 端点。
-
-> **限制：** Admin API Key 不能执行需要 step-up 2FA 的敏感操作，但读取 dashboard stats 等只读端点没有问题。
-
----
-
-## 步骤三：配置 home_content（替换官网首页）
+## 步骤二：配置 home_content（替换官网首页）
 
 `home_content` 让 sub2api 用 iframe 替换默认官网首页，公开访客无需登录即可浏览。
 
-### 3.1 设置 home_content
+### 2.1 设置 home_content
 
 1. 登录 sub2api 管理员后台。
 2. 进入**「站点设置」**tab。
@@ -171,7 +135,7 @@ https://aux.example.com/
 
 5. 保存设置。
 
-### 3.2 验证
+### 2.2 验证
 
 打开 sub2api 首页（未登录状态），应看到附属系统的 HomePage 内容经 iframe 加载。
 
@@ -179,11 +143,11 @@ https://aux.example.com/
 
 ---
 
-## 步骤四：配置 custom_menu_items（控制台菜单）
+## 步骤三：配置 custom_menu_items（控制台菜单）
 
 `custom_menu_items` 在 sub2api 控制台侧边栏添加自定义菜单项，点击后经 iframe 加载附属系统管理端页面。此路径**会传 token**，附属系统据此做转发验证。
 
-### 4.1 设置 custom_menu_items
+### 3.1 设置 custom_menu_items
 
 1. 登录 sub2api 管理员后台。
 2. 进入**「站点设置」**tab。
@@ -200,15 +164,6 @@ https://aux.example.com/
     "page_slug": "",
     "visibility": "admin",
     "sort_order": 100
-  },
-  {
-    "id": "aux-sample-dynamic",
-    "label": "示例动态页",
-    "icon_svg": "",
-    "url": "http://aux-backend:8787/admin/sample-dynamic",
-    "page_slug": "",
-    "visibility": "admin",
-    "sort_order": 101
   }
 ]
 ```
@@ -217,7 +172,7 @@ https://aux.example.com/
 
 5. 保存设置。
 
-### 4.2 字段说明
+### 3.2 字段说明
 
 | 字段 | 说明 |
 |------|------|
@@ -229,15 +184,15 @@ https://aux.example.com/
 | `visibility` | `"admin"` 仅管理员可见 / `"user"` 对所有人可见。附属系统管理端页面用 `"admin"` |
 | `sort_order` | 菜单排序权重（数字） |
 
-### 4.3 验证
+### 3.3 验证
 
 1. 刷新 sub2api 控制台页面。
-2. 侧边栏应出现「内容分析」与「示例动态页」菜单项（仅管理员可见）。
+2. 侧边栏应出现「内容分析」菜单项（仅管理员可见）。
 3. 点击「内容分析」→ iframe 加载附属系统仪表盘，经转发验证后显示埋点分析数据。
 
 ---
 
-## 步骤五：CSP 自动注入说明
+## 步骤四：CSP 自动注入说明
 
 **无需手动配置 sub2api 的 CSP。**
 
@@ -268,7 +223,6 @@ sub2api 的 `GetFrameSrcOrigins`（`backend/internal/service/setting_public.go`�
 
 ### AE2 / F2：管理员经转发验证进入仪表盘
 
-- [ ] Admin API Key 已生成并填入附属系统配置
 - [ ] sub2api 后台 `custom_menu_items` 已配置附属系统管理端菜单项（`visibility: "admin"`）
 - [ ] **测试：** 管理员登录 sub2api 控制台 → 侧边栏出现附属系统菜单项 → 点击「内容分析」→ iframe 加载附属系统仪表盘 → 经转发验证成功 → 显示页面清单与埋点分析数据
 
@@ -297,7 +251,7 @@ sub2api 的 `HomeView` 把 `home_content` 当**裸 iframe** 渲染（`<iframe :s
 | 需求 | 嵌入路径 | 传 token？ | 适合内容 |
 |------|----------|-----------|----------|
 | 公开内容（官网首页） | `home_content` | 否 | 纯公开，无需身份 |
-| 受保护/管理员内容 | `custom_menu_items` | 是 | 需身份验证、读 sub2api 数据 |
+| 受保护/管理员内容 | `custom_menu_items` | 是 | 需身份验证、查看附属系统分析 |
 
 ---
 
@@ -352,9 +306,8 @@ sub2api 与附属系统在同一 `sub2api-network`，用容器服务名解析：
 
 ### 管理端菜单点击后显示「转发验证失败」
 
-1. **检查 Admin API Key：** 附属系统配置的 `SUB2API_ADMIN_API_KEY` 是否正确。
-2. **检查 sub2api 可达：** `docker exec aux-backend wget -qO- http://sub2api:8080/health` 应返回 ok。
-3. **检查 sub2api `auth/me` 端点：** 确认 sub2api 正常运行且 `/api/v1/auth/me` 可用。
+1. **检查 sub2api 可达：** `docker exec aux-backend wget -qO- http://sub2api:8080/health` 应返回 ok。
+2. **检查 sub2api `auth/me` 端点：** 确认 sub2api 正常运行且 `/api/v1/auth/me` 可用。
 
 ### 附属系统 `/health` 返回非 200
 

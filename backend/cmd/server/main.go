@@ -82,12 +82,9 @@ func main() {
 	healthHandler := web.NewHealthHandler()
 
 	// 装配管理员鉴权链: sub2api client → auth service → auth handler
-	sub2apiClient := integration.NewSub2APIClient(cfg.Sub2API.BaseURL, cfg.Sub2API.AdminAPIKey)
+	sub2apiClient := integration.NewSub2APIClient(cfg.Sub2API.BaseURL)
 	authService := service.NewAuthService(sub2apiClient, cfg.JWT.Secret, cfg.JWT.ExpireHour, 0)
 	authHandler := handler.NewAuthHandler(authService)
-
-	// 装配 sub2api 数据代理 handler(U4): 用 Admin API Key 读 sub2api 数据
-	proxyHandler := handler.NewProxyHandler(sub2apiClient)
 
 	// 装配埋点入库链(U5): ent client → telemetry store → telemetry service → handler
 	telemetryStore := service.NewEntTelemetryStore(entClient)
@@ -100,7 +97,7 @@ func main() {
 	analyticsService := service.NewAnalyticsService(analyticsStore)
 	analyticsHandler := adminhandler.NewAnalyticsHandler(analyticsService)
 
-	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, proxyHandler, telemetryHandler, analyticsHandler)
+	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler)
 
 	// 启动 HTTP 服务器
 	addr := cfg.Server.Address()

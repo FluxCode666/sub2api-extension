@@ -17,7 +17,7 @@ func clearEnv(t *testing.T) {
 		"SERVER_WRITE_TIMEOUT", "SERVER_IDLE_TIMEOUT",
 		"DATABASE_HOST", "DATABASE_PORT", "DATABASE_USER",
 		"DATABASE_PASSWORD", "DATABASE_DBNAME", "DATABASE_SSLMODE",
-		"SUB2API_BASE_URL", "SUB2API_ADMIN_API_KEY",
+		"SUB2API_BASE_URL",
 		"JWT_SECRET", "JWT_EXPIRE_HOUR",
 	}
 	for _, k := range keys {
@@ -36,7 +36,6 @@ func TestLoadFromEnv_Success(t *testing.T) {
 	t.Setenv("JWT_SECRET", "test-secret-key")
 	t.Setenv("SERVER_PORT", "9999")
 	t.Setenv("SUB2API_BASE_URL", "https://sub2api.example.com")
-	t.Setenv("SUB2API_ADMIN_API_KEY", "admin-key-123")
 
 	cfg, err := LoadFromEnv()
 	require.NoError(t, err)
@@ -50,7 +49,6 @@ func TestLoadFromEnv_Success(t *testing.T) {
 	assert.Equal(t, "test-secret-key", cfg.JWT.Secret)
 	assert.Equal(t, 9999, cfg.Server.Port)
 	assert.Equal(t, "https://sub2api.example.com", cfg.Sub2API.BaseURL)
-	assert.Equal(t, "admin-key-123", cfg.Sub2API.AdminAPIKey)
 }
 
 func TestLoadFromEnv_MissingDBHost(t *testing.T) {
@@ -91,10 +89,23 @@ func TestLoadFromEnv_MissingJWTSecret(t *testing.T) {
 	t.Setenv("DATABASE_HOST", "localhost")
 	t.Setenv("DATABASE_USER", "aux")
 	t.Setenv("DATABASE_DBNAME", "auxdb")
+	t.Setenv("SUB2API_BASE_URL", "http://sub2api:8080")
 
 	_, err := LoadFromEnv()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "jwt.secret")
+}
+
+func TestLoadFromEnv_MissingSub2APIBaseURL(t *testing.T) {
+	clearEnv(t)
+	t.Setenv("DATABASE_HOST", "localhost")
+	t.Setenv("DATABASE_USER", "aux")
+	t.Setenv("DATABASE_DBNAME", "auxdb")
+	t.Setenv("JWT_SECRET", "test-secret-key")
+
+	_, err := LoadFromEnv()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "sub2api.base_url")
 }
 
 func TestLoadFromEnv_InvalidPort(t *testing.T) {
@@ -103,6 +114,7 @@ func TestLoadFromEnv_InvalidPort(t *testing.T) {
 	t.Setenv("DATABASE_USER", "aux")
 	t.Setenv("DATABASE_DBNAME", "auxdb")
 	t.Setenv("JWT_SECRET", "test-secret-key")
+	t.Setenv("SUB2API_BASE_URL", "http://sub2api:8080")
 	t.Setenv("SERVER_PORT", "99999")
 
 	_, err := LoadFromEnv()
@@ -116,6 +128,7 @@ func TestLoadFromEnv_Defaults(t *testing.T) {
 	t.Setenv("DATABASE_USER", "aux")
 	t.Setenv("DATABASE_DBNAME", "auxdb")
 	t.Setenv("JWT_SECRET", "test-secret-key")
+	t.Setenv("SUB2API_BASE_URL", "http://sub2api:8080")
 
 	cfg, err := LoadFromEnv()
 	require.NoError(t, err)

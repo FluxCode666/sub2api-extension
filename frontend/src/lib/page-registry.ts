@@ -44,9 +44,9 @@ export const PAGE_REGISTRY: readonly PageEntry[] = [
     visibility: 'public',
   },
   {
-    id: 'sample-dynamic',
-    title: '示例动态页',
-    path: '/admin/sample-dynamic',
+    id: 'dashboard',
+    title: '分析仪表盘',
+    path: '/admin/dashboard',
     visibility: 'admin',
   },
 ] as const

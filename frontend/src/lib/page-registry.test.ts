@@ -19,11 +19,11 @@ describe('page-registry', () => {
     expect(home?.path).toBe('/')
     expect(home?.visibility).toBe('public')
 
-    const sample = getPageById('sample-dynamic')
-    expect(sample).toBeDefined()
-    expect(sample?.title).toBe('示例动态页')
-    expect(sample?.path).toBe('/admin/sample-dynamic')
-    expect(sample?.visibility).toBe('admin')
+    const dashboard = getPageById('dashboard')
+    expect(dashboard).toBeDefined()
+    expect(dashboard?.title).toBe('分析仪表盘')
+    expect(dashboard?.path).toBe('/admin/dashboard')
+    expect(dashboard?.visibility).toBe('admin')
   })
 
   it('every entry has a unique id (KTD7 shared namespace)', () => {
@@ -38,8 +38,8 @@ describe('page-registry', () => {
 
   it('page paths match App.tsx registered routes', () => {
     // 与 App.tsx 路由 path 一致 (KTD7): 清单是路由的真相源。
-    // App.tsx 注册: '/' (HomePage), '/admin' index + '/admin/sample-dynamic' (SampleDynamicPage)
-    const registeredPaths = ['/', '/admin/sample-dynamic']
+    // App.tsx 注册: '/' (HomePage), '/admin' index + '/admin/dashboard' (DashboardPage)
+    const registeredPaths = ['/', '/admin/dashboard']
     for (const entry of PAGE_REGISTRY) {
       expect(registeredPaths).toContain(entry.path)
     }
@@ -51,7 +51,7 @@ describe('page-registry', () => {
 
   it('getPageByPath finds pages and returns undefined for unknown path', () => {
     expect(getPageByPath('/')?.id).toBe('home')
-    expect(getPageByPath('/admin/sample-dynamic')?.id).toBe('sample-dynamic')
+    expect(getPageByPath('/admin/dashboard')?.id).toBe('dashboard')
     expect(getPageByPath('/nope')).toBeUndefined()
   })
 
@@ -64,7 +64,7 @@ describe('page-registry', () => {
   it('getAdminPages returns only admin-visibility pages', () => {
     const adminPages = getAdminPages()
     expect(adminPages.every((p) => p.visibility === 'admin')).toBe(true)
-    expect(adminPages.map((p) => p.id)).toContain('sample-dynamic')
+    expect(adminPages.map((p) => p.id)).toContain('dashboard')
   })
 
   it('getPages returns the full registry', () => {
