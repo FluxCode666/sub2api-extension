@@ -144,11 +144,11 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 
 ### 前置：启动 PostgreSQL 并建库
 
-后端连接 PostgreSQL（默认 `localhost:5432`，库名 `auxdb`，用户 `aux`）。自行用 docker 起一个：
+后端连接 PostgreSQL（默认 `localhost:15433`，库名 `auxdb`，用户 `aux`）。自行用 docker 起一个：
 
 ```bash
 docker run -d --name aux-pg -e POSTGRES_USER=aux -e POSTGRES_PASSWORD=aux \
-  -e POSTGRES_DB=auxdb -p 5432:5432 postgres:18-alpine
+  -e POSTGRES_DB=auxdb -p 127.0.0.1:15433:5432 postgres:18-alpine
 ```
 
 ### 后端
@@ -170,9 +170,9 @@ make dev
 |------|------|------|
 | `DEV_SERVER_PORT` | `8090` | 后端监听端口（与前端 vite 代理一致） |
 | `DEV_DATABASE_HOST` | `localhost` | PG 地址 |
-| `DEV_DATABASE_PORT` | `5432` | PG 端口 |
+| `DEV_DATABASE_PORT` | `15433` | 独立 aux PostgreSQL 的宿主机端口 |
 | `DEV_DATABASE_USER` | `aux` | PG 用户 |
-| `DEV_DATABASE_PASSWORD` | — | PG 密码（需通过环境变量提供） |
+| `DEV_DATABASE_PASSWORD` | `aux` | 本地 `aux-pg` 容器的开发密码；生产环境必须显式设置 |
 | `DEV_DATABASE_DBNAME` | `auxdb` | PG 库名 |
 | `JWT_SECRET` | `dev-secret-not-for-production` | 开发用签名密钥 |
 
@@ -201,7 +201,7 @@ pnpm dev        # 开发服务器 http://localhost:3100
 |------|----------|------|
 | 前端 vite | `3100` | 浏览器访问入口 |
 | 后端 | `8090` | 前端代理目标，`make dev` 默认 |
-| PostgreSQL | `5432` | 本地 docker 容器映射 |
+| PostgreSQL | `15433` | 独立 aux PostgreSQL 的本地 docker 容器映射 |
 
 ## 测试
 

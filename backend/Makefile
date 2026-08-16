@@ -22,10 +22,13 @@ LDFLAGS ?= -s -w -X main.Version=$(VERSION) -X main.Commit=$(COMMIT) -X main.Dat
 # ---- 开发环境变量 ----
 # 后端开发监听 8090（与 frontend/vite.config.ts 的 proxy target 一致）。
 # 数据库连接由开发者本地 docker 提供，此处只给默认值，可用环境变量覆盖。
+# deploy/docker-compose.yml 中独立 aux-postgres 的宿主机映射端口为 15433。
 DEV_SERVER_PORT ?= 8090
 DEV_DATABASE_HOST ?= localhost
-DEV_DATABASE_PORT ?= 5432
+DEV_DATABASE_PORT ?= 15433
 DEV_DATABASE_USER ?= aux
+# 仅本地开发默认值；与 README 的 aux-pg 容器一致。生产环境必须显式设置密码。
+DEV_DATABASE_PASSWORD ?= aux
 DEV_DATABASE_DBNAME ?= auxdb
 
 # sub2api 对接（可选，不配则公开页/埋点正常，管理端转发验证与 sub2api 数据代理不可用）。
