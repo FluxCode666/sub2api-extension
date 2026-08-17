@@ -29,6 +29,7 @@ type pageProvider interface {
 	Create(ctx context.Context, input service.PageInput) (*service.Page, error)
 	List(ctx context.Context) ([]service.PageListItem, error)
 	GetByID(ctx context.Context, id int) (*service.Page, error)
+	GetAdminBySlug(ctx context.Context, slug string) (*service.Page, error)
 	Update(ctx context.Context, id int, input service.PageInput) (*service.Page, error)
 	Delete(ctx context.Context, id int) error
 }
@@ -87,6 +88,26 @@ func (h *PageHandler) GetByID(c *gin.Context) {
 		return
 	}
 	p, err := h.provider.GetByID(c.Request.Context(), id)
+	if err != nil {
+		handlePageError(c, err)
+		return
+	}
+	response.Success(c, p)
+}
+
+// GetBySlug GET /api/aux/admin/pages/slug/:slug
+// 管理端按 slug 获取启用的 admin 页面(含内容, 供 /admin/p/:slug 渲染)。
+func (h *PageHandler) GetBySlug(c *gin.Context) {
+	if h == nil || h.provider == nil {
+		response.InternalError(c, "page store is unavailable")
+		return
+	}
+	slug := c.Param("slug")
+	if slug == "" {
+		response.BadRequest(c, "slug is required")
+		return
+	}
+	p, err := h.provider.GetAdminBySlug(c.Request.Context(), slug)
 	if err != nil {
 		handlePageError(c, err)
 		return

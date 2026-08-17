@@ -205,6 +205,7 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			if pageAdminHandler != nil {
 				guarded.GET("/pages", pageAdminHandler.List)
 				guarded.POST("/pages", pageAdminHandler.Create)
+				guarded.GET("/pages/slug/:slug", pageAdminHandler.GetBySlug)
 				guarded.GET("/pages/:id", pageAdminHandler.GetByID)
 				guarded.PUT("/pages/:id", pageAdminHandler.Update)
 				guarded.DELETE("/pages/:id", pageAdminHandler.Delete)

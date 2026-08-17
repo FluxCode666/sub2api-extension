@@ -16,9 +16,18 @@ import LoginPage from '@/pages/LoginPage'
 import HomePage from '@/pages/HomePage'
 import DashboardPage from '@/pages/admin/DashboardPage'
 import HomepageConfigPage from '@/pages/admin/HomepageConfigPage'
+import AdminDynamicPage from '@/pages/admin/AdminDynamicPage'
+import DynamicPage from '@/pages/DynamicPage'
 import ContentExamplePage from '@/pages/examples/ContentExamplePage'
 import InteractionExamplePage from '@/pages/examples/InteractionExamplePage'
 import APIExamplePage from '@/pages/examples/APIExamplePage'
+import { fetchDynamicPages } from '@/lib/dynamic-pages'
+
+// bootstrap: 获取动态页清单, 与静态注册表合并(KTD7)。
+// 失败时降级为仅静态页, 不阻塞前端。
+fetchDynamicPages().catch(() => {
+  /* 降级: 仅静态页可用 */
+})
 
 function NotFound() {
   return (
@@ -42,12 +51,16 @@ export default function App() {
       <Route element={<PublicLayout />}>
         <Route path="/login" element={<LoginPage />} />
       </Route>
+      {/* 动态页面(public): /p/:slug, on-demand fetch 内容, 硬刷新可工作 */}
+      <Route path="/p/:slug" element={<DynamicPage />} />
       {/* 管理端: 需管理员会话 (对应 sub2api custom_menu_items, 传 token) */}
       <Route path="/admin" element={<AdminGuard><AdminLayout /></AdminGuard>}>
         {/* U6: 仪表盘为管理端首页 (R10) */}
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="homepage" element={<HomepageConfigPage />} />
+        {/* 动态页面(admin): /admin/p/:slug, 经 AdminGuard, on-demand fetch */}
+        <Route path="p/:slug" element={<AdminDynamicPage />} />
         <Route path="examples/content" element={<ContentExamplePage />} />
         <Route path="examples/interaction" element={<InteractionExamplePage />} />
         <Route path="examples/api" element={<APIExamplePage />} />
