@@ -17,7 +17,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiClient, type AuxEnvelope } from '@/lib/api-client'
-import { getPages, type PageEntry } from '@/lib/page-registry'
+import { getMergedRegistry } from '@/lib/dynamic-pages'
+import type { PageEntry } from '@/lib/page-registry'
 import ErrorState from '@/components/ErrorState'
 
 /** 后端 analytics overview 响应(镜像后端 OverviewResponse)。 */
@@ -67,8 +68,8 @@ export default function DashboardPage() {
           return
         }
 
-        // KTD7: registry 派生页面清单, 后端计数按 page id 关联。
-        const registryPages: readonly PageEntry[] = getPages()
+        // KTD7: 合并注册表(静态核心 + 动态页)派生页面清单, 后端计数按 page id 关联。
+        const registryPages: readonly PageEntry[] = getMergedRegistry()
         const viewCounts = new Map<string, number>()
         for (const pv of envelope.data.page_views) {
           viewCounts.set(pv.page_id, pv.count)

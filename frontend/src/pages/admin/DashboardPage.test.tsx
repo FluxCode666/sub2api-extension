@@ -20,6 +20,10 @@ vi.mock('@/lib/page-registry', () => ({
   getPages: () => currentPages,
 }))
 
+vi.mock('@/lib/dynamic-pages', () => ({
+  getMergedRegistry: () => currentPages,
+}))
+
 import { apiClient } from '@/lib/api-client'
 
 const mockOverview = {
