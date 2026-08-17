@@ -1,18 +1,21 @@
 # sub2api 集成配置指南
 
-本指南说明如何在不修改 sub2api 代码的前提下，通过 `custom_menu_items` 将 aux-system 管理页面嵌入 sub2api 控制台。
+本指南说明如何在不修改 sub2api 代码的前提下，通过 `home_content` 嵌入 TERALEMO 官网，并通过 `custom_menu_items` 将 aux-system 管理页面嵌入 sub2api 控制台。
 
-aux-system 当前没有公开首页。访问 `/` 会跳转到受保护的 `/admin/dashboard`，因此不要将 aux-system 根路径配置为 `home_content`。
+aux-system 根路径 `/` 是公开官网首页，可以直接作为 sub2api `home_content` 的 URL。官网配置中心位于 `/admin/homepage`，分析仪表盘位于 `/admin/dashboard`。
+
+官网配置中心中的“顶部导航控制台链接”对应首页导航的“控制台”按钮，默认值为 `/admin`，可按部署环境改为实际业务控制台地址。
 
 ## 架构
 
 ```text
+sub2api 首页
+  home_content URL iframe -> aux-system /
+
 sub2api 控制台
-  custom_menu_items
-    -> 带 token 的 iframe
-      -> aux-system /admin/dashboard
-        -> AdminGuard 验证或换取 aux 会话
-          -> aux-system Dashboard 和示例页面
+  custom_menu_items -> 带 token 的 iframe
+    -> aux-system /admin/homepage 或 /admin/dashboard
+      -> AdminGuard 验证或换取 aux 会话
 ```
 
 aux-system 使用自己的 PostgreSQL 保存页面访问和功能点击数据。管理员身份通过 sub2api iframe token 或独立账号密码登录验证；两个系统不共享数据库。
@@ -60,7 +63,19 @@ cp .env.prod.example .env.prod
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 ```
 
-## 2. 配置 custom_menu_items
+## 2. 配置首页与管理菜单
+
+### 2.1 配置 home_content
+
+在 sub2api「站点设置」的「首页内容」中填写 aux-system 的公开根 URL：
+
+```text
+https://aux.example.com/?theme=light
+```
+
+sub2api 会把 URL 作为 iframe 地址。`theme=light` 或 `theme=dark` 可指定初始主题，访客仍可在官网右上角手动切换。
+
+### 2.2 配置 custom_menu_items
 
 1. 登录 sub2api 管理后台。
 2. 进入「站点设置」。
@@ -77,6 +92,15 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
     "page_slug": "",
     "visibility": "admin",
     "sort_order": 100
+  },
+  {
+    "id": "aux-homepage-config",
+    "label": "官网配置",
+    "icon_svg": "",
+    "url": "https://aux.example.com/admin/homepage",
+    "page_slug": "",
+    "visibility": "admin",
+    "sort_order": 101
   }
 ]
 ```
@@ -87,14 +111,22 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 |------|------|
 | `id` | 菜单唯一标识 |
 | `label` | 控制台显示名称 |
-| `url` | 浏览器可访问的 aux-system `/admin/dashboard` 完整 URL |
+| `url` | 浏览器可访问的 aux-system `/admin/dashboard` 或 `/admin/homepage` 完整 URL |
 | `page_slug` | 必须留空，确保走 iframe 模式并附加 token |
 | `visibility` | 使用 `admin` |
 | `sort_order` | 菜单排序数字 |
 
 保存后，sub2api 会通过 `buildEmbeddedUrl` 附加 `user_id`、`token`、`theme`、`lang`、`ui_mode` 等参数。aux-system 的 `AdminGuard` 使用 token 验证管理员身份并签发自己的会话。
 
-## 3. Dashboard 与示例页面
+## 3. 官网配置与 Dashboard
+
+官网配置中心路径是：
+
+```text
+/admin/homepage
+```
+
+可维护首屏定位、主标题、简介、CTA 与伙伴列表。伙伴列表为空时官网不展示该板块；单个伙伴没有 `logoUrl` 时只显示名称。
 
 Dashboard 的规范路径是：
 
@@ -106,7 +138,9 @@ Dashboard 列出当前注册页面，标题和路径都可点击：
 
 | 页面 | 路径 |
 |------|------|
+| TERALEMO 官网首页 | `/` |
 | 分析仪表盘 | `/admin/dashboard` |
+| 官网首页配置 | `/admin/homepage` |
 | 静态内容示例 | `/admin/examples/content` |
 | 交互与埋点示例 | `/admin/examples/interaction` |
 | API 请求示例 | `/admin/examples/api` |
@@ -156,10 +190,14 @@ sub2api 会从 `custom_menu_items[].url` 提取 origin，并自动加入 `Conten
 - [ ] aux-system `/health` 返回 200。
 - [ ] aux-system 能连接自己的 PostgreSQL。
 - [ ] `SUB2API_BASE_URL` 指向可用的 sub2api 后端。
+- [ ] sub2api `home_content` 已设置为 aux-system 根 URL。
+- [ ] sub2api 首页能展示 TERALEMO 官网，亮色/暗色切换正常。
 - [ ] sub2api `custom_menu_items` 已添加 `/admin/dashboard`。
+- [ ] sub2api `custom_menu_items` 已添加 `/admin/homepage`。
 - [ ] `page_slug` 为空且 `visibility` 为 `admin`。
 - [ ] 管理员点击「内容分析」后 iframe 能显示 Dashboard。
-- [ ] Dashboard 中四个页面链接均可打开。
+- [ ] 官网配置保存后，刷新公开首页可读取最新文案和伙伴列表。
+- [ ] Dashboard 中当前注册页面链接均可打开。
 - [ ] 交互示例的操作会进入 Dashboard 功能使用度。
 - [ ] API 示例能读取 `/api/aux/admin/examples/status`。
 - [ ] 非管理员或失效 token 无法访问管理端 API。

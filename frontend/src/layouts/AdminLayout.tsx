@@ -22,6 +22,9 @@ export default function AdminLayout() {
             <NavLink to="/admin/dashboard" className={linkClass} end>
               仪表盘
             </NavLink>
+            <NavLink to="/admin/homepage" className={linkClass} end>
+              官网配置
+            </NavLink>
           </nav>
         </div>
       </header>

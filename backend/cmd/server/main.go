@@ -97,7 +97,12 @@ func main() {
 	analyticsService := service.NewAnalyticsService(analyticsStore)
 	analyticsHandler := adminhandler.NewAnalyticsHandler(analyticsService)
 
-	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler)
+	// 官网首页配置链：复用 system_meta 存储，公开首页只读，管理员端可写。
+	homepageStore := service.NewEntHomepageConfigStore(entClient)
+	homepageService := service.NewHomepageConfigService(homepageStore)
+	homepageHandler := adminhandler.NewHomepageConfigHandler(homepageService)
+
+	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, homepageHandler)
 
 	// 启动 HTTP 服务器
 	addr := cfg.Server.Address()

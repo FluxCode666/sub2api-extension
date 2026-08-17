@@ -38,9 +38,21 @@ export interface PageEntry {
  */
 export const PAGE_REGISTRY: readonly PageEntry[] = [
   {
+    id: 'home',
+    title: 'TERALEMO 官网首页',
+    path: '/',
+    visibility: 'public',
+  },
+  {
     id: 'dashboard',
     title: '分析仪表盘',
     path: '/admin/dashboard',
+    visibility: 'admin',
+  },
+  {
+    id: 'homepage-config',
+    title: '官网首页配置',
+    path: '/admin/homepage',
     visibility: 'admin',
   },
   {
