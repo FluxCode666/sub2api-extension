@@ -117,7 +117,7 @@ Radix primitives install transitively via `shadcn add` (don't install manually).
 
 After shadcn init + component add:
 1. `pnpm typecheck` passes (tsc --noEmit)
-2. `pnpm test` passes (existing 119 vitest tests — homepage/config/dashboard/admin-guard/api-client/telemetry/page-registry)
+2. `pnpm test` passes (existing 129 vitest tests — homepage/config/dashboard/admin-guard/api-client/telemetry/page-registry)
 3. `pnpm build` succeeds
 4. Manual: `pnpm dev` → visit `/` (TERALEMO homepage), `/admin/dashboard`, `/admin/homepage` — visual parity + dark-mode toggle works
 5. Render a `<Button>` from `@/components/ui/button` in a scratch route — renders without error
@@ -367,7 +367,7 @@ go run ./cmd/server -migrate  # explicit flag (existing convention) — creates 
 ## 7. Validation Architecture (for Nyquist / Dimension 8)
 
 **Validation approach for Phase 1:**
-- **Regression gate:** existing frontend vitest suite (119 tests) + backend `make test-unit` must pass unchanged after all deps installed + schema added. This is the primary validation — proves no regression.
+- **Regression gate:** existing frontend vitest suite (129 tests, live-measured pre-Phase-1 baseline) + backend `make test-unit` must pass unchanged after all deps installed + schema added. This is the primary validation — proves no regression.
 - **Smoke gate:** a shadcn Button + a gsap animation render in a scratch route (proves deps work at runtime, not just install).
 - **Schema gate:** `pages` table exists with all 9 fields; existing 3 tables unchanged (proves migration is additive + correct).
 - **Idempotency gate:** `make migrate` twice → second run is a no-op (proves migrate is safe to re-run).
