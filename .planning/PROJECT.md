@@ -45,6 +45,7 @@ aux-system 原本是 sub2api 的附属内容承载系统(Go + Ent 后端 / React
 - [ ] 预装依赖:gsap、shadcn/ui(及其依赖 tailwindcss-animate、Radix primitives 等),供动态页面与管理端 UI 使用
 - [ ] page-registry 演进:从静态代码数组改为"静态核心页 + DB 动态页"合并的单一真相源,保持埋点/仪表盘 id 命名空间一致
 - [ ] UI 视觉品质经 taste skills 把关(设计系统、组件规范、视觉一致性)
+- [ ] 页面编写 skill:创建 agent skill,编码 aux-system 中 sub2api 页面的编写规范(注册/路由/守卫/埋点/嵌入上下文/可用库 gsap+shadcn/ui/模板),供静态页与动态页创建统一遵循
 
 ### Out of Scope
 
@@ -93,6 +94,7 @@ aux-system 原本是 sub2api 的附属内容承载系统(Go + Ent 后端 / React
 | page-registry 从静态数组演进为"静态核心页 + DB 动态页"合并 | 保持 id 命名空间单一真相源(KTD7),埋点/仪表盘无需重构;静态核心页(官网/配置/仪表盘)仍代码登记 | — Pending |
 | 预装 gsap + shadcn/ui | 用户明确要求;gsap 供动态页面动画,shadcn/ui 供管理端 UI 与动态页面可复用组件 | — Pending |
 | UI 视觉品质经 taste skills 把关 | 用户明确要求;用于设计系统、组件规范、视觉一致性审计 | — Pending |
+| 创建页面编写 skill | 用户明确要求;将页面编写规范编码为可复用 skill,统一静态页与动态页编写契约,降低出错 | — Pending |
 
 ## Evolution
 
