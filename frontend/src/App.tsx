@@ -16,6 +16,7 @@ import LoginPage from '@/pages/LoginPage'
 import HomePage from '@/pages/HomePage'
 import DashboardPage from '@/pages/admin/DashboardPage'
 import HomepageConfigPage from '@/pages/admin/HomepageConfigPage'
+import PageManagementPage from '@/pages/admin/PageManagementPage'
 import AdminDynamicPage from '@/pages/admin/AdminDynamicPage'
 import DynamicPage from '@/pages/DynamicPage'
 import ContentExamplePage from '@/pages/examples/ContentExamplePage'
@@ -59,6 +60,7 @@ export default function App() {
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="homepage" element={<HomepageConfigPage />} />
+        <Route path="pages" element={<PageManagementPage />} />
         {/* 动态页面(admin): /admin/p/:slug, 经 AdminGuard, on-demand fetch */}
         <Route path="p/:slug" element={<AdminDynamicPage />} />
         <Route path="examples/content" element={<ContentExamplePage />} />
