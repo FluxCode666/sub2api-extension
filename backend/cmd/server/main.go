@@ -102,7 +102,15 @@ func main() {
 	homepageService := service.NewHomepageConfigService(homepageStore)
 	homepageHandler := adminhandler.NewHomepageConfigHandler(homepageService)
 
+	// 动态页面管理链: ent client → page store → page service → handlers(public + admin)
+	pageStore := service.NewEntPageStore(entClient)
+	pageService := service.NewPageService(pageStore)
+	pagePublicHandler := handler.NewPagePublicHandler(pageService)
+	pageAdminHandler := adminhandler.NewPageHandler(pageService)
+
 	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, homepageHandler)
+	// 注入动态页面处理器(public + admin CRUD)。用 setter 避免改 SetupRouter 签名。
+	server.SetPageHandlers(pagePublicHandler, pageAdminHandler)
 
 	// 启动 HTTP 服务器
 	addr := cfg.Server.Address()

@@ -30,6 +30,8 @@ import (
 // authHandler 为 nil 时跳过管理员会话路由(用于健康检查等最小启动场景)。
 // telemetryHandler 为 nil 时跳过埋点上报路由(U5 端点)。
 // analyticsHandler 为 nil 时跳过分析仪表盘路由(U6 端点)。
+// pagePublicHandler 为 nil 时跳过公开页面获取端点。
+// pageAdminHandler 为 nil 时跳过管理端页面 CRUD 端点。
 func SetupRouter(cfg *config.Config, healthHandler *web.HealthHandler, authHandler *handler.AuthHandler, authService *service.AuthService, telemetryHandler *handler.TelemetryHandler, analyticsHandler *adminhandler.AnalyticsHandler, homepageHandlers ...*adminhandler.HomepageConfigHandler) *gin.Engine {
 	if cfg.Server.Mode == "release" {
 		gin.SetMode(gin.ReleaseMode)
@@ -113,6 +115,20 @@ func registerCommonRoutes(r *gin.Engine, healthHandler *web.HealthHandler) {
 	r.GET("/health", healthHandler.Health)
 }
 
+// SetPageHandlers 注入动态页面处理器(public + admin)到路由。
+// 用单独的 setter 而非改 SetupRouter 签名, 避免破坏现有调用方与测试。
+// 必须在 SetupRouter 之后、ListenAndServe 之前调用。
+var (
+	pagePublicHandler *handler.PagePublicHandler
+	pageAdminHandler  *adminhandler.PageHandler
+)
+
+// SetPageHandlers 注入动态页面处理器。
+func SetPageHandlers(public *handler.PagePublicHandler, admin *adminhandler.PageHandler) {
+	pagePublicHandler = public
+	pageAdminHandler = admin
+}
+
 // registerAuxRoutes 注册附属系统 API 路由分组。
 //
 // /api/aux/*                  —— 公开端点 + 埋点上报（U5 实现具体路由）
@@ -134,6 +150,12 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			response.Success(c, gin.H{"group": "aux", "status": "ok"})
 		})
 		aux.GET("/homepage/config", homepageHandler.GetPublicConfig)
+
+		// 动态页面公开获取(bootstrap 注册表合并 + 公开页内容渲染)
+		if pagePublicHandler != nil {
+			aux.GET("/pages", pagePublicHandler.List)
+			aux.GET("/pages/:slug", pagePublicHandler.GetBySlug)
+		}
 
 		// U5: 埋点上报端点(匿名可写,不经 AdminGuard)。
 		// 公开访客也要能埋点(R8/R11),端点在公开分组 /api/aux/telemetry/*。
@@ -178,6 +200,15 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			}
 			guarded.GET("/homepage/config", homepageHandler.GetConfig)
 			guarded.PUT("/homepage/config", homepageHandler.UpdateConfig)
+
+			// 动态页面管理 CRUD(受 AdminGuard 保护)
+			if pageAdminHandler != nil {
+				guarded.GET("/pages", pageAdminHandler.List)
+				guarded.POST("/pages", pageAdminHandler.Create)
+				guarded.GET("/pages/:id", pageAdminHandler.GetByID)
+				guarded.PUT("/pages/:id", pageAdminHandler.Update)
+				guarded.DELETE("/pages/:id", pageAdminHandler.Delete)
+			}
 
 			// 管理端 API 请求示例: 无数据库或 sub2api 依赖。
 			exampleHandler := adminhandler.NewExampleHandler()
