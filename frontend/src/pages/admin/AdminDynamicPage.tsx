@@ -11,6 +11,8 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { apiClient, type AuxEnvelope } from '@/lib/api-client'
 import ErrorState from '@/components/ErrorState'
+import SandboxRenderer from '@/components/SandboxRenderer'
+import { trackPageView } from '@/lib/telemetry-sdk'
 
 interface DynamicPageData {
   id: number
@@ -42,6 +44,7 @@ export default function AdminDynamicPage() {
         if (res.data) {
           setPage(res.data)
           setState('loaded')
+          trackPageView(res.data.page_id)
         } else {
           setErrorMsg('页面内容为空')
           setState('error')
@@ -69,21 +72,14 @@ export default function AdminDynamicPage() {
     return <ErrorState title="无法加载页面" description={errorMsg} />
   }
 
-  // Phase 6 将替换此处为 SandboxRenderer
+  // v1: HTML 内容经 SandboxRenderer(iframe 沙箱)渲染
+  const htmlContent = page.content_type === 'html' ? (page.content_html ?? '') : ''
   return (
     <div>
-      <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+      <h1 className="mb-4 text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
         {page.title}
       </h1>
-      <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-        slug: {page.slug} · 内容类型: {page.content_type}
-      </p>
-      <div
-        className="mt-6 rounded-xl border border-dashed border-gray-300 p-8 text-center text-sm text-gray-400 dark:border-gray-700 dark:text-gray-500"
-        aria-placeholder="dynamic-content"
-      >
-        动态页面内容渲染将在 Phase 6(沙箱渲染器)实现
-      </div>
+      <SandboxRenderer content={htmlContent} pageId={page.page_id} title={page.title} />
     </div>
   )
 }
