@@ -4,6 +4,7 @@ package ent
 
 import (
 	"aux-system/ent/featureclick"
+	"aux-system/ent/page"
 	"aux-system/ent/pageview"
 	"aux-system/ent/systemmeta"
 	"context"
@@ -76,6 +77,7 @@ func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			featureclick.Table: featureclick.ValidColumn,
+			page.Table:         page.ValidColumn,
 			pageview.Table:     pageview.ValidColumn,
 			systemmeta.Table:   systemmeta.ValidColumn,
 		})

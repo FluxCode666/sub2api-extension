@@ -14,6 +14,8 @@ type Tx struct {
 	config
 	// FeatureClick is the client for interacting with the FeatureClick builders.
 	FeatureClick *FeatureClickClient
+	// Page is the client for interacting with the Page builders.
+	Page *PageClient
 	// PageView is the client for interacting with the PageView builders.
 	PageView *PageViewClient
 	// SystemMeta is the client for interacting with the SystemMeta builders.
@@ -150,6 +152,7 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.FeatureClick = NewFeatureClickClient(tx.config)
+	tx.Page = NewPageClient(tx.config)
 	tx.PageView = NewPageViewClient(tx.config)
 	tx.SystemMeta = NewSystemMetaClient(tx.config)
 }

@@ -4,6 +4,7 @@ package ent
 
 import (
 	"aux-system/ent/featureclick"
+	"aux-system/ent/page"
 	"aux-system/ent/pageview"
 	"aux-system/ent/schema"
 	"aux-system/ent/systemmeta"
@@ -78,6 +79,70 @@ func init() {
 	featureclickDescCreatedAt := featureclickFields[4].Descriptor()
 	// featureclick.DefaultCreatedAt holds the default value on creation for the created_at field.
 	featureclick.DefaultCreatedAt = featureclickDescCreatedAt.Default.(func() time.Time)
+	pageFields := schema.Page{}.Fields()
+	_ = pageFields
+	// pageDescSlug is the schema descriptor for slug field.
+	pageDescSlug := pageFields[0].Descriptor()
+	// page.SlugValidator is a validator for the "slug" field. It is called by the builders before save.
+	page.SlugValidator = func() func(string) error {
+		validators := pageDescSlug.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(slug string) error {
+			for _, fn := range fns {
+				if err := fn(slug); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// pageDescTitle is the schema descriptor for title field.
+	pageDescTitle := pageFields[1].Descriptor()
+	// page.TitleValidator is a validator for the "title" field. It is called by the builders before save.
+	page.TitleValidator = func() func(string) error {
+		validators := pageDescTitle.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(title string) error {
+			for _, fn := range fns {
+				if err := fn(title); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// pageDescVisibility is the schema descriptor for visibility field.
+	pageDescVisibility := pageFields[2].Descriptor()
+	// page.DefaultVisibility holds the default value on creation for the visibility field.
+	page.DefaultVisibility = pageDescVisibility.Default.(string)
+	// page.VisibilityValidator is a validator for the "visibility" field. It is called by the builders before save.
+	page.VisibilityValidator = pageDescVisibility.Validators[0].(func(string) error)
+	// pageDescContentType is the schema descriptor for content_type field.
+	pageDescContentType := pageFields[3].Descriptor()
+	// page.DefaultContentType holds the default value on creation for the content_type field.
+	page.DefaultContentType = pageDescContentType.Default.(string)
+	// page.ContentTypeValidator is a validator for the "content_type" field. It is called by the builders before save.
+	page.ContentTypeValidator = pageDescContentType.Validators[0].(func(string) error)
+	// pageDescEnabled is the schema descriptor for enabled field.
+	pageDescEnabled := pageFields[6].Descriptor()
+	// page.DefaultEnabled holds the default value on creation for the enabled field.
+	page.DefaultEnabled = pageDescEnabled.Default.(bool)
+	// pageDescCreatedAt is the schema descriptor for created_at field.
+	pageDescCreatedAt := pageFields[7].Descriptor()
+	// page.DefaultCreatedAt holds the default value on creation for the created_at field.
+	page.DefaultCreatedAt = pageDescCreatedAt.Default.(func() time.Time)
+	// pageDescUpdatedAt is the schema descriptor for updated_at field.
+	pageDescUpdatedAt := pageFields[8].Descriptor()
+	// page.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	page.DefaultUpdatedAt = pageDescUpdatedAt.Default.(func() time.Time)
+	// page.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	page.UpdateDefaultUpdatedAt = pageDescUpdatedAt.UpdateDefault.(func() time.Time)
 	pageviewFields := schema.PageView{}.Fields()
 	_ = pageviewFields
 	// pageviewDescPageID is the schema descriptor for page_id field.

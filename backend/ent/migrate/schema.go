@@ -56,6 +56,42 @@ var (
 			},
 		},
 	}
+	// PagesColumns holds the columns for the "pages" table.
+	PagesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "slug", Type: field.TypeString, Size: 128},
+		{Name: "title", Type: field.TypeString, Size: 256},
+		{Name: "visibility", Type: field.TypeString, Size: 16, Default: "public"},
+		{Name: "content_type", Type: field.TypeString, Size: 16, Default: "html"},
+		{Name: "content_html", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "content_react", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// PagesTable holds the schema information for the "pages" table.
+	PagesTable = &schema.Table{
+		Name:       "pages",
+		Columns:    PagesColumns,
+		PrimaryKey: []*schema.Column{PagesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "page_slug",
+				Unique:  true,
+				Columns: []*schema.Column{PagesColumns[1]},
+			},
+			{
+				Name:    "page_visibility",
+				Unique:  false,
+				Columns: []*schema.Column{PagesColumns[3]},
+			},
+			{
+				Name:    "page_enabled",
+				Unique:  false,
+				Columns: []*schema.Column{PagesColumns[7]},
+			},
+		},
+	}
 	// PageViewsColumns holds the columns for the "page_views" table.
 	PageViewsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -107,6 +143,7 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		FeatureClicksTable,
+		PagesTable,
 		PageViewsTable,
 		SystemMetaTable,
 	}
@@ -115,6 +152,9 @@ var (
 func init() {
 	FeatureClicksTable.Annotation = &entsql.Annotation{
 		Table: "feature_clicks",
+	}
+	PagesTable.Annotation = &entsql.Annotation{
+		Table: "pages",
 	}
 	PageViewsTable.Annotation = &entsql.Annotation{
 		Table: "page_views",
