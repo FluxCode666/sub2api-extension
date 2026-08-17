@@ -10,9 +10,21 @@ import {
 
 const expectedPages = [
   {
+    id: 'home',
+    title: 'TERALEMO 官网首页',
+    path: '/',
+    visibility: 'public',
+  },
+  {
     id: 'dashboard',
     title: '分析仪表盘',
     path: '/admin/dashboard',
+    visibility: 'admin',
+  },
+  {
+    id: 'homepage-config',
+    title: '官网首页配置',
+    path: '/admin/homepage',
     visibility: 'admin',
   },
   {
@@ -36,7 +48,7 @@ const expectedPages = [
 ]
 
 describe('page-registry', () => {
-  it('declares only the current dashboard and example pages', () => {
+  it('declares the public homepage and current admin pages', () => {
     expect(PAGE_REGISTRY).toEqual(expectedPages)
   })
 
@@ -48,10 +60,10 @@ describe('page-registry', () => {
     expect(new Set(paths).size).toBe(paths.length)
   })
 
-  it('does not register the root redirect as an analytics page', () => {
-    expect(getPageById('home')).toBeUndefined()
-    expect(getPageByPath('/')).toBeUndefined()
-    expect(getPublicPages()).toEqual([])
+  it('registers the public homepage for analytics', () => {
+    expect(getPageById('home')?.path).toBe('/')
+    expect(getPageByPath('/')?.id).toBe('home')
+    expect(getPublicPages()).toEqual([expectedPages[0]])
   })
 
   it('finds current pages by id and path', () => {
@@ -63,8 +75,8 @@ describe('page-registry', () => {
     expect(getPageByPath('/nope')).toBeUndefined()
   })
 
-  it('returns all registered pages as admin pages', () => {
-    expect(getAdminPages()).toEqual(expectedPages)
+  it('separates public and admin pages', () => {
+    expect(getAdminPages()).toEqual(expectedPages.slice(1))
     expect(getPages()).toEqual(expectedPages)
   })
 })

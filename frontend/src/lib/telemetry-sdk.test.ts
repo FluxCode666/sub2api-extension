@@ -186,7 +186,7 @@ describe('telemetry-sdk', () => {
     })
 
     it('deduplicates consecutive events for the same path', () => {
-      window.history.replaceState({}, '', '/')
+      window.history.replaceState({}, '', '/unknown')
       initTelemetry()
 
       window.history.replaceState({}, '', '/admin/dashboard')

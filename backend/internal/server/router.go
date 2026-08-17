@@ -30,7 +30,7 @@ import (
 // authHandler 为 nil 时跳过管理员会话路由(用于健康检查等最小启动场景)。
 // telemetryHandler 为 nil 时跳过埋点上报路由(U5 端点)。
 // analyticsHandler 为 nil 时跳过分析仪表盘路由(U6 端点)。
-func SetupRouter(cfg *config.Config, healthHandler *web.HealthHandler, authHandler *handler.AuthHandler, authService *service.AuthService, telemetryHandler *handler.TelemetryHandler, analyticsHandler *adminhandler.AnalyticsHandler) *gin.Engine {
+func SetupRouter(cfg *config.Config, healthHandler *web.HealthHandler, authHandler *handler.AuthHandler, authService *service.AuthService, telemetryHandler *handler.TelemetryHandler, analyticsHandler *adminhandler.AnalyticsHandler, homepageHandlers ...*adminhandler.HomepageConfigHandler) *gin.Engine {
 	if cfg.Server.Mode == "release" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -46,7 +46,7 @@ func SetupRouter(cfg *config.Config, healthHandler *web.HealthHandler, authHandl
 	registerCommonRoutes(r, healthHandler)
 
 	// 附属系统 API 路由分组
-	registerAuxRoutes(r, authHandler, authService, telemetryHandler, analyticsHandler)
+	registerAuxRoutes(r, authHandler, authService, telemetryHandler, analyticsHandler, homepageHandlers...)
 
 	// 静态前端托管（U7）：当 AUX_FRONTEND_DIST 环境变量指向已构建的前端 dist 目录时，
 	// 由后端托管 SPA。前端 api-client 使用相对路径 /api/aux，同源托管避免 CORS。
@@ -118,13 +118,22 @@ func registerCommonRoutes(r *gin.Engine, healthHandler *web.HealthHandler) {
 // /api/aux/*                  —— 公开端点 + 埋点上报（U5 实现具体路由）
 // /api/aux/admin/session      —— 会话换取(守卫外,用 sub2api token 换附属会话)
 // /api/aux/admin/*（其余）     —— 受 AdminGuard 保护(U4+ 实现具体路由)
-func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authService *service.AuthService, telemetryHandler *handler.TelemetryHandler, analyticsHandler *adminhandler.AnalyticsHandler) {
+func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authService *service.AuthService, telemetryHandler *handler.TelemetryHandler, analyticsHandler *adminhandler.AnalyticsHandler, homepageHandlers ...*adminhandler.HomepageConfigHandler) {
+	var homepageHandler *adminhandler.HomepageConfigHandler
+	if len(homepageHandlers) > 0 {
+		homepageHandler = homepageHandlers[0]
+	}
+	if homepageHandler == nil {
+		// 测试或最小启动场景没有数据库时，公开首页仍返回默认文案。
+		homepageHandler = adminhandler.NewHomepageConfigHandler(nil)
+	}
 	// 公开 + 埋点上报分组（U5 实现具体路由）
 	aux := r.Group("/api/aux")
 	{
 		aux.GET("", func(c *gin.Context) {
 			response.Success(c, gin.H{"group": "aux", "status": "ok"})
 		})
+		aux.GET("/homepage/config", homepageHandler.GetPublicConfig)
 
 		// U5: 埋点上报端点(匿名可写,不经 AdminGuard)。
 		// 公开访客也要能埋点(R8/R11),端点在公开分组 /api/aux/telemetry/*。
@@ -167,6 +176,8 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			if analyticsHandler != nil {
 				guarded.GET("/analytics/overview", analyticsHandler.GetOverview)
 			}
+			guarded.GET("/homepage/config", homepageHandler.GetConfig)
+			guarded.PUT("/homepage/config", homepageHandler.UpdateConfig)
 
 			// 管理端 API 请求示例: 无数据库或 sub2api 依赖。
 			exampleHandler := adminhandler.NewExampleHandler()

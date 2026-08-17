@@ -1,3 +1,1166 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  font-family: "Avenir Next", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+}
+
+.teralemo-page {
+  --home-bg: #f4f6fa;
+  --home-surface: #fafbfe;
+  --home-surface-raised: #eef1f7;
+  --home-text: #151820;
+  --home-muted: #687181;
+  --home-subtle: #818998;
+  --home-line: rgba(27, 34, 48, 0.09);
+  --home-line-strong: rgba(27, 34, 48, 0.17);
+  --home-accent: #5366d6;
+  --home-accent-soft: rgba(83, 102, 214, 0.12);
+  --home-shadow: rgba(61, 72, 100, 0.13);
+  --code-bg: #f8f9fc;
+  --code-surface: #eef1f7;
+  --code-text: #2e3544;
+  --code-muted: #70798a;
+  --code-border: rgba(27, 34, 48, 0.1);
+  --code-border-strong: rgba(27, 34, 48, 0.18);
+  --code-shadow: rgba(61, 72, 100, 0.15);
+  --code-scroll-thumb: rgba(83, 102, 214, 0.28);
+  --code-scroll-track: rgba(27, 34, 48, 0.06);
+  color-scheme: light;
+  min-height: 100dvh;
+  overflow: clip;
+  background: var(--home-bg);
+  color: var(--home-text);
+}
+
+.teralemo-page::before {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.78' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
+  content: "";
+  opacity: 0.025;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+
+html.dark .teralemo-page {
+  --home-bg: #11141b;
+  --home-surface: #171b24;
+  --home-surface-raised: #1d222d;
+  --home-text: #edf0f7;
+  --home-muted: #a2aabc;
+  --home-subtle: #7e8798;
+  --home-line: rgba(225, 231, 245, 0.09);
+  --home-line-strong: rgba(225, 231, 245, 0.16);
+  --home-accent: #7c8cef;
+  --home-accent-soft: rgba(124, 140, 239, 0.14);
+  --home-shadow: rgba(2, 4, 8, 0.36);
+  --code-bg: #12151c;
+  --code-surface: rgba(223, 228, 241, 0.08);
+  --code-text: #bac2d2;
+  --code-muted: #7e879a;
+  --code-border: rgba(223, 228, 241, 0.1);
+  --code-border-strong: rgba(223, 228, 241, 0.18);
+  --code-shadow: rgba(9, 12, 19, 0.24);
+  --code-scroll-thumb: rgba(154, 166, 224, 0.42);
+  --code-scroll-track: rgba(223, 228, 241, 0.06);
+  color-scheme: dark;
+}
+
+html.dark .teralemo-page::before {
+  opacity: 0.018;
+  mix-blend-mode: screen;
+}
+
+.teralemo-page *,
+.teralemo-page *::before,
+.teralemo-page *::after {
+  box-sizing: border-box;
+}
+
+.teralemo-page a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.teralemo-page button,
+.teralemo-page a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.teralemo-page :focus-visible {
+  outline: 2px solid var(--home-accent);
+  outline-offset: 4px;
+}
+
+.teralemo-skip-link {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 70;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--home-text);
+  color: var(--home-bg) !important;
+  font-size: 13px;
+  font-weight: 700;
+  transform: translateY(-150%);
+  transition: transform 160ms ease;
+}
+
+.teralemo-skip-link:focus {
+  transform: translateY(0);
+}
+
+.teralemo-shell {
+  width: min(1180px, calc(100% - 42px));
+  margin-inline: auto;
+}
+
+.teralemo-nav {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 50;
+  display: flex;
+  min-height: 76px;
+  align-items: center;
+  padding-inline: 18px;
+  pointer-events: none;
+  transition: top 500ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.teralemo-nav-frame {
+  display: flex;
+  width: min(1180px, 100%);
+  min-height: 76px;
+  align-items: center;
+  margin-inline: auto;
+  border: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  pointer-events: auto;
+  transition:
+    width 650ms cubic-bezier(0.16, 1, 0.3, 1),
+    min-height 650ms cubic-bezier(0.16, 1, 0.3, 1),
+    padding 650ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 400ms ease,
+    border-radius 650ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 400ms ease,
+    box-shadow 400ms ease;
+}
+
+.teralemo-nav.is-compact {
+  top: 14px;
+}
+
+.teralemo-nav.is-compact .teralemo-nav-frame {
+  width: min(820px, calc(100% - 24px));
+  min-height: 58px;
+  padding-inline: 13px;
+  border-color: var(--home-line-strong);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--home-surface) 88%, transparent);
+  box-shadow: 0 18px 54px var(--home-shadow), inset 0 1px rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(18px);
+}
+
+.teralemo-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  white-space: nowrap;
+}
+
+.teralemo-mark {
+  display: grid;
+  width: 31px;
+  height: 31px;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--home-text);
+  color: var(--home-bg);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  letter-spacing: -0.08em;
+}
+
+.teralemo-nav-links {
+  display: flex;
+  gap: 30px;
+  margin-left: auto;
+  color: var(--home-muted);
+  font-size: 13px;
+  transition: gap 650ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.teralemo-nav-links a,
+.teralemo-footer a {
+  transition: color 180ms ease;
+}
+
+.teralemo-nav-links a:hover,
+.teralemo-footer a:hover {
+  color: var(--home-text);
+}
+
+.teralemo-nav.is-compact .teralemo-nav-links {
+  gap: 20px;
+}
+
+.teralemo-theme-toggle {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  margin-left: 24px;
+  border: 1px solid var(--home-line-strong);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--home-surface) 75%, transparent);
+  color: var(--home-muted);
+  cursor: pointer;
+  transition: transform 180ms ease, color 180ms ease, border-color 180ms ease;
+}
+
+.teralemo-theme-toggle svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.teralemo-theme-toggle:hover {
+  border-color: var(--home-accent);
+  color: var(--home-text);
+}
+
+.teralemo-theme-toggle:active,
+.teralemo-button:active,
+.teralemo-nav-cta:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.teralemo-nav-cta {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  margin-left: 12px;
+  padding-inline: 18px;
+  border: 1px solid var(--home-line-strong);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--home-surface) 72%, transparent);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+
+.teralemo-nav-cta:hover {
+  border-color: var(--home-text);
+  background: var(--home-surface);
+}
+
+.teralemo-nav.is-compact .teralemo-nav-cta {
+  min-height: 36px;
+  padding-inline: 14px;
+}
+
+.teralemo-hero {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  min-height: 100dvh;
+  align-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 47%, var(--home-accent-soft), transparent 34%),
+    radial-gradient(circle at 18% 76%, color-mix(in srgb, var(--home-accent) 7%, transparent), transparent 28%),
+    var(--home-bg);
+  text-align: center;
+}
+
+.teralemo-hero::after {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, transparent 55%, var(--home-bg) 96%);
+  content: "";
+  pointer-events: none;
+}
+
+.teralemo-nav-sentinel {
+  position: absolute;
+  top: 96px;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.teralemo-network {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  overflow: hidden;
+  opacity: 0.84;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgb(21, 24, 32) 8%, rgb(21, 24, 32) 88%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, rgb(21, 24, 32) 8%, rgb(21, 24, 32) 88%, transparent 100%);
+}
+
+.teralemo-network::after {
+  position: absolute;
+  inset: 18% 25% 25%;
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--home-bg) 26%, transparent), transparent 72%);
+  content: "";
+  pointer-events: none;
+}
+
+.teralemo-network svg {
+  width: 100%;
+  height: 100%;
+}
+
+.teralemo-network path {
+  fill: none;
+  stroke: url(#teralemo-network-gradient);
+  stroke-width: 0.9;
+  stroke-linecap: round;
+  opacity: 0.62;
+  vector-effect: non-scaling-stroke;
+}
+
+.teralemo-network path.is-emphasis {
+  stroke-width: 1.25;
+  opacity: 0.96;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--home-accent) 20%, transparent));
+}
+
+.teralemo-network path.is-outer {
+  stroke-width: 0.75;
+  opacity: 0.34;
+}
+
+.teralemo-network path.teralemo-network-mesh-line {
+  stroke-width: 0.9;
+  opacity: 0.68;
+  filter: none;
+}
+
+.teralemo-network-stop {
+  stop-color: var(--home-accent);
+}
+
+.teralemo-network-stop--edge {
+  stop-opacity: 0.2;
+}
+
+.teralemo-network-stop--shoulder {
+  stop-opacity: 0.68;
+}
+
+.teralemo-network-stop--core {
+  stop-opacity: 0.92;
+}
+
+.teralemo-network-core {
+  position: absolute;
+  top: 46.75%;
+  left: 50%;
+  z-index: 2;
+  width: 6px;
+  height: 6px;
+  border: 1px solid color-mix(in srgb, var(--home-accent) 72%, var(--home-surface));
+  border-radius: 50%;
+  background: var(--home-accent);
+  box-shadow:
+    0 0 0 7px color-mix(in srgb, var(--home-accent) 8%, transparent),
+    0 0 24px color-mix(in srgb, var(--home-accent) 22%, transparent);
+  transform: translate(-50%, -50%);
+}
+
+.teralemo-packet {
+  fill: var(--home-accent);
+  filter: url(#teralemo-packet-glow);
+  opacity: 0;
+}
+
+.teralemo-hero-inner {
+  width: min(1500px, calc(100% - 48px));
+  margin-inline: auto;
+  padding: 118px 0 92px;
+}
+
+.teralemo-eyebrow {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  padding-inline: 13px;
+  border: 1px solid var(--home-line-strong);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--home-surface) 72%, transparent);
+  color: var(--home-muted);
+  font-size: 12px;
+  backdrop-filter: blur(8px);
+}
+
+.teralemo-hero h1 {
+  max-width: 100%;
+  margin: 28px auto 0;
+  font-size: clamp(44px, 5.2vw, 82px);
+  font-weight: 760;
+  line-height: 0.95;
+  letter-spacing: -0.065em;
+  white-space: nowrap;
+}
+
+.teralemo-hero h1 span {
+  background: linear-gradient(
+    100deg,
+    #5366d6 0%,
+    #7b73df 24%,
+    #b476d1 48%,
+    #d989b6 70%,
+    #5366d6 100%
+  );
+  background-size: 280% 100%;
+  background-position: 0% 50%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: teralemo-title-spectrum 8s ease-in-out infinite;
+}
+
+@keyframes teralemo-title-spectrum {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.teralemo-hero-copy {
+  max-width: 650px;
+  margin: 23px auto 0;
+  color: var(--home-muted);
+  font-size: clamp(15px, 1.5vw, 18px);
+  line-height: 1.72;
+}
+
+.teralemo-hero-actions {
+  display: flex;
+  justify-content: center;
+  gap: 11px;
+  margin-top: 31px;
+}
+
+.teralemo-button {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 22px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 750;
+  white-space: nowrap;
+  transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.teralemo-button--primary {
+  background: var(--home-text);
+  color: var(--home-bg) !important;
+  box-shadow: 0 12px 36px color-mix(in srgb, var(--home-text) 17%, transparent);
+}
+
+.teralemo-button--primary:hover {
+  box-shadow: 0 16px 44px color-mix(in srgb, var(--home-text) 24%, transparent);
+  transform: translateY(-1px);
+}
+
+.teralemo-button--secondary {
+  border-color: var(--home-line-strong);
+  background: color-mix(in srgb, var(--home-surface) 72%, transparent);
+}
+
+.teralemo-button--secondary:hover {
+  background: var(--home-surface);
+}
+
+.teralemo-hero-facts {
+  display: grid;
+  width: min(620px, 100%);
+  grid-template-columns: repeat(3, 1fr);
+  gap: 70px;
+  margin: 56px auto 0;
+}
+
+.teralemo-hero-facts strong {
+  display: block;
+  font-size: 20px;
+  letter-spacing: -0.03em;
+}
+
+.teralemo-hero-facts span {
+  display: block;
+  margin-top: 8px;
+  color: var(--home-subtle);
+  font-size: 11px;
+}
+
+.teralemo-trusted {
+  padding: 42px 0 48px;
+  border-block: 1px solid var(--home-line);
+  background: color-mix(in srgb, var(--home-surface) 54%, transparent);
+}
+
+.teralemo-trusted h2 {
+  margin: 0;
+  color: var(--home-muted);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.teralemo-partner-viewport {
+  width: 100%;
+  margin-top: 25px;
+  padding: 4px 0 10px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.teralemo-partner-viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.teralemo-partner-viewport.is-dragging {
+  cursor: grabbing;
+}
+
+.teralemo-partner-track {
+  display: flex;
+  width: max-content;
+}
+
+.teralemo-partner-group {
+  display: flex;
+  gap: 30px;
+  padding-right: 30px;
+}
+
+.teralemo-partner {
+  display: flex;
+  width: 220px;
+  min-height: 44px;
+  flex: 0 0 220px;
+  align-items: center;
+  gap: 12px;
+  color: var(--home-muted);
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.055em;
+  white-space: nowrap;
+}
+
+.teralemo-partner img {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  object-fit: contain;
+  filter: grayscale(1);
+  opacity: 0.74;
+}
+
+.teralemo-section {
+  padding: clamp(96px, 12vw, 150px) 0;
+  border-top: 1px solid color-mix(in srgb, var(--home-line) 64%, transparent);
+  scroll-margin-top: 80px;
+}
+
+.teralemo-section-head {
+  max-width: 790px;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.teralemo-kicker {
+  margin: 0 0 15px;
+  color: var(--home-accent) !important;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.teralemo-section-head h2 {
+  margin: 0;
+  font-size: clamp(36px, 5vw, 62px);
+  line-height: 1.02;
+  letter-spacing: -0.055em;
+  text-wrap: balance;
+}
+
+.teralemo-section-head > p:last-child {
+  max-width: 610px;
+  margin: 20px auto 0;
+  color: var(--home-muted);
+  line-height: 1.72;
+}
+
+.teralemo-provider-list {
+  display: grid;
+  width: min(760px, 100%);
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 55px auto 0;
+}
+
+.teralemo-provider-list span {
+  display: grid;
+  min-height: 82px;
+  place-items: center;
+  border-block: 1px solid var(--home-line);
+  color: var(--home-muted);
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.teralemo-capabilities {
+  padding-bottom: clamp(110px, 13vw, 160px);
+}
+
+.teralemo-capability-grid {
+  display: grid;
+  grid-template-columns: 1fr 0.68fr 1fr;
+  grid-template-rows: repeat(2, 250px);
+  gap: 16px;
+  margin-top: 62px;
+}
+
+.teralemo-capability {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 27px;
+  border: 1px solid var(--home-line);
+  border-radius: 18px;
+  background: linear-gradient(145deg, var(--home-surface), var(--home-surface-raised));
+  box-shadow: 0 18px 55px color-mix(in srgb, var(--home-shadow) 50%, transparent), inset 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.teralemo-capability:nth-child(2),
+.teralemo-capability:nth-child(4) {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--home-accent) 8%, var(--home-surface)), var(--home-surface));
+}
+
+.teralemo-capability.capability--tall {
+  grid-row: span 2;
+}
+
+.teralemo-capability > span,
+.teralemo-scenario > span {
+  color: var(--home-subtle);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+
+.teralemo-capability h3 {
+  max-width: none;
+  margin: 52px 0 0;
+  font-size: 24px;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+
+.teralemo-capability:not(.capability--tall) h3 {
+  white-space: nowrap;
+}
+
+.teralemo-capability.capability--tall h3 {
+  margin-top: 180px;
+  font-size: 30px;
+}
+
+.teralemo-capability p {
+  max-width: 36ch;
+  margin: 13px 0 0;
+  color: var(--home-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.teralemo-capability-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 18px;
+}
+
+.teralemo-capability-tags b {
+  padding: 6px 9px;
+  border: 1px solid var(--home-line-strong);
+  border-radius: 999px;
+  color: var(--home-muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.teralemo-scenarios {
+  background: linear-gradient(180deg, var(--home-bg), var(--home-surface-raised));
+}
+
+.teralemo-scenario-track {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 58px;
+}
+
+.teralemo-scenario {
+  min-height: 300px;
+  padding: 29px;
+  border: 1px solid var(--home-line);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--home-surface) 90%, transparent);
+}
+
+.teralemo-scenario h3 {
+  margin: 88px 0 0;
+  font-size: 27px;
+  letter-spacing: -0.045em;
+}
+
+.teralemo-scenario p {
+  max-width: 36ch;
+  margin: 14px 0 0;
+  color: var(--home-muted);
+  line-height: 1.7;
+}
+
+.teralemo-developer {
+  background: radial-gradient(circle at 72% 54%, var(--home-accent-soft), transparent 30%), var(--home-bg);
+}
+
+.teralemo-developer-grid {
+  display: grid;
+  grid-template-columns: 0.82fr 1.18fr;
+  gap: 8vw;
+  align-items: center;
+}
+
+.teralemo-developer-copy h2 {
+  max-width: 10ch;
+  margin: 0;
+  font-size: clamp(40px, 5.3vw, 66px);
+  line-height: 0.98;
+  letter-spacing: -0.06em;
+}
+
+.teralemo-developer-copy > p:not(.teralemo-kicker) {
+  max-width: 47ch;
+  margin: 20px 0 0;
+  color: var(--home-muted);
+  line-height: 1.72;
+}
+
+.teralemo-text-link {
+  display: inline-block;
+  margin-top: 24px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--home-line-strong);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.teralemo-code-block {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--code-border-strong);
+  border-radius: 18px;
+  background: var(--code-bg);
+  box-shadow: 0 30px 90px var(--code-shadow);
+}
+
+.teralemo-code-protocols {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 10px 10px 0;
+  border-bottom: 1px solid var(--code-border);
+  scrollbar-width: none;
+}
+
+.teralemo-code-protocols::-webkit-scrollbar {
+  display: none;
+}
+
+.teralemo-code-protocol {
+  min-height: 36px;
+  flex: 0 0 auto;
+  padding-inline: 12px;
+  border: 1px solid transparent;
+  border-bottom-color: transparent;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+  color: var(--code-muted);
+  font-size: 10px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.teralemo-code-protocol:hover,
+.teralemo-code-protocol.is-active {
+  border-color: var(--code-border-strong);
+  background: var(--code-surface);
+  color: var(--code-text);
+}
+
+.teralemo-code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px;
+  border-bottom: 1px solid var(--code-border);
+}
+
+.teralemo-code-tabs {
+  display: flex;
+  min-width: 0;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.teralemo-code-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.teralemo-code-tab,
+.teralemo-code-copy {
+  min-height: 44px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--code-muted);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 10px;
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.teralemo-code-tab {
+  flex: 0 0 auto;
+  padding-inline: 12px;
+}
+
+.teralemo-code-tab:hover,
+.teralemo-code-tab.is-active {
+  background: var(--code-surface);
+  color: var(--code-text);
+}
+
+.teralemo-code-tab.is-active {
+  border-color: var(--code-border-strong);
+}
+
+.teralemo-code-copy {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  padding-inline: 11px;
+  border-color: var(--code-border-strong);
+}
+
+.teralemo-code-copy:hover {
+  border-color: var(--code-text);
+  color: var(--code-text);
+}
+
+.teralemo-code-copy svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.teralemo-code-caption {
+  display: flex;
+  justify-content: space-between;
+  padding: 15px 21px 0;
+  color: var(--code-muted);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+
+.teralemo-code-block pre {
+  min-height: 390px;
+  max-height: 500px;
+  margin: 0;
+  padding: 18px 21px 28px;
+  overflow: auto;
+  color: var(--code-text);
+  font: 12px/1.75 ui-monospace, SFMono-Regular, Consolas, monospace;
+  scrollbar-color: var(--code-scroll-thumb) var(--code-scroll-track);
+  scrollbar-width: thin;
+  tab-size: 2;
+  white-space: pre;
+}
+
+.teralemo-code-block pre::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.teralemo-code-block pre::-webkit-scrollbar-track {
+  background: var(--code-scroll-track);
+}
+
+.teralemo-code-block pre::-webkit-scrollbar-thumb {
+  border: 2px solid var(--code-bg);
+  border-radius: 999px;
+  background: var(--code-scroll-thumb);
+}
+
+.teralemo-contact {
+  padding: 110px 0;
+  border-top: 1px solid var(--home-line);
+  text-align: center;
+  scroll-margin-top: 80px;
+}
+
+.teralemo-contact h2 {
+  max-width: 100%;
+  margin: 0 auto;
+  font-size: clamp(24px, 5.2vw, 70px);
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+  white-space: nowrap;
+}
+
+.teralemo-contact > div > p:not(.teralemo-kicker) {
+  max-width: 560px;
+  margin: 21px auto 0;
+  color: var(--home-muted);
+  line-height: 1.72;
+}
+
+.teralemo-contact .teralemo-button {
+  margin-top: 28px;
+}
+
+.teralemo-footer {
+  display: grid;
+  grid-template-columns: 1.4fr repeat(3, 0.7fr);
+  gap: 60px;
+  padding-block: 72px;
+  border-top: 1px solid var(--home-line);
+  color: var(--home-subtle);
+  font-size: 13px;
+}
+
+.teralemo-footer strong {
+  display: block;
+  margin-bottom: 18px;
+  color: var(--home-text);
+}
+
+.teralemo-footer p {
+  max-width: 38ch;
+  margin: 0;
+  line-height: 1.7;
+}
+
+.teralemo-footer a {
+  display: block;
+  margin-top: 12px;
+}
+
+@media (max-width: 920px) {
+  .teralemo-nav-links {
+    display: none;
+  }
+
+  .teralemo-theme-toggle {
+    margin-left: auto;
+  }
+
+  .teralemo-capability-grid {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(3, 260px);
+  }
+
+  .teralemo-capability.capability--tall {
+    grid-row: span 2;
+  }
+
+  .teralemo-capability.capability--wide {
+    grid-column: span 1;
+  }
+
+  .teralemo-scenario-track {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .teralemo-shell {
+    width: min(100% - 28px, 1180px);
+  }
+
+  .teralemo-nav {
+    padding-inline: 8px;
+  }
+
+  .teralemo-nav-frame {
+    padding-inline: 4px;
+  }
+
+  .teralemo-nav.is-compact .teralemo-nav-frame {
+    width: 100%;
+  }
+
+  .teralemo-nav-cta {
+    display: none;
+  }
+
+  .teralemo-brand {
+    font-size: 11px;
+  }
+
+  .teralemo-hero {
+    min-height: 780px;
+  }
+
+  .teralemo-hero-inner {
+    width: min(980px, calc(100% - 38px));
+    padding-top: 112px;
+  }
+
+  .teralemo-eyebrow {
+    font-size: 10px;
+  }
+
+  .teralemo-hero h1 {
+    font-size: clamp(42px, 12vw, 58px);
+    line-height: 1.04;
+    white-space: normal;
+    text-wrap: balance;
+  }
+
+  .teralemo-hero-actions {
+    display: grid;
+  }
+
+  .teralemo-hero-actions .teralemo-button {
+    width: 100%;
+  }
+
+  .teralemo-hero-facts {
+    gap: 12px;
+  }
+
+  .teralemo-hero-facts strong {
+    font-size: 15px;
+  }
+
+  .teralemo-provider-list {
+    grid-template-columns: 1fr;
+  }
+
+  .teralemo-capability-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+  }
+
+  .teralemo-capability,
+  .teralemo-capability.capability--tall {
+    min-height: 300px;
+    grid-row: auto;
+  }
+
+  .teralemo-capability.capability--tall h3 {
+    margin-top: 80px;
+  }
+
+  .teralemo-capability:not(.capability--tall) h3 {
+    white-space: normal;
+  }
+
+  .teralemo-developer-grid {
+    grid-template-columns: 1fr;
+    gap: 50px;
+  }
+
+  .teralemo-code-block pre {
+    min-height: 360px;
+    max-height: 440px;
+    font-size: 10px;
+  }
+
+  .teralemo-contact h2 {
+    font-size: clamp(22px, 7.1vw, 42px);
+  }
+
+  .teralemo-footer {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 42px 24px;
+  }
+
+  .teralemo-footer > div:first-child {
+    grid-column: span 2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .teralemo-nav,
+  .teralemo-nav-frame,
+  .teralemo-nav-links,
+  .teralemo-packet,
+  .teralemo-hero h1 span {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .teralemo-packet {
+    display: none;
+  }
+}

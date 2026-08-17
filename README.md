@@ -8,6 +8,8 @@
 
 sub2api 需要一个承载动态内容与页面分析的子系统，但不能为了它修改自身代码。aux-system 以独立服务的形式提供：
 
+- **TERALEMO 官网首页** —— 可通过 sub2api `home_content` 的 URL iframe 模式嵌入，支持亮色/暗色主题
+- **官网配置中心** —— 管理首屏文案、CTA、顶部导航控制台链接和“受信赖的伙伴”，配置保存到现有 `system_meta`
 - **独立管理页面** —— 通过 sub2api 的 `custom_menu_items`（控制台菜单）经 iframe 加载，也支持直接登录
 - **页面分析/埋点** —— 采集当前管理页面的访问与功能点击，仪表盘展示「有哪些页面、访问量、功能使用度」
 - **管理员转发验证** —— 管理端页面经 sub2api iframe token 换取附属会话，无需重复登录
@@ -21,21 +23,23 @@ sub2api 需要一个承载动态内容与页面分析的子系统，但不能为
                                 ▼
 ┌──────────────── aux-system（独立部署）─────────────────────────────────┐
 │  前端 React SPA                     后端 Go + Gin + Ent                │
-│  / → /admin/dashboard              /api/aux/*          埋点上报       │
+│  /  TERALEMO 公开官网首页           /api/aux/*          公开配置/埋点   │
 │  /admin/*  管理端（需会话）         /api/aux/admin/*    受 AdminGuard   │
 │                                     转发验证 → sub2api /auth/me        │
 │                                          │                            │
 │                                          ▼                            │
 │                                   自有 PostgreSQL                     │
-│                                   (page_view / feature_click)         │
+│                            (system_meta / page_view / feature_click)  │
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
-`/` 是 Dashboard 的规范入口：有管理员会话时进入 `/admin/dashboard`，否则跳转 `/login`。
+`/` 是 TERALEMO 公开官网首页；`/admin/dashboard` 是分析仪表盘，`/admin/homepage` 是官网配置中心。
 
 ## 核心特性
 
 - **零侵入 sub2api** —— iframe 对接走 sub2api 现有 `custom_menu_items` 配置，CSP `frame-src` 由 sub2api 自动注入
+- **双主题官网** —— 浅色为默认主题，支持手动切换暗色，并可通过 `?theme=light|dark` 初始化
+- **动态伙伴列表** —— 配置为空时不展示，有配置时自动循环横向滚动并支持左右拖拽
 - **管理员会话守卫** —— `AdminGuard` 组件用 iframe 传入的 sub2api token 转发验证，签发附属系统自有 JWT（`X-Aux-Session` 头）
 - **匿名埋点** —— 公开写入面（不经守卫），per-IP 令牌桶限流 + 4KB body 限制，防滥用
 - **分析仪表盘** —— 聚合当前注册页面的访问量与功能使用度，历史已删除页面的数据保留但不展示
@@ -74,7 +78,7 @@ aux-system/
 │       ├── components/          # AdminGuard（会话守卫）
 │       ├── layouts/             # 公开/管理端布局
 │       ├── lib/                 # admin-auth/api-client/telemetry-sdk/page-registry...
-│       └── pages/               # Dashboard 与 content/interaction/API 示例页面
+│       └── pages/               # 官网、官网配置、Dashboard 与示例页面
 ├── deploy/
 │   ├── docker-compose.yml       # 开发用（含 postgres，从源码 build）
 │   ├── docker-compose.prod.yml  # 生产用（仅 aux-backend，GHCR 镜像，无数据库）
@@ -114,7 +118,7 @@ curl http://localhost:8787/health
 # 预期: {"status":"ok","service":"aux-system"}
 ```
 
-开发用 compose 含 `aux-postgres` 服务并从源码构建镜像。附属系统启动后，在 sub2api 后台用 `custom_menu_items` 添加 `/admin/dashboard` 即可完成嵌入。**完整集成步骤见 [docs/INTEGRATION.md](docs/INTEGRATION.md)。**
+开发用 compose 含 `aux-postgres` 服务并从源码构建镜像。附属系统启动后，可将根 URL 配置到 sub2api `home_content`，并用 `custom_menu_items` 添加 `/admin/homepage` 与 `/admin/dashboard`。**完整集成步骤见 [docs/INTEGRATION.md](docs/INTEGRATION.md)。**
 
 ### 生产部署
 
@@ -233,7 +237,7 @@ pnpm build           # tsc -b && vite build
 ## 约束与边界
 
 - **不修改 sub2api 代码** —— 所有集成通过 sub2api 现有接缝完成
-- **不配置 `home_content`** —— `/` 会进入受保护 Dashboard，iframe 集成应使用会传 token 的 `custom_menu_items`
+- **公开首页与管理端分离** —— `home_content` 使用公开根路径 `/`；官网配置和分析仪表盘使用会传 token 的 `custom_menu_items`
 - **自有数据库** —— aux-system 使用独立 PostgreSQL，不复用 sub2api 的数据库
 - **Ent 生成代码** —— `backend/ent/` 是 `ent/schema/*.go` 的生成产物，修改 schema 后需 `go generate ./ent`
 

@@ -114,6 +114,23 @@ func TestSetupRouter_AuxGroupExists(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "aux")
 }
 
+func TestSetupRouter_PublicHomepageConfigReturnsDefaults(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cfg := newTestConfig()
+	healthHandler := web.NewHealthHandler()
+	authHandler, authService := newTestAuthDeps()
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/aux/homepage/config", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "TERALEMO")
+	assert.Contains(t, w.Body.String(), "consoleHref")
+	assert.Contains(t, w.Body.String(), "trustedPartners")
+}
+
 func TestSetupRouter_AuxAdminGuardedWithoutSession(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cfg := newTestConfig()

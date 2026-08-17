@@ -16,6 +16,14 @@ vi.mock('@/pages/admin/DashboardPage', () => ({
   default: () => <h1>dashboard-page</h1>,
 }))
 
+vi.mock('@/pages/HomePage', () => ({
+  default: () => <h1>homepage</h1>,
+}))
+
+vi.mock('@/pages/admin/HomepageConfigPage', () => ({
+  default: () => <h1>homepage-config-page</h1>,
+}))
+
 vi.mock('@/pages/examples/ContentExamplePage', () => ({
   default: () => <h1>content-example-page</h1>,
 }))
@@ -34,7 +42,7 @@ function LocationProbe() {
 }
 
 describe('App routing', () => {
-  it('redirects the root path to the canonical dashboard route', async () => {
+  it('renders the public homepage at the root path', () => {
     render(
       <MemoryRouter initialEntries={['/']}>
         <App />
@@ -42,10 +50,8 @@ describe('App routing', () => {
       </MemoryRouter>,
     )
 
-    await waitFor(() => {
-      expect(screen.getByTestId('location')).toHaveTextContent('/admin/dashboard')
-    })
-    expect(screen.getByRole('heading', { name: 'dashboard-page' })).toBeInTheDocument()
+    expect(screen.getByTestId('location')).toHaveTextContent('/')
+    expect(screen.getByRole('heading', { name: 'homepage' })).toBeInTheDocument()
   })
 
   it('redirects the admin index to the canonical dashboard route', async () => {
@@ -63,6 +69,7 @@ describe('App routing', () => {
   })
 
   it.each([
+    ['/admin/homepage', 'homepage-config-page'],
     ['/admin/examples/content', 'content-example-page'],
     ['/admin/examples/interaction', 'interaction-example-page'],
     ['/admin/examples/api', 'api-example-page'],
