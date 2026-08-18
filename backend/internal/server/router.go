@@ -32,7 +32,7 @@ import (
 // analyticsHandler 为 nil 时跳过分析仪表盘路由(U6 端点)。
 // pagePublicHandler 为 nil 时跳过公开页面获取端点。
 // pageAdminHandler 为 nil 时跳过管理端页面 CRUD 端点。
-func SetupRouter(cfg *config.Config, healthHandler *web.HealthHandler, authHandler *handler.AuthHandler, authService *service.AuthService, telemetryHandler *handler.TelemetryHandler, analyticsHandler *adminhandler.AnalyticsHandler, homepageHandlers ...*adminhandler.HomepageConfigHandler) *gin.Engine {
+func SetupRouter(cfg *config.Config, healthHandler *web.HealthHandler, authHandler *handler.AuthHandler, authService *service.AuthService, telemetryHandler *handler.TelemetryHandler, analyticsHandler *adminhandler.AnalyticsHandler, pagePublicHandler *handler.PagePublicHandler, pageAdminHandler *adminhandler.PageHandler, homepageHandlers ...*adminhandler.HomepageConfigHandler) *gin.Engine {
 	if cfg.Server.Mode == "release" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -48,7 +48,7 @@ func SetupRouter(cfg *config.Config, healthHandler *web.HealthHandler, authHandl
 	registerCommonRoutes(r, healthHandler)
 
 	// 附属系统 API 路由分组
-	registerAuxRoutes(r, authHandler, authService, telemetryHandler, analyticsHandler, homepageHandlers...)
+	registerAuxRoutes(r, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandlers...)
 
 	// 静态前端托管（U7）：当 AUX_FRONTEND_DIST 环境变量指向已构建的前端 dist 目录时，
 	// 由后端托管 SPA。前端 api-client 使用相对路径 /api/aux，同源托管避免 CORS。
@@ -115,18 +115,10 @@ func registerCommonRoutes(r *gin.Engine, healthHandler *web.HealthHandler) {
 	r.GET("/health", healthHandler.Health)
 }
 
-// SetPageHandlers 注入动态页面处理器(public + admin)到路由。
-// 用单独的 setter 而非改 SetupRouter 签名, 避免破坏现有调用方与测试。
-// 必须在 SetupRouter 之后、ListenAndServe 之前调用。
-var (
-	pagePublicHandler *handler.PagePublicHandler
-	pageAdminHandler  *adminhandler.PageHandler
-)
-
-// SetPageHandlers 注入动态页面处理器。
+// SetPageHandlers 已废弃 —— page handlers 现在直接作为 SetupRouter 参数传入。
+// 保留空函数避免外部调用方编译错误, 但不再有任何效果。
 func SetPageHandlers(public *handler.PagePublicHandler, admin *adminhandler.PageHandler) {
-	pagePublicHandler = public
-	pageAdminHandler = admin
+	// no-op: handlers now passed via SetupRouter parameters
 }
 
 // registerAuxRoutes 注册附属系统 API 路由分组。
@@ -134,7 +126,7 @@ func SetPageHandlers(public *handler.PagePublicHandler, admin *adminhandler.Page
 // /api/aux/*                  —— 公开端点 + 埋点上报（U5 实现具体路由）
 // /api/aux/admin/session      —— 会话换取(守卫外,用 sub2api token 换附属会话)
 // /api/aux/admin/*（其余）     —— 受 AdminGuard 保护(U4+ 实现具体路由)
-func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authService *service.AuthService, telemetryHandler *handler.TelemetryHandler, analyticsHandler *adminhandler.AnalyticsHandler, homepageHandlers ...*adminhandler.HomepageConfigHandler) {
+func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authService *service.AuthService, telemetryHandler *handler.TelemetryHandler, analyticsHandler *adminhandler.AnalyticsHandler, pagePublicHandler *handler.PagePublicHandler, pageAdminHandler *adminhandler.PageHandler, homepageHandlers ...*adminhandler.HomepageConfigHandler) {
 	var homepageHandler *adminhandler.HomepageConfigHandler
 	if len(homepageHandlers) > 0 {
 		homepageHandler = homepageHandlers[0]
