@@ -44,14 +44,14 @@ export default function AdminLayout() {
       <Sidebar collapsible="icon">
         <SidebarHeader>
           <div className="flex items-center gap-2 px-2 py-1.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-900 text-xs font-bold text-gray-50 dark:bg-gray-100 dark:text-gray-900">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
               A
             </div>
             <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
-              <span className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
+              <span className="truncate text-sm font-semibold text-sidebar-foreground">
                 Aux Admin
               </span>
-              <span className="truncate text-xs text-gray-500 dark:text-gray-400">
+              <span className="truncate text-xs text-sidebar-foreground/60">
                 页面管理系统
               </span>
             </div>
