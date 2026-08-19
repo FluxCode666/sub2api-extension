@@ -29,7 +29,7 @@ name: sub2api-extension
 services:
   aux-backend:
     image: ${SUB2API_EXTENSION_IMAGE:?SUB2API_EXTENSION_IMAGE is required}:${SUB2API_EXTENSION_IMAGE_TAG:?SUB2API_EXTENSION_IMAGE_TAG is required}
-    container_name: ${SUB2API_EXTENSION_CONTAINER_NAME:-aux-backend}
+    container_name: ${SUB2API_EXTENSION_CONTAINER_NAME:-sub2api-extension}
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -44,12 +44,12 @@ services:
         hard: 100000
     ports:
       # 生产默认只绑定本机，由 deploy/nginx 目录中的 NGINX 对外提供 HTTPS。
-      # 同一 Docker 网络内的 sub2api 仍直接访问 aux-backend:8787，不受此映射影响。
-      - "${BIND_HOST:-127.0.0.1}:${SUB2API_EXTENSION_SERVER_PORT:-8787}:8787"
+      # 同一 Docker 网络内的 sub2api 仍直接访问 aux-backend:8004，不受此映射影响。
+      - "${BIND_HOST:-127.0.0.1}:${SUB2API_EXTENSION_SERVER_PORT:-8004}:8004"
     environment:
       # ---- 服务器配置 ----
       - SERVER_HOST=0.0.0.0
-      - SERVER_PORT=8787
+      - SERVER_PORT=8004
       - SERVER_MODE=${SERVER_MODE:-release}
 
       # ---- 外部 PostgreSQL 连接（不在此 compose 内运行）----
@@ -92,7 +92,7 @@ services:
           "5",
           "-O",
           "/dev/null",
-          "http://localhost:8787/health",
+          "http://localhost:8004/health",
         ]
       interval: 30s
       timeout: 10s
@@ -114,7 +114,7 @@ services:
 networks:
   sub2api-network:
     external: true
-    name: sub2api-network
+    name: sub2api_sub2api-network
 
 # 与系统数据共用的持久卷；图片文件位于 /app/data/assets。
 volumes:
