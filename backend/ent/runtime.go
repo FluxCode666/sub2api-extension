@@ -3,11 +3,12 @@
 package ent
 
 import (
-	"aux-system/ent/featureclick"
-	"aux-system/ent/page"
-	"aux-system/ent/pageview"
-	"aux-system/ent/schema"
-	"aux-system/ent/systemmeta"
+	"sub2api-extension/ent/featureclick"
+	"sub2api-extension/ent/imageasset"
+	"sub2api-extension/ent/page"
+	"sub2api-extension/ent/pageview"
+	"sub2api-extension/ent/schema"
+	"sub2api-extension/ent/systemmeta"
 	"time"
 )
 
@@ -79,6 +80,24 @@ func init() {
 	featureclickDescCreatedAt := featureclickFields[4].Descriptor()
 	// featureclick.DefaultCreatedAt holds the default value on creation for the created_at field.
 	featureclick.DefaultCreatedAt = featureclickDescCreatedAt.Default.(func() time.Time)
+	imageassetFields := schema.ImageAsset{}.Fields()
+	_ = imageassetFields
+	// imageassetDescOriginalName is the schema descriptor for original_name field.
+	imageassetDescOriginalName := imageassetFields[0].Descriptor()
+	// imageasset.OriginalNameValidator is a validator for the "original_name" field. It is called by the builders before save.
+	imageasset.OriginalNameValidator = imageassetDescOriginalName.Validators[0].(func(string) error)
+	// imageassetDescPath is the schema descriptor for path field.
+	imageassetDescPath := imageassetFields[1].Descriptor()
+	// imageasset.PathValidator is a validator for the "path" field. It is called by the builders before save.
+	imageasset.PathValidator = imageassetDescPath.Validators[0].(func(string) error)
+	// imageassetDescMimeType is the schema descriptor for mime_type field.
+	imageassetDescMimeType := imageassetFields[2].Descriptor()
+	// imageasset.MimeTypeValidator is a validator for the "mime_type" field. It is called by the builders before save.
+	imageasset.MimeTypeValidator = imageassetDescMimeType.Validators[0].(func(string) error)
+	// imageassetDescCreatedAt is the schema descriptor for created_at field.
+	imageassetDescCreatedAt := imageassetFields[4].Descriptor()
+	// imageasset.DefaultCreatedAt holds the default value on creation for the created_at field.
+	imageasset.DefaultCreatedAt = imageassetDescCreatedAt.Default.(func() time.Time)
 	pageFields := schema.Page{}.Fields()
 	_ = pageFields
 	// pageDescSlug is the schema descriptor for slug field.
@@ -130,15 +149,15 @@ func init() {
 	// page.ContentTypeValidator is a validator for the "content_type" field. It is called by the builders before save.
 	page.ContentTypeValidator = pageDescContentType.Validators[0].(func(string) error)
 	// pageDescEnabled is the schema descriptor for enabled field.
-	pageDescEnabled := pageFields[6].Descriptor()
+	pageDescEnabled := pageFields[7].Descriptor()
 	// page.DefaultEnabled holds the default value on creation for the enabled field.
 	page.DefaultEnabled = pageDescEnabled.Default.(bool)
 	// pageDescCreatedAt is the schema descriptor for created_at field.
-	pageDescCreatedAt := pageFields[7].Descriptor()
+	pageDescCreatedAt := pageFields[8].Descriptor()
 	// page.DefaultCreatedAt holds the default value on creation for the created_at field.
 	page.DefaultCreatedAt = pageDescCreatedAt.Default.(func() time.Time)
 	// pageDescUpdatedAt is the schema descriptor for updated_at field.
-	pageDescUpdatedAt := pageFields[8].Descriptor()
+	pageDescUpdatedAt := pageFields[9].Descriptor()
 	// page.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	page.DefaultUpdatedAt = pageDescUpdatedAt.Default.(func() time.Time)
 	// page.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

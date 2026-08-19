@@ -9,6 +9,9 @@ import (
 // FeatureClick is the predicate function for featureclick builders.
 type FeatureClick func(*sql.Selector)
 
+// ImageAsset is the predicate function for imageasset builders.
+type ImageAsset func(*sql.Selector)
+
 // Page is the predicate function for page builders.
 type Page func(*sql.Selector)
 

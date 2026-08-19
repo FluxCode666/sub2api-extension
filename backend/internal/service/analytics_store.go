@@ -16,9 +16,9 @@ package service
 import (
 	"context"
 
-	"aux-system/ent"
-	"aux-system/ent/featureclick"
-	"aux-system/ent/pageview"
+	"sub2api-extension/ent"
+	"sub2api-extension/ent/featureclick"
+	"sub2api-extension/ent/pageview"
 )
 
 // PageViewCount 按 page_id 聚合的页面访问计数(U6 仪表盘用)。

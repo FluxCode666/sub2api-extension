@@ -6,8 +6,8 @@ import { Outlet } from 'react-router-dom'
  */
 export default function PublicLayout() {
   return (
-    <div className="min-h-screen bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100">
-      <main className="mx-auto max-w-5xl px-4 py-8">
+    <div className="aux-public-shell">
+      <main className="aux-public-main">
         <Outlet />
       </main>
     </div>

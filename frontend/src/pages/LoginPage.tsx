@@ -58,58 +58,51 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-900">
-      <div className="w-full max-w-sm rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-          管理员登录
-        </h1>
-        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+    <div className="aux-auth-page">
+      <div className="aux-auth-card">
+        <div className="aux-auth-mark" aria-hidden="true">A</div>
+        <h1>管理员登录</h1>
+        <p>
           使用 sub2api 管理员账号登录附属系统管理端。
         </p>
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+        <form onSubmit={handleSubmit} className="aux-auth-form">
           <div>
-            <label
-              htmlFor="login-email"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-            >
+            <label htmlFor="login-email" className="aux-field-label">
               邮箱
+              <input
+                id="login-email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={submitting}
+                className="aux-field-input"
+                placeholder="admin@example.com"
+              />
             </label>
-            <input
-              id="login-email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={submitting}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:disabled:bg-gray-600"
-              placeholder="admin@example.com"
-            />
           </div>
 
           <div>
-            <label
-              htmlFor="login-password"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-            >
+            <label htmlFor="login-password" className="aux-field-label">
               密码
+              <input
+                id="login-password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={submitting}
+                className="aux-field-input"
+                placeholder="••••••••"
+              />
             </label>
-            <input
-              id="login-password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={submitting}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:disabled:bg-gray-600"
-              placeholder="••••••••"
-            />
           </div>
 
           {error && (
-            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">
+            <p className="aux-auth-error" role="alert">
               {ERROR_MESSAGES[error]}
             </p>
           )}
@@ -117,11 +110,12 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-blue-600 dark:hover:bg-blue-700"
+            className="aux-auth-submit"
           >
             {submitting ? '登录中...' : '登录'}
           </button>
         </form>
+
       </div>
     </div>
   )

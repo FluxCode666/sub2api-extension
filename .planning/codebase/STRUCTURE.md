@@ -5,8 +5,8 @@
 ## Directory Layout
 
 ```
-aux-system/
-├── backend/                 # Go (Gin + Ent) backend, standalone module `aux-system`
+sub2api-extension/
+├── backend/                 # Go (Gin + Ent) backend, standalone module `sub2api-extension`
 │   ├── cmd/server/          # Process entry (main.go + VERSION)
 │   ├── ent/                 # Generated Ent ORM + schema definitions
 │   │   └── schema/          # Source-of-truth entity schemas (edit here, regen)
@@ -52,7 +52,7 @@ aux-system/
 │   ├── INTEGRATION.md       # sub2api iframe integration guide
 │   └── superpowers/         # (planning/spec docs — not app code)
 ├── output/playwright/       # Playwright test artifacts (not app code)
-├── .github/workflows/       # CI: ci.yml, deploy.yml, security-scan.yml
+├── .github/workflows/       # CI: ci.yml, deploy-test.yml, deploy-production.yml, security-scan.yml
 ├── .planning/codebase/      # GSD codebase maps (this file lives here)
 ├── Dockerfile               # 3-stage: frontend build → backend build → runtime (single image)
 ├── README.md
@@ -62,7 +62,7 @@ aux-system/
 ## Directory Purposes
 
 **`backend/`:**
-- Purpose: Go backend, independent module (`module aux-system`, Go 1.26.5).
+- Purpose: Go backend, independent module (`module sub2api-extension`, Go 1.26.5).
 - Contains: `cmd/` (entry), `internal/` (all app code, unexported packages), `ent/` (ORM), `Makefile`, `go.mod`/`go.sum`.
 - Key files: `cmd/server/main.go`, `internal/server/router.go`, `ent/schema/*.go`.
 
@@ -136,7 +136,7 @@ aux-system/
 
 **`.github/workflows/`:**
 - Purpose: CI/CD.
-- Key files: `ci.yml` (backend test+lint, frontend test+typecheck+build), `deploy.yml` (image build/push, manual), `security-scan.yml`.
+- Key files: `ci.yml` (backend test+lint, frontend test+typecheck+build), `deploy-test.yml` (test image/deployment), `deploy-production.yml` (versioned production image/deployment), `security-scan.yml`.
 
 ## Key File Locations
 

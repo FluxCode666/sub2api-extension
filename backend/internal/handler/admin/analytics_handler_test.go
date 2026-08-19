@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"aux-system/internal/service"
+	"sub2api-extension/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"

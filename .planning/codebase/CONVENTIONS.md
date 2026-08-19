@@ -2,7 +2,7 @@
 
 **Analysis Date:** 2026-08-18
 
-This is a brownfield Go backend + React/TypeScript frontend monorepo (`aux-system`, an auxiliary content/telemetry system that mirrors the `sub2api` envelope style but is a standalone Go module). Conventions below are derived from the existing code; follow them when adding code.
+This is a brownfield Go backend + React/TypeScript frontend monorepo (`sub2api-extension`, an auxiliary content/telemetry system that mirrors the `sub2api` envelope style but is a standalone Go module). Conventions below are derived from the existing code; follow them when adding code.
 
 ## Naming Patterns
 
@@ -28,7 +28,7 @@ This is a brownfield Go backend + React/TypeScript frontend monorepo (`aux-syste
 
 **Packages:**
 
-- Short, lowercase, single-word where possible: `handler`, `service`, `config`, `middleware`, `response`, `web`, `integration`, `admin`, `server`. The `admin` handler subpackage is imported with an alias: `adminhandler "aux-system/internal/handler/admin"` (see `backend/internal/server/router.go:19`).
+- Short, lowercase, single-word where possible: `handler`, `service`, `config`, `middleware`, `response`, `web`, `integration`, `admin`, `server`. The `admin` handler subpackage is imported with an alias: `adminhandler "sub2api-extension/internal/handler/admin"` (see `backend/internal/server/router.go:19`).
 
 ## Code Style
 
@@ -47,7 +47,7 @@ This is a brownfield Go backend + React/TypeScript frontend monorepo (`aux-syste
 **Backend (Go) — three groups, blank-line separated, alphabetized within group:**
 
 1. Standard library (`bytes`, `context`, `errors`, `net/http`, ...).
-2. Project-internal (`aux-system/internal/...`).
+2. Project-internal (`sub2api-extension/internal/...`).
 3. Third-party (`github.com/gin-gonic/gin`, `github.com/stretchr/testify/...`).
 
 Example (`backend/internal/handler/telemetry_handler.go:11-18`):
@@ -55,8 +55,8 @@ Example (`backend/internal/handler/telemetry_handler.go:11-18`):
 import (
 	"errors"
 
-	"aux-system/internal/pkg/response"
-	"aux-system/internal/service"
+	"sub2api-extension/internal/pkg/response"
+	"sub2api-extension/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -75,7 +75,7 @@ Test files add `testing` to group 1 and the testify packages (`assert`, `require
 **Path Aliases:**
 
 - Frontend: `@/*` → `src/*`, configured in both `frontend/tsconfig.json:25-27` (`paths`) and `frontend/vite.config.ts:9-11` (`resolve.alias`). Use `@/lib/api-client` not `../../lib/api-client`.
-- Backend: no aliases; use full module path `aux-system/internal/...`.
+- Backend: no aliases; use full module path `sub2api-extension/internal/...`.
 
 ## Error Handling
 
@@ -191,7 +191,7 @@ Test files add `testing` to group 1 and the testify packages (`assert`, `require
 **Auth headers (two independent headers, do not conflate):**
 
 - `X-Aux-Token`: sub2api embedded JWT (used only by `POST /api/aux/admin/session` to exchange for an aux session). Set by `api-client` when embedded context has a token.
-- `X-Aux-Session`: aux-system session JWT (issued by this backend, required by all `AdminGuard`-protected endpoints). Set by `api-client` when an admin session exists.
+- `X-Aux-Session`: sub2api-extension session JWT (issued by this backend, required by all `AdminGuard`-protected endpoints). Set by `api-client` when an admin session exists.
 - Both can be present simultaneously on a request. Header-name drift silently breaks all guarded admin requests → covered by regression tests in `api-client.test.ts`.
 
 **Append-only telemetry schema (Ent):**

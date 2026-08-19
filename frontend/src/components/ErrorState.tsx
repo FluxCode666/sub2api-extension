@@ -12,19 +12,16 @@ interface ErrorStateProps {
 
 export default function ErrorState({ title, description, detail }: ErrorStateProps) {
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-        {title}
-      </h1>
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-6 dark:border-amber-700 dark:bg-amber-900/30">
-        <h2 className="text-lg font-semibold text-amber-800 dark:text-amber-300">
-          数据暂不可用
-        </h2>
-        <p className="mt-2 text-sm text-amber-700 dark:text-amber-400">
+    <div className="aux-error-state">
+      <span className="aux-page-kicker">暂时无法继续</span>
+      <h1>{title}</h1>
+      <div className="aux-error-card">
+        <h2>数据暂不可用</h2>
+        <p>
           {description}
         </p>
         {detail && (
-          <p className="mt-1 text-xs text-amber-600 dark:text-amber-500">
+          <p className="aux-error-detail">
             详情: {detail}
           </p>
         )}

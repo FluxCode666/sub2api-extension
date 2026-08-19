@@ -154,7 +154,7 @@ struct {
 }
 ```
 
-Assert `service == "aux-system"`, `status == "ok"`, and `server_time` parses with `time.RFC3339`. Add router tests proving `/api/aux/admin/examples/status` returns 401 without `X-Aux-Session` and 200 with a valid aux session.
+Assert `service == "sub2api-extension"`, `status == "ok"`, and `server_time` parses with `time.RFC3339`. Add router tests proving `/api/aux/admin/examples/status` returns 401 without `X-Aux-Session` and 200 with a valid aux session.
 
 - [x] **Step 2: Run tests and verify RED**
 
@@ -173,7 +173,7 @@ Create `ExampleHandler.GetStatus` returning:
 
 ```go
 response.Success(c, ExampleStatusResponse{
-    Service:    "aux-system",
+    Service:    "sub2api-extension",
     Status:     "ok",
     ServerTime: time.Now().UTC().Format(time.RFC3339),
 })

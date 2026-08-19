@@ -118,6 +118,19 @@ describe('api-client', () => {
       expect(JSON.parse(init.body)).toEqual({ page_id: 'home', visitor_id: 'v1' })
     })
 
+    it('multipart upload lets the browser generate its Content-Type boundary', async () => {
+      fetchMock.mockResolvedValueOnce(mockResponse(201, { code: 0, message: 'ok' }))
+      const formData = new FormData()
+      formData.append('file', new Blob(['image']), 'logo.png')
+
+      await apiClient.upload('/admin/assets', formData)
+
+      const [, init] = fetchMock.mock.calls[0]
+      expect(init.method).toBe('POST')
+      expect(init.body).toBe(formData)
+      expect(init.headers['Content-Type']).toBeUndefined()
+    })
+
     it('returns parsed JSON on success', async () => {
       const payload: AuxEnvelope<{ count: number }> = {
         code: 0,

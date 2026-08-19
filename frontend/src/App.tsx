@@ -13,10 +13,9 @@ import PublicLayout from '@/layouts/PublicLayout'
 import AdminLayout from '@/layouts/AdminLayout'
 import AdminGuard from '@/components/AdminGuard'
 import LoginPage from '@/pages/LoginPage'
-import HomePage from '@/pages/HomePage'
 import DashboardPage from '@/pages/admin/DashboardPage'
-import HomepageConfigPage from '@/pages/admin/HomepageConfigPage'
 import PageManagementPage from '@/pages/admin/PageManagementPage'
+import ImageAssetsPage from '@/pages/admin/ImageAssetsPage'
 import AdminDynamicPage from '@/pages/admin/AdminDynamicPage'
 import DynamicPage from '@/pages/DynamicPage'
 import ContentExamplePage from '@/pages/examples/ContentExamplePage'
@@ -32,12 +31,12 @@ fetchDynamicPages().catch(() => {
 
 function NotFound() {
   return (
-    <main className="flex min-h-[100dvh] items-center justify-center bg-gray-50 px-5 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
+    <main className="aux-not-found">
       <div className="max-w-md text-center">
-        <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">404</p>
-        <h1 className="mt-3 text-3xl font-bold tracking-tight">页面不存在</h1>
-        <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-400">当前地址没有对应内容，可以返回 TERALEMO 官网继续浏览。</p>
-        <Link to="/" className="mt-6 inline-flex min-h-11 items-center rounded-xl bg-gray-900 px-5 text-sm font-semibold text-gray-50 dark:bg-gray-100 dark:text-gray-900">返回官网首页</Link>
+        <p className="aux-not-found-code">404</p>
+        <h1>页面不存在</h1>
+        <p>当前地址没有对应内容，可以返回 TERALEMO 官网继续浏览。</p>
+        <Link to="/p/home" className="aux-surface-button">返回官网首页</Link>
       </div>
     </main>
   )
@@ -46,7 +45,8 @@ function NotFound() {
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<HomePage />} />
+      {/* 根路径是控制台入口；官网首页由数据库动态页面 /p/home 提供。 */}
+      <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
       {/* 独立登录入口: AdminGuard 的 no-embedded-token 分支重定向到此。
           功能路由, 不登记到 page-registry (非内容页, 不污染埋点仪表盘)。 */}
       <Route element={<PublicLayout />}>
@@ -59,8 +59,8 @@ export default function App() {
         {/* U6: 仪表盘为管理端首页 (R10) */}
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="homepage" element={<HomepageConfigPage />} />
         <Route path="pages" element={<PageManagementPage />} />
+        <Route path="assets" element={<ImageAssetsPage />} />
         {/* 动态页面(admin): /admin/p/:slug, 经 AdminGuard, on-demand fetch */}
         <Route path="p/:slug" element={<AdminDynamicPage />} />
         <Route path="examples/content" element={<ContentExamplePage />} />

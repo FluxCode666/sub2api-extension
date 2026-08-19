@@ -10,7 +10,7 @@
  * 覆盖默认超时行为(传入自定义 signal 时不再附加默认超时)。
  */
 import { getEmbeddedContext } from './embedded'
-import { getAdminSessionToken, ADMIN_SESSION_HEADER } from './admin-auth'
+import { clearAdminSession, getAdminSessionToken, ADMIN_SESSION_HEADER } from './admin-auth'
 import { AUX_API_BASE_URL } from './api-base'
 
 /** 附属后端标准响应 envelope(镜像后端 response.Response)。 */
@@ -87,14 +87,29 @@ export async function apiRequest<T>(
     method: options.method ?? 'GET',
     headers,
     signal,
+    // 页面内容和控制台数据来自数据库，禁止浏览器复用旧 GET 响应。
+    cache: 'no-store',
   }
   if (options.body !== undefined) {
-    init.headers = { 'Content-Type': 'application/json', ...headers }
-    init.body = JSON.stringify(options.body)
+    if (typeof FormData !== 'undefined' && options.body instanceof FormData) {
+      // multipart boundary 必须由浏览器生成，不能手动设置 Content-Type。
+      init.body = options.body
+    } else {
+      init.headers = { 'Content-Type': 'application/json', ...headers }
+      init.body = JSON.stringify(options.body)
+    }
   }
   try {
     const response = await fetch(url, init)
     if (!response.ok) {
+      // 401 未授权：先清除本地会话，再跳转到登录页。
+      // 只检查 JWT 格式/过期时间无法确认后端签名仍有效；不清除会话会让
+      // LoginPage 再次识别旧会话并跳回控制台，形成 /admin ↔ /login 循环。
+      if (response.status === 401 && window.location.pathname.startsWith('/admin')) {
+        clearAdminSession()
+        window.location.href = '/login'
+        throw new Error('Unauthorized: redirecting to login')
+      }
       throw new Error(
         `Aux API request failed: ${response.status} ${response.statusText}`,
       )
@@ -110,6 +125,8 @@ export const apiClient = {
     apiRequest<T>(path, { ...options, method: 'GET' }),
   post: <T>(path: string, body?: unknown, options?: ApiRequestOptions) =>
     apiRequest<T>(path, { ...options, method: 'POST', body }),
+  upload: <T>(path: string, formData: FormData, options?: ApiRequestOptions) =>
+    apiRequest<T>(path, { ...options, method: 'POST', body: formData }),
   put: <T>(path: string, body?: unknown, options?: ApiRequestOptions) =>
     apiRequest<T>(path, { ...options, method: 'PUT', body }),
   del: <T>(path: string, options?: ApiRequestOptions) =>

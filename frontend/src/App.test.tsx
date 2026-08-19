@@ -16,12 +16,8 @@ vi.mock('@/pages/admin/DashboardPage', () => ({
   default: () => <h1>dashboard-page</h1>,
 }))
 
-vi.mock('@/pages/HomePage', () => ({
-  default: () => <h1>homepage</h1>,
-}))
-
-vi.mock('@/pages/admin/HomepageConfigPage', () => ({
-  default: () => <h1>homepage-config-page</h1>,
+vi.mock('@/pages/admin/ImageAssetsPage', () => ({
+  default: () => <h1>image-assets-page</h1>,
 }))
 
 vi.mock('@/pages/examples/ContentExamplePage', () => ({
@@ -42,7 +38,7 @@ function LocationProbe() {
 }
 
 describe('App routing', () => {
-  it('renders the public homepage at the root path', () => {
+  it('redirects the root path to the admin dashboard', async () => {
     render(
       <MemoryRouter initialEntries={['/']}>
         <App />
@@ -50,8 +46,10 @@ describe('App routing', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByTestId('location')).toHaveTextContent('/')
-    expect(screen.getByRole('heading', { name: 'homepage' })).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByTestId('location')).toHaveTextContent('/admin/dashboard')
+    })
+    expect(screen.getByRole('heading', { name: 'dashboard-page' })).toBeInTheDocument()
   })
 
   it('redirects the admin index to the canonical dashboard route', async () => {
@@ -68,8 +66,18 @@ describe('App routing', () => {
     expect(screen.getByRole('heading', { name: 'dashboard-page' })).toBeInTheDocument()
   })
 
+  it('does not expose the removed homepage configuration route', () => {
+    render(
+      <MemoryRouter initialEntries={['/admin/homepage']}>
+        <App />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('heading', { name: '页面不存在' })).toBeInTheDocument()
+  })
+
   it.each([
-    ['/admin/homepage', 'homepage-config-page'],
+    ['/admin/assets', 'image-assets-page'],
     ['/admin/examples/content', 'content-example-page'],
     ['/admin/examples/interaction', 'interaction-example-page'],
     ['/admin/examples/api', 'api-example-page'],

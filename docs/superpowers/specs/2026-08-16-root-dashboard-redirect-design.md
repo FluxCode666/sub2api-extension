@@ -2,7 +2,7 @@
 
 ## Goal
 
-Make the aux-system dashboard the default entry point and provide three real, navigable example pages that demonstrate content, client interaction telemetry, and an authenticated aux API request.
+Make the sub2api-extension dashboard the default entry point and provide three real, navigable example pages that demonstrate content, client interaction telemetry, and an authenticated aux API request.
 
 ## Routes And Authentication
 
@@ -46,7 +46,7 @@ The new endpoint is inside the guarded admin route group and returns the standar
   "code": 0,
   "message": "success",
   "data": {
-    "service": "aux-system",
+    "service": "sub2api-extension",
     "status": "ok",
     "server_time": "2026-08-16T12:00:00Z"
   }

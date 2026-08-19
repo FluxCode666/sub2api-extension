@@ -3,7 +3,7 @@
 package page
 
 import (
-	"aux-system/ent/predicate"
+	"sub2api-extension/ent/predicate"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -507,6 +507,16 @@ func ContentReactEqualFold(v string) predicate.Page {
 // ContentReactContainsFold applies the ContainsFold predicate on the "content_react" field.
 func ContentReactContainsFold(v string) predicate.Page {
 	return predicate.Page(sql.FieldContainsFold(FieldContentReact, v))
+}
+
+// MetadataIsNil applies the IsNil predicate on the "metadata" field.
+func MetadataIsNil() predicate.Page {
+	return predicate.Page(sql.FieldIsNull(FieldMetadata))
+}
+
+// MetadataNotNil applies the NotNil predicate on the "metadata" field.
+func MetadataNotNil() predicate.Page {
+	return predicate.Page(sql.FieldNotNull(FieldMetadata))
 }
 
 // EnabledEQ applies the EQ predicate on the "enabled" field.

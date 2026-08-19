@@ -23,7 +23,7 @@
 - Alpine Linux 3.21 (`alpine:3.21` final runtime image in `Dockerfile`)
 
 **Package Manager:**
-- Go modules (`backend/go.mod`, `backend/go.sum`) - module name `aux-system`
+- Go modules (`backend/go.mod`, `backend/go.sum`) - module name `sub2api-extension`
 - pnpm 9 (frontend; pinned via corepack in `Dockerfile`, `pnpm/action-setup@v4` in CI). Lockfile: `frontend/pnpm-lock.yaml` (present)
 
 ## Frameworks
@@ -46,13 +46,13 @@
 **Build/Dev:**
 - Vite build (`pnpm run build` = `tsc -b && vite build --config vite.config.ts`) - Frontend production bundle to `frontend/dist/`
 - `go build` with CGO disabled, ldflags injecting version/commit/date (`backend/Makefile` `build` target, `Dockerfile` Stage 2)
-- Docker Buildx multi-arch (`linux/amd64,linux/arm64`) in `.github/workflows/deploy.yml`
+- Docker Buildx multi-arch (`linux/amd64,linux/arm64`) in `.github/workflows/deploy-test.yml` and `.github/workflows/deploy-production.yml`
 - govulncheck (backend security), `pnpm audit --prod --audit-level=high` (frontend security) in `.github/workflows/security-scan.yml`
 
 ## Key Dependencies
 
 **Critical:**
-- `github.com/golang-jwt/jwt/v5` v5.3.1 - Signs/validates the aux-system admin session JWT (HS256) in `backend/internal/service/auth_service.go`; frontend validates expiry client-side in `frontend/src/lib/admin-auth.ts`
+- `github.com/golang-jwt/jwt/v5` v5.3.1 - Signs/validates the sub2api-extension admin session JWT (HS256) in `backend/internal/service/auth_service.go`; frontend validates expiry client-side in `frontend/src/lib/admin-auth.ts`
 - `github.com/lib/pq` v1.12.3 - PostgreSQL driver imported in `backend/cmd/server/main.go` (`_ "github.com/lib/pq"`); DSN built in `backend/internal/config/config.go` `DatabaseConfig.DSN()`
 - `github.com/spf13/viper` v1.21.0 - Env-first config with YAML fallback; see `Load()` / `LoadFromEnv()` in `backend/internal/config/config.go`
 - `golang.org/x/time` v0.15.0 - `rate.Limiter` token bucket for per-IP throttling on telemetry endpoints (`backend/internal/server/middleware/telemetry_guard.go`)
@@ -86,11 +86,11 @@
 - Frontend: `pnpm install` then `pnpm dev` (port 3100, proxies `/api` to backend 8004).
 
 **Production:**
-- Single Docker image `ghcr.io/<owner>/aux-system:<tag>` (multi-arch amd64/arm64) built by `.github/workflows/deploy.yml`, pushed to GHCR.
+- Single Docker image `ghcr.io/<owner>/sub2api-extension:<tag>` (multi-arch amd64/arm64) built by `.github/workflows/deploy-test.yml` or `.github/workflows/deploy-production.yml`, pushed to GHCR.
 - Runtime: Alpine 3.21, non-root user `aux` (uid/gid 1000), `libpq` + `ca-certificates` + `tzdata` installed.
 - Backend serves SPA same-origin from `/app/frontend/dist` (avoids CORS); listens on `8787` (Dockerfile `EXPOSE 8787`).
 - External PostgreSQL required in prod compose (not bundled); `SUB2API_BASE_URL` must point at a reachable sub2api backend.
-- Health check: `GET /health` → `{"status":"ok","service":"aux-system"}` (Dockerfile `HEALTHCHECK` uses `wget` against `localhost:8787/health`).
+- Health check: `GET /health` → `{"status":"ok","service":"sub2api-extension"}` (Dockerfile `HEALTHCHECK` uses `wget` against `localhost:8787/health`).
 
 ---
 

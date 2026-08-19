@@ -3,8 +3,8 @@
 package ent
 
 import (
-	"aux-system/ent/featureclick"
-	"aux-system/ent/predicate"
+	"sub2api-extension/ent/featureclick"
+	"sub2api-extension/ent/predicate"
 	"context"
 	"fmt"
 	"math"

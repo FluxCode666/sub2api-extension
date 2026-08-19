@@ -3,7 +3,7 @@
 package systemmeta
 
 import (
-	"aux-system/ent/predicate"
+	"sub2api-extension/ent/predicate"
 
 	"entgo.io/ent/dialect/sql"
 )

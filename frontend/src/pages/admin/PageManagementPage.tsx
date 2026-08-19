@@ -59,6 +59,7 @@ interface PageListItem {
 interface PageDetail extends PageListItem {
   content_html?: string
   content_react?: string
+  metadata?: Record<string, string>
 }
 
 interface PageListResponse {
@@ -72,6 +73,7 @@ interface PageForm {
   visibility: 'public' | 'admin'
   content_type: 'html' | 'react'
   content_html: string
+  metadata: Record<string, string>
   enabled: boolean
 }
 
@@ -81,6 +83,7 @@ const EMPTY_FORM: PageForm = {
   visibility: 'public',
   content_type: 'html',
   content_html: '',
+  metadata: {},
   enabled: true,
 }
 
@@ -134,7 +137,7 @@ export default function PageManagementPage() {
       setSlugHint('该 slug 已被其他页面占用')
       return
     }
-    if (['home', 'dashboard', 'homepage-config'].includes(slug)) {
+    if (slug === 'dashboard') {
       setSlugHint('该 slug 与静态核心页 id 冲突')
       return
     }
@@ -143,7 +146,18 @@ export default function PageManagementPage() {
 
   const openCreate = () => {
     setEditingId(null)
-    setForm(EMPTY_FORM)
+    // 为 React 类型预填充示例代码
+    const exampleReactCode = `export default function HelloWorld() {
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(to bottom right, #1e293b, #0f172a)', color: 'white' }}>
+      <div style={{ textAlign: 'center' }}>
+        <h1 style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '1rem' }}>Hello World!</h1>
+        <p style={{ fontSize: '1.25rem', color: '#94a3b8' }}>这是一个动态编译的 React 组件</p>
+      </div>
+    </div>
+  )
+}`
+    setForm({ ...EMPTY_FORM, content_type: 'react', content_html: exampleReactCode })
     setFormError('')
     setSlugHint('')
     setDialogOpen(true)
@@ -163,7 +177,10 @@ export default function PageManagementPage() {
           title: detail.title,
           visibility: detail.visibility,
           content_type: detail.content_type,
-          content_html: detail.content_html ?? '',
+          content_html: detail.content_type === 'react'
+            ? (detail.content_react ?? '')
+            : (detail.content_html ?? ''),
+          metadata: detail.metadata ?? {},
           enabled: detail.enabled,
         })
       }
@@ -191,6 +208,11 @@ export default function PageManagementPage() {
       setFormError(`内容超过 ${MAX_CONTENT_BYTES} 字节上限`)
       return
     }
+    const logo = (form.metadata.logo ?? '').trim()
+    if (logo && !/^https?:\/\//i.test(logo)) {
+      setFormError('Logo 必须是图片资源页复制的 HTTP URL，或其他 HTTP/HTTPS 图片地址')
+      return
+    }
     setSaving(true)
     try {
       const body = {
@@ -200,6 +222,7 @@ export default function PageManagementPage() {
         content_type: form.content_type,
         content_html: form.content_type === 'html' ? form.content_html : '',
         content_react: form.content_type === 'react' ? form.content_html : '',
+        metadata: form.metadata,
         enabled: form.enabled,
       }
       if (editingId !== null) {
@@ -218,7 +241,24 @@ export default function PageManagementPage() {
 
   const handleToggleEnabled = async (page: PageListItem) => {
     try {
-      await apiClient.put(`/admin/pages/${page.id}`, { enabled: !page.enabled })
+      // 后端需要完整的 PageInput，所以先获取页面详情
+      const res = await apiClient.get<AuxEnvelope<PageDetail>>(`/admin/pages/${page.id}`)
+      const detail = res.data
+      if (!detail) {
+        setError('获取页面详情失败')
+        return
+      }
+      // 发送完整数据，只更新 enabled 字段
+      await apiClient.put(`/admin/pages/${page.id}`, {
+        slug: detail.slug,
+        title: detail.title,
+        visibility: detail.visibility,
+        content_type: detail.content_type,
+        content_html: detail.content_html ?? '',
+        content_react: detail.content_react ?? '',
+        metadata: detail.metadata ?? {},
+        enabled: !page.enabled,
+      })
       await loadPages()
     } catch {
       setError('切换状态失败')
@@ -240,7 +280,7 @@ export default function PageManagementPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="aux-admin-page aux-pages-page space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
@@ -309,10 +349,15 @@ export default function PageManagementPage() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <Switch
-                      checked={page.enabled}
-                      onCheckedChange={() => handleToggleEnabled(page)}
-                    />
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={page.enabled}
+                        onCheckedChange={() => handleToggleEnabled(page)}
+                      />
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        {page.enabled ? '已启用' : '已停用'}
+                      </span>
+                    </div>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
@@ -333,14 +378,15 @@ export default function PageManagementPage() {
 
       {/* 创建/编辑 Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
+        <DialogContent className="!flex max-h-[85dvh] max-w-3xl flex-col gap-0 overflow-hidden p-0">
+          <DialogHeader className="shrink-0 border-b px-6 py-5 pr-12">
             <DialogTitle>{editingId !== null ? '编辑页面' : '新建页面'}</DialogTitle>
             <DialogDescription>
               填写页面信息与内容。slug 决定路由,可见性决定访问权限。
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-2">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5">
+            <div className="grid gap-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="title">标题</Label>
@@ -401,12 +447,22 @@ export default function PageManagementPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>内容(HTML)</Label>
+              <Label>
+                {form.content_type === 'react' ? 'React 组件代码 (TSX)' : '内容 (HTML)'}
+              </Label>
+              {form.content_type === 'react' && (
+                <p className="text-xs text-gray-500">
+                  编写完整的 React 组件，必须 export default 一个函数组件。例如：
+                  <code className="ml-1 rounded bg-gray-800 px-1 py-0.5">
+                    export default function MyPage() {'{ return <div>Hello</div> }'}
+                  </code>
+                </p>
+              )}
               <div className="h-64 overflow-hidden rounded-md border border-gray-200 dark:border-gray-800">
                 <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-gray-400"><Loader2 className="mr-2 h-4 w-4 animate-spin" />加载编辑器…</div>}>
                   <MonacoEditor
                     height="100%"
-                    language={form.content_type === 'react' ? 'typescript' : 'html'}
+                    language={form.content_type === 'react' ? 'typescriptreact' : 'html'}
                     value={form.content_html}
                     onChange={(v) => setForm({ ...form, content_html: v ?? '' })}
                     theme="vs-dark"
@@ -425,6 +481,68 @@ export default function PageManagementPage() {
                 </p>
               )}
             </div>
+            <div className="space-y-2">
+              <Label>页面元数据（键值对）</Label>
+              <p className="text-xs text-gray-500">
+                Logo 等配置统一保存在这里；图片请先在“图片资源”页上传，再将 HTTP URL 填入 logo 的值。
+              </p>
+              <div className="space-y-2">
+                {Object.entries(form.metadata).map(([key, value]) => (
+                  <div key={key} className="flex gap-2">
+                    <Input
+                      placeholder="键"
+                      value={key}
+                      onChange={(e) => {
+                        const newKey = e.target.value
+                        const newMetadata = { ...form.metadata }
+                        delete newMetadata[key]
+                        if (newKey) {
+                          newMetadata[newKey] = value
+                        }
+                        setForm({ ...form, metadata: newMetadata })
+                      }}
+                      className="flex-1"
+                    />
+                    <Input
+                      placeholder="值"
+                      value={value}
+                      onChange={(e) => {
+                        setForm({
+                          ...form,
+                          metadata: { ...form.metadata, [key]: e.target.value },
+                        })
+                      }}
+                      className="flex-1"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        const newMetadata = { ...form.metadata }
+                        delete newMetadata[key]
+                        setForm({ ...form, metadata: newMetadata })
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const newKey = `key${Object.keys(form.metadata).length + 1}`
+                    setForm({
+                      ...form,
+                      metadata: { ...form.metadata, [newKey]: '' },
+                    })
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  添加元数据
+                </Button>
+              </div>
+            </div>
             <div className="flex items-center gap-2">
               <Switch
                 checked={form.enabled}
@@ -435,8 +553,9 @@ export default function PageManagementPage() {
             {formError && (
               <p className="text-sm text-red-500">{formError}</p>
             )}
+            </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0 border-t bg-background px-6 py-4">
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
               取消
             </Button>

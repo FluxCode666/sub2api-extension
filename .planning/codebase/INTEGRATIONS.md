@@ -5,14 +5,14 @@
 ## APIs & External Services
 
 **sub2api (parent/host system - admin identity provider + iframe host):**
-- Used for: verifying admin identity and proxying admin login. aux-system does NOT import any sub2api Go package; it calls sub2api's public HTTP API only.
+- Used for: verifying admin identity and proxying admin login. sub2api-extension does NOT import any sub2api Go package; it calls sub2api's public HTTP API only.
 - SDK/Client: custom `Sub2APIClient` at `backend/internal/integration/sub2api_client.go` (plain `net/http`, 10s timeout, no SDK dependency).
 - Auth: forwards the admin's sub2api JWT via `Authorization: Bearer <token>` header to `GET /api/v1/auth/me`; proxies email/password to `POST /api/v1/auth/login`.
 - Endpoints consumed (base URL from `SUB2API_BASE_URL`, trailing slash trimmed):
   - `GET  {baseURL}/api/v1/auth/me` - verifies JWT and returns user role; `data.role == "admin"` grants access (`VerifyAdminJWT`).
-  - `POST {baseURL}/api/v1/auth/login` - email/password login; returns `access_token`, `refresh_token`, `user`; 2FA branch (`requires_2fa=true`) is rejected by aux-system (`Login`).
+  - `POST {baseURL}/api/v1/auth/login` - email/password login; returns `access_token`, `refresh_token`, `user`; 2FA branch (`requires_2fa=true`) is rejected by sub2api-extension (`Login`).
 - Response envelope mirrored: `{code, message, reason, data}` - see `sub2APIEnvelope` struct. 401 maps to `ErrInvalidToken`/`ErrInvalidCredentials`; network errors wrap `ErrSub2APIUnreachable` (consumed by handler to return 503).
-- Iframe embedding: sub2api embeds aux-system via `home_content` URL and `custom_menu_items` (with empty `page_slug` so sub2api appends `user_id`, `token`, `theme`, `lang`, `ui_mode=embedded`, `src_host`, `src_url`). Frontend parses these in `frontend/src/lib/embedded.ts` (`parseEmbeddedParams`).
+- Iframe embedding: sub2api embeds sub2api-extension via `home_content` URL and `custom_menu_items` (with empty `page_slug` so sub2api appends `user_id`, `token`, `theme`, `lang`, `ui_mode=embedded`, `src_host`, `src_url`). Frontend parses these in `frontend/src/lib/embedded.ts` (`parseEmbeddedParams`).
 - Network: same Docker network (`sub2api-network`, declared external) uses `http://sub2api:8080`; cross-network uses sub2api's public domain. See `deploy/docker-compose.yml`, `docs/INTEGRATION.md`.
 - Verification cache: `AuthService` caches verification results keyed by SHA-256 of the sub2api token, TTL 5 min (`backend/internal/service/auth_service.go`), to avoid re-hitting sub2api `/auth/me` on every request.
 
@@ -41,14 +41,14 @@
 ## Authentication & Identity
 
 **Auth Provider:**
-- sub2api is the identity provider for admins (delegated). aux-system issues its OWN session JWT (two-token model, strictly separated):
-  - sub2api JWT: held by user/iframe, forwarded to sub2api `/auth/me` for verification, never persisted by aux-system.
-  - aux-system session JWT: signed by aux-system (HS256, `jwt.SigningMethodHS256`), stored in browser `localStorage` under key `aux_admin_session`, sent on guarded requests via `X-Aux-Session` header.
+- sub2api is the identity provider for admins (delegated). sub2api-extension issues its OWN session JWT (two-token model, strictly separated):
+  - sub2api JWT: held by user/iframe, forwarded to sub2api `/auth/me` for verification, never persisted by sub2api-extension.
+  - sub2api-extension session JWT: signed by sub2api-extension (HS256, `jwt.SigningMethodHS256`), stored in browser `localStorage` under key `aux_admin_session`, sent on guarded requests via `X-Aux-Session` header.
 - Implementation: `backend/internal/service/auth_service.go` (`IssueSession`/`ValidateSession`), `backend/internal/server/middleware/admin_guard.go` (validates `X-Aux-Session`).
-- Two login paths (both end in aux-system issuing its own session JWT):
+- Two login paths (both end in sub2api-extension issuing its own session JWT):
   1. Iframe token exchange: `POST /api/aux/admin/session { token }` → `VerifyAdminToken` (forwards to sub2api `/auth/me`, cached). Errors: 403 non-admin, 401 invalid token, 503 sub2api unreachable.
   2. Credentials login: `POST /api/aux/admin/login { email, password }` → `LoginAdmin` (proxies sub2api `/auth/login`). Errors: 401 bad creds, 403 `NOT_ADMIN`, 403 `TWO_FACTOR_REQUIRED` (2FA unsupported, rejected), 503 unreachable.
-- JWT config env: `JWT_SECRET` (required; recommend `openssl rand -hex 32`), `JWT_EXPIRE_HOUR` (default 24). Claims: `user_id`, `email`, `username`, `role`, issuer `aux-system`, subject = user id.
+- JWT config env: `JWT_SECRET` (required; recommend `openssl rand -hex 32`), `JWT_EXPIRE_HOUR` (default 24). Claims: `user_id`, `email`, `username`, `role`, issuer `sub2api-extension`, subject = user id.
 - Frontend session handling: `frontend/src/lib/admin-auth.ts` - `exchangeSession`, `loginWithCredentials`, `getAdminSession`, `getAdminSessionToken`, `clearAdminSession`; client-side JWT expiry validation (`decodeJWTExpiry`, rejects alg != HS256 or expired). 10s timeout on session exchange (`SESSION_EXCHANGE_TIMEOUT_MS`).
 - Public (non-admin) visitors are anonymous; no auth for public homepage read (`GET /api/aux/homepage/config`) or telemetry ingestion.
 
@@ -67,12 +67,13 @@
 - Single Docker container (backend binary + embedded frontend dist) on a single production server. Deployed via `docker-compose.prod.yml` (`aux-backend` service). Joined to sub2api's external `sub2api-network`.
 
 **CI Pipeline:**
-- GitHub Actions, three workflows in `.github/workflows/`:
+- GitHub Actions, four workflows in `.github/workflows/`:
   - `ci.yml` (on push to `main` + PRs): backend unit tests (`go test -race`), backend lint (`golangci-lint-action@v9` v2.9), frontend test + typecheck + build (pnpm 9 / Node 20). Go version pinned/verified to `1.26.5`.
   - `security-scan.yml` (on PRs + weekly cron Mon 03:00 UTC): backend `govulncheck ./...`, frontend `pnpm audit --prod --audit-level=high`.
-  - `deploy.yml` (`workflow_dispatch` manual, takes `version` input): builds multi-arch image (`linux/amd64,linux/arm64`) with QEMU/Buildx, pushes `${{ ghcr_image }}:<version>` + `:latest` to GHCR, then SSH-deploys (`appleboy/ssh-action@v1`) to the single prod host: updates `.env.prod` `AUX_IMAGE_TAG`, `docker compose -f docker-compose.prod.yml pull` + `up -d aux-backend`, waits for healthy (up to 30 retries × 10s), prunes old images.
-- Secrets required for deploy: `AUX_DEPLOY_HOST`, `AUX_DEPLOY_USER`, `AUX_DEPLOY_PASSWORD`, `AUX_DEPLOY_PATH` (default `/opt/aux-system`), `GHCR_PAT` (read:packages). Optional: `AUX_DEPLOY_PORT` (default 22).
-- Image registry: GHCR (`ghcr.io/<owner-lower>/aux-system`). Auth uses `GITHUB_TOKEN` for push, `GHCR_PAT` for prod pull.
+  - `deploy-test.yml` (push to `test` or manual): builds `test-<sha7>`/`test-latest` and deploys the isolated test environment.
+  - `deploy-production.yml` (`workflow_dispatch` manual, takes `version` input): builds multi-arch image (`linux/amd64,linux/arm64`) with QEMU/Buildx, pushes `${{ ghcr_image }}:<version>` + `:latest` to GHCR, then SSH-deploys (`appleboy/ssh-action@v1`) to the production host: updates `.env.prod` `AUX_IMAGE_TAG`, runs Compose, waits for healthy, and attempts rollback on failure.
+- Secrets required for deploy: `AUX_DEPLOY_HOST`, `AUX_DEPLOY_USER`, `AUX_DEPLOY_PASSWORD`, `AUX_DEPLOY_PATH` (default `/opt/sub2api-extension`), `GHCR_PAT` (read:packages). Optional: `AUX_DEPLOY_PORT` (default 22).
+- Image registry: GHCR (`ghcr.io/<owner-lower>/sub2api-extension`). Auth uses `GITHUB_TOKEN` for push, `GHCR_PAT` for prod pull.
 
 ## Environment Configuration
 
@@ -89,7 +90,7 @@
 ## Webhooks & Callbacks
 
 **Incoming:**
-- None (no webhook receivers). Public HTTP endpoints exposed by aux-system itself:
+- None (no webhook receivers). Public HTTP endpoints exposed by sub2api-extension itself:
   - `GET  /health` - health check (public).
   - `GET  /api/aux` - group status (public).
   - `GET  /api/aux/homepage/config` - public homepage config read (anonymous).
@@ -103,7 +104,7 @@
   - SPA fallback: non-API, non-health paths serve `index.html` when `AUX_FRONTEND_DIST` is set (`backend/internal/server/router.go` NoRoute handler).
 
 **Outgoing:**
-- aux-system → sub2api: `GET /api/v1/auth/me`, `POST /api/v1/auth/login` (server-side, from `Sub2APIClient`). No other outbound webhooks.
+- sub2api-extension → sub2api: `GET /api/v1/auth/me`, `POST /api/v1/auth/login` (server-side, from `Sub2APIClient`). No other outbound webhooks.
 
 ---
 

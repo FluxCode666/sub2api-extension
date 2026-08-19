@@ -10,12 +10,12 @@ import (
 	"strings"
 	"testing"
 
-	"aux-system/internal/config"
-	"aux-system/internal/handler"
-	adminhandler "aux-system/internal/handler/admin"
-	"aux-system/internal/integration"
-	"aux-system/internal/service"
-	"aux-system/internal/web"
+	"sub2api-extension/internal/config"
+	"sub2api-extension/internal/handler"
+	adminhandler "sub2api-extension/internal/handler/admin"
+	"sub2api-extension/internal/integration"
+	"sub2api-extension/internal/service"
+	"sub2api-extension/internal/web"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -95,7 +95,7 @@ func TestSetupRouter_HealthEndpoint(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "ok")
-	assert.Contains(t, w.Body.String(), "aux-system")
+	assert.Contains(t, w.Body.String(), "sub2api-extension")
 }
 
 func TestSetupRouter_AuxGroupExists(t *testing.T) {
@@ -381,7 +381,7 @@ func TestSetupRouter_ExamplesStatusEndpointRegistered(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, w.Body.String(), "aux-system")
+	assert.Contains(t, w.Body.String(), "sub2api-extension")
 	assert.Contains(t, w.Body.String(), "server_time")
 }
 
@@ -459,7 +459,7 @@ func TestSetupRouter_FrontendStaticServesIndexForSPARoutes(t *testing.T) {
 	w3 := httptest.NewRecorder()
 	r.ServeHTTP(w3, req3)
 	require.Equal(t, http.StatusOK, w3.Code)
-	assert.Contains(t, w3.Body.String(), "aux-system")
+	assert.Contains(t, w3.Body.String(), "sub2api-extension")
 
 	// /api/* 未匹配路径仍返回 404 JSON(不被 index.html 接管)
 	req4 := httptest.NewRequest(http.MethodGet, "/api/aux/nonexistent", nil)

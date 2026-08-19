@@ -3,7 +3,7 @@
 package ent
 
 import (
-	"aux-system/ent/pageview"
+	"sub2api-extension/ent/pageview"
 	"fmt"
 	"strings"
 	"time"

@@ -122,9 +122,14 @@ func TestPageService_Create_Validation(t *testing.T) {
 		t.Errorf("Create: slug=%s pageID=%s, want landing/page:landing", p.Slug, p.PageID)
 	}
 
+	// 官网首页现在是数据库动态页，home slug 可以由页面管理维护。
+	if _, err := svc.Create(ctx, PageInput{Slug: "home", Title: "Homepage"}); err != nil {
+		t.Fatalf("Create: home should be a dynamic page slug: %v", err)
+	}
+
 	// slug 冲突静态核心页
-	if _, err := svc.Create(ctx, PageInput{Slug: "home", Title: "X"}); err == nil {
-		t.Error("Create: expected err for slug conflicting with static core id 'home'")
+	if _, err := svc.Create(ctx, PageInput{Slug: "dashboard", Title: "X"}); err == nil {
+		t.Error("Create: expected err for slug conflicting with static core id 'dashboard'")
 	}
 
 	// slug 格式非法
@@ -149,6 +154,17 @@ func TestPageService_Create_Validation(t *testing.T) {
 	}
 	if _, err := svc.Create(ctx, PageInput{Slug: "toobig", Title: "Big", ContentHTML: string(big)}); err == nil {
 		t.Error("Create: expected err for content exceeding size limit")
+	}
+
+	// Logo 元数据只接受 HTTP(S) 地址；图片内容由图片资源页以文件形式管理。
+	if _, err := svc.Create(ctx, PageInput{Slug: "logo-url", Title: "Logo URL", Metadata: map[string]interface{}{"logo": "https://example.com/logo.svg"}}); err != nil {
+		t.Fatalf("Create: valid logo URL returned err %v", err)
+	}
+	if _, err := svc.Create(ctx, PageInput{Slug: "logo-data", Title: "Logo Data", Metadata: map[string]interface{}{"logo": "data:image/png;base64,AAAA"}}); err == nil {
+		t.Error("Create: expected err for data URL logo")
+	}
+	if _, err := svc.Create(ctx, PageInput{Slug: "logo-invalid", Title: "Logo Invalid", Metadata: map[string]interface{}{"logo": "javascript:alert(1)"}}); err == nil {
+		t.Error("Create: expected err for invalid logo URL")
 	}
 }
 

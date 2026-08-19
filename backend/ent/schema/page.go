@@ -4,7 +4,7 @@
 //
 // 与 PageView/FeatureClick(只追加埋点)不同, Page 是可变实体:
 // 管理员可创建/编辑/删除/启停。page_id 在埋点表里为 "page:<slug>"(命名空间隔离),
-// 避免与静态核心页 id(home/dashboard/homepage-config)冲突。
+// 避免与静态核心页 id(dashboard/examples)冲突。
 package schema
 
 import (
@@ -67,6 +67,13 @@ func (Page) Fields() []ent.Field {
 				dialect.Postgres: "text",
 			}).
 			Comment("React/TSX 源码(v2 动态编译渲染)"),
+		// metadata: 页面元数据配置(键值对), 可在组件中引用。存储为 JSONB。
+		field.JSON("metadata", map[string]interface{}{}).
+			Optional().
+			SchemaType(map[string]string{
+				dialect.Postgres: "jsonb",
+			}).
+			Comment("页面元数据配置(键值对), 可在组件中引用"),
 		// enabled: 是否启用。停用页 404, 但行与埋点历史保留。
 		field.Bool("enabled").
 			Default(true).

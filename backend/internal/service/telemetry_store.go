@@ -7,7 +7,7 @@ package service
 import (
 	"context"
 
-	"aux-system/ent"
+	"sub2api-extension/ent"
 )
 
 // entTelemetryStore 用 *ent.Client 实现 TelemetryStore。

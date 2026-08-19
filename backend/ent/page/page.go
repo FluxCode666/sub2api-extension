@@ -25,6 +25,8 @@ const (
 	FieldContentHTML = "content_html"
 	// FieldContentReact holds the string denoting the content_react field in the database.
 	FieldContentReact = "content_react"
+	// FieldMetadata holds the string denoting the metadata field in the database.
+	FieldMetadata = "metadata"
 	// FieldEnabled holds the string denoting the enabled field in the database.
 	FieldEnabled = "enabled"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -44,6 +46,7 @@ var Columns = []string{
 	FieldContentType,
 	FieldContentHTML,
 	FieldContentReact,
+	FieldMetadata,
 	FieldEnabled,
 	FieldCreatedAt,
 	FieldUpdatedAt,

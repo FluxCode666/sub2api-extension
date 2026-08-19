@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"aux-system/ent"
+	"sub2api-extension/ent"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

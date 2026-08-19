@@ -1,5 +1,5 @@
 # =============================================================================
-# Aux Content System - 生产环境 Docker Compose（单机，不含数据库）
+# Sub2API Extension - 生产环境 Docker Compose（单机，不含数据库）
 # =============================================================================
 # 生产部署用。仅运行 aux-backend（后端 + 内嵌前端单镜像），从 GHCR 拉取镜像。
 # 不包含 PostgreSQL 镜像——数据库由外部提供（sub2api 的 postgres / 独立 RDS / 自建实例）。
@@ -12,6 +12,7 @@
 # 网络互联：
 #   加入 sub2api 的 sub2api-network（external）。
 #   - sub2api 经此网络以 iframe URL 访问附属系统（同网络用 http://aux-backend:8787）
+#   - 公网访问建议通过宿主机 NGINX 反代到 127.0.0.1:8787，不直接暴露应用端口
 #   - 附属系统经此网络访问 sub2api（http://sub2api:8080）
 #   若 sub2api 与本系统不在同一 Docker 网络，将 SUB2API_BASE_URL 改为 sub2api 公网域名，
 #   并将下方 sub2api-network 改为本地网络（见文末注释）。
@@ -20,13 +21,13 @@
 #   1. cp .env.prod.example .env.prod  并填写实际值
 #   2. docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 #   3. 查看日志: docker compose -f docker-compose.prod.yml logs -f aux-backend
-#   4. 健康检查: curl http://localhost:${AUX_SERVER_PORT:-8787}/health
+#   4. 健康检查: curl http://127.0.0.1:${AUX_SERVER_PORT:-8787}/health
 # =============================================================================
 
 services:
   aux-backend:
     image: ${AUX_IMAGE:?AUX_IMAGE is required}:${AUX_IMAGE_TAG:?AUX_IMAGE_TAG is required}
-    container_name: aux-backend
+    container_name: ${AUX_CONTAINER_NAME:-aux-backend}
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -40,7 +41,9 @@ services:
         soft: 100000
         hard: 100000
     ports:
-      - "${BIND_HOST:-0.0.0.0}:${AUX_SERVER_PORT:-8787}:8787"
+      # 生产默认只绑定本机，由 deploy/nginx 目录中的 NGINX 对外提供 HTTPS。
+      # 同一 Docker 网络内的 sub2api 仍直接访问 aux-backend:8787，不受此映射影响。
+      - "${BIND_HOST:-127.0.0.1}:${AUX_SERVER_PORT:-8787}:8787"
     environment:
       # ---- 服务器配置 ----
       - SERVER_HOST=0.0.0.0
@@ -68,10 +71,15 @@ services:
       # ---- 前端静态托管（Dockerfile 已默认设置，这里显式声明）----
       - AUX_FRONTEND_DIST=/app/frontend/dist
 
+      # ---- 上传资源持久化：图片与系统数据共用同一卷 ----
+      - AUX_ASSET_DIR=/app/data/assets
+
       # ---- 时区 ----
       - TZ=${TZ:-Asia/Shanghai}
     networks:
       - sub2api-network
+    volumes:
+      - sub2api-extension-data:/app/data
     healthcheck:
       test:
         [
@@ -105,3 +113,8 @@ networks:
   sub2api-network:
     external: true
     name: sub2api-network
+
+# 与系统数据共用的持久卷；图片文件位于 /app/data/assets。
+volumes:
+  sub2api-extension-data:
+    driver: local

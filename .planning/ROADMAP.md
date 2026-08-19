@@ -1,8 +1,8 @@
-# Roadmap: aux-system · 通用页面管理系统
+# Roadmap: sub2api-extension · 通用页面管理系统
 
 ## Overview
 
-This roadmap transforms aux-system from a statically-driven page host into a generic page-management system. The journey moves foundation-first: pre-install the UI/animation/editor dependencies and stand up the `pages` data model; build the backend page service and CRUD/public APIs; evolve the frontend page-registry into a merged (static core + DB dynamic) single source of truth and wire parameterized dynamic routes; replace the top-nav admin shell with a shadcn Sidebar driven by that registry; ship the page-management UI (Monaco editor) that lets admins create/edit/delete/enable pages; render published HTML in a sandboxed iframe with postMessage telemetry; and finally enhance the Dashboard and codify all conventions into a reusable page-writing agent skill. Each phase delivers an end-to-end verifiable capability, and every v1 requirement maps to exactly one phase.
+This roadmap transforms sub2api-extension from a statically-driven page host into a generic page-management system. The journey moves foundation-first: pre-install the UI/animation/editor dependencies and stand up the `pages` data model; build the backend page service and CRUD/public APIs; evolve the frontend page-registry into a merged (static core + DB dynamic) single source of truth and wire parameterized dynamic routes; replace the top-nav admin shell with a shadcn Sidebar driven by that registry; ship the page-management UI (Monaco editor) that lets admins create/edit/delete/enable pages; render published HTML in a sandboxed iframe with postMessage telemetry; and finally enhance the Dashboard and codify all conventions into a reusable page-writing agent skill. Each phase delivers an end-to-end verifiable capability, and every v1 requirement maps to exactly one phase.
 
 ## Phases
 
@@ -111,7 +111,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Success Criteria** (what must be TRUE):
   1. The Dashboard lists dynamic pages (from the merged registry) alongside their page-view counts and feature-usage metrics
   2. Deleted or disabled dynamic pages' historical data is preserved but not displayed on the Dashboard
-  3. A page-writing agent skill exists that encodes the aux-system page contract (registry/route/guard/telemetry/embedded context/available libs gsap+shadcn/ui/templates) for both static core pages and dynamic pages, including reusable templates and an "add new page" checklist
+  3. A page-writing agent skill exists that encodes the sub2api-extension page contract (registry/route/guard/telemetry/embedded context/available libs gsap+shadcn/ui/templates) for both static core pages and dynamic pages, including reusable templates and an "add new page" checklist
   4. The sidebar layout and page-management UI pass a taste-skills audit for design system adherence, component consistency, and visual quality, and dark mode works across all new UI
 **Plans**: TBD
 **UI hint**: no

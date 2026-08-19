@@ -34,7 +34,7 @@ func TestExampleHandler_GetStatus(t *testing.T) {
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &envelope))
 	assert.Equal(t, 0, envelope.Code)
 	assert.Equal(t, "success", envelope.Message)
-	assert.Equal(t, "aux-system", envelope.Data.Service)
+	assert.Equal(t, "sub2api-extension", envelope.Data.Service)
 	assert.Equal(t, "ok", envelope.Data.Status)
 	_, err := time.Parse(time.RFC3339, envelope.Data.ServerTime)
 	require.NoError(t, err)

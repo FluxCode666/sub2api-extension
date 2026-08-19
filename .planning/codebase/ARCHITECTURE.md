@@ -5,13 +5,13 @@
 
 ## System Overview
 
-aux-system is an independently-deployed web application that acts as a content carrier for the external `sub2api` host. It is embedded zero-code-change via sub2api's iframe mechanisms (`home_content` URL + `custom_menu_items` with token). The system is a Go (Gin + Ent) backend that also serves a React 18 SPA from the same process (single-image, same-origin — no CORS).
+sub2api-extension is an independently-deployed web application that acts as a content carrier for the external `sub2api` host. It is embedded zero-code-change via sub2api's iframe mechanisms (`home_content` URL + `custom_menu_items` with token). The system is a Go (Gin + Ent) backend that also serves a React 18 SPA from the same process (single-image, same-origin — no CORS).
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────┐
 │                    External Host: sub2api (unchanged)                     │
-│  home_content iframe ──► aux-system /   (public homepage)                │
-│  custom_menu_items iframe (+token) ──► aux-system /admin/*               │
+│  home_content iframe ──► sub2api-extension /   (public homepage)                │
+│  custom_menu_items iframe (+token) ──► sub2api-extension /admin/*               │
 └────────────────────────────────┬─────────────────────────────────────────┘
                                  │ token in query string
                                  ▼
@@ -178,13 +178,13 @@ aux-system is an independently-deployed web application that acts as a content c
 
 ### Primary Request Path — Admin iframe session exchange
 
-1. sub2api loads aux-system `/admin/dashboard` in an iframe with `?token=<sub2api-jwt>&...` (browser request).
+1. sub2api loads sub2api-extension `/admin/dashboard` in an iframe with `?token=<sub2api-jwt>&...` (browser request).
 2. `frontend/src/main.tsx:12` `initEmbeddedContext(window.location.search)` parses `token` into in-memory context (never persisted, never sent to sub2api).
 3. `frontend/src/App.tsx:46` renders `<AdminGuard>`; `frontend/src/components/AdminGuard.tsx:55` calls `exchangeSession()`.
 4. `frontend/src/lib/admin-auth.ts:91` `POST /api/aux/admin/session { token }` (10s `AbortController` timeout).
 5. `backend/internal/server/router.go:157` routes to `AuthHandler.CreateSession` (`backend/internal/handler/auth_handler.go:64`) — this route is **outside** AdminGuard.
 6. `AuthService.VerifyAdminToken` (`backend/internal/service/auth_service.go:115`) checks the SHA-256-keyed TTL cache; on miss calls `Sub2APIClient.VerifyAdminJWT` (`backend/internal/integration/sub2api_client.go:63`) → `GET sub2api /api/v1/auth/me`.
-7. Role `admin` → `AuthService.IssueSession` (`auth_service.go:200`) signs aux-session JWT (HS256, `iss=aux-system`, exp from `JWT_EXPIRE_HOUR`).
+7. Role `admin` → `AuthService.IssueSession` (`auth_service.go:200`) signs aux-session JWT (HS256, `iss=sub2api-extension`, exp from `JWT_EXPIRE_HOUR`).
 8. Response envelope returned; `admin-auth.ts` `saveSession` persists to `localStorage` (`aux_admin_session`) + memory.
 9. Subsequent guarded requests: `frontend/src/lib/api-client.ts:40` `buildHeaders` auto-attaches `X-Aux-Session: <aux-jwt>`; `backend/internal/server/middleware/admin_guard.go:36` validates via `AuthService.ValidateSession` and injects claims into context.
 
@@ -282,7 +282,7 @@ aux-system is an independently-deployed web application that acts as a content c
   - `frontend/src/lib/telemetry-sdk.ts:25-31` `initialized` / `unsubscribeHistory` / `lastRouteKey` (test-reset via `resetTelemetry`).
 - **Circular imports — explicitly avoided:** `frontend/src/lib/api-base.ts` exists as a dependency-free leaf so `api-client` (imports `admin-auth`) and `admin-auth` (needs base URL) don't cycle. Backend has no known circular packages.
 - **Migration is explicit, not automatic:** `main.go` does *not* auto-migrate on startup (avoids prod schema drift). Use `make migrate` / `-migrate` flag once, or rely on the Docker image which ships with schema. `ent_integration_test.go` is gated behind `//go:build integration` and self-skips without `DATABASE_DBNAME`.
-- **Backend never imports sub2api packages.** All sub2api interaction is HTTP via `internal/integration`. aux-system is a standalone Go module (`module aux-system`).
+- **Backend never imports sub2api packages.** All sub2api interaction is HTTP via `internal/integration`. sub2api-extension is a standalone Go module (`module sub2api-extension`).
 - **Telemetry is append-only.** `TelemetryService` exposes only `Create*`; `page_views`/`feature_clicks` have no update/delete paths and `created_at` is `Immutable()`.
 - **Telemetry must never block the UI (KTD4).** `telemetry-sdk.ts` uses fire-and-forget `fetch` + `catch`; backend returns errors but the SDK discards them.
 - **Public write surface is defended.** Telemetry endpoints are anonymous-writable and sit behind `TelemetryGuard` (body limit + rate limit) — without it, unbounded writes could exhaust storage / pollute analytics (#7).

@@ -147,7 +147,6 @@ type Sub2APILoginResponse struct {
 // captcha 字段不传: sub2api 未配置验证码提供者时放行(已联调验证)。
 func (c *Sub2APIClient) Login(ctx context.Context, req Sub2APILoginRequest) (*Sub2APILoginResponse, error) {
 	url := c.baseURL + "/api/v1/auth/login"
-
 	bodyBytes, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("encoding login request: %w", err)
@@ -170,6 +169,8 @@ func (c *Sub2APIClient) Login(ctx context.Context, req Sub2APILoginRequest) (*Su
 	if err != nil {
 		return nil, fmt.Errorf("reading sub2api login response: %w", err)
 	}
+
+	// 登录响应可能包含 access_token/refresh_token；绝不记录完整响应体或凭据。
 
 	// 账号密码错误: sub2api 返回 401。先判状态码再解 JSON(401 响应体可能非 JSON)。
 	if resp.StatusCode == http.StatusUnauthorized {

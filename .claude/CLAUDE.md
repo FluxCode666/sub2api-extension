@@ -2,9 +2,9 @@
 
 ## Project
 
-**aux-system · 通用页面管理系统**
+**sub2api-extension · 通用页面管理系统**
 
-aux-system 原本是 sub2api 的附属内容承载系统(Go + Ent 后端 / React 前端,经 iframe 嵌入 sub2api 控制台),提供 TERALEMO 官网首页、官网配置中心和分析仪表盘。本次改造将其升级为**通用页面管理系统**:管理员可在 UI 里动态创建页面、填入 HTML(后续支持 React)代码、配置路由与权限,无需改代码重新部署。
+sub2api-extension 是 sub2api 的独立附属内容承载系统(Go + Ent 后端 / React 前端,经 iframe 嵌入 sub2api 控制台),提供数据库驱动的官网动态页、动态页面管理、图片资源和分析仪表盘。官网内容通过 `pages` 表运行时读取；`homepage-config` 菜单页已移除，但后端旧配置 API 仍作为兼容代码保留，除非明确迁移，否则不要重新暴露该菜单。
 
 **Core Value:** 管理员能通过管理端 UI 动态创建并发布页面(含路由与权限配置),页面立即可访问——这是整个系统存在的意义,其它一切为此服务。
 
@@ -12,10 +12,17 @@ aux-system 原本是 sub2api 的附属内容承载系统(Go + Ent 后端 / React
 
 - **Tech stack**: 后端 Go+Gin+Ent+PostgreSQL 不可替换;前端 React+Vite+TS+Tailwind 不可替换 — 保留现有栈,增量加 gsap/shadcn/ui
 - **Compatibility**: 零侵入 sub2api — 所有集成走现有 `custom_menu_items`/`home_content` 接缝,不修改 sub2api 代码
-- **Security**: 动态页面内容(用户填入的 HTML/React)必须在沙箱内执行 — 防止 XSS 窃取 admin session(localStorage 存 JWT);public 动态页面需复用现有埋点限流
+- **Security**: 动态 HTML 必须使用 `SandboxRenderer` iframe；动态 React 代码通过 `new Function` 在主应用上下文执行，不是沙箱，只允许受信任管理员使用 — 防止 XSS 窃取 admin session(localStorage 存 JWT); public 动态页面需复用现有埋点限流
 - **Compatibility**: page-registry id 命名空间一致性不可破坏 — 动态页与静态核心页共享同一 id 空间,埋点与仪表盘聚合依赖此
-- **Dependencies**: 预装 gsap + shadcn/ui(及 tailwindcss-animate、Radix primitives、clsx、tailwind-merge 等) — 供动态页面内容与管理端 UI 使用
+- **Dependencies**: 预装 gsap + shadcn/ui(及 tailwindcss-animate、Radix primitives、clsx、tailwind-merge 等) — 供静态页面与管理端 UI 使用；数据库 HTML 在 iframe 内自包含，不能直接导入宿主模块
 - **Performance**: 动态页面渲染不可拖慢管理端首屏 — 沙箱 iframe 懒加载,动态路由按需挂载
+
+### Current implementation authority
+
+- 根路径 `/` 跳转 `/admin/dashboard`；TERALEMO 官网是数据库动态页 `/p/home`，Sub2API 官网是 `/p/sub2api-home`。
+- 静态页面注册表以 `frontend/src/lib/page-registry.ts` 为准；当前没有 `home` 或 `homepage-config` 静态项。
+- `/admin/pages` 与 `/admin/assets` 是管理操作入口；页面内容、metadata 和图片索引由数据库/持久化卷驱动。seed 和 Ent migration 都是显式运维动作，用户访问不会执行 seed，服务启动也不会自动迁移。
+- 公开 `/api/aux/pages` 只返回已启用的 public 页面；AdminLayout 在会话建立后通过受守卫的 `/api/aux/admin/pages` 获取 admin 页面元数据。下方 GSD 生成的架构/规划段落可能保留历史命名；处理页面、嵌入或部署任务时，以本节和 `.agents/skills/` 下的项目 skill 及实时源码为准。
 
 <!-- GSD:project-end -->
 
@@ -38,7 +45,7 @@ aux-system 原本是 sub2api 的附属内容承载系统(Go + Ent 后端 / React
 - Node.js 20 (frontend build + CI; `node-version: '20'` in `.github/workflows/ci.yml`). Dockerfile builder uses `node:24-alpine` for the image build stage.
 - PostgreSQL 18 (`postgres:18-alpine` in `deploy/docker-compose.yml`); production points at external PostgreSQL (no DB image in `deploy/docker-compose.prod.yml`)
 - Alpine Linux 3.21 (`alpine:3.21` final runtime image in `Dockerfile`)
-- Go modules (`backend/go.mod`, `backend/go.sum`) - module name `aux-system`
+- Go modules (`backend/go.mod`, `backend/go.sum`) - module name `sub2api-extension`
 - pnpm 9 (frontend; pinned via corepack in `Dockerfile`, `pnpm/action-setup@v4` in CI). Lockfile: `frontend/pnpm-lock.yaml` (present)
 
 ## Frameworks
@@ -56,12 +63,12 @@ aux-system 原本是 sub2api 的附属内容承载系统(Go + Ent 后端 / React
 - jsdom `^24.1.3` - DOM environment for Vitest (`environment: 'jsdom'`)
 - Vite build (`pnpm run build` = `tsc -b && vite build --config vite.config.ts`) - Frontend production bundle to `frontend/dist/`
 - `go build` with CGO disabled, ldflags injecting version/commit/date (`backend/Makefile` `build` target, `Dockerfile` Stage 2)
-- Docker Buildx multi-arch (`linux/amd64,linux/arm64`) in `.github/workflows/deploy.yml`
+- Docker Buildx multi-arch (`linux/amd64,linux/arm64`) in `.github/workflows/deploy-test.yml` and `.github/workflows/deploy-production.yml`
 - govulncheck (backend security), `pnpm audit --prod --audit-level=high` (frontend security) in `.github/workflows/security-scan.yml`
 
 ## Key Dependencies
 
-- `github.com/golang-jwt/jwt/v5` v5.3.1 - Signs/validates the aux-system admin session JWT (HS256) in `backend/internal/service/auth_service.go`; frontend validates expiry client-side in `frontend/src/lib/admin-auth.ts`
+- `github.com/golang-jwt/jwt/v5` v5.3.1 - Signs/validates the sub2api-extension admin session JWT (HS256) in `backend/internal/service/auth_service.go`; frontend validates expiry client-side in `frontend/src/lib/admin-auth.ts`
 - `github.com/lib/pq` v1.12.3 - PostgreSQL driver imported in `backend/cmd/server/main.go` (`_ "github.com/lib/pq"`); DSN built in `backend/internal/config/config.go` `DatabaseConfig.DSN()`
 - `github.com/spf13/viper` v1.21.0 - Env-first config with YAML fallback; see `Load()` / `LoadFromEnv()` in `backend/internal/config/config.go`
 - `golang.org/x/time` v0.15.0 - `rate.Limiter` token bucket for per-IP throttling on telemetry endpoints (`backend/internal/server/middleware/telemetry_guard.go`)
@@ -87,11 +94,11 @@ aux-system 原本是 sub2api 的附属内容承载系统(Go + Ent 后端 / React
 - Go 1.26.5, Node 20, pnpm 9, local PostgreSQL on `127.0.0.1:15433` (per Makefile defaults; brought up via `deploy/docker-compose.yml` `aux-postgres` service host port `15433`).
 - `make dev` runs `go run ./cmd/server` on port `8004`; `make migrate` runs `go run ./cmd/server -migrate` (ent auto-migration, one-shot table creation).
 - Frontend: `pnpm install` then `pnpm dev` (port 3100, proxies `/api` to backend 8004).
-- Single Docker image `ghcr.io/<owner>/aux-system:<tag>` (multi-arch amd64/arm64) built by `.github/workflows/deploy.yml`, pushed to GHCR.
+- Single Docker image `ghcr.io/<owner>/sub2api-extension:<tag>` (multi-arch amd64/arm64) built by `.github/workflows/deploy-test.yml` or `.github/workflows/deploy-production.yml`, pushed to GHCR.
 - Runtime: Alpine 3.21, non-root user `aux` (uid/gid 1000), `libpq` + `ca-certificates` + `tzdata` installed.
 - Backend serves SPA same-origin from `/app/frontend/dist` (avoids CORS); listens on `8787` (Dockerfile `EXPOSE 8787`).
 - External PostgreSQL required in prod compose (not bundled); `SUB2API_BASE_URL` must point at a reachable sub2api backend.
-- Health check: `GET /health` → `{"status":"ok","service":"aux-system"}` (Dockerfile `HEALTHCHECK` uses `wget` against `localhost:8787/health`).
+- Health check: `GET /health` → `{"status":"ok","service":"sub2api-extension"}` (Dockerfile `HEALTHCHECK` uses `wget` against `localhost:8787/health`).
 
 <!-- GSD:stack-end -->
 
@@ -109,7 +116,7 @@ aux-system 原本是 sub2api 的附属内容承载系统(Go + Ent 后端 / React
 - TS: `camelCase` (`sessionToken`, `routeKey`). Module-level constants are `UPPER_SNAKE_CASE` (`DEFAULT_REQUEST_TIMEOUT_MS`, `AUTH_HEADER`, `TELEMETRY_BASE_URL`, `ADMIN_SESSION_HEADER`).
 - Go: `PascalCase` structs (`PageViewRecord`, `OverviewResponse`). Errors are `Err<Pascal>` package-level vars (`ErrEmptyPageID`, `ErrTooLongField`). DTOs get a `DTO` suffix (`PageViewCountDTO`, `FeatureClickCountDTO`). Context keys are a named string type (`type ContextKey string`) — see `backend/internal/server/middleware/admin_guard.go`.
 - TS: `PascalCase` interfaces/types (`PageEntry`, `PageVisibility`, `AuxEnvelope<T>`, `ApiRequestOptions`, `GuardState` — the last as a discriminated union). Interfaces for request/response shapes mirror the JSON field names.
-- Short, lowercase, single-word where possible: `handler`, `service`, `config`, `middleware`, `response`, `web`, `integration`, `admin`, `server`. The `admin` handler subpackage is imported with an alias: `adminhandler "aux-system/internal/handler/admin"` (see `backend/internal/server/router.go:19`).
+- Short, lowercase, single-word where possible: `handler`, `service`, `config`, `middleware`, `response`, `web`, `integration`, `admin`, `server`. The `admin` handler subpackage is imported with an alias: `adminhandler "sub2api-extension/internal/handler/admin"` (see `backend/internal/server/router.go:19`).
 
 ## Code Style
 
@@ -121,7 +128,7 @@ aux-system 原本是 sub2api 的附属内容承载系统(Go + Ent 后端 / React
 ## Import Organization
 
 - Frontend: `@/*` → `src/*`, configured in both `frontend/tsconfig.json:25-27` (`paths`) and `frontend/vite.config.ts:9-11` (`resolve.alias`). Use `@/lib/api-client` not `../../lib/api-client`.
-- Backend: no aliases; use full module path `aux-system/internal/...`.
+- Backend: no aliases; use full module path `sub2api-extension/internal/...`.
 
 ## Error Handling
 
@@ -183,7 +190,7 @@ aux-system 原本是 sub2api 的附属内容承载系统(Go + Ent 后端 / React
 ## Cross-Cutting Conventions
 
 - `X-Aux-Token`: sub2api embedded JWT (used only by `POST /api/aux/admin/session` to exchange for an aux session). Set by `api-client` when embedded context has a token.
-- `X-Aux-Session`: aux-system session JWT (issued by this backend, required by all `AdminGuard`-protected endpoints). Set by `api-client` when an admin session exists.
+- `X-Aux-Session`: sub2api-extension session JWT (issued by this backend, required by all `AdminGuard`-protected endpoints). Set by `api-client` when an admin session exists.
 - Both can be present simultaneously on a request. Header-name drift silently breaks all guarded admin requests → covered by regression tests in `api-client.test.ts`.
 - Tables `page_views` / `feature_clicks` with `entsql.Annotation{Table: "..."}`, `created_at` as `timestamptz` + `Immutable()`, and indexed `page_id` / `visitor_id` / `created_at` + composite `(page_id, created_at)` for aggregation. Chinese `Comment(...)` on every field. Mirror this for any new telemetry table.
 - `page_id` values come from the frontend `PAGE_REGISTRY` (`KTD7`) — keep the `MaxLen(128)` and service-layer `maxIDLength` in sync.
@@ -212,7 +219,9 @@ aux-system 原本是 sub2api 的附属内容承载系统(Go + Ent 后端 / React
 | AuthHandler | `POST /admin/session` (iframe token) and `POST /admin/login` (credentials) → issue aux JWT | `backend/internal/handler/auth_handler.go` |
 | TelemetryHandler | `POST /telemetry/{page-view,feature-click}` (anonymous write) | `backend/internal/handler/telemetry_handler.go` |
 | AnalyticsHandler | `GET /admin/analytics/overview` (aggregated counts) | `backend/internal/handler/admin/analytics_handler.go` |
-| HomepageConfigHandler | Public `GET /homepage/config` + admin `GET/PUT /admin/homepage/config` | `backend/internal/handler/admin/homepage_config_handler.go` |
+| PageHandler / PagePublicHandler | Dynamic page CRUD and public/admin page reads | `backend/internal/handler/admin/page_handler.go`, `backend/internal/handler/page_public_handler.go` |
+| ImageAssetHandler | Admin upload/list and public file serving | `backend/internal/handler/admin/image_asset_handler.go` |
+| HomepageConfigHandler | Legacy public/admin homepage-config API kept for compatibility; no current menu page | `backend/internal/handler/admin/homepage_config_handler.go` |
 | ExampleHandler | `GET /admin/examples/status` (no-DB admin API sample) | `backend/internal/handler/admin/example_handler.go` |
 | HealthHandler | `GET /health` | `backend/internal/web/health.go` |
 | AuthService | Forward-verify sub2api JWT (TTL cache, SHA-256 key), proxy login, issue/validate aux JWT | `backend/internal/service/auth_service.go` |
@@ -221,7 +230,7 @@ aux-system 原本是 sub2api 的附属内容承载系统(Go + Ent 后端 / React
 | HomepageConfigService | Normalize+persist homepage config as JSON in `system_meta`; safe defaults on read failure | `backend/internal/service/homepage_config_service.go` |
 | Sub2APIClient | HTTP client to sub2api `/auth/me` and `/auth/login`; sentinel errors | `backend/internal/integration/sub2api_client.go` |
 | response | Standard `{code,message,reason,data}` envelope helpers | `backend/internal/pkg/response/response.go` |
-| ent | Generated ORM; schema for `page_views`, `feature_clicks`, `system_meta` | `backend/ent/schema/*.go`, `backend/ent/*.go` |
+| ent | Generated ORM; schema for `pages`, `image_assets`, `page_views`, `feature_clicks`, `system_meta` | `backend/ent/schema/*.go`, `backend/ent/*.go` |
 | main.tsx | Frontend bootstrap: parse embedded params, apply theme, init telemetry, mount router | `frontend/src/main.tsx` |
 | App.tsx | Route root: `/`, `/login`, `/admin/*` (guarded) | `frontend/src/App.tsx` |
 | AdminGuard | Frontend route guard: existing session OR exchange iframe token → aux session | `frontend/src/components/AdminGuard.tsx` |
@@ -232,7 +241,7 @@ aux-system 原本是 sub2api 的附属内容承载系统(Go + Ent 后端 / React
 | embedded | Parse sub2api iframe query params (token/theme/lang/ui_mode) into in-memory context | `frontend/src/lib/embedded.ts` |
 | visitor-id | Persistent anonymous visitor id (localStorage UUID) + admin detection | `frontend/src/lib/visitor-id.ts` |
 | theme | Toggle `dark` class on `<html>` (Tailwind `darkMode: 'class'`) | `frontend/src/lib/theme.ts` |
-| homepage-config | Load/normalize homepage config from public endpoint | `frontend/src/lib/homepage-config.ts` |
+| dynamic-pages | Load/merge database page registry; dynamic page content is fetched on demand | `frontend/src/lib/dynamic-pages.ts` |
 
 ## Pattern Overview
 
@@ -256,7 +265,7 @@ aux-system 原本是 sub2api 的附属内容承载系统(Go + Ent 后端 / React
 - Depends on: `config`, `handler`, `service`, `pkg/response`, `web`.
 - Used by: `main.go`.
 - Purpose: Request binding, error-code mapping, response envelope.
-- Location: `backend/internal/handler/` (auth, telemetry) and `backend/internal/handler/admin/` (analytics, homepage-config, example).
+- Location: `backend/internal/handler/` (auth, telemetry, public pages) and `backend/internal/handler/admin/` (analytics, dynamic pages, image assets, legacy homepage-config, example).
 - Contains: One struct per endpoint group with a `New*` constructor. Handlers depend on provider interfaces, not concrete services.
 - Depends on: `service`, `integration` (sentinel errors), `pkg/response`.
 - Used by: `server` (registered in route groups).
@@ -285,10 +294,10 @@ aux-system 原本是 sub2api 的附属内容承载系统(Go + Ent 后端 / React
 - Depends on: `layouts`, `components/AdminGuard`, `pages/*`.
 - Purpose: API client, auth, telemetry, registry, theme, visitor id, embedded parsing.
 - Location: `frontend/src/lib/`.
-- Contains: `api-base.ts` (leaf constant), `api-client.ts`, `admin-auth.ts`, `telemetry-sdk.ts`, `page-registry.ts`, `embedded.ts`, `visitor-id.ts`, `theme.ts`, `homepage-config.ts`.
+- Contains: `api-base.ts` (leaf constant), `api-client.ts`, `admin-auth.ts`, `telemetry-sdk.ts`, `page-registry.ts`, `dynamic-pages.ts`, `dynamic-react-compiler.ts`, `embedded.ts`, `visitor-id.ts`, `theme.ts`.
 - Dependency order: `api-base` ← `admin-auth` ← `api-client`; `embedded` ← `admin-auth`/`api-client`/`theme`; `page-registry` ← `telemetry-sdk`; `admin-auth` ← `visitor-id`.
 - Purpose: Route-level and shared UI.
-- Location: `frontend/src/pages/` (HomePage, LoginPage, admin/*, examples/*), `frontend/src/layouts/` (PublicLayout, AdminLayout), `frontend/src/components/` (AdminGuard, ErrorState).
+- Location: `frontend/src/pages/` (DynamicPage, LoginPage, admin/*, examples/*), `frontend/src/layouts/` (PublicLayout, AdminLayout), `frontend/src/components/` (AdminGuard, SandboxRenderer, ErrorState).
 - Depends on: `lib/*`, react-router-dom.
 
 ## Data Flow
@@ -301,10 +310,11 @@ aux-system 原本是 sub2api 的附属内容承载系统(Go + Ent 后端 / React
 
 ### Analytics Read Path (admin)
 
-### Homepage Config Flow
+### Dynamic Page Flow
 
-- **Public read (no guard):** `frontend/src/pages/HomePage.tsx:260` `loadHomepageConfig()` (`homepage-config.ts:66`) → `GET /api/aux/homepage/config` → `HomepageConfigHandler.GetPublicConfig` (`homepage_config_handler.go:27`) → on store error falls back to `DefaultHomepageConfig()` (homepage stays usable). Frontend also falls back to `DEFAULT_HOMEPAGE_CONFIG` on any error.
-- **Admin read/write (AdminGuard):** `HomepageConfigPage.tsx` → `GET/PUT /api/aux/admin/homepage/config` → `HomepageConfigHandler.GetConfig`/`UpdateConfig`. `HomepageConfigService.normalizeHomepageConfig` (`homepage_config_service.go:108`) bounds text lengths, sanitizes hrefs (only `#`/`/`/http(s) allowed), caps partners at 24, drops empty-named partners. Stored as JSON in `system_meta` row keyed `homepage.config`.
+- **Public read (no guard):** `frontend/src/pages/DynamicPage.tsx` → `GET /api/aux/pages/:slug` → `PagePublicHandler.GetBySlug` → `PageService.GetPublicBySlug` → `pages` 表；HTML 交给 `SandboxRenderer`，React 代码交给动态编译器。
+- **Admin read/write (AdminGuard):** `PageManagementPage.tsx` → `GET/POST/PUT/DELETE /api/aux/admin/pages/*` → `PageHandler`/`PageService` → `pages` 表。官网 `/p/home` 和 Sub2API 官网 `/p/sub2api-home` 都通过 seed 或该管理页维护。
+- **Image flow:** `ImageAssetsPage.tsx` → `/api/aux/admin/assets` 上传/列表，文件写入 `AUX_ASSET_DIR`，数据库 `image_assets.path` 只保存安全相对路径，公开 URL 为 `/api/aux/assets/:id`。
 
 ### SPA Static Hosting
 
@@ -340,7 +350,7 @@ aux-system 原本是 sub2api 的附属内容承载系统(Go + Ent 后端 / React
 - `GET /health` — public, no guard.
 - `/api/aux/*` — public group: `GET /api/aux`, `GET /api/aux/homepage/config`, `POST /api/aux/telemetry/{page-view,feature-click}` (TelemetryGuard).
 - `/api/aux/admin/session`, `/api/aux/admin/login` — outside AdminGuard (exchange/credential flows).
-- `/api/aux/admin/*` (guarded) — `GET /api/aux/admin`, `GET /api/aux/admin/analytics/overview`, `GET/PUT /api/aux/admin/homepage/config`, `GET /api/aux/admin/examples/status`.
+- `/api/aux/admin/*` (guarded) — dashboard analytics, dynamic page CRUD, image asset upload/list, legacy homepage-config API, and examples status.
 
 ## Architectural Constraints
 
@@ -348,7 +358,7 @@ aux-system 原本是 sub2api 的附属内容承载系统(Go + Ent 后端 / React
 - **Module-level mutable state (singletons):**
 - **Circular imports — explicitly avoided:** `frontend/src/lib/api-base.ts` exists as a dependency-free leaf so `api-client` (imports `admin-auth`) and `admin-auth` (needs base URL) don't cycle. Backend has no known circular packages.
 - **Migration is explicit, not automatic:** `main.go` does *not* auto-migrate on startup (avoids prod schema drift). Use `make migrate` / `-migrate` flag once, or rely on the Docker image which ships with schema. `ent_integration_test.go` is gated behind `//go:build integration` and self-skips without `DATABASE_DBNAME`.
-- **Backend never imports sub2api packages.** All sub2api interaction is HTTP via `internal/integration`. aux-system is a standalone Go module (`module aux-system`).
+- **Backend never imports sub2api packages.** All sub2api interaction is HTTP via `internal/integration`. sub2api-extension is a standalone Go module (`module sub2api-extension`).
 - **Telemetry is append-only.** `TelemetryService` exposes only `Create*`; `page_views`/`feature_clicks` have no update/delete paths and `created_at` is `Immutable()`.
 - **Telemetry must never block the UI (KTD4).** `telemetry-sdk.ts` uses fire-and-forget `fetch` + `catch`; backend returns errors but the SDK discards them.
 - **Public write surface is defended.** Telemetry endpoints are anonymous-writable and sit behind `TelemetryGuard` (body limit + rate limit) — without it, unbounded writes could exhaust storage / pollute analytics (#7).
@@ -366,7 +376,7 @@ aux-system 原本是 sub2api 的附属内容承载系统(Go + Ent 后端 / React
 - Handlers `switch { case errors.Is(err, X): response.<Status>(...) }` — e.g. `auth_handler.go:73-83` and `:125-137`. Distinct user-facing reasons are carried via `response.ErrorWithReason` (403 `NOT_ADMIN` vs `TWO_FACTOR_REQUIRED`).
 - Frontend maps HTTP status → typed `SessionError`/`LoginError` unions (`admin-auth.ts:126-137`, `:219-230`); UI renders localized messages from a `Record<Error, string>` (`AdminGuard.tsx:28`, `LoginPage.tsx:20`).
 - Concurrent aggregation errors are joined, not swallowed (`analytics_service.go:113` `errors.Join(firstErr, secondErr)` — #12).
-- Public homepage read degrades to defaults instead of erroring (`homepage_config_handler.go:43`, `homepage-config.ts:78`) — the public homepage must stay usable when the DB blips.
+- Dynamic public page reads fail closed when the page is missing, disabled, or not public; the public HTML comes from the database and is not silently replaced by a hard-coded React homepage.
 
 ## Cross-Cutting Concerns
 
@@ -376,7 +386,9 @@ aux-system 原本是 sub2api 的附属内容承载系统(Go + Ent 后端 / React
 
 ## Project Skills
 
-No project skills found. Add skills to any of: `.claude/skills/`, `.agents/skills/`, `.cursor/skills/`, `.github/skills/`, or `.codex/skills/` with a `SKILL.md` index file.
+- `.agents/skills/sub2api-extension-page-writer/SKILL.md` — 页面注册、动态页面、HTML 沙箱、动态 React、元数据与图片资源规范。
+- `.agents/skills/sub2api-extension-operations/SKILL.md` — Docker、GitHub Actions、GHCR、NGINX、环境隔离、持久化与回滚规范。
+- `.agents/skills/sub2api-extension-integration/SKILL.md` — sub2api iframe、custom_menu_items、home_content、登录会话、域名、CSP 与集成故障排查。
 <!-- GSD:skills-end -->
 
 <!-- GSD:workflow-start source:GSD defaults -->

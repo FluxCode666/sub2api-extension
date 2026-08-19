@@ -3,7 +3,7 @@
 package ent
 
 import (
-	"aux-system/ent/page"
+	"sub2api-extension/ent/page"
 	"context"
 	"errors"
 	"fmt"
@@ -85,6 +85,12 @@ func (_c *PageCreate) SetNillableContentReact(v *string) *PageCreate {
 	if v != nil {
 		_c.SetContentReact(*v)
 	}
+	return _c
+}
+
+// SetMetadata sets the "metadata" field.
+func (_c *PageCreate) SetMetadata(v map[string]interface{}) *PageCreate {
+	_c.mutation.SetMetadata(v)
 	return _c
 }
 
@@ -279,6 +285,10 @@ func (_c *PageCreate) createSpec() (*Page, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ContentReact(); ok {
 		_spec.SetField(page.FieldContentReact, field.TypeString, value)
 		_node.ContentReact = value
+	}
+	if value, ok := _c.mutation.Metadata(); ok {
+		_spec.SetField(page.FieldMetadata, field.TypeJSON, value)
+		_node.Metadata = value
 	}
 	if value, ok := _c.mutation.Enabled(); ok {
 		_spec.SetField(page.FieldEnabled, field.TypeBool, value)

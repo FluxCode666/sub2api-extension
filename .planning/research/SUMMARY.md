@@ -1,13 +1,13 @@
 # Project Research Summary
 
-**Project:** aux-system · 通用页面管理系统
+**Project:** sub2api-extension · 通用页面管理系统
 **Domain:** Dynamic page management subsystem (user-supplied HTML/React content) added to existing Go+React app
 **Researched:** 2026-08-18
 **Confidence:** HIGH
 
 ## Executive Summary
 
-aux-system is an existing Go (Gin+Ent+PostgreSQL) + React 18 (Vite+Tailwind) app embedded in sub2api via iframe. It currently ships a fixed set of pages (TERALEMO homepage, config center, dashboard, examples) driven by a static code-level page-registry. The goal is to upgrade it into a generic page-management system: admins create pages dynamically (HTML v1, React v2), configure routes and permissions, and pages render on-demand without redeployment.
+sub2api-extension is an existing Go (Gin+Ent+PostgreSQL) + React 18 (Vite+Tailwind) app embedded in sub2api via iframe. It currently ships a fixed set of pages (TERALEMO homepage, config center, dashboard, examples) driven by a static code-level page-registry. The goal is to upgrade it into a generic page-management system: admins create pages dynamically (HTML v1, React v2), configure routes and permissions, and pages render on-demand without redeployment.
 
 The recommended approach is a **layered, additive** integration: a new `pages` Ent table + admin/public APIs; a merged page-registry (static core + DB dynamic) preserving the existing KTD7 identity namespace; parameterized dynamic routes (`/p/:slug`, `/admin/p/:slug`); and **iframe-sandboxed HTML rendering** as the v1 content renderer (React dynamic compile deferred to v2). shadcn/ui and GSAP are pre-installed as the UI/animation foundation. The top-bar admin layout is replaced by a shadcn Sidebar driven by the merged registry.
 

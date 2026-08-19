@@ -1,0 +1,262 @@
+# =============================================================================
+# Sub2API Extension - 测试环境部署
+# =============================================================================
+# test 分支推送自动触发；也支持手动触发。
+# 流程：完整 CI 门禁 → 多架构镜像 → GHCR → SSH → Compose → 健康检查。
+# 镜像标签：test-<sha7>（或手动 tag）以及 test-latest。
+# =============================================================================
+
+name: Deploy Test
+
+on:
+  push:
+    branches: [test]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'deploy/**'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/deploy-test.yml'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '自定义镜像标签；留空时使用 test-<sha7>'
+        required: false
+        type: string
+      skip_deploy:
+        description: '仅验证、构建并推送镜像，不执行 SSH 部署'
+        required: false
+        type: boolean
+        default: false
+      target_host:
+        description: '临时覆盖测试服务器地址；留空使用 Environment Secret'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: sub2api-extension-test-deployment
+  cancel-in-progress: true
+
+env:
+  PLATFORMS: linux/amd64,linux/arm64
+
+jobs:
+  quality-gate:
+    name: Quality Gate
+    uses: ./.github/workflows/ci.yml
+
+  build-and-push:
+    name: Build & Push Test Image
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+      ghcr_image: ${{ steps.meta.outputs.ghcr_image }}
+      build_date: ${{ steps.meta.outputs.build_date }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set image metadata
+        id: meta
+        shell: bash
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ -n "$INPUT_TAG" ]; then
+            TAG="$INPUT_TAG"
+          else
+            TAG="test-$(printf '%s' "$GITHUB_SHA" | cut -c1-7)"
+          fi
+
+          if ! [[ "$TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
+            echo "Invalid Docker tag: $TAG" >&2
+            exit 1
+          fi
+
+          OWNER_LOWER=$(printf '%s' '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')
+          BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          {
+            echo "image_tag=$TAG"
+            echo "ghcr_image=ghcr.io/$OWNER_LOWER/sub2api-extension"
+            echo "build_date=$BUILD_DATE"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push test image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.ghcr_image }}:${{ steps.meta.outputs.image_tag }}
+            ${{ steps.meta.outputs.ghcr_image }}:test-latest
+          build-args: |
+            VERSION=${{ steps.meta.outputs.image_tag }}
+            COMMIT=${{ github.sha }}
+            DATE=${{ steps.meta.outputs.build_date }}
+          cache-from: type=gha,scope=sub2api-extension-test
+          cache-to: type=gha,mode=max,scope=sub2api-extension-test
+
+      - name: Build summary
+        run: |
+          {
+            echo "## Test Image"
+            echo ""
+            echo "- **Image**: \`${{ steps.meta.outputs.ghcr_image }}:${{ steps.meta.outputs.image_tag }}\`"
+            echo "- **Alias**: \`test-latest\`"
+            echo "- **Commit**: \`${GITHUB_SHA}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Deploy to Test
+    needs: build-and-push
+    if: ${{ inputs.skip_deploy != true }}
+    runs-on: ubuntu-latest
+    environment: test
+    env:
+      GHCR_PAT: ${{ secrets.GHCR_PAT }}
+      IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+      GHCR_IMAGE: ${{ needs.build-and-push.outputs.ghcr_image }}
+      GHCR_OWNER: ${{ github.repository_owner }}
+      PUBLIC_URL: ${{ vars.PUBLIC_URL }}
+      DEPLOY_HOST: ${{ inputs.target_host || secrets.TEST_DEPLOY_HOST }}
+      DEPLOY_PATH: ${{ secrets.TEST_DEPLOY_PATH || '/opt/sub2api-extension-test' }}
+    steps:
+      - name: Checkout deployment files
+        uses: actions/checkout@v6
+        with:
+          sparse-checkout: deploy
+
+      - name: Sync Compose file to test server
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ${{ secrets.TEST_DEPLOY_USER || 'root' }}
+          password: ${{ secrets.TEST_DEPLOY_PASSWORD }}
+          key: ${{ secrets.TEST_DEPLOY_SSH_KEY }}
+          fingerprint: ${{ secrets.TEST_DEPLOY_FINGERPRINT }}
+          port: ${{ secrets.TEST_DEPLOY_PORT || '22' }}
+          source: deploy/docker-compose.prod.yml
+          target: ${{ env.DEPLOY_PATH }}
+          strip_components: 1
+          overwrite: true
+
+      - name: Deploy test server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ${{ secrets.TEST_DEPLOY_USER || 'root' }}
+          password: ${{ secrets.TEST_DEPLOY_PASSWORD }}
+          key: ${{ secrets.TEST_DEPLOY_SSH_KEY }}
+          fingerprint: ${{ secrets.TEST_DEPLOY_FINGERPRINT }}
+          port: ${{ secrets.TEST_DEPLOY_PORT || '22' }}
+          timeout: 60s
+          command_timeout: 30m
+          envs: GHCR_PAT,IMAGE_TAG,GHCR_IMAGE,GHCR_OWNER,DEPLOY_PATH
+          script: |
+            set -eu
+
+            ENV_FILE=.env.test
+            COMPOSE_FILE=docker-compose.prod.yml
+            cd "$DEPLOY_PATH"
+
+            if [ ! -f "$ENV_FILE" ] || [ ! -f "$COMPOSE_FILE" ]; then
+              echo "Missing $DEPLOY_PATH/$ENV_FILE or $COMPOSE_FILE" >&2
+              exit 1
+            fi
+
+            compose() {
+              docker compose --project-name sub2api-extension-test -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
+            }
+            update_env() {
+              key="$1"
+              value="$2"
+              if grep -q "^${key}=" "$ENV_FILE"; then
+                sed -i "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
+              else
+                printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
+              fi
+            }
+            wait_healthy() {
+              retries=0
+              while [ "$retries" -lt 30 ]; do
+                if compose ps aux-backend | grep -q "healthy"; then
+                  return 0
+                fi
+                retries=$((retries + 1))
+                echo "Waiting for health check ($retries/30)..."
+                sleep 10
+              done
+              return 1
+            }
+
+            PREVIOUS_TAG=$(sed -n 's/^AUX_IMAGE_TAG=//p' "$ENV_FILE" | tail -n 1)
+            update_env AUX_IMAGE "$GHCR_IMAGE"
+            update_env AUX_IMAGE_TAG "$IMAGE_TAG"
+            update_env AUX_CONTAINER_NAME aux-backend-test
+
+            compose config -q
+            if [ -n "$GHCR_PAT" ]; then
+              printf '%s' "$GHCR_PAT" | docker login ghcr.io -u "$GHCR_OWNER" --password-stdin
+            fi
+
+            compose pull aux-backend
+            if compose up -d --remove-orphans aux-backend && wait_healthy; then
+              echo "Test deployment healthy: $IMAGE_TAG"
+            else
+              echo "Test deployment failed; collecting logs" >&2
+              compose logs --tail=100 aux-backend || true
+              if [ -n "$PREVIOUS_TAG" ] && [ "$PREVIOUS_TAG" != "$IMAGE_TAG" ]; then
+                echo "Rolling back to $PREVIOUS_TAG"
+                update_env AUX_IMAGE_TAG "$PREVIOUS_TAG"
+                compose pull aux-backend || true
+                compose up -d --remove-orphans aux-backend || true
+                wait_healthy || true
+              fi
+              exit 1
+            fi
+
+            docker image prune -f --filter "until=168h"
+
+      - name: Verify public test URL
+        if: ${{ env.PUBLIC_URL != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_URL="${PUBLIC_URL%/}"
+          curl --fail --silent --show-error --retry 5 --retry-delay 5 "$BASE_URL/health"
+          curl --fail --silent --show-error --retry 5 --retry-delay 5 -o /dev/null "$BASE_URL/p/home"
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          {
+            echo "## Test Deployment"
+            echo ""
+            echo "- **Environment**: \`test\`"
+            echo "- **Image**: \`${{ needs.build-and-push.outputs.ghcr_image }}:${{ needs.build-and-push.outputs.image_tag }}\`"
+            echo "- **Host**: \`${DEPLOY_HOST}\`"
+            echo "- **Commit**: \`${GITHUB_SHA}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

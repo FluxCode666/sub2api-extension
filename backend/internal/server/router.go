@@ -14,13 +14,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"aux-system/internal/config"
-	"aux-system/internal/handler"
-	adminhandler "aux-system/internal/handler/admin"
-	"aux-system/internal/pkg/response"
-	"aux-system/internal/server/middleware"
-	"aux-system/internal/service"
-	"aux-system/internal/web"
+	"sub2api-extension/internal/config"
+	"sub2api-extension/internal/handler"
+	adminhandler "sub2api-extension/internal/handler/admin"
+	"sub2api-extension/internal/pkg/response"
+	"sub2api-extension/internal/server/middleware"
+	"sub2api-extension/internal/service"
+	"sub2api-extension/internal/web"
 
 	"github.com/gin-gonic/gin"
 )
@@ -32,7 +32,9 @@ import (
 // analyticsHandler 为 nil 时跳过分析仪表盘路由(U6 端点)。
 // pagePublicHandler 为 nil 时跳过公开页面获取端点。
 // pageAdminHandler 为 nil 时跳过管理端页面 CRUD 端点。
-func SetupRouter(cfg *config.Config, healthHandler *web.HealthHandler, authHandler *handler.AuthHandler, authService *service.AuthService, telemetryHandler *handler.TelemetryHandler, analyticsHandler *adminhandler.AnalyticsHandler, pagePublicHandler *handler.PagePublicHandler, pageAdminHandler *adminhandler.PageHandler, homepageHandlers ...*adminhandler.HomepageConfigHandler) *gin.Engine {
+// optionalHandlers 可传 HomepageConfigHandler 与 ImageAssetHandler，保留可选形式以兼容
+// 最小启动场景和既有路由测试。
+func SetupRouter(cfg *config.Config, healthHandler *web.HealthHandler, authHandler *handler.AuthHandler, authService *service.AuthService, telemetryHandler *handler.TelemetryHandler, analyticsHandler *adminhandler.AnalyticsHandler, pagePublicHandler *handler.PagePublicHandler, pageAdminHandler *adminhandler.PageHandler, optionalHandlers ...any) *gin.Engine {
 	if cfg.Server.Mode == "release" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -48,7 +50,7 @@ func SetupRouter(cfg *config.Config, healthHandler *web.HealthHandler, authHandl
 	registerCommonRoutes(r, healthHandler)
 
 	// 附属系统 API 路由分组
-	registerAuxRoutes(r, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandlers...)
+	registerAuxRoutes(r, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, optionalHandlers...)
 
 	// 静态前端托管（U7）：当 AUX_FRONTEND_DIST 环境变量指向已构建的前端 dist 目录时，
 	// 由后端托管 SPA。前端 api-client 使用相对路径 /api/aux，同源托管避免 CORS。
@@ -126,10 +128,16 @@ func SetPageHandlers(public *handler.PagePublicHandler, admin *adminhandler.Page
 // /api/aux/*                  —— 公开端点 + 埋点上报（U5 实现具体路由）
 // /api/aux/admin/session      —— 会话换取(守卫外,用 sub2api token 换附属会话)
 // /api/aux/admin/*（其余）     —— 受 AdminGuard 保护(U4+ 实现具体路由)
-func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authService *service.AuthService, telemetryHandler *handler.TelemetryHandler, analyticsHandler *adminhandler.AnalyticsHandler, pagePublicHandler *handler.PagePublicHandler, pageAdminHandler *adminhandler.PageHandler, homepageHandlers ...*adminhandler.HomepageConfigHandler) {
+func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authService *service.AuthService, telemetryHandler *handler.TelemetryHandler, analyticsHandler *adminhandler.AnalyticsHandler, pagePublicHandler *handler.PagePublicHandler, pageAdminHandler *adminhandler.PageHandler, optionalHandlers ...any) {
 	var homepageHandler *adminhandler.HomepageConfigHandler
-	if len(homepageHandlers) > 0 {
-		homepageHandler = homepageHandlers[0]
+	var imageAssetHandler *adminhandler.ImageAssetHandler
+	for _, optionalHandler := range optionalHandlers {
+		switch typed := optionalHandler.(type) {
+		case *adminhandler.HomepageConfigHandler:
+			homepageHandler = typed
+		case *adminhandler.ImageAssetHandler:
+			imageAssetHandler = typed
+		}
 	}
 	if homepageHandler == nil {
 		// 测试或最小启动场景没有数据库时，公开首页仍返回默认文案。
@@ -142,6 +150,9 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			response.Success(c, gin.H{"group": "aux", "status": "ok"})
 		})
 		aux.GET("/homepage/config", homepageHandler.GetPublicConfig)
+		if imageAssetHandler != nil {
+			aux.GET("/assets/:id", imageAssetHandler.ServePublic)
+		}
 
 		// 动态页面公开获取(bootstrap 注册表合并 + 公开页内容渲染)
 		if pagePublicHandler != nil {
@@ -201,6 +212,11 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 				guarded.GET("/pages/:id", pageAdminHandler.GetByID)
 				guarded.PUT("/pages/:id", pageAdminHandler.Update)
 				guarded.DELETE("/pages/:id", pageAdminHandler.Delete)
+			}
+
+			if imageAssetHandler != nil {
+				guarded.GET("/assets", imageAssetHandler.List)
+				guarded.POST("/assets", imageAssetHandler.Upload)
 			}
 
 			// 管理端 API 请求示例: 无数据库或 sub2api 依赖。

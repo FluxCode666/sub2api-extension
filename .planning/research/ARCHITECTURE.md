@@ -1,6 +1,6 @@
 # Architecture Research
 
-**Domain:** Dynamic page management subsystem integrated into existing aux-system (Go+Ent backend, React frontend)
+**Domain:** Dynamic page management subsystem integrated into existing sub2api-extension (Go+Ent backend, React frontend)
 **Researched:** 2026-08-18
 **Confidence:** HIGH
 

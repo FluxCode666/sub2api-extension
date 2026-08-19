@@ -1,6 +1,5 @@
-# syntax=docker/dockerfile:1.7
 # =============================================================================
-# Aux Content System Multi-Stage Dockerfile
+# Sub2API Extension Multi-Stage Dockerfile
 # =============================================================================
 # 附属内容承载系统。零侵入 sub2api，独立部署。
 #
@@ -88,8 +87,8 @@ RUN --mount=type=cache,id=aux-gomod,target=/go/pkg/mod \
 # -----------------------------------------------------------------------------
 FROM ${ALPINE_IMAGE}
 
-LABEL maintainer="aux-system"
-LABEL description="Aux Content System - sub2api auxiliary content carrier"
+LABEL maintainer="sub2api-extension"
+LABEL description="Sub2API Extension - sub2api auxiliary content carrier"
 
 # 运行时依赖：ca-certificates + tzdata + libpq（后端用 lib/pq 连 PostgreSQL）
 RUN apk add --no-cache \
@@ -110,8 +109,8 @@ COPY --from=backend-builder --chown=aux:aux /app/aux-server /app/aux-server
 # 复制前端构建产物（后端同源托管）
 COPY --from=frontend-builder --chown=aux:aux /app/frontend/dist /app/frontend/dist
 
-# 创建数据目录
-RUN mkdir -p /app/data && chown aux:aux /app/data
+# 创建数据目录（数据库只存资源相对路径，图片文件落在 /app/data/assets）
+RUN mkdir -p /app/data/assets && chown -R aux:aux /app/data
 
 # 暴露端口（默认 8787，与 config 默认一致）
 EXPOSE 8787

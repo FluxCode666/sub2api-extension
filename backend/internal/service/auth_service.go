@@ -14,10 +14,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
-	"aux-system/internal/integration"
+	"sub2api-extension/internal/integration"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -170,17 +171,20 @@ func (s *AuthService) VerifyAdminToken(ctx context.Context, sub2apiToken string)
 //   - user: 管理员用户信息
 //   - err: ErrTwoFactorRequired / ErrNotAdmin / ErrInvalidCredentials / 包装 ErrSub2APIUnreachable
 func (s *AuthService) LoginAdmin(ctx context.Context, email, password string) (*integration.Sub2APIUserInfo, error) {
+	log.Printf("[AuthService.LoginAdmin] Calling sub2api login for email: %s", email)
 	resp, err := s.client.Login(ctx, integration.Sub2APILoginRequest{
 		Email:    email,
 		Password: password,
 	})
 	if err != nil {
+		log.Printf("[AuthService.LoginAdmin] Login failed: %v", err)
 		if errors.Is(err, integration.ErrInvalidCredentials) {
 			return nil, err
 		}
 		// 网络/不可达/5xx → 失败关闭, 包装 integration 哨兵供调用方判 503。
 		return nil, fmt.Errorf("%w: %v", integration.ErrSub2APIUnreachable, err)
 	}
+	log.Printf("[AuthService.LoginAdmin] Login successful, user role: %s, requires2FA: %v", resp.User.Role, resp.Requires2FA)
 
 	// 2FA 分支: sub2api 返回 200 但 requires_2fa=true, 本期不支持。
 	if resp.Requires2FA {
@@ -212,7 +216,7 @@ func (s *AuthService) issueSessionWithExpiry(user *integration.Sub2APIUserInfo, 
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(dur)),
-			Issuer:    "aux-system",
+			Issuer:    "sub2api-extension",
 			Subject:   fmt.Sprintf("%d", user.ID),
 		},
 	}

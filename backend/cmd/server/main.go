@@ -1,7 +1,7 @@
 // Package main 是附属内容系统后端的入口。
 //
 // 镜像 sub2api backend/cmd/server/main.go 的入口结构。
-// 独立 module（aux-system），不导入 sub2api 的包。
+// 独立 module（sub2api-extension），不导入 sub2api 的包。
 package main
 
 import (
@@ -17,15 +17,15 @@ import (
 	"syscall"
 	"time"
 
-	"aux-system/ent"
-	"aux-system/ent/migrate"
-	"aux-system/internal/config"
-	"aux-system/internal/handler"
-	adminhandler "aux-system/internal/handler/admin"
-	"aux-system/internal/integration"
-	"aux-system/internal/server"
-	"aux-system/internal/service"
-	"aux-system/internal/web"
+	"sub2api-extension/ent"
+	"sub2api-extension/ent/migrate"
+	"sub2api-extension/internal/config"
+	"sub2api-extension/internal/handler"
+	adminhandler "sub2api-extension/internal/handler/admin"
+	"sub2api-extension/internal/integration"
+	"sub2api-extension/internal/server"
+	"sub2api-extension/internal/service"
+	"sub2api-extension/internal/web"
 
 	entsql "entgo.io/ent/dialect/sql"
 	_ "github.com/lib/pq"
@@ -44,7 +44,7 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		log.Printf("aux-system %s (commit: %s, built: %s)\n", Version, Commit, Date)
+		log.Printf("sub2api-extension %s (commit: %s, built: %s)\n", Version, Commit, Date)
 		return
 	}
 
@@ -65,7 +65,7 @@ func main() {
 		return
 	}
 
-	log.Printf("aux-system %s starting in %s mode", Version, cfg.Server.Mode)
+	log.Printf("sub2api-extension %s starting in %s mode", Version, cfg.Server.Mode)
 
 	// 初始化 Ent 客户端（连接 PostgreSQL）
 	entClient, err := initEnt(cfg)
@@ -97,7 +97,7 @@ func main() {
 	analyticsService := service.NewAnalyticsService(analyticsStore)
 	analyticsHandler := adminhandler.NewAnalyticsHandler(analyticsService)
 
-	// 官网首页配置链：复用 system_meta 存储，公开首页只读，管理员端可写。
+	// 旧版首页配置 API 兼容链：复用 system_meta 存储；当前官网内容以 pages.home 为准。
 	homepageStore := service.NewEntHomepageConfigStore(entClient)
 	homepageService := service.NewHomepageConfigService(homepageStore)
 	homepageHandler := adminhandler.NewHomepageConfigHandler(homepageService)
@@ -108,7 +108,12 @@ func main() {
 	pagePublicHandler := handler.NewPagePublicHandler(pageService)
 	pageAdminHandler := adminhandler.NewPageHandler(pageService)
 
-	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler)
+	// 图片资源链：文件落在 cfg.Assets.Dir，PostgreSQL 只保存相对路径和索引元数据。
+	imageAssetStore := service.NewEntImageAssetStore(entClient)
+	imageAssetService := service.NewImageAssetService(imageAssetStore, cfg.Assets.Dir)
+	imageAssetHandler := adminhandler.NewImageAssetHandler(imageAssetService)
+
+	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, imageAssetHandler)
 
 	// 启动 HTTP 服务器
 	addr := cfg.Server.Address()

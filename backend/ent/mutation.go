@@ -3,11 +3,12 @@
 package ent
 
 import (
-	"aux-system/ent/featureclick"
-	"aux-system/ent/page"
-	"aux-system/ent/pageview"
-	"aux-system/ent/predicate"
-	"aux-system/ent/systemmeta"
+	"sub2api-extension/ent/featureclick"
+	"sub2api-extension/ent/imageasset"
+	"sub2api-extension/ent/page"
+	"sub2api-extension/ent/pageview"
+	"sub2api-extension/ent/predicate"
+	"sub2api-extension/ent/systemmeta"
 	"context"
 	"errors"
 	"fmt"
@@ -28,6 +29,7 @@ const (
 
 	// Node types.
 	TypeFeatureClick = "FeatureClick"
+	TypeImageAsset   = "ImageAsset"
 	TypePage         = "Page"
 	TypePageView     = "PageView"
 	TypeSystemMeta   = "SystemMeta"
@@ -575,6 +577,584 @@ func (m *FeatureClickMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown FeatureClick edge %s", name)
 }
 
+// ImageAssetMutation represents an operation that mutates the ImageAsset nodes in the graph.
+type ImageAssetMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	original_name *string
+	_path         *string
+	mime_type     *string
+	size          *int64
+	addsize       *int64
+	created_at    *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*ImageAsset, error)
+	predicates    []predicate.ImageAsset
+}
+
+var _ ent.Mutation = (*ImageAssetMutation)(nil)
+
+// imageassetOption allows management of the mutation configuration using functional options.
+type imageassetOption func(*ImageAssetMutation)
+
+// newImageAssetMutation creates new mutation for the ImageAsset entity.
+func newImageAssetMutation(c config, op Op, opts ...imageassetOption) *ImageAssetMutation {
+	m := &ImageAssetMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeImageAsset,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withImageAssetID sets the ID field of the mutation.
+func withImageAssetID(id int) imageassetOption {
+	return func(m *ImageAssetMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ImageAsset
+		)
+		m.oldValue = func(ctx context.Context) (*ImageAsset, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ImageAsset.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withImageAsset sets the old ImageAsset of the mutation.
+func withImageAsset(node *ImageAsset) imageassetOption {
+	return func(m *ImageAssetMutation) {
+		m.oldValue = func(context.Context) (*ImageAsset, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ImageAssetMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ImageAssetMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ImageAssetMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ImageAssetMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ImageAsset.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetOriginalName sets the "original_name" field.
+func (m *ImageAssetMutation) SetOriginalName(s string) {
+	m.original_name = &s
+}
+
+// OriginalName returns the value of the "original_name" field in the mutation.
+func (m *ImageAssetMutation) OriginalName() (r string, exists bool) {
+	v := m.original_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOriginalName returns the old "original_name" field's value of the ImageAsset entity.
+// If the ImageAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ImageAssetMutation) OldOriginalName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOriginalName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOriginalName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOriginalName: %w", err)
+	}
+	return oldValue.OriginalName, nil
+}
+
+// ResetOriginalName resets all changes to the "original_name" field.
+func (m *ImageAssetMutation) ResetOriginalName() {
+	m.original_name = nil
+}
+
+// SetPath sets the "path" field.
+func (m *ImageAssetMutation) SetPath(s string) {
+	m._path = &s
+}
+
+// Path returns the value of the "path" field in the mutation.
+func (m *ImageAssetMutation) Path() (r string, exists bool) {
+	v := m._path
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPath returns the old "path" field's value of the ImageAsset entity.
+// If the ImageAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ImageAssetMutation) OldPath(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPath is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPath requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPath: %w", err)
+	}
+	return oldValue.Path, nil
+}
+
+// ResetPath resets all changes to the "path" field.
+func (m *ImageAssetMutation) ResetPath() {
+	m._path = nil
+}
+
+// SetMimeType sets the "mime_type" field.
+func (m *ImageAssetMutation) SetMimeType(s string) {
+	m.mime_type = &s
+}
+
+// MimeType returns the value of the "mime_type" field in the mutation.
+func (m *ImageAssetMutation) MimeType() (r string, exists bool) {
+	v := m.mime_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMimeType returns the old "mime_type" field's value of the ImageAsset entity.
+// If the ImageAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ImageAssetMutation) OldMimeType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMimeType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMimeType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMimeType: %w", err)
+	}
+	return oldValue.MimeType, nil
+}
+
+// ResetMimeType resets all changes to the "mime_type" field.
+func (m *ImageAssetMutation) ResetMimeType() {
+	m.mime_type = nil
+}
+
+// SetSize sets the "size" field.
+func (m *ImageAssetMutation) SetSize(i int64) {
+	m.size = &i
+	m.addsize = nil
+}
+
+// Size returns the value of the "size" field in the mutation.
+func (m *ImageAssetMutation) Size() (r int64, exists bool) {
+	v := m.size
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSize returns the old "size" field's value of the ImageAsset entity.
+// If the ImageAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ImageAssetMutation) OldSize(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSize is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSize requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSize: %w", err)
+	}
+	return oldValue.Size, nil
+}
+
+// AddSize adds i to the "size" field.
+func (m *ImageAssetMutation) AddSize(i int64) {
+	if m.addsize != nil {
+		*m.addsize += i
+	} else {
+		m.addsize = &i
+	}
+}
+
+// AddedSize returns the value that was added to the "size" field in this mutation.
+func (m *ImageAssetMutation) AddedSize() (r int64, exists bool) {
+	v := m.addsize
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSize resets all changes to the "size" field.
+func (m *ImageAssetMutation) ResetSize() {
+	m.size = nil
+	m.addsize = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ImageAssetMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ImageAssetMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the ImageAsset entity.
+// If the ImageAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ImageAssetMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ImageAssetMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the ImageAssetMutation builder.
+func (m *ImageAssetMutation) Where(ps ...predicate.ImageAsset) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ImageAssetMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ImageAssetMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ImageAsset, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ImageAssetMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ImageAssetMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ImageAsset).
+func (m *ImageAssetMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ImageAssetMutation) Fields() []string {
+	fields := make([]string, 0, 5)
+	if m.original_name != nil {
+		fields = append(fields, imageasset.FieldOriginalName)
+	}
+	if m._path != nil {
+		fields = append(fields, imageasset.FieldPath)
+	}
+	if m.mime_type != nil {
+		fields = append(fields, imageasset.FieldMimeType)
+	}
+	if m.size != nil {
+		fields = append(fields, imageasset.FieldSize)
+	}
+	if m.created_at != nil {
+		fields = append(fields, imageasset.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ImageAssetMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case imageasset.FieldOriginalName:
+		return m.OriginalName()
+	case imageasset.FieldPath:
+		return m.Path()
+	case imageasset.FieldMimeType:
+		return m.MimeType()
+	case imageasset.FieldSize:
+		return m.Size()
+	case imageasset.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ImageAssetMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case imageasset.FieldOriginalName:
+		return m.OldOriginalName(ctx)
+	case imageasset.FieldPath:
+		return m.OldPath(ctx)
+	case imageasset.FieldMimeType:
+		return m.OldMimeType(ctx)
+	case imageasset.FieldSize:
+		return m.OldSize(ctx)
+	case imageasset.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown ImageAsset field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ImageAssetMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case imageasset.FieldOriginalName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOriginalName(v)
+		return nil
+	case imageasset.FieldPath:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPath(v)
+		return nil
+	case imageasset.FieldMimeType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMimeType(v)
+		return nil
+	case imageasset.FieldSize:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSize(v)
+		return nil
+	case imageasset.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ImageAsset field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ImageAssetMutation) AddedFields() []string {
+	var fields []string
+	if m.addsize != nil {
+		fields = append(fields, imageasset.FieldSize)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ImageAssetMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case imageasset.FieldSize:
+		return m.AddedSize()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ImageAssetMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case imageasset.FieldSize:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSize(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ImageAsset numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ImageAssetMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ImageAssetMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ImageAssetMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown ImageAsset nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ImageAssetMutation) ResetField(name string) error {
+	switch name {
+	case imageasset.FieldOriginalName:
+		m.ResetOriginalName()
+		return nil
+	case imageasset.FieldPath:
+		m.ResetPath()
+		return nil
+	case imageasset.FieldMimeType:
+		m.ResetMimeType()
+		return nil
+	case imageasset.FieldSize:
+		m.ResetSize()
+		return nil
+	case imageasset.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown ImageAsset field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ImageAssetMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ImageAssetMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ImageAssetMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ImageAssetMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ImageAssetMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ImageAssetMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ImageAssetMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown ImageAsset unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ImageAssetMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown ImageAsset edge %s", name)
+}
+
 // PageMutation represents an operation that mutates the Page nodes in the graph.
 type PageMutation struct {
 	config
@@ -587,6 +1167,7 @@ type PageMutation struct {
 	content_type  *string
 	content_html  *string
 	content_react *string
+	metadata      *map[string]interface{}
 	enabled       *bool
 	created_at    *time.Time
 	updated_at    *time.Time
@@ -936,6 +1517,55 @@ func (m *PageMutation) ResetContentReact() {
 	delete(m.clearedFields, page.FieldContentReact)
 }
 
+// SetMetadata sets the "metadata" field.
+func (m *PageMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *PageMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the Page entity.
+// If the Page object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PageMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (m *PageMutation) ClearMetadata() {
+	m.metadata = nil
+	m.clearedFields[page.FieldMetadata] = struct{}{}
+}
+
+// MetadataCleared returns if the "metadata" field was cleared in this mutation.
+func (m *PageMutation) MetadataCleared() bool {
+	_, ok := m.clearedFields[page.FieldMetadata]
+	return ok
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *PageMutation) ResetMetadata() {
+	m.metadata = nil
+	delete(m.clearedFields, page.FieldMetadata)
+}
+
 // SetEnabled sets the "enabled" field.
 func (m *PageMutation) SetEnabled(b bool) {
 	m.enabled = &b
@@ -1078,7 +1708,7 @@ func (m *PageMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PageMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 10)
 	if m.slug != nil {
 		fields = append(fields, page.FieldSlug)
 	}
@@ -1096,6 +1726,9 @@ func (m *PageMutation) Fields() []string {
 	}
 	if m.content_react != nil {
 		fields = append(fields, page.FieldContentReact)
+	}
+	if m.metadata != nil {
+		fields = append(fields, page.FieldMetadata)
 	}
 	if m.enabled != nil {
 		fields = append(fields, page.FieldEnabled)
@@ -1126,6 +1759,8 @@ func (m *PageMutation) Field(name string) (ent.Value, bool) {
 		return m.ContentHTML()
 	case page.FieldContentReact:
 		return m.ContentReact()
+	case page.FieldMetadata:
+		return m.Metadata()
 	case page.FieldEnabled:
 		return m.Enabled()
 	case page.FieldCreatedAt:
@@ -1153,6 +1788,8 @@ func (m *PageMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldContentHTML(ctx)
 	case page.FieldContentReact:
 		return m.OldContentReact(ctx)
+	case page.FieldMetadata:
+		return m.OldMetadata(ctx)
 	case page.FieldEnabled:
 		return m.OldEnabled(ctx)
 	case page.FieldCreatedAt:
@@ -1209,6 +1846,13 @@ func (m *PageMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetContentReact(v)
+		return nil
+	case page.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
 		return nil
 	case page.FieldEnabled:
 		v, ok := value.(bool)
@@ -1267,6 +1911,9 @@ func (m *PageMutation) ClearedFields() []string {
 	if m.FieldCleared(page.FieldContentReact) {
 		fields = append(fields, page.FieldContentReact)
 	}
+	if m.FieldCleared(page.FieldMetadata) {
+		fields = append(fields, page.FieldMetadata)
+	}
 	return fields
 }
 
@@ -1286,6 +1933,9 @@ func (m *PageMutation) ClearField(name string) error {
 		return nil
 	case page.FieldContentReact:
 		m.ClearContentReact()
+		return nil
+	case page.FieldMetadata:
+		m.ClearMetadata()
 		return nil
 	}
 	return fmt.Errorf("unknown Page nullable field %s", name)
@@ -1312,6 +1962,9 @@ func (m *PageMutation) ResetField(name string) error {
 		return nil
 	case page.FieldContentReact:
 		m.ResetContentReact()
+		return nil
+	case page.FieldMetadata:
+		m.ResetMetadata()
 		return nil
 	case page.FieldEnabled:
 		m.ResetEnabled()

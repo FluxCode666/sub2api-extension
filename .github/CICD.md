@@ -1,397 +1,428 @@
-# Aux Content System CI/CD 流水线配置说明
+# Sub2API Extension CI/CD 指南
 
-## 手动登录 GHCR
+本项目采用单镜像部署：React 前端在 Docker 构建阶段打包，Go 服务同时提供 API、动态页面和前端静态文件。GitHub Actions 负责质量检查、安全扫描、GHCR 镜像发布，以及测试/生产服务器上的 Docker Compose 更新。
 
-```shell
-docker login ghcr.io -u YOUR_GITHUB_USERNAME
-# 提示输入密码时，输入你的 PAT（需 write:packages 权限），不是 GitHub 密码
+## 1. 流水线总览
+
+| 工作流 | 文件 | 触发方式 | 作用 |
+|---|---|---|---|
+| CI | `.github/workflows/ci.yml` | push `main`、Pull Request、被部署工作流调用 | Go 测试与 lint、前端类型检查、测试和构建 |
+| Security Scan | `.github/workflows/security-scan.yml` | Pull Request、每周一 | `govulncheck` 与 `pnpm audit` |
+| Deploy Test | `.github/workflows/deploy-test.yml` | push `test`，或手动触发 | 构建测试镜像并部署测试环境 |
+| Deploy Production | `.github/workflows/deploy-production.yml` | 仅手动触发 | 从 `main` 构建版本镜像并部署生产环境 |
+
+发布链路如下：
+
+```text
+代码提交
+   │
+   ├─ Pull Request ── CI + Security Scan
+   │
+   ├─ push test ───── 完整 CI ── test-<sha7> / test-latest ── 测试服务器
+   │
+   └─ main 手动发布 ─ 完整 CI ── <version> / latest ───────── 生产服务器
+                                      │
+                                      └─ Compose 健康检查失败时恢复上一标签
 ```
 
-## 概览
+测试与生产使用独立的 GitHub Environment、服务器配置和 Compose project。即使部署在同一台主机，也必须使用不同端口、数据库、JWT 密钥、sub2api 环境、域名和数据卷。
 
-本项目使用 GitHub Actions 实现完整的 CI/CD 流水线，共包含 **3 条工作流**，覆盖持续集成、安全扫描和生产部署。
+项目展示名、Go module、前端包名和 GHCR 镜像已统一为 `sub2api-extension`。为避免已有 iframe 和服务器配置失效，Compose 服务 `aux-backend`、容器运行时的 `AUX_*` 环境变量以及 `/api/aux/*` API 前缀保留兼容。GitHub Environment 的部署密钥和变量不使用 `AUX_` 前缀。
 
-aux-system 是**单镜像**架构（前端 + 后端合一，后端同源托管前端 SPA），因此部署比 sub2api（前后端分离）更简单：一条流水线构建一个镜像、部署到单台机器。
+## 2. 质量门禁
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    GitHub Actions 工作流全景                      │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  CI 阶段 (push main / PR)                                        │
-│  └── ci.yml ─── 后端单元测试 + golangci-lint                    │
-│                前端测试 + 类型检查 + 构建验证                     │
-│                                                                 │
-│  安全扫描 (PR + 每周一)                                          │
-│  └── security-scan.yml ── govulncheck + pnpm audit              │
-│                                                                 │
-│  生产部署 (仅手动触发，选 main + 填版本号)                       │
-│  └── deploy.yml ── 多架构镜像构建 → GHCR → SSH 单机部署          │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+部署工作流通过 `workflow_call` 复用 `.github/workflows/ci.yml`，镜像只能在以下检查全部通过后构建：
 
-### 与 sub2api (FluxCode) 的区别
+- 后端：`go test -race -count=1 ./...`
+- 后端：`golangci-lint` v2.9
+- 前端：`pnpm install --frozen-lockfile`
+- 前端：`pnpm run typecheck`
+- 前端：`pnpm run test`
+- 前端：`pnpm run build`
 
-| 维度 | sub2api (FluxCode) | aux-system |
-|------|-------------------|------------|
-| 镜像 | 前后端分离（后端 Docker + 前端 Nginx 静态） | **单镜像**（后端内嵌前端 dist） |
-| 部署 | 多机滚动（前后端各自流水线） | **单机**（一条流水线搞定） |
-| 数据库 | compose 内含 postgres / 外部共享 | **不含数据库镜像**（外部 PostgreSQL） |
-| 前端部署 | rsync 到 Nginx 宿主机 | 无（前端打包进镜像） |
-| 工作流数 | 8 条 | 3 条 |
+安全扫描独立运行：
 
----
+- Go：`govulncheck ./...`
+- 前端：`pnpm audit --prod --audit-level=high`
 
-## 1. CI — 持续集成 (`ci.yml`)
+建议在 GitHub Branch protection 中要求 `main` 和 `test` 合并前通过 CI，并禁止直接向 `main` 推送。
 
-| 属性 | 值 |
-|------|-----|
-| **文件** | `.github/workflows/ci.yml` |
-| **触发** | `push` 到 `main` 分支、所有 `pull_request` |
-| **权限** | `contents: read` |
+## 3. 测试环境部署
 
-### Jobs
+### 触发规则
 
-| Job | 说明 |
-|-----|------|
-| `backend-test` | 校验 Go 1.26.5 → 运行单元测试 `go test -race ./...`（跳过集成测试） |
-| `backend-lint` | golangci-lint v2.9，超时 30 分钟 |
-| `frontend` | pnpm install → typecheck → vitest → 构建验证 |
+- push 到 `test` 分支自动部署。
+- 只在后端、前端、Docker、部署配置或相关工作流变化时触发，文档改动不会重建镜像。
+- Actions 页面也可手动运行 `Deploy Test`。
 
-### 注意事项
-
-- Go 版本锁定为 `backend/go.mod` 中声明的版本（当前 1.26.5），并通过 `grep` 强制验证
-- 集成测试（`//go:build integration`）需要真实 PostgreSQL，CI 默认跳过；本地运行见[后端测试](#后端测试)
-- 前端构建验证仅校验能否构建，产物不部署（Dockerfile 在镜像构建时重新构建前端）
-- 三个 job 并行执行以缩短整体时间
-
----
-
-## 2. 安全扫描 (`security-scan.yml`)
-
-| 属性 | 值 |
-|------|-----|
-| **文件** | `.github/workflows/security-scan.yml` |
-| **触发** | 所有 `pull_request`，以及每周一 UTC 03:00（北京时间 11:00）定时 |
-| **权限** | `contents: read` |
-
-### Jobs
-
-| Job | 说明 |
-|-----|------|
-| `backend-security` | `govulncheck ./...` 扫描 Go 依赖已知漏洞（超时 15 分钟） |
-| `frontend-security` | `pnpm audit --prod --audit-level=high` 扫描 npm 依赖（高严重度及以上失败） |
-
----
-
-## 3. 生产部署 (`deploy.yml`)
-
-| 属性 | 值 |
-|------|-----|
-| **文件** | `.github/workflows/deploy.yml` |
-| **触发** | 仅手动触发（选择 `main` 分支，填写版本号） |
-| **权限** | `contents: read`, `packages: write` |
-| **环境** | `production`（deploy job） |
-
-### 架构
-
-```
-┌──────────────┐   push image   ┌─────────┐
-│ GitHub CI    │ ──────────────→│  GHCR   │
-│ Docker Build │                └────┬────┘
-│ (多架构)      │                     │ docker compose pull
-└──────────────┘                     ▼
-                            ┌──────────────────────┐
-                            │  生产服务器（单机）    │
-                            │  docker-compose.prod  │
-                            │  aux-backend (单镜像)  │
-                            │  + health check       │
-                            └──────────────────────┘
-                               │
-                               ├──→ 外部 PostgreSQL（不在 compose 内）
-                               └──→ sub2api（同网络 / 公网域名）
-```
-
-### 流程
-
-1. **build-and-push**:
-   - 使用项目根 `Dockerfile` 多阶段构建（前端 + 后端 → 单镜像）
-   - **双架构构建**：`linux/amd64` + `linux/arm64`（Go 交叉编译 + 前端 JS 架构无关，不经 QEMU 模拟，速度接近单架构）
-   - 推送到 GHCR，标签：`{version}` + `latest`（如 `1.0.0` + `latest`）
-   - 使用 GitHub Actions Cache 加速 Docker 构建
-   - 注入 `VERSION` / `COMMIT` / `DATE` build-args 到二进制 ldflags
-2. **deploy**: 使用 `appleboy/ssh-action` SSH 到单台生产服务器：
-   - 登录 GHCR（用 PAT）
-   - 更新 `.env.prod` 中的 `AUX_IMAGE_TAG` 为当前版本号、`AUX_IMAGE` 为镜像名
-   - `docker compose -f docker-compose.prod.yml --env-file .env.prod pull aux-backend`
-   - `docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans aux-backend`
-   - 等待健康检查通过（最多 5 分钟，每 10 秒检查一次，检查 `/health` 端点）
-   - 清理 7 天以上的旧镜像
-
-### 手动触发参数
+手动参数：
 
 | 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `version` | 版本号（如 `1.0.0`，作为镜像 tag） | 必填 |
-| `skip_deploy` | 仅构建推送镜像，跳过 SSH 部署 | `false` |
+|---|---|---|
+| `tag` | 自定义测试镜像标签 | `test-<commit 前 7 位>` |
+| `skip_deploy` | 只构建并推送镜像，不连接服务器 | `false` |
+| `target_host` | 临时覆盖测试服务器地址 | 使用 Environment Secret |
 
-### 生产 Docker Compose 配置
+每次构建推送两个标签：
 
-生产服务器上的 `docker-compose.prod.yml`（来自 `deploy/docker-compose.prod.yml`）：
+```text
+ghcr.io/<owner>/sub2api-extension:test-<sha7>
+ghcr.io/<owner>/sub2api-extension:test-latest
+```
 
-- **仅 aux-backend 一个服务**（不含数据库镜像）
-- 镜像：`${AUX_IMAGE}:${AUX_IMAGE_TAG}`（部署时自动更新为具体版本号）
-- 连接**外部 PostgreSQL**（`DATABASE_HOST` 等环境变量指向外部数据库）
-- 加入 `sub2api-network`（external）以与 sub2api 互联
-- 健康检查：`wget http://localhost:8787/health`
+测试部署并发组为 `sub2api-extension-test-deployment`。新提交到达时会取消仍在运行的旧测试部署，避免旧版本晚于新版本上线。
 
-> 与开发用 `deploy/docker-compose.yml` 的区别：开发版含 `aux-postgres` 服务并从源码 build；生产版不含数据库、从 GHCR 拉取镜像。
+### 测试服务器目录
 
----
+默认目录：
 
-## Secrets 配置清单
+```text
+/opt/sub2api-extension-test/
+├── docker-compose.prod.yml   # 流水线每次自动同步
+└── .env.test                 # 服务器持有，流水线只更新镜像相关字段
+```
 
-### 生产部署 Secrets（`production` Environment）
+测试 Compose project 固定为 `sub2api-extension-test`，因此其命名卷与生产 project 隔离。
 
-| Secret | 说明 | 必需 | 默认值 |
-|--------|------|:----:|--------|
-| `AUX_DEPLOY_HOST` | 生产服务器 IP/域名（单机） | ✅ | — |
-| `AUX_DEPLOY_USER` | SSH 用户 | ✅ | `root` |
-| `AUX_DEPLOY_PASSWORD` | SSH 密码 | ✅ | — |
-| `AUX_DEPLOY_PATH` | docker-compose.prod.yml 所在目录 | — | `/opt/aux-system` |
-| `AUX_DEPLOY_PORT` | SSH 端口 | — | `22` |
-| `GHCR_PAT` | GHCR 拉取用 PAT（`read:packages`） | ✅ | — |
+## 4. 生产环境部署
 
-> `GITHUB_TOKEN` 由 GitHub 自动提供，用于 GHCR 推送，无需手动配置。
+生产工作流只能在 GitHub Actions 页面手动运行，并且运行时选择的分支必须是 `main`。工作流会再次校验分支，避免从功能分支发布生产镜像。
 
-### Environments 配置
+手动参数：
 
-需要在 GitHub 仓库 **Settings → Environments** 中创建：
+| 参数 | 说明 | 默认值 |
+|---|---|---|
+| `version` | 生产版本，例如 `1.2.3`、`v1.2.3` 或 `1.2.3-rc.1` | 必填 |
+| `skip_deploy` | 只构建并推送镜像，不连接服务器 | `false` |
+| `target_host` | 临时覆盖生产服务器地址 | 使用 Environment Secret |
 
-| Environment | 用途 | 使用流水线 | 建议配置 |
-|-------------|------|---------|--------|
-| `production` | 生产部署 | `deploy.yml` | 添加审批人 / 分支保护（限定 `main`） |
+每次构建推送两个标签：
 
-> 配置 Environment 保护规则后，每次部署需经过审批才能执行，防止意外推送到生产。
+```text
+ghcr.io/<owner>/sub2api-extension:<version>
+ghcr.io/<owner>/sub2api-extension:latest
+```
 
----
+生产部署并发组为 `sub2api-extension-production-deployment`，不会取消正在执行的生产发布。建议为 `production` Environment 设置审批人，构建完成后必须审批才能真正连接生产服务器。
 
-## 首次部署指南
+默认生产目录：
 
-### 1. 生产服务器初始化
+```text
+/opt/sub2api-extension/
+├── docker-compose.prod.yml   # 流水线每次自动同步
+└── .env.prod                 # 服务器持有，流水线只更新镜像相关字段
+```
 
-在生产服务器上执行：
+## 5. GitHub Environments
+
+进入仓库的 `Settings → Environments`，创建以下两个环境。
+
+### `test`
+
+测试环境通常不需要人工审批，可将 Deployment branches 限制为 `test`。
+
+Secrets：
+
+| Secret | 必需 | 说明 |
+|---|:---:|---|
+| `TEST_DEPLOY_HOST` | 是 | 测试服务器 IP 或域名 |
+| `TEST_DEPLOY_USER` | 否 | SSH 用户，默认 `root` |
+| `TEST_DEPLOY_PASSWORD` | 二选一 | SSH 密码 |
+| `TEST_DEPLOY_SSH_KEY` | 二选一 | SSH 私钥全文，推荐使用 |
+| `TEST_DEPLOY_PORT` | 否 | SSH 端口，默认 `22` |
+| `TEST_DEPLOY_PATH` | 否 | 部署目录，默认 `/opt/sub2api-extension-test` |
+| `TEST_DEPLOY_FINGERPRINT` | 建议 | SSH 主机公钥指纹，防止中间人攻击 |
+| `GHCR_PAT` | 私有镜像必需 | 具有 `read:packages` 权限的 PAT |
+
+Variables：
+
+| Variable | 必需 | 说明 |
+|---|:---:|---|
+| `PUBLIC_URL` | 否 | 测试公网 URL，例如 `https://aux-test.example.com`；配置后会额外验证 `/health` 和 `/p/home` |
+
+### `production`
+
+建议配置 Required reviewers，并将 Deployment branches 限制为 `main`。
+
+Secrets：
+
+| Secret | 必需 | 说明 |
+|---|:---:|---|
+| `DEPLOY_HOST` | 是 | 生产服务器 IP 或域名 |
+| `DEPLOY_USER` | 否 | SSH 用户，默认 `root` |
+| `DEPLOY_PASSWORD` | 二选一 | SSH 密码 |
+| `DEPLOY_SSH_KEY` | 二选一 | SSH 私钥全文，推荐使用 |
+| `DEPLOY_PORT` | 否 | SSH 端口，默认 `22` |
+| `DEPLOY_PATH` | 否 | 部署目录，默认 `/opt/sub2api-extension` |
+| `DEPLOY_FINGERPRINT` | 建议 | SSH 主机公钥指纹 |
+| `GHCR_PAT` | 私有镜像必需 | 具有 `read:packages` 权限的 PAT |
+
+Variables：
+
+| Variable | 必需 | 说明 |
+|---|:---:|---|
+| `PUBLIC_URL` | 否 | 生产公网 URL，例如 `https://aux.example.com`；配置后会额外验证 `/health` 和 `/p/home` |
+
+> 变量名迁移：工作流已不再读取旧的 `TEST_AUX_DEPLOY_*`、`AUX_DEPLOY_*` 和 `AUX_PUBLIC_URL`。请在对应 GitHub Environment 中按上表新建/改名；旧密钥不会被自动兼容读取。Compose 服务器 `.env.test`/`.env.prod` 中的 `AUX_*` 是容器运行时配置，当前仍保持不变。
+
+工作流使用 GitHub 自动提供的 `GITHUB_TOKEN` 向 GHCR 推送镜像。服务器拉取私有镜像使用 `GHCR_PAT`；该 PAT 所属账号必须有镜像读取权限，组织启用 SSO 时还需完成授权。
+
+获取服务器 SSH 指纹示例：
 
 ```bash
-# 1. 安装 Docker 和 Docker Compose
-curl -fsSL https://get.docker.com | sh
+ssh-keyscan -p 22 example.com 2>/dev/null | ssh-keygen -lf -
+```
 
-# 2. 准备部署目录
-mkdir -p /opt/aux-system
-cd /opt/aux-system
+## 6. 首次初始化服务器
 
-# 3. 从仓库复制部署文件（或手动上传）
-#    需要: docker-compose.prod.yml, .env.prod.example
-cp docker-compose.prod.yml .
-cp .env.prod.example .env.prod
+### 测试服务器
 
-# 4. 编辑 .env.prod，填入实际配置
-vim .env.prod
-#    必填项:
-#    - AUX_IMAGE=ghcr.io/your-org/aux-system  (your-org 替换为实际 GitHub owner)
-#    - AUX_IMAGE_TAG=latest                    (首次部署用 latest)
-#    - DATABASE_HOST=...                       (外部 PostgreSQL 地址)
-#    - DATABASE_PASSWORD=...
-#    - SUB2API_BASE_URL=http://sub2api:8080    (或 sub2api 公网域名)
-#    - AUX_JWT_SECRET=...                      (openssl rand -hex 32)
+```bash
+sudo mkdir -p /opt/sub2api-extension-test
+sudo chown "$USER":"$USER" /opt/sub2api-extension-test
+cd /opt/sub2api-extension-test
 
-# 5. 登录 GHCR（拉取私有镜像需要）
-echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
+# 从仓库 deploy/.env.test.example 复制后编辑
+cp /path/to/sub2api-extension/deploy/.env.test.example .env.test
+openssl rand -hex 32
+```
 
-# 6. 确认 sub2api-network 已存在（sub2api 部署时创建）
-docker network ls | grep sub2api-network
-#    若不存在且 sub2api 不在同机 Docker 部署，见下方「跨网络部署」说明
+将生成值写入 `.env.test` 的 `AUX_JWT_SECRET`，并填写测试专用配置：
 
-# 7. 启动
+```dotenv
+AUX_IMAGE=ghcr.io/your-org/sub2api-extension
+AUX_IMAGE_TAG=test-latest
+AUX_CONTAINER_NAME=aux-backend-test
+AUX_SERVER_PORT=8787
+DATABASE_HOST=<测试数据库地址>
+DATABASE_USER=<测试数据库用户>
+DATABASE_PASSWORD=<测试数据库密码>
+DATABASE_DBNAME=<测试数据库名>
+SUB2API_BASE_URL=<测试 sub2api 地址>
+AUX_JWT_SECRET=<测试专用随机密钥>
+```
+
+如果测试和生产在同一主机，测试必须改用独立宿主机端口，例如 `AUX_SERVER_PORT=8788`，并让测试 NGINX upstream 指向 `127.0.0.1:8788`。
+
+测试部署使用外部 `sub2api-network`。首次部署前确认网络存在：
+
+```bash
+docker network inspect sub2api-network >/dev/null
+```
+
+若 sub2api 不与 sub2api-extension 位于同一 Docker 主机，需按 `deploy/docker-compose.prod.yml` 尾部注释改为普通本地网络，并将 `SUB2API_BASE_URL` 设置为可访问的 HTTPS 地址。
+
+### 生产服务器
+
+```bash
+sudo mkdir -p /opt/sub2api-extension
+sudo chown "$USER":"$USER" /opt/sub2api-extension
+cd /opt/sub2api-extension
+
+# 从仓库 deploy/.env.prod.example 复制后编辑
+cp /path/to/sub2api-extension/deploy/.env.prod.example .env.prod
+openssl rand -hex 32
+```
+
+至少填写：
+
+```dotenv
+AUX_IMAGE=ghcr.io/your-org/sub2api-extension
+AUX_IMAGE_TAG=latest
+AUX_CONTAINER_NAME=aux-backend
+AUX_PUBLIC_HOST=aux.example.com
+DATABASE_HOST=<生产数据库地址>
+DATABASE_USER=<生产数据库用户>
+DATABASE_PASSWORD=<生产数据库密码>
+DATABASE_DBNAME=<生产数据库名>
+SUB2API_BASE_URL=<生产 sub2api 地址>
+AUX_JWT_SECRET=<生产专用随机密钥>
+```
+
+上传图片保存在 Compose 命名卷的 `/app/data/assets`，数据库只记录资源路径。发布容器不会删除该卷。测试 project 和生产 project 会创建不同的 `sub2api-extension-data` 命名卷。
+
+首次可手工校验配置：
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.prod config -q
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
-
-# 8. 确认启动
-docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f aux-backend
-curl http://localhost:8787/health
+docker compose -f docker-compose.prod.yml --env-file .env.prod ps
+curl --fail http://127.0.0.1:8787/health
 ```
 
-### 2. GitHub Secrets 配置
+后续流水线会自动同步最新 `docker-compose.prod.yml`，但不会覆盖服务器上的 `.env.test` 或 `.env.prod`。
 
-在 GitHub 仓库 **Settings → Environments** 中创建 `production` 环境，配置对应 Secrets：
+## 7. NGINX 与证书
 
-| 必需 Secrets |
-|---|
-| `AUX_DEPLOY_HOST`, `AUX_DEPLOY_USER`, `AUX_DEPLOY_PASSWORD`, `GHCR_PAT` |
+仓库已提供宿主机 NGINX 配置：
 
-> 确保生产服务器已开启 SSH 密码登录（`/etc/ssh/sshd_config` 中 `PasswordAuthentication yes`）。
->
-> 推荐改用 SSH 密钥登录更安全，可在 `deploy.yml` 中将 `password` 改为 `key`。
-
-### 3. 跨网络部署（sub2api 不在同机 Docker）
-
-若生产服务器上 sub2api 不在同一个 Docker 网络（如 sub2api 在另一台机器或用公网域名）：
-
-1. 编辑 `docker-compose.prod.yml`，将网络改为本地网络：
-   ```yaml
-   networks:
-     default:
-       driver: bridge
-   ```
-   并将服务内的 `networks: [sub2api-network]` 改为 `networks: [default]`（或直接删除 networks 声明）。
-
-2. 编辑 `.env.prod`：
-   ```
-   SUB2API_BASE_URL=https://sub2api.example.com   # sub2api 公网域名
-   ```
-
----
-
-## 手动构建镜像并推送到 GHCR
-
-除 CI 自动构建外，还可以在本地手动构建镜像并推送到 GHCR。
-
-### 前提条件
-
-1. 安装 Docker 并启用 Buildx
-2. 登录 GHCR：`docker login ghcr.io -u <GitHub用户名>`（使用 PAT 作为密码，需 `write:packages` 权限）
-
-### 脚本
-
-| 脚本 | 说明 | 镜像名 |
-|------|------|--------|
-| `deploy/build-and-push.sh` | 构建单镜像（前端 + 后端合一） | `ghcr.io/{owner}/aux-system` |
-
-### 用法
-
-```bash
-# 构建并推送（版本号为必填参数）
-./deploy/build-and-push.sh 1.0.0
-
-# 仅构建多架构镜像，不推送（验证用）
-./deploy/build-and-push.sh 1.0.0 --no-push
-
-# 仅构建本机架构并加载到本地 Docker（开发调试用）
-./deploy/build-and-push.sh 1.0.0 --local
+```text
+deploy/nginx/nginx.conf
+deploy/nginx/conf.d/sub2api-extension.conf
+deploy/nginx/snippets/sub2api-extension-proxy.conf
 ```
 
-### 构建参数
+部署前将 `aux.example.com` 替换为真实域名。证书目录统一为：
 
-脚本支持以下环境变量覆盖默认值：
-
-| 环境变量 | 说明 | 默认值 |
-|----------|------|--------|
-| `GHCR_OWNER` | GHCR 仓库所有者 | 自动从 git remote 检测 |
-| `PLATFORMS` | 目标平台 | `linux/amd64,linux/arm64` |
-| `GOPROXY` | Go 模块代理 | `https://goproxy.cn,direct` |
-| `GOSUMDB` | Go checksum 数据库 | `sum.golang.google.cn` |
-| `NPM_CONFIG_REGISTRY` | npm 镜像 | 空（官方源） |
-
----
-
-## 工作流触发规则一览
-
-| 工作流 | push main | PR | 手动 | 定时 |
-|--------|:-:|:-:|:-:|:-:|
-| CI (`ci.yml`) | ✅ | ✅ | — | — |
-| Security Scan | — | ✅ | — | 每周一 |
-| Deploy (`deploy.yml`) | — | — | ✅ | — |
-
----
-
-## 常见操作
-
-### 部署生产环境
-
-生产环境仅支持手动触发，在 GitHub → Actions 页面操作：
-
-1. 选择 **Deploy** 工作流
-2. 点击 **Run workflow**
-3. 分支选择 `main`
-4. 填写 `version`：`1.0.0`（必填，作为镜像 tag）
-5. 可选勾选 `skip_deploy`（仅构建镜像不部署）
-
-> 部署时镜像标签为你填写的版本号（如 `1.0.0`），并自动更新服务器 `.env.prod` 中的 `AUX_IMAGE_TAG`。
-
-### 查看部署版本
-
-```bash
-# 在生产服务器上
-cd /opt/aux-system
-grep AUX_IMAGE_TAG .env.prod
-docker compose -f docker-compose.prod.yml --env-file .env.prod images
+```text
+/etc/nginx/certs/<域名>/fullchain.pem
+/etc/nginx/certs/<域名>/privkey.pem
 ```
 
-### 回滚到旧版本
+安装并重载：
 
 ```bash
-cd /opt/aux-system
-# 1. 修改 .env.prod 中的镜像标签为旧版本
-sed -i 's|^AUX_IMAGE_TAG=.*|AUX_IMAGE_TAG=0.9.0|' .env.prod
-# 2. 拉取并重启
+sudo install -Dm644 deploy/nginx/nginx.conf /etc/nginx/nginx.conf
+sudo install -Dm644 deploy/nginx/conf.d/sub2api-extension.conf /etc/nginx/conf.d/sub2api-extension.conf
+sudo install -Dm644 deploy/nginx/snippets/sub2api-extension-proxy.conf /etc/nginx/snippets/sub2api-extension-proxy.conf
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+Compose 默认只绑定 `127.0.0.1:8787`，公网流量应统一通过 NGINX HTTPS 进入。完整说明见 `deploy/nginx/README.md`。
+
+## 8. 部署、健康检查与回滚
+
+SSH 部署阶段会执行：
+
+1. 保存 `.env.test` 或 `.env.prod` 中原有的 `AUX_IMAGE_TAG`。
+2. 更新 `AUX_IMAGE`、`AUX_IMAGE_TAG` 和 `AUX_CONTAINER_NAME`。
+3. 运行 `docker compose config -q`。
+4. 登录 GHCR 并拉取本次镜像。
+5. 使用 `docker compose up -d --remove-orphans aux-backend` 更新容器。
+6. 最多等待约 5 分钟，直到 Compose 将容器标记为 `healthy`。
+7. 若失败，输出最近 100 行日志并尝试恢复上一镜像标签。
+8. 成功后清理 7 天以前未使用的镜像层。
+
+Compose 健康检查访问容器内的：
+
+```text
+http://localhost:8787/health
+```
+
+如果 Environment Variable `PUBLIC_URL` 已配置，工作流还会从 GitHub Runner 验证：
+
+```text
+<PUBLIC_URL>/health
+<PUBLIC_URL>/p/home
+```
+
+自动回滚只能恢复仍存在于 GHCR 的上一标签，因此生产发布必须使用不可变版本号，不要只依赖 `latest`。
+
+### 手动回滚生产版本
+
+最稳妥的方式是重新运行 `Deploy Production`，填写需要恢复的旧版本号。也可登录服务器执行：
+
+```bash
+cd /opt/sub2api-extension
+sed -i 's/^AUX_IMAGE_TAG=.*/AUX_IMAGE_TAG=1.2.2/' .env.prod
 docker compose -f docker-compose.prod.yml --env-file .env.prod pull aux-backend
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans aux-backend
-# 3. 确认健康
-docker compose -f docker-compose.prod.yml --env-file .env.prod ps aux-backend
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d aux-backend
+docker compose -f docker-compose.prod.yml --env-file .env.prod ps
 ```
 
-### 后端测试
+## 9. 日常发布流程
+
+### 发布测试环境
+
+```bash
+git switch test
+git merge <待测试分支>
+git push origin test
+```
+
+然后在 GitHub Actions 中确认 `Deploy Test` 的质量门禁、镜像构建和健康检查均通过。
+
+### 发布生产环境
+
+1. 将验证通过的代码合并到 `main`。
+2. 打开 GitHub `Actions → Deploy Production → Run workflow`。
+3. Branch 选择 `main`。
+4. 填写不可复用的版本号，例如 `1.4.0`。
+5. 保持 `skip_deploy=false`。
+6. 若配置了 Environment 审批，审批生产部署。
+7. 检查 Actions summary、服务器健康状态及官网动态页。
+
+若只需预先构建镜像，将 `skip_deploy` 设为 `true`；稍后可再次运行同版本部署，但应注意同名镜像标签会被覆盖，因此生产建议一次版本对应一次确定提交。
+
+## 10. 本地构建与校验
+
+手工登录 GHCR：
+
+```bash
+printf '%s' "$GHCR_PAT" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
+```
+
+使用仓库脚本构建：
+
+```bash
+./deploy/build-and-push.sh 1.2.3
+./deploy/build-and-push.sh 1.2.3 --local
+```
+
+提交前可运行与 CI 对应的检查：
 
 ```bash
 cd backend
+go test -race -count=1 ./...
 
-# 单元测试（不含集成测试，无需数据库）
-make test-unit
-# 或: go test -race -count=1 ./...
-
-# 集成测试（需要真实 PostgreSQL，无 DATABASE_HOST 时自动跳过）
-DATABASE_HOST=127.0.0.1 \
-DATABASE_PORT=15433 \
-DATABASE_USER=aux \
-DATABASE_PASSWORD=xxx \
-DATABASE_DBNAME=auxdb \
-make test-integration
-
-# 静态检查
-make vet
+cd ../frontend
+pnpm install --frozen-lockfile
+pnpm run typecheck
+pnpm run test
+pnpm run build
 ```
 
----
+## 11. 故障排查
 
-## 故障排除
+### 无法连接服务器
 
-| 问题 | 排查 |
-|------|------|
-| 部署后健康检查超时 | 检查 `docker compose logs aux-backend`；确认 `DATABASE_HOST` 可达、`SUB2API_BASE_URL` 正确 |
-| GHCR 镜像拉取失败 | 确认服务器已 `docker login ghcr.io`；检查 `GHCR_PAT` 是否有效（`read:packages`） |
-| 部署 SSH 连接失败 | 确认 `AUX_DEPLOY_HOST` 正确、密码正确、服务器已开启 `PasswordAuthentication yes` |
-| 容器启动后立即退出 | 查看日志：`docker compose -f docker-compose.prod.yml logs aux-backend`；确认 `AUX_JWT_SECRET` 与 `SUB2API_BASE_URL` 已设置 |
-| 无法连接 sub2api | 确认 `SUB2API_BASE_URL` 正确；同网络用 `http://sub2api:8080`，跨网络用公网域名 |
-| 无法连接数据库 | 确认 `DATABASE_HOST` / `DATABASE_PORT` / 凭据正确；外部数据库需允许本机访问 |
-| sub2api-network 不存在 | sub2api 未部署或未创建该网络；改用本地网络（见「跨网络部署」） |
-| CI 中 Go 版本校验失败 | `backend/go.mod` 中 `go 1.26.5` 与 CI 期望不一致，更新 ci.yml 中的 grep 版本 |
+- 检查 Environment Secret 中的 host、port、user。
+- 密码和私钥至少配置一个；推荐只配置私钥。
+- 配置 fingerprint 后，确认它与目标主机当前 SSH host key 一致。
+- 确认 SSH 用户有权限访问 Docker socket 和部署目录。
 
----
+### GHCR 拉取失败
 
-## 文件索引
+- 确认 `GHCR_PAT` 有 `read:packages` 权限。
+- 确认 PAT 用户有权读取该仓库的 package。
+- 组织启用 SSO 时，为 PAT 授权组织访问。
+- 在服务器手工运行 `docker login ghcr.io` 和 `docker pull` 定位权限问题。
 
-| 文件 | 说明 |
-|------|------|
-| `.github/workflows/ci.yml` | CI 流水线（测试 + lint） |
-| `.github/workflows/security-scan.yml` | 安全扫描（govulncheck + pnpm audit） |
-| `.github/workflows/deploy.yml` | 生产部署流水线（构建镜像 + SSH 单机部署） |
-| `.github/CICD.md` | 本文档 |
-| `deploy/docker-compose.yml` | 开发用 compose（含 postgres，从源码 build） |
-| `deploy/docker-compose.prod.yml` | 生产用 compose（仅 aux-backend，GHCR 镜像，无数据库） |
-| `deploy/.env.example` | 开发环境变量示例 |
-| `deploy/.env.prod.example` | 生产环境变量示例 |
-| `deploy/build-and-push.sh` | 手动构建推送镜像脚本 |
-| `Dockerfile` | 多阶段单镜像构建（前端 + 后端 → Alpine 运行时） |
-| `.dockerignore` | Docker 构建上下文忽略清单 |
-| `backend/Makefile` | 后端 build / test / vet 入口 |
-| `backend/cmd/server/VERSION` | 版本号文件（CI 部署时由 build-arg 覆盖） |
+### Compose 提示网络不存在
+
+```bash
+docker network inspect sub2api-network
+```
+
+若服务不需要加入同机 sub2api 网络，按 Compose 文件末尾说明改成本地 bridge 网络。
+
+### 容器一直 unhealthy
+
+```bash
+cd /opt/sub2api-extension
+docker compose -f docker-compose.prod.yml --env-file .env.prod ps
+docker compose -f docker-compose.prod.yml --env-file .env.prod logs --tail=200 aux-backend
+curl -v http://127.0.0.1:8787/health
+```
+
+重点检查数据库连通性、`SUB2API_BASE_URL`、JWT 密钥、端口占用和数据目录权限。
+
+### 公网健康检查失败但容器健康
+
+- 检查 `PUBLIC_URL` 是否包含正确协议和域名。
+- 执行 `nginx -t` 并查看 NGINX error log。
+- 确认证书位于 `/etc/nginx/certs/<域名>/`。
+- 检查 DNS、443 防火墙和 NGINX upstream 端口。
+
+## 12. 相关文件
+
+- `.github/workflows/ci.yml`
+- `.github/workflows/security-scan.yml`
+- `.github/workflows/deploy-test.yml`
+- `.github/workflows/deploy-production.yml`
+- `deploy/docker-compose.prod.yml`
+- `deploy/.env.test.example`
+- `deploy/.env.prod.example`
+- `deploy/nginx/README.md`
+- `deploy/build-and-push.sh`

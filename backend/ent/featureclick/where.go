@@ -3,7 +3,7 @@
 package featureclick
 
 import (
-	"aux-system/ent/predicate"
+	"sub2api-extension/ent/predicate"
 	"time"
 
 	"entgo.io/ent/dialect/sql"

@@ -3,8 +3,8 @@
 package ent
 
 import (
-	"aux-system/ent/predicate"
-	"aux-system/ent/systemmeta"
+	"sub2api-extension/ent/predicate"
+	"sub2api-extension/ent/systemmeta"
 	"context"
 
 	"entgo.io/ent/dialect/sql"

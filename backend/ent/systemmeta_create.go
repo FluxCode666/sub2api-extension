@@ -3,7 +3,7 @@
 package ent
 
 import (
-	"aux-system/ent/systemmeta"
+	"sub2api-extension/ent/systemmeta"
 	"context"
 	"errors"
 	"fmt"

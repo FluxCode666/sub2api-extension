@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	"aux-system/ent"
-	"aux-system/ent/page"
+	"sub2api-extension/ent"
+	"sub2api-extension/ent/page"
 )
 
 // PageVisibility 页面可见性。
@@ -31,47 +31,50 @@ const (
 type PageContentType string
 
 const (
-	ContentTypeHTML   PageContentType = "html"
-	ContentTypeReact  PageContentType = "react"
+	ContentTypeHTML  PageContentType = "html"
+	ContentTypeReact PageContentType = "react"
 )
 
 // maxContentBytes 单页内容大小上限(256KB), 防止无界内容拖慢渲染/API。
 const maxContentBytes = 256 * 1024
+
+// logo 元数据只保存图片 URL；图片文件通过图片资源页上传，不内联写入页面 JSON。
+const maxLogoURLBytes = 4096
 
 // slugPattern slug 允许的字符: 小写字母/数字/连字符, 1-128 字符。
 var slugPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 
 // staticCorePageIDs 静态核心页 id, slug 不得与之冲突(避免 page_id 命名空间碰撞)。
 var staticCorePageIDs = map[string]bool{
-	"home":            true,
-	"dashboard":       true,
-	"homepage-config": true,
+	"dashboard": true,
 }
 
 // PageInput 创建/更新页面的输入。
 type PageInput struct {
-	Slug        string          `json:"slug"`
-	Title       string          `json:"title"`
-	Visibility  PageVisibility  `json:"visibility"`
-	ContentType PageContentType `json:"content_type"`
-	ContentHTML string          `json:"content_html"`
-	ContentReact string         `json:"content_react"`
-	Enabled     *bool           `json:"enabled"` // 指针: 更新时 nil 表示不改
+	Slug         string                 `json:"slug"`
+	Title        string                 `json:"title"`
+	Visibility   PageVisibility         `json:"visibility"`
+	ContentType  PageContentType        `json:"content_type"`
+	ContentHTML  string                 `json:"content_html"`
+	ContentReact string                 `json:"content_react"`
+	Metadata     map[string]interface{} `json:"metadata,omitempty"` // 页面元数据(键值对)
+	Enabled      *bool                  `json:"enabled"`            // 指针: 更新时 nil 表示不改
 }
 
 // Page 动态页面实体(对外契约)。
 type Page struct {
-	ID           int             `json:"id"`
-	Slug         string          `json:"slug"`
-	Title        string          `json:"title"`
-	Visibility   PageVisibility  `json:"visibility"`
-	ContentType  PageContentType `json:"content_type"`
-	ContentHTML  string          `json:"content_html,omitempty"`
-	ContentReact string          `json:"content_react,omitempty"`
-	Enabled      bool            `json:"enabled"`
-	PageID       string          `json:"page_id"` // "page:<slug>", 埋点命名空间
-	CreatedAt    time.Time       `json:"created_at"`
-	UpdatedAt    time.Time       `json:"updated_at"`
+	ID           int                    `json:"id"`
+	Slug         string                 `json:"slug"`
+	Title        string                 `json:"title"`
+	Visibility   PageVisibility         `json:"visibility"`
+	ContentType  PageContentType        `json:"content_type"`
+	ContentHTML  string                 `json:"content_html,omitempty"`
+	ContentReact string                 `json:"content_react,omitempty"`
+	Metadata     map[string]interface{} `json:"metadata,omitempty"` // 页面元数据(键值对)
+	Enabled      bool                   `json:"enabled"`
+	PageID       string                 `json:"page_id"` // "page:<slug>", 埋点命名空间
+	CreatedAt    time.Time              `json:"created_at"`
+	UpdatedAt    time.Time              `json:"updated_at"`
 }
 
 // PageListItem 列表项(不含内容, 减小负载)。
@@ -235,6 +238,35 @@ func validatePageInput(input PageInput, requireSlug bool) error {
 	if len(input.ContentReact) > maxContentBytes {
 		return fmt.Errorf("content_react exceeds %d bytes", maxContentBytes)
 	}
+	if err := validatePageMetadata(input.Metadata); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validatePageMetadata(metadata map[string]interface{}) error {
+	if metadata == nil {
+		return nil
+	}
+	raw, ok := metadata["logo"]
+	if !ok || raw == nil {
+		return nil
+	}
+	logo, ok := raw.(string)
+	if !ok {
+		return errors.New("metadata.logo must be a string")
+	}
+	logo = strings.TrimSpace(logo)
+	if logo == "" {
+		return nil
+	}
+	if len(logo) > maxLogoURLBytes {
+		return fmt.Errorf("metadata.logo exceeds %d bytes", maxLogoURLBytes)
+	}
+	if !strings.HasPrefix(strings.ToLower(logo), "http://") &&
+		!strings.HasPrefix(strings.ToLower(logo), "https://") {
+		return errors.New("metadata.logo must be an http(s) URL")
+	}
 	return nil
 }
 
@@ -280,6 +312,10 @@ func (s *entPageStore) Create(ctx context.Context, input PageInput) (*Page, erro
 	if input.Enabled != nil {
 		enabled = *input.Enabled
 	}
+	metadata := input.Metadata
+	if metadata == nil {
+		metadata = map[string]interface{}{}
+	}
 	p, err := s.client.Page.Create().
 		SetSlug(input.Slug).
 		SetTitle(input.Title).
@@ -287,6 +323,7 @@ func (s *entPageStore) Create(ctx context.Context, input PageInput) (*Page, erro
 		SetContentType(string(input.ContentType)).
 		SetNillableContentHTML(nillableString(input.ContentHTML)).
 		SetNillableContentReact(nillableString(input.ContentReact)).
+		SetMetadata(metadata).
 		SetEnabled(enabled).
 		Save(ctx)
 	if err != nil {
@@ -357,6 +394,9 @@ func (s *entPageStore) Update(ctx context.Context, id int, input PageInput) (*Pa
 	if input.ContentReact != "" || input.ContentType == ContentTypeReact {
 		upd.SetNillableContentReact(nillableString(input.ContentReact))
 	}
+	if input.Metadata != nil {
+		upd.SetMetadata(input.Metadata)
+	}
 	if input.Enabled != nil {
 		upd.SetEnabled(*input.Enabled)
 	}
@@ -393,6 +433,7 @@ func entPageToPage(p *ent.Page) *Page {
 		ContentType:  PageContentType(p.ContentType),
 		ContentHTML:  p.ContentHTML,
 		ContentReact: p.ContentReact,
+		Metadata:     p.Metadata,
 		Enabled:      p.Enabled,
 		PageID:       pageID(p.Slug),
 		CreatedAt:    p.CreatedAt,

@@ -1,5 +1,5 @@
 # =============================================================================
-# Aux Content System - 配置示例
+# Sub2API Extension - 配置示例
 # =============================================================================
 # 此文件是配置参考示例，说明附属系统后端（Go + viper）加载的配置项。
 #
@@ -28,7 +28,7 @@ server:
   idle_timeout: 120
 
 # ---- 自有 PostgreSQL 配置 ----
-# 独立于 sub2api 的 postgres，承载埋点表（page_view / feature_click / system_meta）。
+# 独立于 sub2api 的 postgres，承载埋点、页面和图片资源索引表。
 # Docker 部署时同网络用服务名 aux-postgres。
 database:
   host: "aux-postgres"        # 同网络服务名；本地开发用 localhost
@@ -57,3 +57,8 @@ jwt:
   secret: ""
   # 会话有效期（小时）。默认 24。
   expire_hour: 24
+
+# ---- 上传资源文件存储 ----
+# 图片二进制写入此目录，image_assets 表只保存相对路径。
+assets:
+  dir: "data/assets"

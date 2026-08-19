@@ -1,5 +1,5 @@
 # =============================================================================
-# Aux Content System Docker Compose Configuration
+# Sub2API Extension Docker Compose Configuration
 # =============================================================================
 # 附属内容承载系统部署。零侵入 sub2api，独立运行。
 #
@@ -70,7 +70,7 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
-    image: aux-system:latest
+    image: sub2api-extension:latest
     container_name: aux-backend
     restart: unless-stopped
     security_opt:
@@ -104,6 +104,9 @@ services:
       # ---- 前端静态托管（Dockerfile 已默认设置，这里显式声明）----
       - AUX_FRONTEND_DIST=/app/frontend/dist
 
+      # ---- 上传资源持久化：图片与系统数据共用同一卷 ----
+      - AUX_ASSET_DIR=/app/data/assets
+
       # ---- 时区 ----
       - TZ=${TZ:-Asia/Shanghai}
     depends_on:
@@ -111,6 +114,8 @@ services:
         condition: service_healthy
     networks:
       - sub2api-network
+    volumes:
+      - sub2api-extension-data:/app/data
     healthcheck:
       test:
         [
@@ -133,6 +138,8 @@ services:
 # =============================================================================
 volumes:
   aux-postgres-data:
+    driver: local
+  sub2api-extension-data:
     driver: local
 
 # =============================================================================

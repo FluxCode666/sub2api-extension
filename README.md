@@ -1,4 +1,4 @@
-# aux-system · sub2api 附属内容承载系统
+# sub2api-extension · sub2api 附属内容承载系统
 
 [![Go](https://img.shields.io/badge/Go-1.26.5-00ADD8?logo=go)]() [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)]() [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript)]()
 
@@ -6,10 +6,10 @@
 
 ## 它解决什么问题
 
-sub2api 需要一个承载动态内容与页面分析的子系统，但不能为了它修改自身代码。aux-system 以独立服务的形式提供：
+sub2api 需要一个承载动态内容与页面分析的子系统，但不能为了它修改自身代码。sub2api-extension 以独立服务的形式提供：
 
-- **TERALEMO 官网首页** —— 可通过 sub2api `home_content` 的 URL iframe 模式嵌入，支持亮色/暗色主题
-- **官网配置中心** —— 管理首屏文案、CTA、顶部导航控制台链接和“受信赖的伙伴”，配置保存到现有 `system_meta`
+- **官网动态页面** —— 原 `HomePage.tsx` 已迁移到数据库页面 `home`，可通过 sub2api `home_content` 的 URL iframe 模式嵌入
+- **Sub2API 官方页面** —— 保留在数据库页面 `sub2api-home`，可独立预览和编辑
 - **独立管理页面** —— 通过 sub2api 的 `custom_menu_items`（控制台菜单）经 iframe 加载，也支持直接登录
 - **页面分析/埋点** —— 采集当前管理页面的访问与功能点击，仪表盘展示「有哪些页面、访问量、功能使用度」
 - **管理员转发验证** —— 管理端页面经 sub2api iframe token 换取附属会话，无需重复登录
@@ -21,11 +21,11 @@ sub2api 需要一个承载动态内容与页面分析的子系统，但不能为
 │  控制台菜单 custom_menu_items → 带 token iframe                       │
 └───────────────────────────────┬──────────────────────────────────────┘
                                 ▼
-┌──────────────── aux-system（独立部署）─────────────────────────────────┐
+┌──────────────── sub2api-extension（独立部署）─────────────────────────────────┐
 │  前端 React SPA                     后端 Go + Gin + Ent                │
-│  /  TERALEMO 公开官网首页           /api/aux/*          公开配置/埋点   │
-│  /admin/*  管理端（需会话）         /api/aux/admin/*    受 AdminGuard   │
-│                                     转发验证 → sub2api /auth/me        │
+│  /admin/dashboard  控制台首页        /api/aux/*          公开配置/埋点   │
+│  /p/home           数据库官网页面    /api/aux/admin/*    受 AdminGuard   │
+│  /admin/*  管理端（需会话）         转发验证 → sub2api /auth/me        │
 │                                          │                            │
 │                                          ▼                            │
 │                                   自有 PostgreSQL                     │
@@ -33,7 +33,7 @@ sub2api 需要一个承载动态内容与页面分析的子系统，但不能为
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
-`/` 是 TERALEMO 公开官网首页；`/admin/dashboard` 是分析仪表盘，`/admin/homepage` 是官网配置中心。
+`/` 会跳转到 `/admin/dashboard` 控制台首页；原硬编码官网已迁移为数据库动态页面 `/p/home`，Sub2API 官方页面保留在 `/p/sub2api-home`。
 
 ## 核心特性
 
@@ -46,7 +46,7 @@ sub2api 需要一个承载动态内容与页面分析的子系统，但不能为
 - **三个示例页面** —— 静态内容、交互埋点、受保护 API 请求均可从 Dashboard 点击进入
 - **标准 API 信封** —— `{code, message, data?}` 成功 / `{code, message, reason?}` 错误
 - **单镜像部署** —— 多阶段 Docker 构建，后端同源托管前端 dist，无 CORS
-- **CI/CD 流水线** —— GitHub Actions 三条工作流（CI 测试 / 安全扫描 / 生产部署），多架构镜像构建推送 GHCR，SSH 单机部署
+- **CI/CD 流水线** —— GitHub Actions 四条工作流（CI / 安全扫描 / 测试部署 / 生产部署），多架构镜像构建推送 GHCR，SSH 部署、健康检查与自动回滚
 
 ## 技术栈
 
@@ -60,7 +60,7 @@ sub2api 需要一个承载动态内容与页面分析的子系统，但不能为
 ## 目录结构
 
 ```
-aux-system/
+sub2api-extension/
 ├── backend/
 │   ├── cmd/server/              # 程序入口 + VERSION 文件
 │   ├── internal/
@@ -78,15 +78,17 @@ aux-system/
 │       ├── components/          # AdminGuard（会话守卫）
 │       ├── layouts/             # 公开/管理端布局
 │       ├── lib/                 # admin-auth/api-client/telemetry-sdk/page-registry...
-│       └── pages/               # 官网、官网配置、Dashboard 与示例页面
+│       └── pages/               # 动态页面宿主、Dashboard 与示例页面
 ├── deploy/
 │   ├── docker-compose.yml       # 开发用（含 postgres，从源码 build）
 │   ├── docker-compose.prod.yml  # 生产用（仅 aux-backend，GHCR 镜像，无数据库）
 │   ├── .env.example             # 开发环境变量示例
+│   ├── .env.test.example        # 测试环境变量示例
 │   ├── .env.prod.example        # 生产环境变量示例
-│   └── build-and-push.sh        # 手动构建推送镜像脚本
+│   ├── build-and-push.sh        # 手动构建推送镜像脚本
+│   └── nginx/                   # 宿主机 NGINX HTTPS 反向代理配置
 ├── .github/
-│   ├── workflows/               # CI / security-scan / deploy 三条工作流
+│   ├── workflows/               # CI / 安全扫描 / 测试部署 / 生产部署
 │   └── CICD.md                  # ← CI/CD 完整文档（流水线/Secrets/部署/回滚）
 ├── docs/
 │   └── INTEGRATION.md           # ← sub2api 侧集成配置指南（必读）
@@ -115,23 +117,39 @@ AUX_JWT_SECRET=$(openssl rand -hex 32) # 附属系统会话签名密钥
 ```bash
 docker compose up -d
 curl http://localhost:8787/health
-# 预期: {"status":"ok","service":"aux-system"}
+# 预期: {"status":"ok","service":"sub2api-extension"}
 ```
 
-开发用 compose 含 `aux-postgres` 服务并从源码构建镜像。附属系统启动后，可将根 URL 配置到 sub2api `home_content`，并用 `custom_menu_items` 添加 `/admin/homepage` 与 `/admin/dashboard`。**完整集成步骤见 [docs/INTEGRATION.md](docs/INTEGRATION.md)。**
+开发用 compose 含 `aux-postgres` 服务并从源码构建镜像。附属系统启动后，可将 `/p/home` 配置到 sub2api `home_content`，并用 `custom_menu_items` 添加 `/admin/dashboard` 与 `/admin/pages`。**完整集成步骤见 [docs/INTEGRATION.md](docs/INTEGRATION.md)。**
 
-### 生产部署
+### 测试与生产部署
+
+测试环境使用 `deploy/.env.test.example`，推送到 `test` 分支后由 GitHub Actions 自动部署：
+
+```bash
+cd deploy
+cp .env.test.example .env.test
+# 填入测试环境专用的数据库、sub2api、JWT、域名和端口配置
+docker compose --project-name sub2api-extension-test \
+  -f docker-compose.prod.yml --env-file .env.test up -d
+```
+
+测试环境应使用独立数据库、JWT 密钥、sub2api 实例、域名和数据卷，禁止复用生产数据。
 
 生产用 `deploy/docker-compose.prod.yml`，仅运行 `aux-backend`（从 GHCR 拉取镜像），**不含数据库镜像**——PostgreSQL 由外部提供。
 
 ```bash
 cd deploy
 cp .env.prod.example .env.prod
-# 填入: AUX_IMAGE / AUX_IMAGE_TAG / DATABASE_* / SUB2API_* / AUX_JWT_SECRET
+# 填入: AUX_IMAGE / AUX_IMAGE_TAG / AUX_PUBLIC_HOST / DATABASE_* / SUB2API_* / AUX_JWT_SECRET
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 ```
 
-生产部署通过 GitHub Actions 手动触发：构建多架构镜像（amd64+arm64）→ 推送 GHCR → SSH 到单机服务器拉取并重启。**完整流水线、Secrets 配置与首次部署指南见 [.github/CICD.md](.github/CICD.md)。**
+生产环境建议由宿主机 NGINX 对外提供 HTTPS，Compose 中的 aux-backend 默认只绑定
+`127.0.0.1:8787`，避免公网绕过 TLS 直接访问应用端口。NGINX 配置和安装步骤见
+[deploy/nginx/README.md](deploy/nginx/README.md)。
+
+测试部署由 `test` 分支 push 自动触发；生产部署仅允许从 `main` 分支手动触发并填写版本号。两者都会先运行完整质量门禁，再构建 amd64/arm64 镜像、推送 GHCR、通过 SSH 更新 Compose，并执行健康检查；失败时尝试恢复上一镜像标签。**完整流水线、Secrets 配置与首次部署指南见 [.github/CICD.md](.github/CICD.md)。**
 
 ## 本地开发
 
@@ -159,7 +177,11 @@ make migrate
 make dev
 ```
 
+`make migrate` 也会创建 `image_assets` 表；图片文件本身写入 `AUX_ASSET_DIR`，数据库只保存相对路径。
+
 `make dev` 通过环境变量注入开发配置：
+
+> 项目展示名和镜像名已统一为 `sub2api-extension`。为兼容已有部署，Compose 服务名 `aux-backend`、配置变量 `AUX_*` 以及 `/api/aux/*` API 前缀暂时保持不变。
 
 | 变量 | 默认 | 说明 |
 |------|------|------|
@@ -189,6 +211,15 @@ pnpm dev        # 开发服务器 http://localhost:3100
 ```
 
 前端 dev server 监听 `3100`，已配置 `/api` 代理到 `http://127.0.0.1:8004`（即后端 `make dev` 的端口）。浏览器访问 `http://localhost:3100` 即可。
+
+### 管理端登录
+
+管理端页面（如 `/admin/pages`）需要通过 sub2api 管理员身份验证。本地开发环境默认管理员账号：
+
+- **邮箱**: `admin@sub2api.local`
+- **密码**: `123456`
+
+登录 sub2api 控制台（`http://localhost:8003`）后，可通过 iframe token 自动转发验证到 sub2api-extension 管理端。
 
 ### 端口约定
 
@@ -227,6 +258,8 @@ pnpm build           # tsc -b && vite build
 | 变量 | 说明 | 默认 |
 |------|------|------|
 | `AUX_SERVER_PORT` | 宿主机映射端口 | `8787` |
+| `BIND_HOST` | 宿主机端口绑定地址；生产 NGINX 模式建议本机 | `127.0.0.1`（生产示例） |
+| `AUX_PUBLIC_HOST` | NGINX `server_name` 与证书使用的公网域名（应用本身不读取） | `aux.example.com` |
 | `AUX_POSTGRES_PASSWORD` | 自有 PG 密码（**必需**） | — |
 | `SUB2API_BASE_URL` | sub2api 后端地址 | `http://sub2api:8080` |
 | `AUX_JWT_SECRET` | 会话签名密钥（**必需**） | — |
@@ -237,11 +270,11 @@ pnpm build           # tsc -b && vite build
 ## 约束与边界
 
 - **不修改 sub2api 代码** —— 所有集成通过 sub2api 现有接缝完成
-- **公开首页与管理端分离** —— `home_content` 使用公开根路径 `/`；官网配置和分析仪表盘使用会传 token 的 `custom_menu_items`
-- **自有数据库** —— aux-system 使用独立 PostgreSQL，不复用 sub2api 的数据库
+- **公开首页与管理端分离** —— `home_content` 使用公开动态页面 `/p/home`；根路径 `/` 作为控制台快捷入口，页面管理和分析仪表盘使用会传 token 的 `custom_menu_items`
+- **自有数据库** —— sub2api-extension 使用独立 PostgreSQL，不复用 sub2api 的数据库
 - **Ent 生成代码** —— `backend/ent/` 是 `ent/schema/*.go` 的生成产物，修改 schema 后需 `go generate ./ent`
 
 ## 文档
 
 - **[docs/INTEGRATION.md](docs/INTEGRATION.md)** —— sub2api 侧 `custom_menu_items` 集成配置指南（架构、部署、CSP、验收清单、故障排查）
-- **[.github/CICD.md](.github/CICD.md)** —— CI/CD 完整文档（三条工作流、Secrets 配置、首次部署指南、手动构建、回滚、故障排除）
+- **[.github/CICD.md](.github/CICD.md)** —— CI/CD 完整文档（测试/生产环境、Secrets、首次部署、发布、回滚与故障排查）

@@ -3,7 +3,7 @@
 package hook
 
 import (
-	"aux-system/ent"
+	"sub2api-extension/ent"
 	"context"
 	"fmt"
 )
@@ -18,6 +18,18 @@ func (f FeatureClickFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.FeatureClickMutation", m)
+}
+
+// The ImageAssetFunc type is an adapter to allow the use of ordinary
+// function as ImageAsset mutator.
+type ImageAssetFunc func(context.Context, *ent.ImageAssetMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ImageAssetFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ImageAssetMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ImageAssetMutation", m)
 }
 
 // The PageFunc type is an adapter to allow the use of ordinary

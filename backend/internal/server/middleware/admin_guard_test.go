@@ -5,8 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"aux-system/internal/integration"
-	"aux-system/internal/service"
+	"sub2api-extension/internal/integration"
+	"sub2api-extension/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"

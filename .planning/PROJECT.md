@@ -1,8 +1,8 @@
-# aux-system · 通用页面管理系统
+# sub2api-extension · 通用页面管理系统
 
 ## What This Is
 
-aux-system 原本是 sub2api 的附属内容承载系统(Go + Ent 后端 / React 前端,经 iframe 嵌入 sub2api 控制台),提供 TERALEMO 官网首页、官网配置中心和分析仪表盘。本次改造将其升级为**通用页面管理系统**:管理员可在 UI 里动态创建页面、填入 HTML(后续支持 React)代码、配置路由与权限,无需改代码重新部署。
+sub2api-extension 原本是 sub2api 的附属内容承载系统(Go + Ent 后端 / React 前端,经 iframe 嵌入 sub2api 控制台),提供 TERALEMO 官网首页、官网配置中心和分析仪表盘。本次改造将其升级为**通用页面管理系统**:管理员可在 UI 里动态创建页面、填入 HTML(后续支持 React)代码、配置路由与权限,无需改代码重新部署。
 
 ## Core Value
 
@@ -45,7 +45,7 @@ aux-system 原本是 sub2api 的附属内容承载系统(Go + Ent 后端 / React
 - [ ] 预装依赖:gsap、shadcn/ui(及其依赖 tailwindcss-animate、Radix primitives 等),供动态页面与管理端 UI 使用
 - [ ] page-registry 演进:从静态代码数组改为"静态核心页 + DB 动态页"合并的单一真相源,保持埋点/仪表盘 id 命名空间一致
 - [ ] UI 视觉品质经 taste skills 把关(设计系统、组件规范、视觉一致性)
-- [ ] 页面编写 skill:创建 agent skill,编码 aux-system 中 sub2api 页面的编写规范(注册/路由/守卫/埋点/嵌入上下文/可用库 gsap+shadcn/ui/模板),供静态页与动态页创建统一遵循
+- [ ] 页面编写 skill:创建 agent skill,编码 sub2api-extension 中 sub2api 页面的编写规范(注册/路由/守卫/埋点/嵌入上下文/可用库 gsap+shadcn/ui/模板),供静态页与动态页创建统一遵循
 
 ### Out of Scope
 

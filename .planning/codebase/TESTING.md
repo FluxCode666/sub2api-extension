@@ -352,7 +352,7 @@ expect(await screen.findByText('数据暂不可用')).toBeInTheDocument()
 - **backend-lint**: `golangci-lint v2.9` with `--timeout=30m`.
 - **frontend**: `pnpm install --frozen-lockfile` → `pnpm run typecheck` → `pnpm run test` → `pnpm run build` (Node 20, pnpm 9).
 
-Integration tests (PostgreSQL) and Docker image build are **not** part of CI; the image build is a separate manual `deploy.yml` workflow.
+Integration tests (PostgreSQL) are not part of the default CI; Docker images are built by `deploy-test.yml` or `deploy-production.yml` only after the reusable CI quality gate passes.
 
 ---
 

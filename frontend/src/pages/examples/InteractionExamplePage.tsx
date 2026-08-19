@@ -15,19 +15,17 @@ export default function InteractionExamplePage() {
   }
 
   return (
-    <div className="max-w-3xl space-y-8">
-      <header className="border-b border-gray-200 pb-6 dark:border-gray-700">
-        <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
+    <div className="aux-example-page">
+      <header className="aux-example-header">
+        <p className="aux-page-kicker">
           操作台
         </p>
-        <h1 className="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
-          交互与埋点示例
-        </h1>
+        <h1>交互与埋点示例</h1>
       </header>
 
       <section
         aria-labelledby="counter-heading"
-        className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900"
+        className="aux-example-card p-6 sm:p-8"
       >
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>

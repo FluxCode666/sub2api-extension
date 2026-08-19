@@ -3,8 +3,8 @@
 package ent
 
 import (
-	"aux-system/ent/page"
-	"aux-system/ent/predicate"
+	"sub2api-extension/ent/page"
+	"sub2api-extension/ent/predicate"
 	"context"
 	"errors"
 	"fmt"
@@ -121,6 +121,18 @@ func (_u *PageUpdate) SetNillableContentReact(v *string) *PageUpdate {
 // ClearContentReact clears the value of the "content_react" field.
 func (_u *PageUpdate) ClearContentReact() *PageUpdate {
 	_u.mutation.ClearContentReact()
+	return _u
+}
+
+// SetMetadata sets the "metadata" field.
+func (_u *PageUpdate) SetMetadata(v map[string]interface{}) *PageUpdate {
+	_u.mutation.SetMetadata(v)
+	return _u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (_u *PageUpdate) ClearMetadata() *PageUpdate {
+	_u.mutation.ClearMetadata()
 	return _u
 }
 
@@ -246,6 +258,12 @@ func (_u *PageUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.ContentReactCleared() {
 		_spec.ClearField(page.FieldContentReact, field.TypeString)
 	}
+	if value, ok := _u.mutation.Metadata(); ok {
+		_spec.SetField(page.FieldMetadata, field.TypeJSON, value)
+	}
+	if _u.mutation.MetadataCleared() {
+		_spec.ClearField(page.FieldMetadata, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.Enabled(); ok {
 		_spec.SetField(page.FieldEnabled, field.TypeBool, value)
 	}
@@ -365,6 +383,18 @@ func (_u *PageUpdateOne) SetNillableContentReact(v *string) *PageUpdateOne {
 // ClearContentReact clears the value of the "content_react" field.
 func (_u *PageUpdateOne) ClearContentReact() *PageUpdateOne {
 	_u.mutation.ClearContentReact()
+	return _u
+}
+
+// SetMetadata sets the "metadata" field.
+func (_u *PageUpdateOne) SetMetadata(v map[string]interface{}) *PageUpdateOne {
+	_u.mutation.SetMetadata(v)
+	return _u
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (_u *PageUpdateOne) ClearMetadata() *PageUpdateOne {
+	_u.mutation.ClearMetadata()
 	return _u
 }
 
@@ -519,6 +549,12 @@ func (_u *PageUpdateOne) sqlSave(ctx context.Context) (_node *Page, err error) {
 	}
 	if _u.mutation.ContentReactCleared() {
 		_spec.ClearField(page.FieldContentReact, field.TypeString)
+	}
+	if value, ok := _u.mutation.Metadata(); ok {
+		_spec.SetField(page.FieldMetadata, field.TypeJSON, value)
+	}
+	if _u.mutation.MetadataCleared() {
+		_spec.ClearField(page.FieldMetadata, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Enabled(); ok {
 		_spec.SetField(page.FieldEnabled, field.TypeBool, value)

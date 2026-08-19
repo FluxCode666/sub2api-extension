@@ -6,21 +6,19 @@ const statusItems = [
 
 export default function ContentExamplePage() {
   return (
-    <div className="max-w-4xl space-y-8">
-      <header className="border-b border-gray-200 pb-6 dark:border-gray-700">
-        <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
+    <div className="aux-example-page">
+      <header className="aux-example-header">
+        <p className="aux-page-kicker">
           内容中心
         </p>
-        <h1 className="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
-          静态内容示例
-        </h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400">
+        <h1>静态内容示例</h1>
+        <p>
           本周发布窗口为周三 14:00 至 16:00。变更负责人需在发布前完成检查，
           并在窗口结束后记录验证结果。
         </p>
       </header>
 
-      <section aria-labelledby="status-heading">
+      <section className="aux-example-card p-6 sm:p-8" aria-labelledby="status-heading">
         <h2
           id="status-heading"
           className="text-lg font-semibold text-gray-900 dark:text-gray-100"
@@ -40,7 +38,7 @@ export default function ContentExamplePage() {
         </ul>
       </section>
 
-      <section aria-labelledby="metadata-heading">
+      <section className="aux-example-card p-6 sm:p-8" aria-labelledby="metadata-heading">
         <h2
           id="metadata-heading"
           className="text-lg font-semibold text-gray-900 dark:text-gray-100"

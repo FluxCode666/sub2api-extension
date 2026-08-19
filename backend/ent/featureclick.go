@@ -3,7 +3,7 @@
 package ent
 
 import (
-	"aux-system/ent/featureclick"
+	"sub2api-extension/ent/featureclick"
 	"fmt"
 	"strings"
 	"time"

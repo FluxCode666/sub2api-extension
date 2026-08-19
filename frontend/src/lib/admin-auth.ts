@@ -190,15 +190,13 @@ export async function loginWithCredentials(
 
   if (resp.ok) {
     try {
-      const env: SessionEnvelope = await resp.json()
+      const env = (await resp.json()) as SessionEnvelope
       if (env.code === 0 && env.data?.session_token) {
         const session: AdminSession = {
           token: env.data.session_token,
           user: env.data.user,
         }
-        if (!saveSession(session)) {
-          return { ok: false, error: 'unknown' }
-        }
+        if (!saveSession(session)) return { ok: false, error: 'unknown' }
         return { ok: true, session }
       }
     } catch {
@@ -289,6 +287,7 @@ function isValidAdminSession(value: unknown): value is AdminSession {
 
   const session = value as Partial<AdminSession>
   const user = session.user as Partial<AdminSession['user']> | undefined
+
   if (
     typeof session.token !== 'string' ||
     !user ||
@@ -297,9 +296,7 @@ function isValidAdminSession(value: unknown): value is AdminSession {
     typeof user.email !== 'string' ||
     typeof user.username !== 'string' ||
     user.role !== 'admin'
-  ) {
-    return false
-  }
+  ) return false
 
   const expiry = decodeJWTExpiry(session.token)
   return expiry !== null && expiry > Date.now() / 1000

@@ -1,4 +1,4 @@
-# Requirements: aux-system · 通用页面管理系统
+# Requirements: sub2api-extension · 通用页面管理系统
 
 **Defined:** 2026-08-18
 **Core Value:** 管理员能通过管理端 UI 动态创建并发布页面(含路由与权限配置),页面立即可访问
@@ -80,7 +80,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Page-Writing Skill (页面编写 skill)
 
-- [ ] **SKILL-01**: 创建 agent skill,编码 aux-system 中 sub2api 页面编写规范(注册/路由/守卫/埋点/嵌入上下文/可用库 gsap+shadcn/ui/模板)
+- [ ] **SKILL-01**: 创建 agent skill,编码 sub2api-extension 中 sub2api 页面编写规范(注册/路由/守卫/埋点/嵌入上下文/可用库 gsap+shadcn/ui/模板)
 - [ ] **SKILL-02**: skill 覆盖静态核心页与动态页两种编写场景的契约
 - [ ] **SKILL-03**: skill 包含可复用模板与"添加新页面"检查清单
 

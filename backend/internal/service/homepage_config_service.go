@@ -1,7 +1,8 @@
-// Package service 提供官网首页配置的读取与持久化能力。
+// Package service 保留旧版官网配置 API 的读取与持久化能力。
+// 当前官网首页由 pages 表中的 slug=home 动态页面承载。
 //
-// 首页配置使用现有 system_meta 表，以 JSON 文档形式保存。这样首页文案、
-// CTA 和伙伴列表可以在管理端动态调整，同时不需要为一组营销内容增加新的表。
+// 该兼容接口仍使用现有 system_meta 表保存旧版 JSON 文档，但不再参与
+// /p/home 的渲染；新页面内容统一由 pages.content_html 管理。
 package service
 
 import (
@@ -11,8 +12,8 @@ import (
 	"net/url"
 	"strings"
 
-	"aux-system/ent"
-	"aux-system/ent/systemmeta"
+	"sub2api-extension/ent"
+	"sub2api-extension/ent/systemmeta"
 )
 
 const HomepageConfigKey = "homepage.config"

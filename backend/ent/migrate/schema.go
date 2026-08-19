@@ -56,6 +56,28 @@ var (
 			},
 		},
 	}
+	// ImageAssetsColumns holds the columns for the "image_assets" table.
+	ImageAssetsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "original_name", Type: field.TypeString, Size: 255},
+		{Name: "path", Type: field.TypeString, Unique: true, Size: 512},
+		{Name: "mime_type", Type: field.TypeString, Size: 128},
+		{Name: "size", Type: field.TypeInt64},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// ImageAssetsTable holds the schema information for the "image_assets" table.
+	ImageAssetsTable = &schema.Table{
+		Name:       "image_assets",
+		Columns:    ImageAssetsColumns,
+		PrimaryKey: []*schema.Column{ImageAssetsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "imageasset_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ImageAssetsColumns[5]},
+			},
+		},
+	}
 	// PagesColumns holds the columns for the "pages" table.
 	PagesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -65,6 +87,7 @@ var (
 		{Name: "content_type", Type: field.TypeString, Size: 16, Default: "html"},
 		{Name: "content_html", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
 		{Name: "content_react", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
 		{Name: "enabled", Type: field.TypeBool, Default: true},
 		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
@@ -88,7 +111,7 @@ var (
 			{
 				Name:    "page_enabled",
 				Unique:  false,
-				Columns: []*schema.Column{PagesColumns[7]},
+				Columns: []*schema.Column{PagesColumns[8]},
 			},
 		},
 	}
@@ -143,6 +166,7 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		FeatureClicksTable,
+		ImageAssetsTable,
 		PagesTable,
 		PageViewsTable,
 		SystemMetaTable,
@@ -152,6 +176,9 @@ var (
 func init() {
 	FeatureClicksTable.Annotation = &entsql.Annotation{
 		Table: "feature_clicks",
+	}
+	ImageAssetsTable.Annotation = &entsql.Annotation{
+		Table: "image_assets",
 	}
 	PagesTable.Annotation = &entsql.Annotation{
 		Table: "pages",

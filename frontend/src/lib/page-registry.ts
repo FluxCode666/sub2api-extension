@@ -1,7 +1,7 @@
 /**
  * 页面清单注册表 —— 页面身份的单一真相源 (KTD7)。
  *
- * 静态核心页(home/dashboard/homepage-config/examples)在此声明(代码登记, 不可变)。
+ * 静态核心页(dashboard/examples)在此声明(代码登记, 不可变)。
  * 动态页(管理员创建)来自后端 /api/aux/pages, 在 lib/dynamic-pages.ts 与静态注册表合并。
  *
  * - App.tsx 路由与 registry 共享同一 id 命名空间
@@ -9,7 +9,8 @@
  * - U6 仪表盘从 registry 派生页面清单 (R5: 非独立注册表)
  * - 动态页 id = "page:<slug>"(命名空间隔离, 见 dynamic-pages.ts)
  *
- * 页面存在于代码但零访问 → 仪表盘显示 0 (U6 处理)。
+ * 页面存在于代码但零访问 → 仪表盘显示 0 (U6 处理)。公开官网已迁移到数据库
+ * 动态页 `home`，根路径重定向不再作为内容页面登记。
  * 页面 identity 来自代码, 不在线编辑/上下架。
  *
  * 添加新静态页面步骤:
@@ -37,16 +38,10 @@ export interface PageEntry {
  * 静态核心页面清单(代码登记, 不可变)。
  * 动态页由 lib/dynamic-pages.ts 在 bootstrap 时合并(getMergedRegistry)。
  *
- * 与 App.tsx 已注册的静态路由一一对应。
+ * 与 App.tsx 已注册的静态管理路由一一对应。
  * 测试 (page-registry.test.ts) 验证此一致性。
  */
 export const STATIC_PAGE_REGISTRY: readonly PageEntry[] = [
-  {
-    id: 'home',
-    title: 'TERALEMO 官网首页',
-    path: '/',
-    visibility: 'public',
-  },
   {
     id: 'dashboard',
     title: '分析仪表盘',
@@ -54,9 +49,9 @@ export const STATIC_PAGE_REGISTRY: readonly PageEntry[] = [
     visibility: 'admin',
   },
   {
-    id: 'homepage-config',
-    title: '官网首页配置',
-    path: '/admin/homepage',
+    id: 'image-assets',
+    title: '图片资源',
+    path: '/admin/assets',
     visibility: 'admin',
   },
   {

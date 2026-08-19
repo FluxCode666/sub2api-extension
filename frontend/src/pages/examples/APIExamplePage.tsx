@@ -65,21 +65,19 @@ export default function APIExamplePage() {
   }, [loadStatus])
 
   return (
-    <div className="max-w-4xl space-y-8">
-      <header className="flex flex-col gap-4 border-b border-gray-200 pb-6 sm:flex-row sm:items-end sm:justify-between dark:border-gray-700">
+    <div className="aux-example-page">
+      <header className="aux-example-header aux-api-header">
         <div>
-          <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
+          <p className="aux-page-kicker">
             服务诊断
           </p>
-          <h1 className="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
-            API 请求示例
-          </h1>
+          <h1>API 请求示例</h1>
         </div>
         <button
           type="button"
           onClick={() => void loadStatus(true)}
           disabled={state.status === 'loading'}
-          className="h-10 rounded-md bg-blue-700 px-4 text-sm font-medium text-white hover:bg-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-wait disabled:bg-blue-400"
+          className="aux-surface-button"
         >
           刷新服务状态
         </button>
@@ -95,7 +93,7 @@ export default function APIExamplePage() {
       )}
 
       {state.status === 'error' && (
-        <section className="border-y border-red-200 py-6 dark:border-red-900">
+        <section className="aux-surface-error py-6">
           <h2 className="text-lg font-semibold text-red-800 dark:text-red-300">
             服务状态暂不可用
           </h2>
@@ -105,7 +103,7 @@ export default function APIExamplePage() {
           <button
             type="button"
             onClick={() => void loadStatus(true)}
-            className="mt-4 h-10 rounded-md border border-red-300 px-4 text-sm font-medium text-red-800 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950"
+            className="aux-surface-button"
           >
             重试请求
           </button>
@@ -113,7 +111,7 @@ export default function APIExamplePage() {
       )}
 
       {state.status === 'success' && (
-        <section aria-labelledby="response-heading">
+        <section className="aux-example-card p-6 sm:p-8" aria-labelledby="response-heading">
           <h2
             id="response-heading"
             className="text-lg font-semibold text-gray-900 dark:text-gray-100"

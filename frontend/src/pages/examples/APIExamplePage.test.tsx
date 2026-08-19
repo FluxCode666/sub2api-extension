@@ -18,13 +18,13 @@ import { apiClient } from '@/lib/api-client'
 import { trackFeatureClick } from '@/lib/telemetry-sdk'
 
 const firstStatus = {
-  service: 'aux-system',
+  service: 'sub2api-extension',
   status: 'ok',
   server_time: '2026-08-16T15:00:00Z',
 }
 
 const refreshedStatus = {
-  service: 'aux-system',
+  service: 'sub2api-extension',
   status: 'ok',
   server_time: '2026-08-16T15:01:00Z',
 }
@@ -59,7 +59,7 @@ describe('APIExamplePage', () => {
 
     render(<APIExamplePage />)
 
-    expect(await screen.findByText('aux-system')).toBeInTheDocument()
+    expect(await screen.findByText('sub2api-extension')).toBeInTheDocument()
     expect(screen.getByText('ok')).toBeInTheDocument()
     expect(screen.getByText(firstStatus.server_time)).toBeInTheDocument()
     expect(apiClient.get).toHaveBeenCalledWith(

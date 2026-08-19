@@ -3,8 +3,8 @@
 package ent
 
 import (
-	"aux-system/ent/pageview"
-	"aux-system/ent/predicate"
+	"sub2api-extension/ent/pageview"
+	"sub2api-extension/ent/predicate"
 	"context"
 	"fmt"
 	"math"

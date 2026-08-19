@@ -1,7 +1,7 @@
 // Package handler 提供动态页面的公开获取端点。
 //
 // 端点(不经 AdminGuard, 在公开分组 /api/aux/pages):
-//   - GET /api/aux/pages          列出公开页面(不含内容, 供前端 bootstrap 注册表合并)
+//   - GET /api/aux/pages          列出已启用的公开页面(不含内容, 供前端 bootstrap 注册表合并)
 //   - GET /api/aux/pages/:slug    按 slug 获取启用的公开页面(含内容, 供渲染)
 //
 // 公开端点返回 enabled 且 visibility=public 的页面。admin 页面不在此暴露。
@@ -12,8 +12,8 @@ import (
 	"context"
 	"errors"
 
-	"aux-system/internal/pkg/response"
-	"aux-system/internal/service"
+	"sub2api-extension/internal/pkg/response"
+	"sub2api-extension/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -33,10 +33,14 @@ func NewPagePublicHandler(svc *service.PageService) *PagePublicHandler {
 	return &PagePublicHandler{provider: svc}
 }
 
+// newPagePublicHandlerWithProvider 用任意 pagePublicProvider 构造 handler(测试友好)。
+func newPagePublicHandlerWithProvider(provider pagePublicProvider) *PagePublicHandler {
+	return &PagePublicHandler{provider: provider}
+}
+
 // List GET /api/aux/pages
-// 返回所有页面(含 admin 页)的 slug/title/visibility, 不含内容。
-// 前端 bootstrap 时 fetch 此端点, 与静态 PAGE_REGISTRY 合并为统一注册表。
-// 注: 返回所有页面(不限 public)以便管理端侧边栏也能用同一端点; 但内容获取需对应权限。
+// 只返回已启用的公开页面元数据, 不返回 admin 页面标题、slug 或 route。
+// 管理端侧边栏需要 admin 页面时, 通过受 AdminGuard 保护的 /admin/pages 获取完整清单。
 func (h *PagePublicHandler) List(c *gin.Context) {
 	if h == nil || h.provider == nil {
 		// store 不可用时返回空列表, 不阻塞前端 bootstrap(静态页仍可用)。
@@ -48,7 +52,13 @@ func (h *PagePublicHandler) List(c *gin.Context) {
 		response.Success(c, gin.H{"items": []any{}})
 		return
 	}
-	response.Success(c, gin.H{"items": items})
+	publicItems := make([]service.PageListItem, 0, len(items))
+	for _, item := range items {
+		if item.Enabled && item.Visibility == service.VisibilityPublic {
+			publicItems = append(publicItems, item)
+		}
+	}
+	response.Success(c, gin.H{"items": publicItems})
 }
 
 // GetBySlug GET /api/aux/pages/:slug

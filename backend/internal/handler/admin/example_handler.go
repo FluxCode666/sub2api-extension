@@ -3,7 +3,7 @@ package admin
 import (
 	"time"
 
-	"aux-system/internal/pkg/response"
+	"sub2api-extension/internal/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,7 +26,7 @@ func NewExampleHandler() *ExampleHandler {
 // GetStatus 返回附属服务的当前状态和服务器 UTC 时间。
 func (h *ExampleHandler) GetStatus(c *gin.Context) {
 	response.Success(c, ExampleStatusResponse{
-		Service:    "aux-system",
+		Service:    "sub2api-extension",
 		Status:     "ok",
 		ServerTime: time.Now().UTC().Format(time.RFC3339),
 	})

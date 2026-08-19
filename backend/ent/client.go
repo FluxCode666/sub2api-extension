@@ -9,12 +9,13 @@ import (
 	"log"
 	"reflect"
 
-	"aux-system/ent/migrate"
+	"sub2api-extension/ent/migrate"
 
-	"aux-system/ent/featureclick"
-	"aux-system/ent/page"
-	"aux-system/ent/pageview"
-	"aux-system/ent/systemmeta"
+	"sub2api-extension/ent/featureclick"
+	"sub2api-extension/ent/imageasset"
+	"sub2api-extension/ent/page"
+	"sub2api-extension/ent/pageview"
+	"sub2api-extension/ent/systemmeta"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
@@ -28,6 +29,8 @@ type Client struct {
 	Schema *migrate.Schema
 	// FeatureClick is the client for interacting with the FeatureClick builders.
 	FeatureClick *FeatureClickClient
+	// ImageAsset is the client for interacting with the ImageAsset builders.
+	ImageAsset *ImageAssetClient
 	// Page is the client for interacting with the Page builders.
 	Page *PageClient
 	// PageView is the client for interacting with the PageView builders.
@@ -46,6 +49,7 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.FeatureClick = NewFeatureClickClient(c.config)
+	c.ImageAsset = NewImageAssetClient(c.config)
 	c.Page = NewPageClient(c.config)
 	c.PageView = NewPageViewClient(c.config)
 	c.SystemMeta = NewSystemMetaClient(c.config)
@@ -142,6 +146,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ctx:          ctx,
 		config:       cfg,
 		FeatureClick: NewFeatureClickClient(cfg),
+		ImageAsset:   NewImageAssetClient(cfg),
 		Page:         NewPageClient(cfg),
 		PageView:     NewPageViewClient(cfg),
 		SystemMeta:   NewSystemMetaClient(cfg),
@@ -165,6 +170,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ctx:          ctx,
 		config:       cfg,
 		FeatureClick: NewFeatureClickClient(cfg),
+		ImageAsset:   NewImageAssetClient(cfg),
 		Page:         NewPageClient(cfg),
 		PageView:     NewPageViewClient(cfg),
 		SystemMeta:   NewSystemMetaClient(cfg),
@@ -197,6 +203,7 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	c.FeatureClick.Use(hooks...)
+	c.ImageAsset.Use(hooks...)
 	c.Page.Use(hooks...)
 	c.PageView.Use(hooks...)
 	c.SystemMeta.Use(hooks...)
@@ -206,6 +213,7 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	c.FeatureClick.Intercept(interceptors...)
+	c.ImageAsset.Intercept(interceptors...)
 	c.Page.Intercept(interceptors...)
 	c.PageView.Intercept(interceptors...)
 	c.SystemMeta.Intercept(interceptors...)
@@ -216,6 +224,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *FeatureClickMutation:
 		return c.FeatureClick.mutate(ctx, m)
+	case *ImageAssetMutation:
+		return c.ImageAsset.mutate(ctx, m)
 	case *PageMutation:
 		return c.Page.mutate(ctx, m)
 	case *PageViewMutation:
@@ -357,6 +367,139 @@ func (c *FeatureClickClient) mutate(ctx context.Context, m *FeatureClickMutation
 		return (&FeatureClickDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown FeatureClick mutation op: %q", m.Op())
+	}
+}
+
+// ImageAssetClient is a client for the ImageAsset schema.
+type ImageAssetClient struct {
+	config
+}
+
+// NewImageAssetClient returns a client for the ImageAsset from the given config.
+func NewImageAssetClient(c config) *ImageAssetClient {
+	return &ImageAssetClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `imageasset.Hooks(f(g(h())))`.
+func (c *ImageAssetClient) Use(hooks ...Hook) {
+	c.hooks.ImageAsset = append(c.hooks.ImageAsset, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `imageasset.Intercept(f(g(h())))`.
+func (c *ImageAssetClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ImageAsset = append(c.inters.ImageAsset, interceptors...)
+}
+
+// Create returns a builder for creating a ImageAsset entity.
+func (c *ImageAssetClient) Create() *ImageAssetCreate {
+	mutation := newImageAssetMutation(c.config, OpCreate)
+	return &ImageAssetCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ImageAsset entities.
+func (c *ImageAssetClient) CreateBulk(builders ...*ImageAssetCreate) *ImageAssetCreateBulk {
+	return &ImageAssetCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ImageAssetClient) MapCreateBulk(slice any, setFunc func(*ImageAssetCreate, int)) *ImageAssetCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ImageAssetCreateBulk{err: fmt.Errorf("calling to ImageAssetClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ImageAssetCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ImageAssetCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ImageAsset.
+func (c *ImageAssetClient) Update() *ImageAssetUpdate {
+	mutation := newImageAssetMutation(c.config, OpUpdate)
+	return &ImageAssetUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ImageAssetClient) UpdateOne(_m *ImageAsset) *ImageAssetUpdateOne {
+	mutation := newImageAssetMutation(c.config, OpUpdateOne, withImageAsset(_m))
+	return &ImageAssetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ImageAssetClient) UpdateOneID(id int) *ImageAssetUpdateOne {
+	mutation := newImageAssetMutation(c.config, OpUpdateOne, withImageAssetID(id))
+	return &ImageAssetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ImageAsset.
+func (c *ImageAssetClient) Delete() *ImageAssetDelete {
+	mutation := newImageAssetMutation(c.config, OpDelete)
+	return &ImageAssetDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ImageAssetClient) DeleteOne(_m *ImageAsset) *ImageAssetDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ImageAssetClient) DeleteOneID(id int) *ImageAssetDeleteOne {
+	builder := c.Delete().Where(imageasset.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ImageAssetDeleteOne{builder}
+}
+
+// Query returns a query builder for ImageAsset.
+func (c *ImageAssetClient) Query() *ImageAssetQuery {
+	return &ImageAssetQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeImageAsset},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ImageAsset entity by its id.
+func (c *ImageAssetClient) Get(ctx context.Context, id int) (*ImageAsset, error) {
+	return c.Query().Where(imageasset.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ImageAssetClient) GetX(ctx context.Context, id int) *ImageAsset {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ImageAssetClient) Hooks() []Hook {
+	return c.hooks.ImageAsset
+}
+
+// Interceptors returns the client interceptors.
+func (c *ImageAssetClient) Interceptors() []Interceptor {
+	return c.inters.ImageAsset
+}
+
+func (c *ImageAssetClient) mutate(ctx context.Context, m *ImageAssetMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ImageAssetCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ImageAssetUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ImageAssetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ImageAssetDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ImageAsset mutation op: %q", m.Op())
 	}
 }
 
@@ -762,9 +905,9 @@ func (c *SystemMetaClient) mutate(ctx context.Context, m *SystemMetaMutation) (V
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		FeatureClick, Page, PageView, SystemMeta []ent.Hook
+		FeatureClick, ImageAsset, Page, PageView, SystemMeta []ent.Hook
 	}
 	inters struct {
-		FeatureClick, Page, PageView, SystemMeta []ent.Interceptor
+		FeatureClick, ImageAsset, Page, PageView, SystemMeta []ent.Interceptor
 	}
 )

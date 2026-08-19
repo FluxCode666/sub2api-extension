@@ -11,8 +11,8 @@ package handler
 import (
 	"errors"
 
-	"aux-system/internal/pkg/response"
-	"aux-system/internal/service"
+	"sub2api-extension/internal/pkg/response"
+	"sub2api-extension/internal/service"
 
 	"github.com/gin-gonic/gin"
 )

@@ -1,5 +1,5 @@
 # =============================================================================
-# Aux Content System - Backend Makefile
+# Sub2API Extension - Backend Makefile
 # =============================================================================
 # 常用开发与测试入口。CI 流水线（.github/workflows/ci.yml）直接调用这些目标。
 #
@@ -22,14 +22,14 @@ LDFLAGS ?= -s -w -X main.Version=$(VERSION) -X main.Commit=$(COMMIT) -X main.Dat
 # ---- 开发环境变量 ----
 # 后端开发监听 8004（与 frontend/vite.config.ts 的 proxy target 一致）。
 # 数据库连接由开发者本地 docker 提供，此处只给默认值，可用环境变量覆盖。
-# deploy/docker-compose.yml 中独立 aux-postgres 的宿主机映射端口为 15433。
+# 当前使用 sub2api-postgres 数据库（端口 15432），pages 表已在其中创建。
 DEV_SERVER_PORT ?= 8004
 DEV_DATABASE_HOST ?= 127.0.0.1
-DEV_DATABASE_PORT ?= 15433
-DEV_DATABASE_USER ?= aux
-# 仅本地开发默认值；与 README 的 aux-pg 容器一致。生产环境必须显式设置密码。
-DEV_DATABASE_PASSWORD ?= aux
-DEV_DATABASE_DBNAME ?= auxdb
+DEV_DATABASE_PORT ?= 15432
+DEV_DATABASE_USER ?= sub2api
+# 仅本地开发默认值；与 sub2api-postgres 容器一致。生产环境必须显式设置密码。
+DEV_DATABASE_PASSWORD ?= 123456
+DEV_DATABASE_DBNAME ?= sub2api
 
 # sub2api 对接。开发环境默认连接宿主机 8003 端口，可通过
 # SUB2API_BASE_URL 或 DEV_SUB2API_BASE_URL 覆盖。
@@ -45,6 +45,7 @@ dev:
 	DATABASE_USER=$(DEV_DATABASE_USER) \
 	DATABASE_PASSWORD=$(DEV_DATABASE_PASSWORD) \
 	DATABASE_DBNAME=$(DEV_DATABASE_DBNAME) \
+	AUX_ASSET_DIR=$(or $(AUX_ASSET_DIR),data/assets) \
 	JWT_SECRET=$(or $(JWT_SECRET),dev-secret-not-for-production) \
 	SUB2API_BASE_URL=$(DEV_SUB2API_BASE_URL) \
 	go run ./cmd/server

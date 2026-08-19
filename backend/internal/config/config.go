@@ -20,6 +20,7 @@ type Config struct {
 	Database DatabaseConfig `mapstructure:"database"`
 	Sub2API  Sub2APIConfig  `mapstructure:"sub2api"`
 	JWT      JWTConfig      `mapstructure:"jwt"`
+	Assets   AssetConfig    `mapstructure:"assets"`
 }
 
 // ServerConfig HTTP 服务配置。
@@ -74,6 +75,12 @@ type JWTConfig struct {
 	ExpireHour int    `mapstructure:"expire_hour"` // Token 有效期（小时）
 }
 
+// AssetConfig 是图片等上传资源的文件存储配置。
+// 数据库只记录相对此目录的路径，文件本身不写入数据库。
+type AssetConfig struct {
+	Dir string `mapstructure:"dir"`
+}
+
 // Load 读取并校验完整配置。缺少必需项时返回清晰错误。
 func Load() (*Config, error) {
 	viper.SetConfigName("config")
@@ -84,6 +91,9 @@ func Load() (*Config, error) {
 	// 环境变量支持
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	// AutomaticEnv 只会读取已绑定/默认的键；显式绑定确保 AUX_ASSET_DIR
+	// 能覆盖 assets.dir（尤其是生产容器的 /app/data/assets）。
+	_ = viper.BindEnv("assets.dir", "AUX_ASSET_DIR")
 
 	setDefaults()
 
@@ -135,6 +145,10 @@ func setDefaults() {
 
 	viper.SetDefault("jwt.secret", "")
 	viper.SetDefault("jwt.expire_hour", 24)
+
+	// 本地开发默认落在 backend/data/assets；Docker Compose 会覆写为
+	// /app/data/assets，并将 /app/data 挂进持久卷。
+	viper.SetDefault("assets.dir", "data/assets")
 }
 
 // normalize 规范化配置字段。
@@ -150,6 +164,10 @@ func normalize(cfg *Config) {
 	cfg.Database.Password = strings.TrimSpace(cfg.Database.Password)
 	cfg.Sub2API.BaseURL = strings.TrimSpace(cfg.Sub2API.BaseURL)
 	cfg.JWT.Secret = strings.TrimSpace(cfg.JWT.Secret)
+	cfg.Assets.Dir = strings.TrimSpace(cfg.Assets.Dir)
+	if cfg.Assets.Dir == "" {
+		cfg.Assets.Dir = "data/assets"
+	}
 }
 
 // validate 校验必需配置项，缺少时返回清晰错误。
@@ -204,6 +222,9 @@ func LoadFromEnv() (*Config, error) {
 		JWT: JWTConfig{
 			Secret:     getEnv("JWT_SECRET", ""),
 			ExpireHour: getEnvInt("JWT_EXPIRE_HOUR", 24),
+		},
+		Assets: AssetConfig{
+			Dir: getEnv("AUX_ASSET_DIR", "data/assets"),
 		},
 	}
 

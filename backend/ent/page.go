@@ -3,7 +3,8 @@
 package ent
 
 import (
-	"aux-system/ent/page"
+	"sub2api-extension/ent/page"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -29,6 +30,8 @@ type Page struct {
 	ContentHTML string `json:"content_html,omitempty"`
 	// React/TSX 源码(v2 动态编译渲染)
 	ContentReact string `json:"content_react,omitempty"`
+	// 页面元数据配置(键值对), 可在组件中引用
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 	// 是否启用(停用页 404, 行与埋点保留)
 	Enabled bool `json:"enabled,omitempty"`
 	// 创建时间
@@ -43,6 +46,8 @@ func (*Page) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case page.FieldMetadata:
+			values[i] = new([]byte)
 		case page.FieldEnabled:
 			values[i] = new(sql.NullBool)
 		case page.FieldID:
@@ -107,6 +112,14 @@ func (_m *Page) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field content_react", values[i])
 			} else if value.Valid {
 				_m.ContentReact = value.String
+			}
+		case page.FieldMetadata:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field metadata", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Metadata); err != nil {
+					return fmt.Errorf("unmarshal field metadata: %w", err)
+				}
 			}
 		case page.FieldEnabled:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -179,6 +192,9 @@ func (_m *Page) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("content_react=")
 	builder.WriteString(_m.ContentReact)
+	builder.WriteString(", ")
+	builder.WriteString("metadata=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Metadata))
 	builder.WriteString(", ")
 	builder.WriteString("enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Enabled))

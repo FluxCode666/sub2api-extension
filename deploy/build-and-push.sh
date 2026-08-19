@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Aux Content System - 手动构建并推送镜像到 GHCR
+# Sub2API Extension - 手动构建并推送镜像到 GHCR
 # =============================================================================
 # 使用 docker buildx 构建多架构单镜像（前端 + 后端合一）并推送到 GitHub Container Registry。
 #
@@ -80,7 +80,7 @@ if [[ -z "${GHCR_OWNER:-}" ]]; then
     fi
 fi
 
-IMAGE="ghcr.io/${GHCR_OWNER}/aux-system"
+IMAGE="ghcr.io/${GHCR_OWNER}/sub2api-extension"
 COMMIT="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo docker)"
 BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 

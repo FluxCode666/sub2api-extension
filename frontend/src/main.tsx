@@ -6,6 +6,7 @@ import { initEmbeddedContext } from '@/lib/embedded'
 import { applyTheme } from '@/lib/theme'
 import { initTelemetry } from '@/lib/telemetry-sdk'
 import './index.css'
+import './pages/PageSurfaces.css'
 
 // 启动时解析 sub2api iframe 传入的查询参数,立即应用主题/语言。
 // token 仅存内存,供 U3 上报鉴权使用。

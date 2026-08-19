@@ -3,10 +3,11 @@
 package ent
 
 import (
-	"aux-system/ent/featureclick"
-	"aux-system/ent/page"
-	"aux-system/ent/pageview"
-	"aux-system/ent/systemmeta"
+	"sub2api-extension/ent/featureclick"
+	"sub2api-extension/ent/imageasset"
+	"sub2api-extension/ent/page"
+	"sub2api-extension/ent/pageview"
+	"sub2api-extension/ent/systemmeta"
 	"context"
 	"errors"
 	"fmt"
@@ -77,6 +78,7 @@ func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			featureclick.Table: featureclick.ValidColumn,
+			imageasset.Table:   imageasset.ValidColumn,
 			page.Table:         page.ValidColumn,
 			pageview.Table:     pageview.ValidColumn,
 			systemmeta.Table:   systemmeta.ValidColumn,

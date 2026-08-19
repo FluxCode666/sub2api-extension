@@ -9,8 +9,9 @@ pnpm-lock.yaml.bak
 # ============ 构建产物 ============
 # Go
 /backend/server
-/backend/aux-system
+/backend/sub2api-extension
 /backend/bin/
+/backend/data/
 *.exe
 *.exe~
 *.dll
@@ -37,6 +38,7 @@ pnpm-lock.yaml.bak
 .env.*
 !.env.example
 !.env.prod.example
+!.env.test.example
 
 # ============ 日志 ============
 logs/
