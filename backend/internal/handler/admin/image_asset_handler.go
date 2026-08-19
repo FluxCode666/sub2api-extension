@@ -59,7 +59,7 @@ func (h *ImageAssetHandler) Upload(c *gin.Context) {
 		response.BadRequest(c, "image file is required and must not exceed 10MB")
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	asset, err := h.provider.Upload(c.Request.Context(), header.Filename, file)
 	if err != nil {
@@ -103,7 +103,7 @@ func (h *ImageAssetHandler) ServePublic(c *gin.Context) {
 		handlePublicImageAssetError(c, err)
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	c.Header("Content-Type", asset.MimeType)
 	c.Header("Cache-Control", "public, max-age=31536000, immutable")
 	c.Header("X-Content-Type-Options", "nosniff")

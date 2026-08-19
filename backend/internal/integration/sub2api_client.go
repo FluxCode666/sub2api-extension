@@ -74,7 +74,7 @@ func (c *Sub2APIClient) VerifyAdminJWT(ctx context.Context, token string) (isAdm
 	if err != nil {
 		return false, nil, fmt.Errorf("%w: %w", ErrSub2APIUnreachable, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -163,7 +163,7 @@ func (c *Sub2APIClient) Login(ctx context.Context, req Sub2APILoginRequest) (*Su
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrSub2APIUnreachable, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

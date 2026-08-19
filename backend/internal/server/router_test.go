@@ -411,7 +411,7 @@ func TestSetupRouter_AnalyticsEndpointNilHandlerSkipped(t *testing.T) {
 func TestSetupRouter_FrontendStaticSkippedWithoutEnv(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	// 不设置 SUB2API_EXTENSION_FRONTEND_DIST → 静态托管跳过, 非 API 路径应 404
-	os.Unsetenv("SUB2API_EXTENSION_FRONTEND_DIST")
+	_ = os.Unsetenv("SUB2API_EXTENSION_FRONTEND_DIST")
 	cfg := newTestConfig()
 	healthHandler := web.NewHealthHandler()
 	authHandler, authService := newTestAuthDeps()

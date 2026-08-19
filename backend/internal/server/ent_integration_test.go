@@ -32,7 +32,7 @@ func TestEntConnect_PostgreSQL(t *testing.T) {
 
 	client, err := ent.Open("postgres", dsn)
 	require.NoError(t, err, "ent.Open should succeed with valid DSN")
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	// 执行一次空查询验证连接可达性
 	// ent 生成的 client 在有 schema 时可用 SystemMeta 查询做空检查；

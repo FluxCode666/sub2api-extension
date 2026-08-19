@@ -134,7 +134,7 @@ func (s *AnalyticsService) GetOverview(ctx context.Context) (*OverviewResponse, 
 func toPageViewCountDTOs(counts []PageViewCount) []PageViewCountDTO {
 	result := make([]PageViewCountDTO, 0, len(counts))
 	for _, c := range counts {
-		result = append(result, PageViewCountDTO{PageID: c.PageID, Count: c.Count})
+		result = append(result, PageViewCountDTO(c))
 	}
 	return result
 }
@@ -142,11 +142,7 @@ func toPageViewCountDTOs(counts []PageViewCount) []PageViewCountDTO {
 func toFeatureClickCountDTOs(counts []FeatureClickCount) []FeatureClickCountDTO {
 	result := make([]FeatureClickCountDTO, 0, len(counts))
 	for _, c := range counts {
-		result = append(result, FeatureClickCountDTO{
-			PageID:    c.PageID,
-			FeatureID: c.FeatureID,
-			Count:     c.Count,
-		})
+		result = append(result, FeatureClickCountDTO(c))
 	}
 	return result
 }

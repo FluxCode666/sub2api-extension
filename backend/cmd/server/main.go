@@ -161,7 +161,7 @@ func initEnt(cfg *config.Config) (*ent.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("opening database/sql: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -191,7 +191,7 @@ func runMigration(cfg *config.Config) error {
 	if err != nil {
 		return fmt.Errorf("opening database/sql: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	drv := entsql.OpenDB("postgres", db)
 	if err := migrate.NewSchema(drv).Create(context.Background()); err != nil {

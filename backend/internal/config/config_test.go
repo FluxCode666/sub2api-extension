@@ -23,7 +23,7 @@ func clearEnv(t *testing.T) {
 	}
 	for _, k := range keys {
 		t.Setenv(k, "")
-		os.Unsetenv(k)
+		_ = os.Unsetenv(k)
 	}
 }
 
