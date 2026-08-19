@@ -36,14 +36,14 @@ sub2api-extension 是 sub2api 的独立附属内容承载系统(Go + Ent 后端 
 - TypeScript ~5.6.0 - Frontend SPA, API client, telemetry SDK (`frontend/src/`)
 - SQL (PostgreSQL dialect) - Ent-generated schema/migrations, raw `timestamptz`/`text` types defined in `backend/ent/schema/`
 - CSS (Tailwind utility classes) - Styling via `frontend/src/index.css` + `frontend/tailwind.config.js`
-- YAML - Docker Compose (`deploy/docker-compose*.yml`), CI workflows (`.github/workflows/`), config example (`deploy/config.example.yaml`)
+- YAML - Docker Compose (`deploy/docker-compose.dev.yml` for development and `deploy/docker-compose.yml` for production), CI workflows (`.github/workflows/`), config example (`deploy/config.example.yaml`)
 - Dockerfile syntax - Multi-stage build at `Dockerfile`
 
 ## Runtime
 
 - Go 1.26.5 (backend runtime; locked and verified in CI via `go version | grep -q 'go1.26.5'` in `.github/workflows/ci.yml`)
 - Node.js 20 (frontend build + CI; `node-version: '20'` in `.github/workflows/ci.yml`). Dockerfile builder uses `node:24-alpine` for the image build stage.
-- PostgreSQL 18 (`postgres:18-alpine` in `deploy/docker-compose.yml`); production points at external PostgreSQL (no DB image in `deploy/docker-compose.prod.yml`)
+- PostgreSQL 18 (`postgres:18-alpine` in `deploy/docker-compose.dev.yml`); production points at external PostgreSQL (no DB image in `deploy/docker-compose.yml`)
 - Alpine Linux 3.21 (`alpine:3.21` final runtime image in `Dockerfile`)
 - Go modules (`backend/go.mod`, `backend/go.sum`) - module name `sub2api-extension`
 - pnpm 9 (frontend; pinned via corepack in `Dockerfile`, `pnpm/action-setup@v4` in CI). Lockfile: `frontend/pnpm-lock.yaml` (present)
@@ -80,7 +80,7 @@ sub2api-extension 是 sub2api 的独立附属内容承载系统(Go + Ent 后端 
 
 ## Configuration
 
-- Primary source: environment variables (viper `AutomaticEnv()` with `.` → `_` replacer). Docker Compose injects all via `environment:` blocks in `deploy/docker-compose.yml` and `deploy/docker-compose.prod.yml`.
+- Primary source: environment variables (viper `AutomaticEnv()` with `.` → `_` replacer). Docker Compose injects all via `environment:` blocks in `deploy/docker-compose.dev.yml` and `deploy/docker-compose.yml`.
 - Secondary: optional `config.yaml` (searched in `.` and `./config/`) - see `deploy/config.example.yaml`.
 - Required keys validated in `backend/internal/config/config.go` `validate()`: `database.host/user/dbname/port`, `jwt.secret`, `sub2api.base_url`.
 - Defaults set in `setDefaults()`: server port `8787`, host `0.0.0.0`, mode `debug`; db port `5432`, sslmode `disable`; jwt expire `24h`.
@@ -91,7 +91,7 @@ sub2api-extension 是 sub2api 的独立附属内容承载系统(Go + Ent 后端 
 
 ## Platform Requirements
 
-- Go 1.26.5, Node 20, pnpm 9, local PostgreSQL on `127.0.0.1:15433` (per Makefile defaults; brought up via `deploy/docker-compose.yml` `aux-postgres` service host port `15433`).
+- Go 1.26.5, Node 20, pnpm 9, local PostgreSQL on `127.0.0.1:15433` (per Makefile defaults; brought up via `deploy/docker-compose.dev.yml` `aux-postgres` service host port `15433`).
 - `make dev` runs `go run ./cmd/server` on port `8004`; `make migrate` runs `go run ./cmd/server -migrate` (ent auto-migration, one-shot table creation).
 - Frontend: `pnpm install` then `pnpm dev` (port 3100, proxies `/api` to backend 8004).
 - Single Docker image `ghcr.io/<owner>/sub2api-extension:<tag>` (multi-arch amd64/arm64) built by `.github/workflows/deploy-test.yml` or `.github/workflows/deploy-production.yml`, pushed to GHCR.

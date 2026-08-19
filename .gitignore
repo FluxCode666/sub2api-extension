@@ -37,7 +37,7 @@ pnpm-lock.yaml.bak
 .env
 .env.*
 !.env.example
-!.env.prod.example
+!.env.dev.example
 !.env.test.example
 
 # ============ 日志 ============

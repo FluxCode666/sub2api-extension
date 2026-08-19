@@ -78,7 +78,7 @@ ghcr.io/<owner>/sub2api-extension:test-latest
 
 ```text
 /opt/sub2api-extension-test/
-├── docker-compose.prod.yml   # 流水线每次自动同步
+├── docker-compose.yml        # 流水线每次自动同步
 └── .env.test                 # 服务器持有，流水线只更新镜像相关字段
 ```
 
@@ -109,8 +109,8 @@ ghcr.io/<owner>/sub2api-extension:latest
 
 ```text
 /opt/sub2api-extension/
-├── docker-compose.prod.yml   # 流水线每次自动同步
-└── .env.prod                 # 服务器持有，流水线只更新镜像相关字段
+├── docker-compose.yml        # 流水线每次自动同步
+└── .env                      # 服务器持有，流水线只更新镜像相关字段
 ```
 
 ## 5. GitHub Environments
@@ -163,7 +163,7 @@ Variables：
 |---|:---:|---|
 | `PUBLIC_URL` | 否 | 生产公网 URL，例如 `https://aux.example.com`；配置后会额外验证 `/health` 和 `/p/home` |
 
-> 变量名迁移：工作流已不再读取旧的 `TEST_AUX_DEPLOY_*`、`AUX_DEPLOY_*` 和 `AUX_PUBLIC_URL`。请在对应 GitHub Environment 中按上表新建/改名；旧密钥不会被自动兼容读取。Compose 服务器 `.env.test`/`.env.prod` 中的 `AUX_*` 是容器运行时配置，当前仍保持不变。
+> 变量名迁移：工作流已不再读取旧的 `TEST_AUX_DEPLOY_*`、`AUX_DEPLOY_*` 和 `AUX_PUBLIC_URL`。请在对应 GitHub Environment 中按上表新建/改名；旧密钥不会被自动兼容读取。Compose 服务器 `.env.test`/`.env` 中的 `AUX_*` 是容器运行时配置，当前仍保持不变。
 
 工作流使用 GitHub 自动提供的 `GITHUB_TOKEN` 向 GHCR 推送镜像。服务器拉取私有镜像使用 `GHCR_PAT`；该 PAT 所属账号必须有镜像读取权限，组织启用 SSO 时还需完成授权。
 
@@ -210,7 +210,7 @@ AUX_JWT_SECRET=<测试专用随机密钥>
 docker network inspect sub2api-network >/dev/null
 ```
 
-若 sub2api 不与 sub2api-extension 位于同一 Docker 主机，需按 `deploy/docker-compose.prod.yml` 尾部注释改为普通本地网络，并将 `SUB2API_BASE_URL` 设置为可访问的 HTTPS 地址。
+若 sub2api 不与 sub2api-extension 位于同一 Docker 主机，需按 `deploy/docker-compose.yml` 尾部注释改为普通本地网络，并将 `SUB2API_BASE_URL` 设置为可访问的 HTTPS 地址。
 
 ### 生产服务器
 
@@ -219,8 +219,8 @@ sudo mkdir -p /opt/sub2api-extension
 sudo chown "$USER":"$USER" /opt/sub2api-extension
 cd /opt/sub2api-extension
 
-# 从仓库 deploy/.env.prod.example 复制后编辑
-cp /path/to/sub2api-extension/deploy/.env.prod.example .env.prod
+# 从仓库 deploy/.env.example 复制后编辑
+cp /path/to/sub2api-extension/deploy/.env.example .env
 openssl rand -hex 32
 ```
 
@@ -244,13 +244,13 @@ AUX_JWT_SECRET=<生产专用随机密钥>
 首次可手工校验配置：
 
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env.prod config -q
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
-docker compose -f docker-compose.prod.yml --env-file .env.prod ps
+docker compose -f docker-compose.yml --env-file .env config -q
+docker compose -f docker-compose.yml --env-file .env up -d
+docker compose -f docker-compose.yml --env-file .env ps
 curl --fail http://127.0.0.1:8787/health
 ```
 
-后续流水线会自动同步最新 `docker-compose.prod.yml`，但不会覆盖服务器上的 `.env.test` 或 `.env.prod`。
+后续流水线会自动同步最新 `docker-compose.yml`，但不会覆盖服务器上的 `.env.test` 或 `.env`。
 
 ## 7. NGINX 与证书
 
@@ -285,7 +285,7 @@ Compose 默认只绑定 `127.0.0.1:8787`，公网流量应统一通过 NGINX HTT
 
 SSH 部署阶段会执行：
 
-1. 保存 `.env.test` 或 `.env.prod` 中原有的 `AUX_IMAGE_TAG`。
+1. 保存 `.env.test` 或 `.env` 中原有的 `AUX_IMAGE_TAG`。
 2. 更新 `AUX_IMAGE`、`AUX_IMAGE_TAG` 和 `AUX_CONTAINER_NAME`。
 3. 运行 `docker compose config -q`。
 4. 登录 GHCR 并拉取本次镜像。
@@ -315,10 +315,10 @@ http://localhost:8787/health
 
 ```bash
 cd /opt/sub2api-extension
-sed -i 's/^AUX_IMAGE_TAG=.*/AUX_IMAGE_TAG=1.2.2/' .env.prod
-docker compose -f docker-compose.prod.yml --env-file .env.prod pull aux-backend
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d aux-backend
-docker compose -f docker-compose.prod.yml --env-file .env.prod ps
+sed -i 's/^AUX_IMAGE_TAG=.*/AUX_IMAGE_TAG=1.2.2/' .env
+docker compose -f docker-compose.yml --env-file .env pull aux-backend
+docker compose -f docker-compose.yml --env-file .env up -d aux-backend
+docker compose -f docker-compose.yml --env-file .env ps
 ```
 
 ## 9. 日常发布流程
@@ -401,8 +401,8 @@ docker network inspect sub2api-network
 
 ```bash
 cd /opt/sub2api-extension
-docker compose -f docker-compose.prod.yml --env-file .env.prod ps
-docker compose -f docker-compose.prod.yml --env-file .env.prod logs --tail=200 aux-backend
+docker compose -f docker-compose.yml --env-file .env ps
+docker compose -f docker-compose.yml --env-file .env logs --tail=200 aux-backend
 curl -v http://127.0.0.1:8787/health
 ```
 
@@ -421,8 +421,10 @@ curl -v http://127.0.0.1:8787/health
 - `.github/workflows/security-scan.yml`
 - `.github/workflows/deploy-test.yml`
 - `.github/workflows/deploy-production.yml`
-- `deploy/docker-compose.prod.yml`
+- `deploy/docker-compose.dev.yml`
+- `deploy/docker-compose.yml`
 - `deploy/.env.test.example`
-- `deploy/.env.prod.example`
+- `deploy/.env.dev.example`
+- `deploy/.env.example`
 - `deploy/nginx/README.md`
 - `deploy/build-and-push.sh`

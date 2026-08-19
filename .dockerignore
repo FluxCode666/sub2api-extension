@@ -46,7 +46,8 @@ backend/vendor/
 *.local
 
 # 部署产物（部署用，不需进构建镜像）
-deploy/.env.prod
+deploy/.env.dev
+deploy/.env.test
 deploy/.env
 
 # 日志 / 测试覆盖率

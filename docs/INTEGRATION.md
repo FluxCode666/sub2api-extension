@@ -26,7 +26,7 @@ sub2api-extension 使用自己的 PostgreSQL 保存页面访问和功能点击�
 
 ```bash
 cd sub2api-extension/deploy
-cp .env.example .env
+cp .env.dev.example .env.dev
 ```
 
 至少设置：
@@ -40,7 +40,7 @@ SUB2API_BASE_URL=http://sub2api:8080
 启动并检查：
 
 ```bash
-docker compose up -d
+docker compose -f docker-compose.dev.yml --env-file .env.dev up -d
 curl http://localhost:8787/health
 ```
 
@@ -58,9 +58,9 @@ curl http://localhost:8787/health
 
 ```bash
 cd sub2api-extension/deploy
-cp .env.prod.example .env.prod
+cp .env.example .env
 # 填写 AUX_IMAGE、AUX_IMAGE_TAG、DATABASE_*、SUB2API_BASE_URL、AUX_JWT_SECRET
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+docker compose -f docker-compose.yml --env-file .env up -d
 ```
 
 ## 2. 配置首页与管理菜单

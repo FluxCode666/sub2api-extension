@@ -158,7 +158,7 @@ jobs:
           key: ${{ secrets.TEST_DEPLOY_SSH_KEY }}
           fingerprint: ${{ secrets.TEST_DEPLOY_FINGERPRINT }}
           port: ${{ secrets.TEST_DEPLOY_PORT || '22' }}
-          source: deploy/docker-compose.prod.yml
+          source: deploy/docker-compose.yml
           target: ${{ env.DEPLOY_PATH }}
           strip_components: 1
           overwrite: true
@@ -179,7 +179,7 @@ jobs:
             set -eu
 
             ENV_FILE=.env.test
-            COMPOSE_FILE=docker-compose.prod.yml
+            COMPOSE_FILE=docker-compose.yml
             cd "$DEPLOY_PATH"
 
             if [ ! -f "$ENV_FILE" ] || [ ! -f "$COMPOSE_FILE" ]; then

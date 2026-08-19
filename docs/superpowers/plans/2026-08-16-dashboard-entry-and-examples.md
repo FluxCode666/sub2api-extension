@@ -254,7 +254,7 @@ Review the diff for auth bypass, stale removed-page references, telemetry IDs, r
 
 - [x] **Step 5: Commit only task-owned files**
 
-Do not stage `deploy/.env.example` or `.pi/`. Commit with:
+Do not stage `deploy/.env.dev.example` or `.pi/`. Commit with:
 
 ```bash
 git commit -m "feat: add dashboard example pages"

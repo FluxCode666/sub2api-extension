@@ -44,8 +44,8 @@ sub2api-extension/
 │   ├── tsconfig.json        # Strict TS, @/* path alias
 │   └── tailwind.config.js   # darkMode: 'class'
 ├── deploy/                  # Deployment configs
-│   ├── docker-compose.yml           # Dev/single-host: aux-postgres + aux-backend
-│   ├── docker-compose.prod.yml      # Prod (external PostgreSQL)
+│   ├── docker-compose.dev.yml       # Dev/single-host: aux-postgres + aux-backend
+│   ├── docker-compose.yml           # Prod (external PostgreSQL)
 │   ├── config.example.yaml          # Sample backend config
 │   └── build-and-push.sh            # Image build/push script
 ├── docs/
@@ -128,7 +128,7 @@ sub2api-extension/
 
 **`deploy/`:**
 - Purpose: Docker Compose + sample config + build script.
-- Key files: `docker-compose.yml` (dev, with `aux-postgres`), `docker-compose.prod.yml` (external PG), `config.example.yaml`, `build-and-push.sh`.
+- Key files: `docker-compose.dev.yml` (dev, with `aux-postgres`), `docker-compose.yml` (external PG), `config.example.yaml`, `build-and-push.sh`.
 
 **`docs/`:**
 - Purpose: Project documentation.
@@ -149,7 +149,7 @@ sub2api-extension/
 **Configuration:**
 - `backend/internal/config/config.go`: config load/validate.
 - `deploy/config.example.yaml`: sample backend config.
-- `deploy/docker-compose.yml`: runtime env vars (canonical source of deployment config).
+- `deploy/docker-compose.dev.yml`: development runtime env vars; `deploy/docker-compose.yml`: production runtime env vars (canonical deployment source).
 - `frontend/vite.config.ts`: Vite/Vitest config + dev proxy (`/api` → `127.0.0.1:8004`).
 - `frontend/tsconfig.json`: TS strict + `@/*` path alias.
 - `frontend/tailwind.config.js`: `darkMode: 'class'`, content globs.

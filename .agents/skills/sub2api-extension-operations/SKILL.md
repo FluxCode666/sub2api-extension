@@ -32,13 +32,13 @@ Environment Secrets（测试环境使用 `TEST_` 区分，生产环境由 Enviro
 - 生产：`DEPLOY_HOST`、`DEPLOY_USER`、`DEPLOY_PASSWORD` 或 `DEPLOY_SSH_KEY`、`DEPLOY_PORT`、`DEPLOY_PATH`、`DEPLOY_FINGERPRINT`、`GHCR_PAT`。
 - 可选 Environment Variable：`PUBLIC_URL`，配置后从 runner 验证 `/health` 和 `/p/home`。
 
-工作流不再读取旧的 `TEST_AUX_DEPLOY_*`、`AUX_DEPLOY_*` 或 `AUX_PUBLIC_URL`；改名时需在 GitHub Environment 中重新创建对应条目。服务器 `.env.test`/`.env.prod` 的 Compose 运行时 `AUX_*` 配置不属于这次改名范围。
+工作流不再读取旧的 `TEST_AUX_DEPLOY_*`、`AUX_DEPLOY_*` 或 `AUX_PUBLIC_URL`；改名时需在 GitHub Environment 中重新创建对应条目。服务器 `.env.test`/`.env` 的 Compose 运行时 `AUX_*` 配置不属于这次改名范围。
 
 不要绕过质量门禁直接在部署 job 中构建；镜像必须在 reusable `ci.yml` 通过后才构建。部署脚本必须使用 `docker compose config -q`、拉取镜像、等待 `healthy`，失败时打印有限日志并尝试恢复上一版本标签。
 
 ## Compose 环境
 
-生产 Compose：`deploy/docker-compose.prod.yml`，只运行 `aux-backend`，数据库使用外部 PostgreSQL。测试与生产必须分别配置：
+生产 Compose：`deploy/docker-compose.yml`，只运行 `aux-backend`，数据库使用外部 PostgreSQL。开发 Compose：`deploy/docker-compose.dev.yml`，包含独立 `aux-postgres`，仅用于本地开发。测试与生产必须分别配置：
 
 - 数据库地址、用户、库名和密码
 - sub2api 地址
@@ -46,13 +46,13 @@ Environment Secrets（测试环境使用 `TEST_` 区分，生产环境由 Enviro
 - 域名、宿主机端口和 NGINX upstream
 - Docker Compose project 和数据卷
 
-测试默认部署目录为 `/opt/sub2api-extension-test`，生产默认部署目录为 `/opt/sub2api-extension`。服务器目录只持有 `docker-compose.prod.yml` 和 `.env.test`/`.env.prod`；流水线同步 Compose 文件，但不覆盖环境文件中的数据库、JWT 和 sub2api 配置。
+测试默认部署目录为 `/opt/sub2api-extension-test`，生产默认部署目录为 `/opt/sub2api-extension`。服务器目录只持有 `docker-compose.yml` 和 `.env.test`/`.env`；流水线同步 Compose 文件，但不覆盖环境文件中的数据库、JWT 和 sub2api 配置。
 
 如果是已有 `aux-system` 部署，先检查旧目录和数据卷再改路径。Compose project 名或卷名变化可能创建新卷，不能直接删除旧卷；应先执行 `docker volume inspect`、备份 `/app/data`，再迁移图片和其他系统数据。
 
 数据库迁移是显式运维步骤：新版本新增 `pages`、`image_assets` 等表或字段时，先在目标数据库执行 `make migrate`（或 `go run ./cmd/server -migrate`），再启动/切换应用镜像。正式服务启动不会自动迁移，部署工作流也不会隐式改数据库 schema。
 
-开发 Compose `deploy/docker-compose.yml` 含独立 `aux-postgres`，只用于本地开发。不要把开发 PostgreSQL、默认密码和 `SUB2API_BASE_URL` 带进生产模板。
+开发 Compose `deploy/docker-compose.dev.yml` 含独立 `aux-postgres`，只用于本地开发。不要把开发 PostgreSQL、默认密码和 `SUB2API_BASE_URL` 带进生产模板。
 
 ## 图片资源持久化
 
@@ -94,8 +94,8 @@ curl --fail https://<domain>/health
 容器健康检查访问容器内 `http://localhost:8787/health`。部署失败时按顺序检查：
 
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env.prod ps
-docker compose -f docker-compose.prod.yml --env-file .env.prod logs --tail=200 aux-backend
+docker compose -f docker-compose.yml --env-file .env ps
+docker compose -f docker-compose.yml --env-file .env logs --tail=200 aux-backend
 curl -v http://127.0.0.1:8787/health
 docker network inspect sub2api-network
 ```
@@ -119,4 +119,5 @@ docker network inspect sub2api-network
 - `.github/CICD.md`
 - `deploy/nginx/README.md`
 - `deploy/.env.test.example`
-- `deploy/.env.prod.example`
+- `deploy/.env.dev.example`
+- `deploy/.env.example`

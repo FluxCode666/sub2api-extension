@@ -3,8 +3,8 @@
 # =============================================================================
 # 此文件是配置参考示例，说明附属系统后端（Go + viper）加载的配置项。
 #
-# 部署时优先使用环境变量（见 deploy/.env.example），Docker 部署无需手动写
-# config.yaml —— docker-compose.yml 的 environment 块已注入所有配置。
+# 部署时优先使用环境变量（开发见 deploy/.env.dev.example，生产见 deploy/.env.example），Docker 部署无需手动写
+# config.yaml —— Compose 的 environment 块已注入所有配置。
 # 此文件供非 Docker 部署或本地开发参考。
 #
 # 配置加载逻辑（internal/config/config.go）：

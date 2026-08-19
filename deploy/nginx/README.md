@@ -1,7 +1,7 @@
 # Sub2API Extension NGINX 生产配置
 
 这套配置参考 `upstream-hub/deploy/nginx`，假设 NGINX 安装在宿主机，
-`aux-backend` 由 `deploy/docker-compose.prod.yml` 运行在宿主机 `127.0.0.1:8787`。
+`aux-backend` 由 `deploy/docker-compose.yml` 运行在宿主机 `127.0.0.1:8787`。
 
 ## 安装
 
@@ -32,9 +32,9 @@ sudo systemctl reload nginx
 
 ```bash
 cd deploy
-cp .env.prod.example .env.prod
+cp .env.example .env
 # 填写 AUX_IMAGE、DATABASE_*、SUB2API_BASE_URL、AUX_JWT_SECRET、AUX_PUBLIC_HOST
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+docker compose -f docker-compose.yml --env-file .env up -d
 
 curl http://127.0.0.1:8787/health
 curl -I https://<你的域名>/health

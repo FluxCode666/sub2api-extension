@@ -13,7 +13,7 @@
   - `POST {baseURL}/api/v1/auth/login` - email/password login; returns `access_token`, `refresh_token`, `user`; 2FA branch (`requires_2fa=true`) is rejected by sub2api-extension (`Login`).
 - Response envelope mirrored: `{code, message, reason, data}` - see `sub2APIEnvelope` struct. 401 maps to `ErrInvalidToken`/`ErrInvalidCredentials`; network errors wrap `ErrSub2APIUnreachable` (consumed by handler to return 503).
 - Iframe embedding: sub2api embeds sub2api-extension via `home_content` URL and `custom_menu_items` (with empty `page_slug` so sub2api appends `user_id`, `token`, `theme`, `lang`, `ui_mode=embedded`, `src_host`, `src_url`). Frontend parses these in `frontend/src/lib/embedded.ts` (`parseEmbeddedParams`).
-- Network: same Docker network (`sub2api-network`, declared external) uses `http://sub2api:8080`; cross-network uses sub2api's public domain. See `deploy/docker-compose.yml`, `docs/INTEGRATION.md`.
+- Network: same Docker network (`sub2api-network`, declared external) uses `http://sub2api:8080`; cross-network uses sub2api's public domain. See `deploy/docker-compose.dev.yml`, `deploy/docker-compose.yml`, `docs/INTEGRATION.md`.
 - Verification cache: `AuthService` caches verification results keyed by SHA-256 of the sub2api token, TTL 5 min (`backend/internal/service/auth_service.go`), to avoid re-hitting sub2api `/auth/me` on every request.
 
 **No other third-party HTTP APIs are consumed.** No Stripe/Supabase/AWS/Stripe/Resend/etc. detected.
@@ -24,8 +24,8 @@
 - PostgreSQL 18 (self-owned, independent of sub2api's DB - "R1 自有数据库")
   - Connection env: `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_USER`, `DATABASE_PASSWORD`, `DATABASE_DBNAME`, `DATABASE_SSLMODE` (DSN assembled in `backend/internal/config/config.go` `DatabaseConfig.DSN()`; empty password omits the `password=` param).
   - Client: Ent ORM (`entgo.io/ent` v0.14.6) opened with `ent.Open("postgres", dsn)` in `backend/cmd/server/main.go` `initEnt()`. Driver `github.com/lib/pq` v1.12.3. A `database/sql` pool is opened first to `PingContext` before creating the ent client.
-  - Dev DB: `aux-postgres` service in `deploy/docker-compose.yml`, host port `127.0.0.1:15433`, db `auxdb`, user `aux`.
-  - Prod DB: external (compose has no DB image); may reuse sub2api's postgres or a standalone instance (see `deploy/.env.prod.example`).
+  - Dev DB: `aux-postgres` service in `deploy/docker-compose.dev.yml`, host port `127.0.0.1:15433`, db `auxdb`, user `aux`.
+  - Prod DB: external (compose has no DB image); may reuse sub2api's postgres or a standalone instance (see `deploy/.env.example`).
   - Migration: ent auto-migration via `go run ./cmd/server -migrate` (Makefile `migrate` target) - `migrate.NewSchema(drv).Create(ctx)` in `main.go` `runMigration()`. NOT run automatically on server start (avoid prod schema drift).
   - Tables (Ent schemas in `backend/ent/schema/`):
     - `page_views` (`page_view.go`) - append-only page-view telemetry: `page_id`(max128), `visitor_id`(max128), `is_admin`(bool), `created_at`(timestamptz, immutable). Indexes on page_id, visitor_id, created_at, (page_id,created_at).
@@ -58,20 +58,20 @@
 - None (no Sentry/Datadog/etc.). Errors surface only through Gin `Recovery` middleware (`backend/internal/server/router.go`) and Go `log` package.
 
 **Logs:**
-- Go stdlib `log` (stdout). Gin `gin.Logger()` middleware for request logs. Production docker-compose configures `json-file` log driver with rotation (`max-size` 100m, `max-file` 5) in `deploy/docker-compose.prod.yml`.
+- Go stdlib `log` (stdout). Gin `gin.Logger()` middleware for request logs. Production docker-compose configures `json-file` log driver with rotation (`max-size` 100m, `max-file` 5) in `deploy/docker-compose.yml`.
 - No structured logging library; no log levels.
 
 ## CI/CD & Deployment
 
 **Hosting:**
-- Single Docker container (backend binary + embedded frontend dist) on a single production server. Deployed via `docker-compose.prod.yml` (`aux-backend` service). Joined to sub2api's external `sub2api-network`.
+- Single Docker container (backend binary + embedded frontend dist) on a single production server. Deployed via `deploy/docker-compose.yml` (`aux-backend` service). Joined to sub2api's external `sub2api-network`.
 
 **CI Pipeline:**
 - GitHub Actions, four workflows in `.github/workflows/`:
   - `ci.yml` (on push to `main` + PRs): backend unit tests (`go test -race`), backend lint (`golangci-lint-action@v9` v2.9), frontend test + typecheck + build (pnpm 9 / Node 20). Go version pinned/verified to `1.26.5`.
   - `security-scan.yml` (on PRs + weekly cron Mon 03:00 UTC): backend `govulncheck ./...`, frontend `pnpm audit --prod --audit-level=high`.
   - `deploy-test.yml` (push to `test` or manual): builds `test-<sha7>`/`test-latest` and deploys the isolated test environment.
-  - `deploy-production.yml` (`workflow_dispatch` manual, takes `version` input): builds multi-arch image (`linux/amd64,linux/arm64`) with QEMU/Buildx, pushes `${{ ghcr_image }}:<version>` + `:latest` to GHCR, then SSH-deploys (`appleboy/ssh-action@v1`) to the production host: updates `.env.prod` `AUX_IMAGE_TAG`, runs Compose, waits for healthy, and attempts rollback on failure.
+  - `deploy-production.yml` (`workflow_dispatch` manual, takes `version` input): builds multi-arch image (`linux/amd64,linux/arm64`) with QEMU/Buildx, pushes `${{ ghcr_image }}:<version>` + `:latest` to GHCR, then SSH-deploys (`appleboy/ssh-action@v1`) to the production host: updates `.env` `AUX_IMAGE_TAG`, runs Compose, waits for healthy, and attempts rollback on failure.
 - Secrets required for deploy: `AUX_DEPLOY_HOST`, `AUX_DEPLOY_USER`, `AUX_DEPLOY_PASSWORD`, `AUX_DEPLOY_PATH` (default `/opt/sub2api-extension`), `GHCR_PAT` (read:packages). Optional: `AUX_DEPLOY_PORT` (default 22).
 - Image registry: GHCR (`ghcr.io/<owner-lower>/sub2api-extension`). Auth uses `GITHUB_TOKEN` for push, `GHCR_PAT` for prod pull.
 
@@ -85,7 +85,7 @@
 - Compose-only: `AUX_POSTGRES_PASSWORD` (dev compose, required), `AUX_POSTGRES_USER`/`AUX_POSTGRES_DB`/`AUX_POSTGRES_HOST_PORT` (defaults aux/auxdb/15433), `AUX_IMAGE`/`AUX_IMAGE_TAG` (prod compose), `BIND_HOST` (0.0.0.0), `DOCKER_LOG_MAX_SIZE`/`DOCKER_LOG_MAX_FILE` (prod logging).
 
 **Secrets location:**
-- `deploy/.env` (dev, gitignored - file exists locally but do NOT commit), `deploy/.env.prod` (prod, created on server from `.env.prod.example`). GitHub Actions secrets for deploy SSH creds + GHCR PAT. No vault/KMS detected.
+- `deploy/.env.dev` (dev, gitignored - file exists locally but do NOT commit), `deploy/.env` (prod, created on server from `.env.example`). GitHub Actions secrets for deploy SSH creds + GHCR PAT. No vault/KMS detected.
 
 ## Webhooks & Callbacks
 

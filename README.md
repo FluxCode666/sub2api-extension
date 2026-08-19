@@ -80,11 +80,11 @@ sub2api-extension/
 │       ├── lib/                 # admin-auth/api-client/telemetry-sdk/page-registry...
 │       └── pages/               # 动态页面宿主、Dashboard 与示例页面
 ├── deploy/
-│   ├── docker-compose.yml       # 开发用（含 postgres，从源码 build）
-│   ├── docker-compose.prod.yml  # 生产用（仅 aux-backend，GHCR 镜像，无数据库）
-│   ├── .env.example             # 开发环境变量示例
+│   ├── docker-compose.dev.yml   # 开发用（含 postgres，从源码 build）
+│   ├── docker-compose.yml       # 生产用（仅 aux-backend，GHCR 镜像，无数据库）
+│   ├── .env.dev.example         # 开发环境变量示例
 │   ├── .env.test.example        # 测试环境变量示例
-│   ├── .env.prod.example        # 生产环境变量示例
+│   ├── .env.example             # 生产环境变量示例
 │   ├── build-and-push.sh        # 手动构建推送镜像脚本
 │   └── nginx/                   # 宿主机 NGINX HTTPS 反向代理配置
 ├── .github/
@@ -102,10 +102,10 @@ sub2api-extension/
 
 ```bash
 cd deploy
-cp .env.example .env
+cp .env.dev.example .env.dev
 ```
 
-编辑 `.env`，至少设置三个必需项：
+编辑 `.env.dev`，至少设置三个必需项：
 
 ```bash
 AUX_POSTGRES_PASSWORD=<强密码>          # 附属系统自有 PostgreSQL
@@ -115,7 +115,7 @@ AUX_JWT_SECRET=$(openssl rand -hex 32) # 附属系统会话签名密钥
 启动并验证：
 
 ```bash
-docker compose up -d
+docker compose -f docker-compose.dev.yml --env-file .env.dev up -d
 curl http://localhost:8787/health
 # 预期: {"status":"ok","service":"sub2api-extension"}
 ```
@@ -131,18 +131,18 @@ cd deploy
 cp .env.test.example .env.test
 # 填入测试环境专用的数据库、sub2api、JWT、域名和端口配置
 docker compose --project-name sub2api-extension-test \
-  -f docker-compose.prod.yml --env-file .env.test up -d
+  -f docker-compose.yml --env-file .env.test up -d
 ```
 
 测试环境应使用独立数据库、JWT 密钥、sub2api 实例、域名和数据卷，禁止复用生产数据。
 
-生产用 `deploy/docker-compose.prod.yml`，仅运行 `aux-backend`（从 GHCR 拉取镜像），**不含数据库镜像**——PostgreSQL 由外部提供。
+生产用 `deploy/docker-compose.yml`，仅运行 `aux-backend`（从 GHCR 拉取镜像），**不含数据库镜像**——PostgreSQL 由外部提供。
 
 ```bash
 cd deploy
-cp .env.prod.example .env.prod
+cp .env.example .env
 # 填入: AUX_IMAGE / AUX_IMAGE_TAG / AUX_PUBLIC_HOST / DATABASE_* / SUB2API_* / AUX_JWT_SECRET
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+docker compose -f docker-compose.yml --env-file .env up -d
 ```
 
 生产环境建议由宿主机 NGINX 对外提供 HTTPS，Compose 中的 aux-backend 默认只绑定
@@ -253,7 +253,7 @@ pnpm build           # tsc -b && vite build
 
 ## 配置
 
-环境变量（完整说明见 `deploy/.env.example`）：
+环境变量（开发环境完整说明见 `deploy/.env.dev.example`，生产环境见 `deploy/.env.example`）：
 
 | 变量 | 说明 | 默认 |
 |------|------|------|
