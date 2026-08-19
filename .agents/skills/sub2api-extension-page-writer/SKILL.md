@@ -134,7 +134,7 @@ React 动态页面已经实现，不再是“尚未实现”的占位能力：`f
 
 `items` 为空或 `enabled=false` 时隐藏板块；icon 为空时不渲染图标；超过 5 项才启用循环滚动。
 
-图片必须先在 `/admin/assets` 上传或登记。上传文件写入 `AUX_ASSET_DIR`（生产容器内为 `/app/data/assets`），数据库 `image_assets.path` 只保存安全相对文件名；复制当前站点生成的完整 HTTP(S) URL 后再填入 `metadata.logo`。不要把相对路径、图片二进制或本机绝对路径写进页面 JSON。
+图片必须先在 `/admin/assets` 上传或登记。上传文件写入 `SUB2API_EXTENSION_ASSET_DIR`（生产容器内为 `/app/data/assets`），数据库 `image_assets.path` 只保存安全相对文件名；复制当前站点生成的完整 HTTP(S) URL 后再填入 `metadata.logo`。不要把相对路径、图片二进制或本机绝对路径写进页面 JSON。
 
 ## AdminGuard、嵌入与会话
 

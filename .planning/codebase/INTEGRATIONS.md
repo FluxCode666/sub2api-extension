@@ -33,7 +33,7 @@
     - `system_meta` (`system_meta.go`) - key/value store (`key` unique max128, `value` text). Currently stores homepage config under key `homepage.config` as JSON (see `backend/internal/service/homepage_config_service.go` `HomepageConfigKey`).
 
 **File Storage:**
-- Local filesystem only. Built frontend dist embedded in the Docker image at `/app/frontend/dist` and served same-origin by the backend (`backend/internal/server/router.go` `registerFrontendStatic`, env `AUX_FRONTEND_DIST`). No S3/GCS/blob storage.
+- Local filesystem only. Built frontend dist embedded in the Docker image at `/app/frontend/dist` and served same-origin by the backend (`backend/internal/server/router.go` `registerFrontendStatic`, env `SUB2API_EXTENSION_FRONTEND_DIST`). No S3/GCS/blob storage.
 
 **Caching:**
 - In-process only. `AuthService` verification cache (`map[string]cachedVerification` guarded by `sync.Mutex`, 5 min TTL) in `backend/internal/service/auth_service.go`. No Redis/Memcached.
@@ -71,18 +71,18 @@
   - `ci.yml` (on push to `main` + PRs): backend unit tests (`go test -race`), backend lint (`golangci-lint-action@v9` v2.9), frontend test + typecheck + build (pnpm 9 / Node 20). Go version pinned/verified to `1.26.5`.
   - `security-scan.yml` (on PRs + weekly cron Mon 03:00 UTC): backend `govulncheck ./...`, frontend `pnpm audit --prod --audit-level=high`.
   - `deploy-test.yml` (push to `test` or manual): builds `test-<sha7>`/`test-latest` and deploys the isolated test environment.
-  - `deploy-production.yml` (`workflow_dispatch` manual, takes `version` input): builds multi-arch image (`linux/amd64,linux/arm64`) with QEMU/Buildx, pushes `${{ ghcr_image }}:<version>` + `:latest` to GHCR, then SSH-deploys (`appleboy/ssh-action@v1`) to the production host: updates `.env` `AUX_IMAGE_TAG`, runs Compose, waits for healthy, and attempts rollback on failure.
-- Secrets required for deploy: `AUX_DEPLOY_HOST`, `AUX_DEPLOY_USER`, `AUX_DEPLOY_PASSWORD`, `AUX_DEPLOY_PATH` (default `/opt/sub2api-extension`), `GHCR_PAT` (read:packages). Optional: `AUX_DEPLOY_PORT` (default 22).
+  - `deploy-production.yml` (`workflow_dispatch` manual, takes `version` input): builds multi-arch image (`linux/amd64,linux/arm64`) with QEMU/Buildx, pushes `${{ ghcr_image }}:<version>` + `:latest` to GHCR, then SSH-deploys (`appleboy/ssh-action@v1`) to the production host: updates `.env` `SUB2API_EXTENSION_IMAGE_TAG`, runs Compose, waits for healthy, and attempts rollback on failure.
+- Secrets required for deploy: test Environment `TEST_DEPLOY_HOST`/`TEST_DEPLOY_USER`/`TEST_DEPLOY_PASSWORD` or `TEST_DEPLOY_SSH_KEY`, and production Environment `DEPLOY_HOST`/`DEPLOY_USER`/`DEPLOY_PASSWORD` or `DEPLOY_SSH_KEY`; both use `GHCR_PAT` (read:packages). Optional ports default to 22.
 - Image registry: GHCR (`ghcr.io/<owner-lower>/sub2api-extension`). Auth uses `GITHUB_TOKEN` for push, `GHCR_PAT` for prod pull.
 
 ## Environment Configuration
 
 **Required env vars:**
 - `DATABASE_HOST`, `DATABASE_USER`, `DATABASE_PASSWORD`, `DATABASE_DBNAME` (port defaults 5432, sslmode defaults disable)
-- `JWT_SECRET` (required, no default; compose uses `${AUX_JWT_SECRET:?...}`)
+- `JWT_SECRET` (required, no default; Compose maps `${SUB2API_EXTENSION_JWT_SECRET:?...}`)
 - `SUB2API_BASE_URL` (required; dev default `http://127.0.0.1:8003` per Makefile `DEV_SUB2API_BASE_URL`, prod `http://sub2api:8080`)
-- Optional with defaults: `SERVER_HOST` (0.0.0.0), `SERVER_PORT` (8787; dev 8004), `SERVER_MODE` (debug/release), `JWT_EXPIRE_HOUR` (24), `AUX_FRONTEND_DIST` (set in Dockerfile to `/app/frontend/dist`), `TZ` (Asia/Shanghai).
-- Compose-only: `AUX_POSTGRES_PASSWORD` (dev compose, required), `AUX_POSTGRES_USER`/`AUX_POSTGRES_DB`/`AUX_POSTGRES_HOST_PORT` (defaults aux/auxdb/15433), `AUX_IMAGE`/`AUX_IMAGE_TAG` (prod compose), `BIND_HOST` (0.0.0.0), `DOCKER_LOG_MAX_SIZE`/`DOCKER_LOG_MAX_FILE` (prod logging).
+- Optional with defaults: `SERVER_HOST` (0.0.0.0), `SERVER_PORT` (8787; dev 8004), `SERVER_MODE` (debug/release), `JWT_EXPIRE_HOUR` (24), `SUB2API_EXTENSION_FRONTEND_DIST` (set in Dockerfile to `/app/frontend/dist`), `TZ` (Asia/Shanghai).
+- Compose-only: `SUB2API_EXTENSION_POSTGRES_PASSWORD` (dev compose, required), `SUB2API_EXTENSION_POSTGRES_USER`/`SUB2API_EXTENSION_POSTGRES_DB`/`SUB2API_EXTENSION_POSTGRES_HOST_PORT` (defaults aux/auxdb/15433), `SUB2API_EXTENSION_IMAGE`/`SUB2API_EXTENSION_IMAGE_TAG` (prod compose), `BIND_HOST` (0.0.0.0), `DOCKER_LOG_MAX_SIZE`/`DOCKER_LOG_MAX_FILE` (prod logging).
 
 **Secrets location:**
 - `deploy/.env.dev` (dev, gitignored - file exists locally but do NOT commit), `deploy/.env` (prod, created on server from `.env.example`). GitHub Actions secrets for deploy SSH creds + GHCR PAT. No vault/KMS detected.
@@ -101,7 +101,7 @@
   - `GET  /api/aux/admin/analytics/overview` - aggregated telemetry (AdminGuard).
   - `GET  /api/aux/admin/homepage/config` + `PUT /api/aux/admin/homepage/config` - homepage config read/write (AdminGuard).
   - `GET  /api/aux/admin/examples/status` - example guarded endpoint (AdminGuard).
-  - SPA fallback: non-API, non-health paths serve `index.html` when `AUX_FRONTEND_DIST` is set (`backend/internal/server/router.go` NoRoute handler).
+  - SPA fallback: non-API, non-health paths serve `index.html` when `SUB2API_EXTENSION_FRONTEND_DIST` is set (`backend/internal/server/router.go` NoRoute handler).
 
 **Outgoing:**
 - sub2api-extension → sub2api: `GET /api/v1/auth/me`, `POST /api/v1/auth/login` (server-side, from `Sub2APIClient`). No other outbound webhooks.

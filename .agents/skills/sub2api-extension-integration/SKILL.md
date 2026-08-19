@@ -36,7 +36,7 @@ sub2api-extension 是独立服务；它不导入 sub2api 后端代码，也不�
 - 浏览器请求是否确实到 `/api/aux/admin/login`，而不是直接调用 sub2api；
 - `SUB2API_BASE_URL` 是否从 extension 容器可达，路径是否包含正确的后端根地址；
 - sub2api 是否返回 401、403、503，先看状态码再判断文案；
-- 登录成功后是否能看到 `X-Aux-Session`，以及 JWT 是否因 `AUX_JWT_SECRET` 变化而失效。
+- 登录成功后是否能看到 `X-Aux-Session`，以及 JWT 是否因 `SUB2API_EXTENSION_JWT_SECRET` 变化而失效。
 
 ## 域名、CSP 与 NGINX
 
@@ -48,7 +48,7 @@ sub2api-extension 是独立服务；它不导入 sub2api 后端代码，也不�
 
 ## 会话与跳转故障
 
-- `/admin/*` 反复跳 `/login`：通常是没有嵌入 token，也没有有效的 `X-Aux-Session`。检查 iframe URL 查询参数、localStorage 中 `aux_admin_session` 的过期时间，以及 `AUX_JWT_SECRET` 是否在部署中保持稳定。
+- `/admin/*` 反复跳 `/login`：通常是没有嵌入 token，也没有有效的 `X-Aux-Session`。检查 iframe URL 查询参数、localStorage 中 `aux_admin_session` 的过期时间，以及 `SUB2API_EXTENSION_JWT_SECRET` 是否在部署中保持稳定。
 - 显示“无法连接 sub2api”：从 extension 容器执行健康请求，确认 Docker 网络、`SUB2API_BASE_URL`、DNS 和端口；这不是前端密码错误。
 - 直接访问 `/admin/dashboard`：没有 token 时应进入独立登录页；通过 sub2api 菜单进入时应走 session exchange。
 - 登录成功但 API 401：检查请求头是否是 `X-Aux-Session`，不要把 `X-Aux-Token`（嵌入 token）当作管理会话。

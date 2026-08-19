@@ -103,7 +103,7 @@ sub2api-extension is an independently-deployed web application that acts as a co
 - **Standard response envelope.** Every API returns `{code, message, reason?, data?}` via `internal/pkg/response`. `code:0` = success; on error `code` = HTTP status.
 - **Two distinct JWTs.** sub2api JWT (user-held, forwarded to sub2api for verification, never persisted by aux) vs aux-session JWT (self-signed HS256, stored in frontend localStorage, sent as `X-Aux-Session`). The two are never conflated — the session-exchange/login endpoints sit *outside* AdminGuard.
 - **KTD7 page-registry contract.** `frontend/src/lib/page-registry.ts` is the single source of truth for page identity. Routes, telemetry `page_id`, and the analytics dashboard all share the same id namespace. The backend deliberately does *not* hold the registry — it returns raw aggregated counts keyed by `page_id`; the frontend joins registry ↔ counts (zero-access pages show 0; deleted-page history is filtered out client-side).
-- **Same-origin single-image deploy.** Backend serves the built frontend dist via `AUX_FRONTEND_DIST`; frontend `api-client` uses relative `/api/aux`, so there is no CORS surface.
+- **Same-origin single-image deploy.** Backend serves the built frontend dist via `SUB2API_EXTENSION_FRONTEND_DIST`; frontend `api-client` uses relative `/api/aux`, so there is no CORS surface.
 
 ## Layers
 
@@ -217,7 +217,7 @@ sub2api-extension is an independently-deployed web application that acts as a co
 
 ### SPA Static Hosting
 
-1. On startup `registerFrontendStatic` (`router.go:87`) reads `AUX_FRONTEND_DIST`; if it points to a real dir, registers `/assets/*` → `dist/assets` and sets the package-level `indexHandler` to serve `index.html`.
+1. On startup `registerFrontendStatic` (`router.go:87`) reads `SUB2API_EXTENSION_FRONTEND_DIST`; if it points to a real dir, registers `/assets/*` → `dist/assets` and sets the package-level `indexHandler` to serve `index.html`.
 2. `NoRoute` (`router.go:59`): `/api/*` and `/health` → standard 404 envelope; other paths → `indexHandler` (SPA history fallback) if configured, else 404 envelope.
 
 **State Management:**
@@ -325,7 +325,7 @@ sub2api-extension is an independently-deployed web application that acts as a co
 
 **CORS:** None. Same-origin deploy (backend serves frontend). Dev mode uses Vite proxy (`vite.config.ts:22` `/api` → `http://127.0.0.1:8004`).
 
-**Configuration:** `backend/internal/config/config.go` — viper with env-var precedence (`DATABASE_*`, `SERVER_*`, `JWT_*`, `SUB2API_BASE_URL`, `AUX_FRONTEND_DIST`); optional `config.yaml`; `validate()` rejects missing required fields. `LoadFromEnv()` is the env-only path used by Docker.
+**Configuration:** `backend/internal/config/config.go` — viper with env-var precedence (`DATABASE_*`, `SERVER_*`, `JWT_*`, `SUB2API_BASE_URL`, `SUB2API_EXTENSION_FRONTEND_DIST`); optional `config.yaml`; `validate()` rejects missing required fields. `LoadFromEnv()` is the env-only path used by Docker.
 
 ---
 

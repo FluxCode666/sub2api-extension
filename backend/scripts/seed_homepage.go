@@ -28,14 +28,14 @@ func envOrAny(fallback string, keys ...string) string {
 }
 
 func main() {
-	// 优先使用与后端服务相同的 DATABASE_* 配置；AUX_POSTGRES_* 兼容部署环境。
+	// 优先使用与后端服务相同的 DATABASE_* 配置；SUB2API_EXTENSION_POSTGRES_* 用于开发 Compose。
 	dsn := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		envOrAny("127.0.0.1", "DATABASE_HOST", "AUX_POSTGRES_HOST"),
-		envOrAny("5432", "DATABASE_PORT", "AUX_POSTGRES_HOST_PORT"),
-		envOrAny("aux", "DATABASE_USER", "AUX_POSTGRES_USER"),
-		envOrAny("123456", "DATABASE_PASSWORD", "AUX_POSTGRES_PASSWORD"),
-		envOrAny("auxdb", "DATABASE_DBNAME", "AUX_POSTGRES_DB"),
+		envOrAny("127.0.0.1", "DATABASE_HOST", "SUB2API_EXTENSION_POSTGRES_HOST"),
+		envOrAny("5432", "DATABASE_PORT", "SUB2API_EXTENSION_POSTGRES_HOST_PORT"),
+		envOrAny("aux", "DATABASE_USER", "SUB2API_EXTENSION_POSTGRES_USER"),
+		envOrAny("123456", "DATABASE_PASSWORD", "SUB2API_EXTENSION_POSTGRES_PASSWORD"),
+		envOrAny("auxdb", "DATABASE_DBNAME", "SUB2API_EXTENSION_POSTGRES_DB"),
 	)
 
 	log.Printf("Connecting to database used by aux backend")

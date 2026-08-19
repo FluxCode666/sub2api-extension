@@ -36,16 +36,16 @@ func envOrAny(fallback string, keys ...string) string {
 }
 
 func main() {
-	// 优先使用与后端服务相同的 DATABASE_* 配置；AUX_POSTGRES_* 兼容独立 aux 数据库部署。
+	// 优先使用与后端服务相同的 DATABASE_* 配置；SUB2API_EXTENSION_POSTGRES_* 用于开发 Compose。
 	// 无环境变量时使用本地开发 Makefile 的 sub2api-postgres(127.0.0.1:15432)。
-	password := envOrAny("123456", "DATABASE_PASSWORD", "AUX_POSTGRES_PASSWORD", "DEV_DATABASE_PASSWORD")
+	password := envOrAny("123456", "DATABASE_PASSWORD", "SUB2API_EXTENSION_POSTGRES_PASSWORD", "DEV_DATABASE_PASSWORD")
 	dsn := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		envOrAny("127.0.0.1", "DATABASE_HOST", "AUX_POSTGRES_HOST"),
-		envOrAny("15432", "DATABASE_PORT", "AUX_POSTGRES_HOST_PORT"),
-		envOrAny("sub2api", "DATABASE_USER", "AUX_POSTGRES_USER"),
+		envOrAny("127.0.0.1", "DATABASE_HOST", "SUB2API_EXTENSION_POSTGRES_HOST"),
+		envOrAny("15432", "DATABASE_PORT", "SUB2API_EXTENSION_POSTGRES_HOST_PORT"),
+		envOrAny("sub2api", "DATABASE_USER", "SUB2API_EXTENSION_POSTGRES_USER"),
 		password,
-		envOrAny("sub2api", "DATABASE_DBNAME", "AUX_POSTGRES_DB"),
+		envOrAny("sub2api", "DATABASE_DBNAME", "SUB2API_EXTENSION_POSTGRES_DB"),
 	)
 
 	client, err := ent.Open("postgres", dsn)

@@ -163,7 +163,7 @@ Variables：
 |---|:---:|---|
 | `PUBLIC_URL` | 否 | 生产公网 URL，例如 `https://aux.example.com`；配置后会额外验证 `/health` 和 `/p/home` |
 
-> 变量名迁移：工作流已不再读取旧的 `TEST_AUX_DEPLOY_*`、`AUX_DEPLOY_*` 和 `AUX_PUBLIC_URL`。请在对应 GitHub Environment 中按上表新建/改名；旧密钥不会被自动兼容读取。Compose 服务器 `.env.test`/`.env` 中的 `AUX_*` 是容器运行时配置，当前仍保持不变。
+> 变量名迁移：工作流已不再读取旧的 `TEST_AUX_DEPLOY_*`、`AUX_DEPLOY_*` 和 `AUX_PUBLIC_URL`。请在对应 GitHub Environment 中按上表新建/改名；旧密钥不会被自动兼容读取。Compose 服务器 `.env.test`/`.env` 中的 `SUB2API_EXTENSION_*` 是项目运行时配置。
 
 工作流使用 GitHub 自动提供的 `GITHUB_TOKEN` 向 GHCR 推送镜像。服务器拉取私有镜像使用 `GHCR_PAT`；该 PAT 所属账号必须有镜像读取权限，组织启用 SSO 时还需完成授权。
 
@@ -187,22 +187,22 @@ cp /path/to/sub2api-extension/deploy/.env.test.example .env.test
 openssl rand -hex 32
 ```
 
-将生成值写入 `.env.test` 的 `AUX_JWT_SECRET`，并填写测试专用配置：
+将生成值写入 `.env.test` 的 `SUB2API_EXTENSION_JWT_SECRET`，并填写测试专用配置：
 
 ```dotenv
-AUX_IMAGE=ghcr.io/your-org/sub2api-extension
-AUX_IMAGE_TAG=test-latest
-AUX_CONTAINER_NAME=aux-backend-test
-AUX_SERVER_PORT=8787
+SUB2API_EXTENSION_IMAGE=ghcr.io/your-org/sub2api-extension
+SUB2API_EXTENSION_IMAGE_TAG=test-latest
+SUB2API_EXTENSION_CONTAINER_NAME=aux-backend-test
+SUB2API_EXTENSION_SERVER_PORT=8787
 DATABASE_HOST=<测试数据库地址>
 DATABASE_USER=<测试数据库用户>
 DATABASE_PASSWORD=<测试数据库密码>
 DATABASE_DBNAME=<测试数据库名>
 SUB2API_BASE_URL=<测试 sub2api 地址>
-AUX_JWT_SECRET=<测试专用随机密钥>
+SUB2API_EXTENSION_JWT_SECRET=<测试专用随机密钥>
 ```
 
-如果测试和生产在同一主机，测试必须改用独立宿主机端口，例如 `AUX_SERVER_PORT=8788`，并让测试 NGINX upstream 指向 `127.0.0.1:8788`。
+如果测试和生产在同一主机，测试必须改用独立宿主机端口，例如 `SUB2API_EXTENSION_SERVER_PORT=8788`，并让测试 NGINX upstream 指向 `127.0.0.1:8788`。
 
 测试部署使用外部 `sub2api-network`。首次部署前确认网络存在：
 
@@ -227,16 +227,16 @@ openssl rand -hex 32
 至少填写：
 
 ```dotenv
-AUX_IMAGE=ghcr.io/your-org/sub2api-extension
-AUX_IMAGE_TAG=latest
-AUX_CONTAINER_NAME=aux-backend
-AUX_PUBLIC_HOST=aux.example.com
+SUB2API_EXTENSION_IMAGE=ghcr.io/your-org/sub2api-extension
+SUB2API_EXTENSION_IMAGE_TAG=latest
+SUB2API_EXTENSION_CONTAINER_NAME=aux-backend
+SUB2API_EXTENSION_PUBLIC_HOST=aux.example.com
 DATABASE_HOST=<生产数据库地址>
 DATABASE_USER=<生产数据库用户>
 DATABASE_PASSWORD=<生产数据库密码>
 DATABASE_DBNAME=<生产数据库名>
 SUB2API_BASE_URL=<生产 sub2api 地址>
-AUX_JWT_SECRET=<生产专用随机密钥>
+SUB2API_EXTENSION_JWT_SECRET=<生产专用随机密钥>
 ```
 
 上传图片保存在 Compose 命名卷的 `/app/data/assets`，数据库只记录资源路径。发布容器不会删除该卷。测试 project 和生产 project 会创建不同的 `sub2api-extension-data` 命名卷。
@@ -285,8 +285,8 @@ Compose 默认只绑定 `127.0.0.1:8787`，公网流量应统一通过 NGINX HTT
 
 SSH 部署阶段会执行：
 
-1. 保存 `.env.test` 或 `.env` 中原有的 `AUX_IMAGE_TAG`。
-2. 更新 `AUX_IMAGE`、`AUX_IMAGE_TAG` 和 `AUX_CONTAINER_NAME`。
+1. 保存 `.env.test` 或 `.env` 中原有的 `SUB2API_EXTENSION_IMAGE_TAG`。
+2. 更新 `SUB2API_EXTENSION_IMAGE`、`SUB2API_EXTENSION_IMAGE_TAG` 和 `SUB2API_EXTENSION_CONTAINER_NAME`。
 3. 运行 `docker compose config -q`。
 4. 登录 GHCR 并拉取本次镜像。
 5. 使用 `docker compose up -d --remove-orphans aux-backend` 更新容器。
@@ -315,7 +315,7 @@ http://localhost:8787/health
 
 ```bash
 cd /opt/sub2api-extension
-sed -i 's/^AUX_IMAGE_TAG=.*/AUX_IMAGE_TAG=1.2.2/' .env
+sed -i 's/^SUB2API_EXTENSION_IMAGE_TAG=.*/SUB2API_EXTENSION_IMAGE_TAG=1.2.2/' .env
 docker compose -f docker-compose.yml --env-file .env pull aux-backend
 docker compose -f docker-compose.yml --env-file .env up -d aux-backend
 docker compose -f docker-compose.yml --env-file .env ps

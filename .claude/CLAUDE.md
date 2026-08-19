@@ -87,7 +87,7 @@ sub2api-extension 是 sub2api 的独立附属内容承载系统(Go + Ent 后端 
 - `backend/Makefile` - `dev`, `migrate`, `build`, `test`, `test-unit`, `test-integration`, `vet`, `fmt`, `tidy`. Version from `backend/cmd/server/VERSION` (currently `0.1.0`).
 - `frontend/vite.config.ts` - dev server on `0.0.0.0:3100`, proxies `/api` → `http://127.0.0.1:8004` (backend dev port from Makefile `DEV_SERVER_PORT=8004`).
 - `frontend/tsconfig.json` - strict mode, `noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch`, path alias `@/*` → `src/*`, `moduleResolution: bundler`, `jsx: react-jsx`.
-- `Dockerfile` - 3-stage multi-arch build: pnpm frontend build → Go backend build (CGO disabled) → Alpine runtime embedding frontend dist at `/app/frontend/dist` (env `AUX_FRONTEND_DIST=/app/frontend/dist`).
+- `Dockerfile` - 3-stage multi-arch build: pnpm frontend build → Go backend build (CGO disabled) → Alpine runtime embedding frontend dist at `/app/frontend/dist` (env `SUB2API_EXTENSION_FRONTEND_DIST=/app/frontend/dist`).
 
 ## Platform Requirements
 
@@ -250,7 +250,7 @@ sub2api-extension 是 sub2api 的独立附属内容承载系统(Go + Ent 后端 
 - **Standard response envelope.** Every API returns `{code, message, reason?, data?}` via `internal/pkg/response`. `code:0` = success; on error `code` = HTTP status.
 - **Two distinct JWTs.** sub2api JWT (user-held, forwarded to sub2api for verification, never persisted by aux) vs aux-session JWT (self-signed HS256, stored in frontend localStorage, sent as `X-Aux-Session`). The two are never conflated — the session-exchange/login endpoints sit *outside* AdminGuard.
 - **KTD7 page-registry contract.** `frontend/src/lib/page-registry.ts` is the single source of truth for page identity. Routes, telemetry `page_id`, and the analytics dashboard all share the same id namespace. The backend deliberately does *not* hold the registry — it returns raw aggregated counts keyed by `page_id`; the frontend joins registry ↔ counts (zero-access pages show 0; deleted-page history is filtered out client-side).
-- **Same-origin single-image deploy.** Backend serves the built frontend dist via `AUX_FRONTEND_DIST`; frontend `api-client` uses relative `/api/aux`, so there is no CORS surface.
+- **Same-origin single-image deploy.** Backend serves the built frontend dist via `SUB2API_EXTENSION_FRONTEND_DIST`; frontend `api-client` uses relative `/api/aux`, so there is no CORS surface.
 
 ## Layers
 
@@ -314,7 +314,7 @@ sub2api-extension 是 sub2api 的独立附属内容承载系统(Go + Ent 后端 
 
 - **Public read (no guard):** `frontend/src/pages/DynamicPage.tsx` → `GET /api/aux/pages/:slug` → `PagePublicHandler.GetBySlug` → `PageService.GetPublicBySlug` → `pages` 表；HTML 交给 `SandboxRenderer`，React 代码交给动态编译器。
 - **Admin read/write (AdminGuard):** `PageManagementPage.tsx` → `GET/POST/PUT/DELETE /api/aux/admin/pages/*` → `PageHandler`/`PageService` → `pages` 表。官网 `/p/home` 和 Sub2API 官网 `/p/sub2api-home` 都通过 seed 或该管理页维护。
-- **Image flow:** `ImageAssetsPage.tsx` → `/api/aux/admin/assets` 上传/列表，文件写入 `AUX_ASSET_DIR`，数据库 `image_assets.path` 只保存安全相对路径，公开 URL 为 `/api/aux/assets/:id`。
+- **Image flow:** `ImageAssetsPage.tsx` → `/api/aux/admin/assets` 上传/列表，文件写入 `SUB2API_EXTENSION_ASSET_DIR`，数据库 `image_assets.path` 只保存安全相对路径，公开 URL 为 `/api/aux/assets/:id`。
 
 ### SPA Static Hosting
 

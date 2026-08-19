@@ -32,8 +32,8 @@ cp .env.dev.example .env.dev
 至少设置：
 
 ```bash
-AUX_POSTGRES_PASSWORD=<强密码>
-AUX_JWT_SECRET=<openssl rand -hex 32 的输出>
+SUB2API_EXTENSION_POSTGRES_PASSWORD=<强密码>
+SUB2API_EXTENSION_JWT_SECRET=<openssl rand -hex 32 的输出>
 SUB2API_BASE_URL=http://sub2api:8080
 ```
 
@@ -59,7 +59,7 @@ curl http://localhost:8787/health
 ```bash
 cd sub2api-extension/deploy
 cp .env.example .env
-# 填写 AUX_IMAGE、AUX_IMAGE_TAG、DATABASE_*、SUB2API_BASE_URL、AUX_JWT_SECRET
+# 填写 SUB2API_EXTENSION_IMAGE、SUB2API_EXTENSION_IMAGE_TAG、DATABASE_*、SUB2API_BASE_URL、SUB2API_EXTENSION_JWT_SECRET
 docker compose -f docker-compose.yml --env-file .env up -d
 ```
 

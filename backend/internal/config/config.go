@@ -91,9 +91,9 @@ func Load() (*Config, error) {
 	// 环境变量支持
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	// AutomaticEnv 只会读取已绑定/默认的键；显式绑定确保 AUX_ASSET_DIR
+	// AutomaticEnv 只会读取已绑定/默认的键；显式绑定确保 SUB2API_EXTENSION_ASSET_DIR
 	// 能覆盖 assets.dir（尤其是生产容器的 /app/data/assets）。
-	_ = viper.BindEnv("assets.dir", "AUX_ASSET_DIR")
+	_ = viper.BindEnv("assets.dir", "SUB2API_EXTENSION_ASSET_DIR")
 
 	setDefaults()
 
@@ -224,7 +224,7 @@ func LoadFromEnv() (*Config, error) {
 			ExpireHour: getEnvInt("JWT_EXPIRE_HOUR", 24),
 		},
 		Assets: AssetConfig{
-			Dir: getEnv("AUX_ASSET_DIR", "data/assets"),
+			Dir: getEnv("SUB2API_EXTENSION_ASSET_DIR", "data/assets"),
 		},
 	}
 

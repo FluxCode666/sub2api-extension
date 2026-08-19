@@ -212,10 +212,10 @@ jobs:
               return 1
             }
 
-            PREVIOUS_TAG=$(sed -n 's/^AUX_IMAGE_TAG=//p' "$ENV_FILE" | tail -n 1)
-            update_env AUX_IMAGE "$GHCR_IMAGE"
-            update_env AUX_IMAGE_TAG "$IMAGE_TAG"
-            update_env AUX_CONTAINER_NAME aux-backend-test
+            PREVIOUS_TAG=$(sed -n 's/^SUB2API_EXTENSION_IMAGE_TAG=//p' "$ENV_FILE" | tail -n 1)
+            update_env SUB2API_EXTENSION_IMAGE "$GHCR_IMAGE"
+            update_env SUB2API_EXTENSION_IMAGE_TAG "$IMAGE_TAG"
+            update_env SUB2API_EXTENSION_CONTAINER_NAME aux-backend-test
 
             compose config -q
             if [ -n "$GHCR_PAT" ]; then
@@ -230,7 +230,7 @@ jobs:
               compose logs --tail=100 aux-backend || true
               if [ -n "$PREVIOUS_TAG" ] && [ "$PREVIOUS_TAG" != "$IMAGE_TAG" ]; then
                 echo "Rolling back to $PREVIOUS_TAG"
-                update_env AUX_IMAGE_TAG "$PREVIOUS_TAG"
+                update_env SUB2API_EXTENSION_IMAGE_TAG "$PREVIOUS_TAG"
                 compose pull aux-backend || true
                 compose up -d --remove-orphans aux-backend || true
                 wait_healthy || true

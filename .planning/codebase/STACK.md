@@ -76,7 +76,7 @@
 - `backend/Makefile` - `dev`, `migrate`, `build`, `test`, `test-unit`, `test-integration`, `vet`, `fmt`, `tidy`. Version from `backend/cmd/server/VERSION` (currently `0.1.0`).
 - `frontend/vite.config.ts` - dev server on `0.0.0.0:3100`, proxies `/api` → `http://127.0.0.1:8004` (backend dev port from Makefile `DEV_SERVER_PORT=8004`).
 - `frontend/tsconfig.json` - strict mode, `noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch`, path alias `@/*` → `src/*`, `moduleResolution: bundler`, `jsx: react-jsx`.
-- `Dockerfile` - 3-stage multi-arch build: pnpm frontend build → Go backend build (CGO disabled) → Alpine runtime embedding frontend dist at `/app/frontend/dist` (env `AUX_FRONTEND_DIST=/app/frontend/dist`).
+- `Dockerfile` - 3-stage multi-arch build: pnpm frontend build → Go backend build (CGO disabled) → Alpine runtime embedding frontend dist at `/app/frontend/dist` (env `SUB2API_EXTENSION_FRONTEND_DIST=/app/frontend/dist`).
 
 ## Platform Requirements
 

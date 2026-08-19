@@ -153,7 +153,7 @@ sub2api-extension/
 - `frontend/vite.config.ts`: Vite/Vitest config + dev proxy (`/api` → `127.0.0.1:8004`).
 - `frontend/tsconfig.json`: TS strict + `@/*` path alias.
 - `frontend/tailwind.config.js`: `darkMode: 'class'`, content globs.
-- `Dockerfile`: 3-stage build; sets `AUX_FRONTEND_DIST=/app/frontend/dist`.
+- `Dockerfile`: 3-stage build; sets `SUB2API_EXTENSION_FRONTEND_DIST=/app/frontend/dist`.
 
 **Core Logic:**
 - `backend/internal/service/auth_service.go`: sub2api forward-verify + aux JWT issue/validate + TTL cache.
@@ -187,7 +187,7 @@ sub2api-extension/
 - Exported types: `PascalCase` (`AuthService`, `TelemetryHandler`, `Sub2APIClient`, `OverviewResponse`).
 - Errors: `Err<Name>` sentinels (`ErrNotAdmin`, `ErrInvalidToken`, `ErrSub2APIUnreachable`).
 - Constructors: `New<Thing>(...)` (`NewAuthService`, `NewTelemetryHandler`, `NewEntTelemetryStore`).
-- Config env vars: `UPPER_SNAKE` prefixed by section (`DATABASE_HOST`, `JWT_SECRET`, `SUB2API_BASE_URL`, `AUX_FRONTEND_DIST`).
+- Config env vars: `UPPER_SNAKE` prefixed by section (`DATABASE_HOST`, `JWT_SECRET`, `SUB2API_BASE_URL`, `SUB2API_EXTENSION_FRONTEND_DIST`).
 
 **Frontend files (TS/TSX):**
 - Components/layouts/pages: `PascalCase.tsx` (`AdminGuard.tsx`, `DashboardPage.tsx`, `AdminLayout.tsx`).

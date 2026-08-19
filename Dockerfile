@@ -8,7 +8,7 @@
 # Stage 3: 最终运行时镜像（后端内嵌前端 dist，单进程同源托管）
 #
 # 镜像风格参考 sub2api/Dockerfile（多阶段 + 缓存挂载 + 非根用户）。
-# 后端在运行时通过 AUX_FRONTEND_DIST 环境变量指向 /app/frontend/dist，
+# 后端在运行时通过 SUB2API_EXTENSION_FRONTEND_DIST 环境变量指向 /app/frontend/dist，
 # 由 router.go 的 registerFrontendStatic 托管 SPA（同源，避免 CORS）。
 # =============================================================================
 
@@ -123,6 +123,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
 USER aux
 
 # 运行时环境变量：后端静态托管前端 dist
-ENV AUX_FRONTEND_DIST=/app/frontend/dist
+ENV SUB2API_EXTENSION_FRONTEND_DIST=/app/frontend/dist
 
 ENTRYPOINT ["/app/aux-server"]

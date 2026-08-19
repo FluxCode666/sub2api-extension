@@ -19,7 +19,7 @@ func clearEnv(t *testing.T) {
 		"DATABASE_PASSWORD", "DATABASE_DBNAME", "DATABASE_SSLMODE",
 		"SUB2API_BASE_URL",
 		"JWT_SECRET", "JWT_EXPIRE_HOUR",
-		"AUX_ASSET_DIR",
+		"SUB2API_EXTENSION_ASSET_DIR",
 	}
 	for _, k := range keys {
 		t.Setenv(k, "")
@@ -155,7 +155,7 @@ func TestLoadFromEnv_AssetDirectoryOverride(t *testing.T) {
 	t.Setenv("DATABASE_DBNAME", "auxdb")
 	t.Setenv("JWT_SECRET", "test-secret-key")
 	t.Setenv("SUB2API_BASE_URL", "http://sub2api:8080")
-	t.Setenv("AUX_ASSET_DIR", "/persist/uploads")
+	t.Setenv("SUB2API_EXTENSION_ASSET_DIR", "/persist/uploads")
 
 	cfg, err := LoadFromEnv()
 	require.NoError(t, err)

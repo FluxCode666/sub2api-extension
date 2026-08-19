@@ -10,7 +10,7 @@ description: 修改或排查 sub2api-extension 的 Docker、Compose、GitHub Act
 - 项目展示名和 GHCR 镜像名：`sub2api-extension`。
 - 测试镜像：`ghcr.io/<owner>/sub2api-extension:test-<sha7>` 与 `test-latest`。
 - 生产镜像：`ghcr.io/<owner>/sub2api-extension:<version>` 与 `latest`。
-- 为兼容既有 sub2api 集成，Compose 服务名仍是 `aux-backend`，容器运行时环境变量仍使用 `AUX_*`，API 前缀仍是 `/api/aux/*`。GitHub Environment 的部署密钥和变量使用无 `AUX_` 前缀的名称。
+- 为兼容既有 sub2api 集成，Compose 服务名仍是 `aux-backend`，API 前缀仍是 `/api/aux/*`；项目环境变量统一使用 `SUB2API_EXTENSION_*` 前缀。GitHub Environment 的部署密钥和变量继续使用无项目前缀的名称。
 - 不要把数据库密码、JWT、PAT 或 SSH 私钥写入仓库、页面元数据或动态 HTML。
 
 ## GitHub Actions
@@ -32,7 +32,7 @@ Environment Secrets（测试环境使用 `TEST_` 区分，生产环境由 Enviro
 - 生产：`DEPLOY_HOST`、`DEPLOY_USER`、`DEPLOY_PASSWORD` 或 `DEPLOY_SSH_KEY`、`DEPLOY_PORT`、`DEPLOY_PATH`、`DEPLOY_FINGERPRINT`、`GHCR_PAT`。
 - 可选 Environment Variable：`PUBLIC_URL`，配置后从 runner 验证 `/health` 和 `/p/home`。
 
-工作流不再读取旧的 `TEST_AUX_DEPLOY_*`、`AUX_DEPLOY_*` 或 `AUX_PUBLIC_URL`；改名时需在 GitHub Environment 中重新创建对应条目。服务器 `.env.test`/`.env` 的 Compose 运行时 `AUX_*` 配置不属于这次改名范围。
+工作流不再读取旧的 `TEST_AUX_DEPLOY_*`、`AUX_DEPLOY_*` 或 `AUX_PUBLIC_URL`；改名时需在 GitHub Environment 中重新创建对应条目。服务器 `.env.test`/`.env` 的 Compose 运行时变量统一使用 `SUB2API_EXTENSION_*`。
 
 不要绕过质量门禁直接在部署 job 中构建；镜像必须在 reusable `ci.yml` 通过后才构建。部署脚本必须使用 `docker compose config -q`、拉取镜像、等待 `healthy`，失败时打印有限日志并尝试恢复上一版本标签。
 

@@ -410,8 +410,8 @@ func TestSetupRouter_AnalyticsEndpointNilHandlerSkipped(t *testing.T) {
 
 func TestSetupRouter_FrontendStaticSkippedWithoutEnv(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	// 不设置 AUX_FRONTEND_DIST → 静态托管跳过, 非 API 路径应 404
-	os.Unsetenv("AUX_FRONTEND_DIST")
+	// 不设置 SUB2API_EXTENSION_FRONTEND_DIST → 静态托管跳过, 非 API 路径应 404
+	os.Unsetenv("SUB2API_EXTENSION_FRONTEND_DIST")
 	cfg := newTestConfig()
 	healthHandler := web.NewHealthHandler()
 	authHandler, authService := newTestAuthDeps()
@@ -421,7 +421,7 @@ func TestSetupRouter_FrontendStaticSkippedWithoutEnv(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	require.Equal(t, http.StatusNotFound, w.Code, "未设置 AUX_FRONTEND_DIST 时非 API 路径应 404")
+	require.Equal(t, http.StatusNotFound, w.Code, "未设置 SUB2API_EXTENSION_FRONTEND_DIST 时非 API 路径应 404")
 }
 
 func TestSetupRouter_FrontendStaticServesIndexForSPARoutes(t *testing.T) {
@@ -433,7 +433,7 @@ func TestSetupRouter_FrontendStaticServesIndexForSPARoutes(t *testing.T) {
 	assetsDir := filepath.Join(distDir, "assets")
 	require.NoError(t, os.MkdirAll(assetsDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(assetsDir, "app.js"), []byte("console.log(1)"), 0o644))
-	t.Setenv("AUX_FRONTEND_DIST", distDir)
+	t.Setenv("SUB2API_EXTENSION_FRONTEND_DIST", distDir)
 
 	cfg := newTestConfig()
 	healthHandler := web.NewHealthHandler()
@@ -470,8 +470,8 @@ func TestSetupRouter_FrontendStaticServesIndexForSPARoutes(t *testing.T) {
 
 func TestSetupRouter_FrontendStaticSkippedForNonexistentDir(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	// AUX_FRONTEND_DIST 指向不存在的目录 → 静默跳过
-	t.Setenv("AUX_FRONTEND_DIST", "/nonexistent/path/that/does/not/exist")
+	// SUB2API_EXTENSION_FRONTEND_DIST 指向不存在的目录 → 静默跳过
+	t.Setenv("SUB2API_EXTENSION_FRONTEND_DIST", "/nonexistent/path/that/does/not/exist")
 	cfg := newTestConfig()
 	healthHandler := web.NewHealthHandler()
 	authHandler, authService := newTestAuthDeps()

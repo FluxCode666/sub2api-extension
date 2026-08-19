@@ -6,7 +6,7 @@
 #
 # 与 deploy/docker-compose.dev.yml（开发用，含 postgres、从源码 build）的区别：
 #   - 仅 aux-backend 一个服务
-#   - image 从 GHCR 拉取（${AUX_IMAGE}:${AUX_IMAGE_TAG}），不 build
+#   - image 从 GHCR 拉取（${SUB2API_EXTENSION_IMAGE}:${SUB2API_EXTENSION_IMAGE_TAG}），不 build
 #   - DATABASE_* 指向外部 PostgreSQL
 #
 # 网络互联：
@@ -21,15 +21,15 @@
 #   1. cp .env.example .env  并填写实际值
 #   2. docker compose -f docker-compose.yml --env-file .env up -d
 #   3. 查看日志: docker compose -f docker-compose.yml --env-file .env logs -f aux-backend
-#   4. 健康检查: curl http://127.0.0.1:${AUX_SERVER_PORT:-8787}/health
+#   4. 健康检查: curl http://127.0.0.1:${SUB2API_EXTENSION_SERVER_PORT:-8787}/health
 # =============================================================================
 
 name: sub2api-extension
 
 services:
   aux-backend:
-    image: ${AUX_IMAGE:?AUX_IMAGE is required}:${AUX_IMAGE_TAG:?AUX_IMAGE_TAG is required}
-    container_name: ${AUX_CONTAINER_NAME:-aux-backend}
+    image: ${SUB2API_EXTENSION_IMAGE:?SUB2API_EXTENSION_IMAGE is required}:${SUB2API_EXTENSION_IMAGE_TAG:?SUB2API_EXTENSION_IMAGE_TAG is required}
+    container_name: ${SUB2API_EXTENSION_CONTAINER_NAME:-aux-backend}
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -45,7 +45,7 @@ services:
     ports:
       # 生产默认只绑定本机，由 deploy/nginx 目录中的 NGINX 对外提供 HTTPS。
       # 同一 Docker 网络内的 sub2api 仍直接访问 aux-backend:8787，不受此映射影响。
-      - "${BIND_HOST:-127.0.0.1}:${AUX_SERVER_PORT:-8787}:8787"
+      - "${BIND_HOST:-127.0.0.1}:${SUB2API_EXTENSION_SERVER_PORT:-8787}:8787"
     environment:
       # ---- 服务器配置 ----
       - SERVER_HOST=0.0.0.0
@@ -67,14 +67,14 @@ services:
 
       # ---- JWT 配置（附属系统管理员会话签名）----
       # 重要：设置固定 JWT_SECRET，避免容器重启后会话失效。生成: openssl rand -hex 32
-      - JWT_SECRET=${AUX_JWT_SECRET:?AUX_JWT_SECRET is required}
-      - JWT_EXPIRE_HOUR=${AUX_JWT_EXPIRE_HOUR:-24}
+      - JWT_SECRET=${SUB2API_EXTENSION_JWT_SECRET:?SUB2API_EXTENSION_JWT_SECRET is required}
+      - JWT_EXPIRE_HOUR=${SUB2API_EXTENSION_JWT_EXPIRE_HOUR:-24}
 
       # ---- 前端静态托管（Dockerfile 已默认设置，这里显式声明）----
-      - AUX_FRONTEND_DIST=/app/frontend/dist
+      - SUB2API_EXTENSION_FRONTEND_DIST=${SUB2API_EXTENSION_FRONTEND_DIST:-/app/frontend/dist}
 
       # ---- 上传资源持久化：图片与系统数据共用同一卷 ----
-      - AUX_ASSET_DIR=/app/data/assets
+      - SUB2API_EXTENSION_ASSET_DIR=${SUB2API_EXTENSION_ASSET_DIR:-/app/data/assets}
 
       # ---- 时区 ----
       - TZ=${TZ:-Asia/Shanghai}

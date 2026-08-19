@@ -33,7 +33,7 @@ sudo systemctl reload nginx
 ```bash
 cd deploy
 cp .env.example .env
-# 填写 AUX_IMAGE、DATABASE_*、SUB2API_BASE_URL、AUX_JWT_SECRET、AUX_PUBLIC_HOST
+# 填写 SUB2API_EXTENSION_IMAGE、DATABASE_*、SUB2API_BASE_URL、SUB2API_EXTENSION_JWT_SECRET、SUB2API_EXTENSION_PUBLIC_HOST
 docker compose -f docker-compose.yml --env-file .env up -d
 
 curl http://127.0.0.1:8787/health

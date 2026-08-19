@@ -108,8 +108,8 @@ cp .env.dev.example .env.dev
 编辑 `.env.dev`，至少设置三个必需项：
 
 ```bash
-AUX_POSTGRES_PASSWORD=<强密码>          # 附属系统自有 PostgreSQL
-AUX_JWT_SECRET=$(openssl rand -hex 32) # 附属系统会话签名密钥
+SUB2API_EXTENSION_POSTGRES_PASSWORD=<强密码>          # 附属系统自有 PostgreSQL
+SUB2API_EXTENSION_JWT_SECRET=$(openssl rand -hex 32) # 附属系统会话签名密钥
 ```
 
 启动并验证：
@@ -141,7 +141,7 @@ docker compose --project-name sub2api-extension-test \
 ```bash
 cd deploy
 cp .env.example .env
-# 填入: AUX_IMAGE / AUX_IMAGE_TAG / AUX_PUBLIC_HOST / DATABASE_* / SUB2API_* / AUX_JWT_SECRET
+# 填入: SUB2API_EXTENSION_IMAGE / SUB2API_EXTENSION_IMAGE_TAG / SUB2API_EXTENSION_PUBLIC_HOST / DATABASE_* / SUB2API_* / SUB2API_EXTENSION_JWT_SECRET
 docker compose -f docker-compose.yml --env-file .env up -d
 ```
 
@@ -177,7 +177,7 @@ make migrate
 make dev
 ```
 
-`make migrate` 也会创建 `image_assets` 表；图片文件本身写入 `AUX_ASSET_DIR`，数据库只保存相对路径。
+`make migrate` 也会创建 `image_assets` 表；图片文件本身写入 `SUB2API_EXTENSION_ASSET_DIR`，数据库只保存相对路径。
 
 `make dev` 通过环境变量注入开发配置：
 
@@ -257,13 +257,13 @@ pnpm build           # tsc -b && vite build
 
 | 变量 | 说明 | 默认 |
 |------|------|------|
-| `AUX_SERVER_PORT` | 宿主机映射端口 | `8787` |
+| `SUB2API_EXTENSION_SERVER_PORT` | 宿主机映射端口 | `8787` |
 | `BIND_HOST` | 宿主机端口绑定地址；生产 NGINX 模式建议本机 | `127.0.0.1`（生产示例） |
-| `AUX_PUBLIC_HOST` | NGINX `server_name` 与证书使用的公网域名（应用本身不读取） | `aux.example.com` |
-| `AUX_POSTGRES_PASSWORD` | 自有 PG 密码（**必需**） | — |
+| `SUB2API_EXTENSION_PUBLIC_HOST` | NGINX `server_name` 与证书使用的公网域名（应用本身不读取） | `aux.example.com` |
+| `SUB2API_EXTENSION_POSTGRES_PASSWORD` | 自有 PG 密码（**必需**） | — |
 | `SUB2API_BASE_URL` | sub2api 后端地址 | `http://sub2api:8080` |
-| `AUX_JWT_SECRET` | 会话签名密钥（**必需**） | — |
-| `AUX_JWT_EXPIRE_HOUR` | 会话有效期（小时） | `24` |
+| `SUB2API_EXTENSION_JWT_SECRET` | 会话签名密钥（**必需**） | — |
+| `SUB2API_EXTENSION_JWT_EXPIRE_HOUR` | 会话有效期（小时） | `24` |
 | `SERVER_MODE` | `release` / `debug` | `release` |
 | `TZ` | 时区 | `Asia/Shanghai` |
 

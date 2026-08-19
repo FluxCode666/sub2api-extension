@@ -52,7 +52,7 @@ func SetupRouter(cfg *config.Config, healthHandler *web.HealthHandler, authHandl
 	// 附属系统 API 路由分组
 	registerAuxRoutes(r, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, optionalHandlers...)
 
-	// 静态前端托管（U7）：当 AUX_FRONTEND_DIST 环境变量指向已构建的前端 dist 目录时，
+	// 静态前端托管（U7）：当 SUB2API_EXTENSION_FRONTEND_DIST 环境变量指向已构建的前端 dist 目录时，
 	// 由后端托管 SPA。前端 api-client 使用相对路径 /api/aux，同源托管避免 CORS。
 	// 不设置环境变量时跳过（开发模式前后端分离运行）。
 	// 不影响 /health 与 /api/aux/* 路由。
@@ -83,13 +83,13 @@ var indexHandler gin.HandlerFunc
 
 // registerFrontendStatic 注册前端 SPA 静态托管。
 //
-// 当 AUX_FRONTEND_DIST 指向存在的目录时：
+// 当 SUB2API_EXTENSION_FRONTEND_DIST 指向存在的目录时：
 //   - /assets/* 直接映射到 dist/assets/*
 //   - 其余非 /health、非 /api/ 路径返回 index.html（SPA history fallback, 经 NoRoute）
 //
 // 环境变量未设置或目录不存在时静默跳过（不影响 API 与健康检查）。
 func registerFrontendStatic(r *gin.Engine) {
-	distDir := strings.TrimSpace(os.Getenv("AUX_FRONTEND_DIST"))
+	distDir := strings.TrimSpace(os.Getenv("SUB2API_EXTENSION_FRONTEND_DIST"))
 	if distDir == "" {
 		return
 	}
