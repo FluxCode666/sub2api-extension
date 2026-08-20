@@ -18,6 +18,9 @@ func clearEnv(t *testing.T) {
 		"DATABASE_HOST", "DATABASE_PORT", "DATABASE_USER",
 		"DATABASE_PASSWORD", "DATABASE_DBNAME", "DATABASE_SSLMODE",
 		"SUB2API_BASE_URL",
+		"SUB2API_EXTENSION_PUBLIC_URL",
+		"SUB2API_DATABASE_HOST", "SUB2API_DATABASE_PORT", "SUB2API_DATABASE_USER",
+		"SUB2API_DATABASE_PASSWORD", "SUB2API_DATABASE_DBNAME", "SUB2API_DATABASE_SSLMODE",
 		"JWT_SECRET", "JWT_EXPIRE_HOUR",
 		"SUB2API_EXTENSION_ASSET_DIR",
 	}
@@ -50,6 +53,28 @@ func TestLoadFromEnv_Success(t *testing.T) {
 	assert.Equal(t, "test-secret-key", cfg.JWT.Secret)
 	assert.Equal(t, 9999, cfg.Server.Port)
 	assert.Equal(t, "https://sub2api.example.com", cfg.Sub2API.BaseURL)
+}
+
+func TestLoadFromEnv_Sub2APIDatabaseAndPublicURL(t *testing.T) {
+	clearEnv(t)
+	t.Setenv("DATABASE_HOST", "db.example.com")
+	t.Setenv("DATABASE_USER", "aux")
+	t.Setenv("DATABASE_DBNAME", "auxdb")
+	t.Setenv("JWT_SECRET", "test-secret-key")
+	t.Setenv("SUB2API_BASE_URL", "http://sub2api:8080")
+	t.Setenv("SUB2API_EXTENSION_PUBLIC_URL", "https://aux.example.com/")
+	t.Setenv("SUB2API_DATABASE_HOST", "postgres")
+	t.Setenv("SUB2API_DATABASE_PORT", "5433")
+	t.Setenv("SUB2API_DATABASE_USER", "sub2api")
+	t.Setenv("SUB2API_DATABASE_PASSWORD", "secret")
+	t.Setenv("SUB2API_DATABASE_DBNAME", "sub2api")
+
+	cfg, err := LoadFromEnv()
+	require.NoError(t, err)
+	assert.Equal(t, "https://aux.example.com", cfg.Sub2API.PublicURL)
+	assert.Equal(t, "postgres", cfg.Sub2API.Database.Host)
+	assert.Equal(t, 5433, cfg.Sub2API.Database.Port)
+	assert.Equal(t, "sub2api", cfg.Sub2API.Database.DBName)
 }
 
 func TestLoadFromEnv_MissingDBHost(t *testing.T) {

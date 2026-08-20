@@ -2,7 +2,8 @@
  * SandboxRenderer —— 在隔离的 iframe 沙箱中渲染用户提供的 HTML 内容。
  *
  * 安全模型(Pitfall 1/2):
- *   - sandbox="allow-scripts" 且不含 allow-same-origin → iframe 获得唯一 opaque origin,
+ *   - sandbox="allow-scripts allow-top-navigation-by-user-activation" 且不含
+ *     allow-same-origin → iframe 获得唯一 opaque origin；只有用户点击链接时才能离开沙箱,
  *     无法访问父应用 localStorage/JWT/Cookie/DOM。用户脚本被隔离。
  *   - srcdoc 注入内容(不经过主 DOM), 严格 CSP 限制: default-src 'none',
  *     script/style 只允许内联，合作伙伴 icon 仅允许 https/data 图片。
@@ -169,10 +170,16 @@ export default function SandboxRenderer({
           const targetName = typeof data.target === 'string' ? data.target.toLowerCase() : '_self'
           if (targetName === '_blank') {
             // postMessage 会跨一个任务边界，部分浏览器可能阻止弹窗；失败时
-            // 降级为当前窗口导航，确保链接始终可用且不会回到 iframe。
+            // 降级为顶层窗口导航，确保链接始终可用且不会回到 iframe。
             const opened = window.open(target.href, '_blank', 'noopener,noreferrer')
-            if (!opened) window.location.assign(target.href)
+            if (!opened) navigateTopLevel(target.href)
+          } else if (target.origin !== window.location.origin) {
+            // External links must leave the extension iframe. Navigating the
+            // nested document to the host application's own URL makes the
+            // host try to frame itself and violates its frame-src policy.
+            navigateTopLevel(target.href)
           } else {
+            // Keep extension-local links inside the current extension frame.
             window.location.assign(target.href)
           }
         } catch {
@@ -256,12 +263,16 @@ ${expandsToContent ? FRAME_SIZE_BOOTSTRAP : ''}
     ? `aux-sandbox-iframe aux-sandbox-iframe--full-bleed${scrollWithinFrame ? ' aux-sandbox-iframe--scroll-frame' : ''} w-full border-0 bg-white dark:bg-gray-950`
     : 'aux-sandbox-iframe h-[70dvh] w-full border-0 bg-white dark:bg-gray-950'
 
+  // Permit only user-activated links to leave the sandbox. Without this
+  // token, browsers reject window.top navigation and fall back to navigating
+  // the nested iframe (which triggers the host CSP error for links such as
+  // code.teralemo.com/dashboard).
   return (
     <div className={frameClassName}>
       <iframe
         ref={iframeRef}
         srcDoc={srcdoc}
-        sandbox="allow-scripts"
+        sandbox="allow-scripts allow-top-navigation-by-user-activation"
         title={title ?? '动态页面内容'}
         className={iframeClassName}
         style={expandsToContent && contentHeight ? { height: `${contentHeight}px` } : undefined}
@@ -270,6 +281,21 @@ ${expandsToContent ? FRAME_SIZE_BOOTSTRAP : ''}
       />
     </div>
   )
+}
+
+function navigateTopLevel(href: string): void {
+  try {
+    if (window.top && window.top !== window) {
+      // Assigning top.location is permitted for cross-origin child frames,
+      // while reading the location remains protected by the same-origin rule.
+      window.top.location.href = href
+      return
+    }
+  } catch {
+    // Fall back to the current window below when a browser blocks the top
+    // navigation assignment (for example in a restricted embedded context).
+  }
+  window.location.assign(href)
 }
 
 function isSafeNavigationProtocol(protocol: string): boolean {

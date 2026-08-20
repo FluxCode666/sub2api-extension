@@ -4,7 +4,7 @@
  * /admin/pages: 列出所有动态页面(标题/slug/路由/可见性/状态/操作)。
  * 创建/编辑: Dialog 表单(Monaco 编辑器编辑 HTML, slug 实时校验, 可见性/内容类型选择)。
  * 删除: 确认对话框(提示埋点历史保留)。
- * 启停: Switch 切换 enabled。
+ * 启停: Switch 切换 enabled；支持按选择导出和 JSON 导入。
  *
  * Monaco 编辑器懒加载(React.lazy), 避免拖慢主 bundle。
  */
@@ -40,7 +40,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Plus, Pencil, Trash2, Loader2, RefreshCw } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, RefreshCw, Download, Upload } from 'lucide-react'
 import { MENU_ICON_OPTIONS } from '@/lib/menu-icons'
 import { toast } from 'sonner'
 
@@ -59,13 +59,39 @@ interface PageListItem {
   page_id: string
   menu_icon?: string
   updated_at: string
+  sub2api_published: boolean
+  sub2api_visibility?: 'user' | 'admin'
+  sub2api_menu_name?: string
 }
 
 /** 后端 Page(含内容, 编辑时获取)。 */
 interface PageDetail extends PageListItem {
   content_html?: string
   content_react?: string
-  metadata?: Record<string, string>
+  metadata?: Record<string, unknown>
+}
+
+/** 页面导入/导出文件格式。id 不写入文件，导入时按路由匹配已有页面。 */
+interface PageTransferItem {
+  slug: string
+  title: string
+  visibility: 'public' | 'admin'
+  content_type: 'html' | 'react'
+  content_html: string
+  content_react: string
+  metadata: Record<string, unknown>
+  enabled: boolean
+  route: string
+  sub2api_published?: boolean
+  sub2api_visibility?: 'user' | 'admin'
+  sub2api_menu_name?: string
+}
+
+interface PageTransferDocument {
+  format: 'sub2api-extension-pages'
+  version: 1
+  exported_at: string
+  pages: PageTransferItem[]
 }
 
 interface PageListResponse {
@@ -82,6 +108,9 @@ interface PageForm {
   metadata: Record<string, string>
   menu_icon: string
   enabled: boolean
+  sub2api_published: boolean
+  sub2api_visibility: 'user' | 'admin'
+  sub2api_menu_name: string
 }
 
 /** 元数据编辑行的 UI 状态；id 不会随着用户修改键名而变化。 */
@@ -109,9 +138,77 @@ const EMPTY_FORM: PageForm = {
   metadata: {},
   menu_icon: 'menu',
   enabled: true,
+  sub2api_published: false,
+  sub2api_visibility: 'user',
+  sub2api_menu_name: '',
 }
 
 const MAX_CONTENT_BYTES = 256 * 1024
+
+function pageRouteFor(slug: string, visibility: 'public' | 'admin'): string {
+  return visibility === 'admin' ? `/admin/p/${slug}` : `/p/${slug}`
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {}
+}
+
+function normalizeTransferItem(value: unknown, index: number): PageTransferItem {
+  const source = asRecord(value)
+  const slug = typeof source.slug === 'string' ? source.slug.trim().toLowerCase() : ''
+  const title = typeof source.title === 'string' ? source.title.trim() : ''
+  const visibility = source.visibility === 'admin' ? 'admin' : 'public'
+  const contentType = source.content_type === 'react' ? 'react' : 'html'
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(slug)) {
+    throw new Error(`第 ${index + 1} 个页面的 slug 无效`)
+  }
+  if (!title) {
+    throw new Error(`第 ${index + 1} 个页面缺少标题`)
+  }
+  const sub2apiVisibility = source.sub2api_visibility === 'admin' ? 'admin' : 'user'
+  return {
+    slug,
+    title,
+    visibility,
+    content_type: contentType,
+    content_html: typeof source.content_html === 'string' ? source.content_html : '',
+    content_react: typeof source.content_react === 'string' ? source.content_react : '',
+    metadata: asRecord(source.metadata),
+    enabled: source.enabled !== false,
+    route: pageRouteFor(slug, visibility),
+    sub2api_published: source.sub2api_published === true,
+    sub2api_visibility: sub2apiVisibility,
+    sub2api_menu_name: typeof source.sub2api_menu_name === 'string' ? source.sub2api_menu_name : title,
+  }
+}
+
+function parseTransferDocument(value: unknown): PageTransferItem[] {
+  const source = asRecord(value)
+  const rawPages = Array.isArray(value)
+    ? value
+    : source.format === 'sub2api-extension-pages' && Array.isArray(source.pages)
+      ? source.pages
+      : null
+  if (!rawPages) {
+    throw new Error('导入文件不是有效的页面导出文件')
+  }
+  if (rawPages.length === 0) {
+    throw new Error('导入文件中没有页面')
+  }
+  return rawPages.map((item, index) => normalizeTransferItem(item, index))
+}
+
+function nextAvailableSlug(baseSlug: string, visibility: 'public' | 'admin', occupiedRoutes: Set<string>): string {
+  let suffix = 2
+  let candidate = `${baseSlug}-${suffix}`
+  while (occupiedRoutes.has(pageRouteFor(candidate, visibility))) {
+    suffix += 1
+    candidate = `${baseSlug}-${suffix}`
+  }
+  return candidate
+}
 
 export default function PageManagementPage() {
   const [pages, setPages] = useState<PageListItem[]>([])
@@ -129,12 +226,18 @@ export default function PageManagementPage() {
   const [deleteTarget, setDeleteTarget] = useState<PageListItem | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [togglingId, setTogglingId] = useState<number | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [exporting, setExporting] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const importInputRef = useRef<HTMLInputElement>(null)
 
-  const createMetadataEntries = (metadata: Record<string, string>): MetadataEntry[] => (
-    Object.entries(metadata).map(([key, value]) => ({
+  const createMetadataEntries = (metadata: Record<string, unknown>): MetadataEntry[] => (
+    Object.entries(metadata)
+      .filter(([key]) => !key.startsWith('sub2api_'))
+      .map(([key, value]) => ({
       id: `metadata-${metadataEntryId.current++}`,
       key,
-      value,
+      value: typeof value === 'string' ? value : JSON.stringify(value),
     }))
   )
 
@@ -152,7 +255,9 @@ export default function PageManagementPage() {
     setError('')
     try {
       const res = await apiClient.get<AuxEnvelope<PageListResponse>>('/admin/pages')
-      setPages(res.data?.items ?? [])
+      const nextPages = res.data?.items ?? []
+      setPages(nextPages)
+      setSelectedIds((current) => new Set([...current].filter((id) => nextPages.some((page) => page.id === id))))
       return true
     } catch {
       setError('加载页面列表失败,请检查会话或网络')
@@ -176,6 +281,135 @@ export default function PageManagementPage() {
       toast.error('页面列表刷新失败')
     }
     setRefreshing(false)
+  }
+
+  const handleSelectPage = (pageId: number, checked: boolean) => {
+    setSelectedIds((current) => {
+      const next = new Set(current)
+      if (checked) next.add(pageId)
+      else next.delete(pageId)
+      return next
+    })
+  }
+
+  const handleSelectAll = (checked: boolean) => {
+    setSelectedIds(checked ? new Set(pages.map((page) => page.id)) : new Set())
+  }
+
+  const createTransferItem = (detail: PageDetail): PageTransferItem => ({
+    slug: detail.slug,
+    title: detail.title,
+    visibility: detail.visibility,
+    content_type: detail.content_type,
+    content_html: detail.content_html ?? '',
+    content_react: detail.content_react ?? '',
+    metadata: detail.metadata ?? {},
+    enabled: detail.enabled,
+    route: pageRouteFor(detail.slug, detail.visibility),
+    sub2api_published: detail.sub2api_published ?? false,
+    sub2api_visibility: detail.sub2api_visibility ?? (detail.visibility === 'admin' ? 'admin' : 'user'),
+    sub2api_menu_name: detail.sub2api_menu_name ?? detail.title,
+  })
+
+  const buildPageRequest = (item: PageTransferItem) => ({
+    slug: item.slug,
+    title: item.title,
+    visibility: item.visibility,
+    content_type: item.content_type,
+    content_html: item.content_type === 'html' ? item.content_html : '',
+    content_react: item.content_type === 'react' ? item.content_react : '',
+    metadata: item.metadata,
+    enabled: item.enabled,
+    sub2api_published: item.sub2api_published ?? false,
+    sub2api_visibility: item.sub2api_visibility ?? (item.visibility === 'admin' ? 'admin' : 'user'),
+    sub2api_menu_name: item.sub2api_menu_name ?? item.title,
+  })
+
+  const handleExportSelected = async () => {
+    const selectedPages = pages.filter((page) => selectedIds.has(page.id))
+    if (selectedPages.length === 0 || exporting) return
+    setExporting(true)
+    try {
+      const details = await Promise.all(selectedPages.map(async (page) => {
+        const response = await apiClient.get<AuxEnvelope<PageDetail>>(`/admin/pages/${page.id}`)
+        if (!response.data) throw new Error(`无法读取页面「${page.title}」`)
+        return createTransferItem(response.data)
+      }))
+      const document: PageTransferDocument = {
+        format: 'sub2api-extension-pages',
+        version: 1,
+        exported_at: new Date().toISOString(),
+        pages: details,
+      }
+      const blob = new Blob([JSON.stringify(document, null, 2)], { type: 'application/json;charset=utf-8' })
+      const href = URL.createObjectURL(blob)
+      const anchor = window.document.createElement('a')
+      anchor.href = href
+      anchor.download = `sub2api-pages-${new Date().toISOString().slice(0, 10)}.json`
+      window.document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      URL.revokeObjectURL(href)
+      toast.success(`已导出 ${details.length} 个页面`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '导出页面失败')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const handleImportFile = async (file: File) => {
+    if (importing) return
+    setImporting(true)
+    try {
+      const parsed = parseTransferDocument(JSON.parse(await file.text()))
+      const routeToPageId = new Map(pages.map((page) => [page.route, page.id]))
+      const occupiedRoutes = new Set(pages.map((page) => page.route))
+      const duplicateRoutes = new Set(parsed
+        .map((item) => item.route)
+        .filter((route, index, routes) => routes.indexOf(route) !== index || occupiedRoutes.has(route)))
+      const duplicateMode = duplicateRoutes.size > 0 && window.confirm(
+        `发现 ${duplicateRoutes.size} 个重复页面路由。\n\n点击“确定”将继续导入并为重复路由追加 -2、-3 等数字尾缀；点击“取消”则按路由幂等更新已有页面。`,
+      )
+
+      let created = 0
+      let updated = 0
+      for (const sourceItem of parsed) {
+        let item = sourceItem
+        let route = item.route
+        if (duplicateMode && occupiedRoutes.has(route)) {
+          item = { ...item, slug: nextAvailableSlug(item.slug, item.visibility, occupiedRoutes) }
+          item.route = pageRouteFor(item.slug, item.visibility)
+          route = item.route
+        }
+
+        const existingId = routeToPageId.get(route)
+        if (existingId !== undefined && !duplicateMode) {
+          await apiClient.put(`/admin/pages/${existingId}`, buildPageRequest(item))
+          updated += 1
+          continue
+        }
+
+        const response = await apiClient.post<AuxEnvelope<PageDetail>>('/admin/pages', buildPageRequest(item))
+        if (!response.data) throw new Error(`导入页面「${item.title}」失败`)
+        created += 1
+        routeToPageId.set(route, response.data.id)
+        occupiedRoutes.add(route)
+      }
+      await loadPages()
+      await refreshDynamicPages({ includeAdmin: true })
+      toast.success(`导入完成：新增 ${created} 个，幂等更新 ${updated} 个`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '导入页面失败')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  const handleImportInputChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (file) await handleImportFile(file)
   }
 
   // slug 实时校验(格式 + 与现有页冲突)
@@ -232,6 +466,7 @@ export default function PageManagementPage() {
       const detail = res.data
       if (detail) {
         const metadata = detail.metadata ?? {}
+        const editableMetadataEntries = createMetadataEntries(metadata)
         setForm({
           slug: detail.slug,
           title: detail.title,
@@ -240,11 +475,14 @@ export default function PageManagementPage() {
           content_html: detail.content_type === 'react'
             ? (detail.content_react ?? '')
             : (detail.content_html ?? ''),
-          metadata,
-          menu_icon: metadata.menu_icon ?? detail.menu_icon ?? 'menu',
+          metadata: metadataEntriesToRecord(editableMetadataEntries),
+          menu_icon: typeof metadata.menu_icon === 'string' ? metadata.menu_icon : (detail.menu_icon ?? 'menu'),
           enabled: detail.enabled,
+          sub2api_published: detail.sub2api_published ?? false,
+          sub2api_visibility: detail.sub2api_visibility ?? (detail.visibility === 'admin' ? 'admin' : 'user'),
+          sub2api_menu_name: detail.sub2api_menu_name ?? detail.title,
         })
-        setMetadataEntries(createMetadataEntries(metadata))
+        setMetadataEntries(editableMetadataEntries)
       }
     } catch {
       const message = '加载页面详情失败'
@@ -304,6 +542,9 @@ export default function PageManagementPage() {
         content_react: form.content_type === 'react' ? form.content_html : '',
         metadata,
         enabled: form.enabled,
+        sub2api_published: form.sub2api_published,
+        sub2api_visibility: form.sub2api_visibility,
+        sub2api_menu_name: form.sub2api_menu_name,
       }
       if (editingId !== null) {
         await apiClient.put(`/admin/pages/${editingId}`, body)
@@ -346,12 +587,49 @@ export default function PageManagementPage() {
         content_react: detail.content_react ?? '',
         metadata: detail.metadata ?? {},
         enabled: !page.enabled,
+        sub2api_published: detail.sub2api_published ?? false,
+        sub2api_visibility: detail.sub2api_visibility ?? (detail.visibility === 'admin' ? 'admin' : 'user'),
+        sub2api_menu_name: detail.sub2api_menu_name ?? detail.title,
       })
       toast.success(`${page.title}已${page.enabled ? '停用' : '启用'}`)
       await loadPages()
       await refreshDynamicPages({ includeAdmin: true })
     } catch {
       const message = '切换状态失败'
+      setError(message)
+      toast.error(message)
+    } finally {
+      setTogglingId(null)
+    }
+  }
+
+  const handleToggleSub2APIPublished = async (page: PageListItem) => {
+    if (togglingId !== null) return
+    setTogglingId(page.id)
+    try {
+      const res = await apiClient.get<AuxEnvelope<PageDetail>>(`/admin/pages/${page.id}`)
+      const detail = res.data
+      if (!detail) {
+        throw new Error('获取页面详情失败')
+      }
+      await apiClient.put(`/admin/pages/${page.id}`, {
+        slug: detail.slug,
+        title: detail.title,
+        visibility: detail.visibility,
+        content_type: detail.content_type,
+        content_html: detail.content_html ?? '',
+        content_react: detail.content_react ?? '',
+        metadata: detail.metadata ?? {},
+        enabled: detail.enabled,
+        sub2api_published: !page.sub2api_published,
+        sub2api_visibility: detail.sub2api_visibility ?? (detail.visibility === 'admin' ? 'admin' : 'user'),
+        sub2api_menu_name: detail.sub2api_menu_name ?? detail.title,
+      })
+      toast.success(`${page.title}已${page.sub2api_published ? '下架' : '上架'}到 sub2api`)
+      await loadPages()
+      await refreshDynamicPages({ includeAdmin: true })
+    } catch {
+      const message = '同步 sub2api 菜单失败，请检查 sub2api 数据库连接与公网地址配置'
       setError(message)
       toast.error(message)
     } finally {
@@ -389,6 +667,29 @@ export default function PageManagementPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(event) => { void handleImportInputChange(event) }}
+          />
+          <Button
+            variant="outline"
+            onClick={() => importInputRef.current?.click()}
+            disabled={importing}
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            {importing ? '导入中…' : '导入页面'}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => { void handleExportSelected() }}
+            disabled={selectedIds.size === 0 || exporting}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            {exporting ? '导出中…' : `导出所选${selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}`}
+          </Button>
           <Button variant="outline" onClick={() => void handleRefresh()} disabled={loading || refreshing}>
             <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             {refreshing ? '刷新中' : '刷新'}
@@ -410,30 +711,47 @@ export default function PageManagementPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-12">
+                <input
+                  type="checkbox"
+                  aria-label="全选页面"
+                  checked={pages.length > 0 && pages.every((page) => selectedIds.has(page.id))}
+                  onChange={(event) => handleSelectAll(event.target.checked)}
+                />
+              </TableHead>
               <TableHead>标题</TableHead>
               <TableHead>Slug</TableHead>
               <TableHead>路由</TableHead>
               <TableHead>可见性</TableHead>
               <TableHead>状态</TableHead>
+              <TableHead>sub2api</TableHead>
               <TableHead className="text-right">操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-sm text-gray-400">
+                <TableCell colSpan={8} className="h-24 text-center text-sm text-gray-400">
                   加载中…
                 </TableCell>
               </TableRow>
             ) : pages.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-sm text-gray-400">
+                <TableCell colSpan={8} className="h-24 text-center text-sm text-gray-400">
                   暂无动态页面,点击"新建页面"创建。
                 </TableCell>
               </TableRow>
             ) : (
               pages.map((page) => (
                 <TableRow key={page.id}>
+                  <TableCell>
+                    <input
+                      type="checkbox"
+                      aria-label={`选择${page.title}`}
+                      checked={selectedIds.has(page.id)}
+                      onChange={(event) => handleSelectPage(page.id, event.target.checked)}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium text-gray-900 dark:text-gray-100">
                     {page.title}
                   </TableCell>
@@ -469,6 +787,19 @@ export default function PageManagementPage() {
                       />
                       <span className={`aux-page-status-badge ${page.enabled ? 'is-enabled' : 'is-disabled'}`}>
                         {page.enabled ? '已启用' : '已停用'}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="aux-page-status-control">
+                      <Switch
+                        checked={page.sub2api_published}
+                        disabled={togglingId === page.id}
+                        aria-label={`${page.sub2api_published ? '下架' : '上架'}${page.title}`}
+                        onCheckedChange={() => handleToggleSub2APIPublished(page)}
+                      />
+                      <span className={`aux-page-status-badge ${page.sub2api_published ? 'is-enabled' : 'is-disabled'}`}>
+                        {page.sub2api_published ? '已上架' : '未上架'}
                       </span>
                     </div>
                   </TableCell>
@@ -572,6 +903,45 @@ export default function PageManagementPage() {
                 </p>
               </div>
             )}
+            <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-4 dark:border-blue-900/60 dark:bg-blue-950/20">
+              <div className="mb-3 flex items-center gap-2">
+                <Switch
+                  checked={form.sub2api_published}
+                  onCheckedChange={(checked) => setForm({ ...form, sub2api_published: checked })}
+                />
+                <Label>上架到 sub2api 自定义菜单</Label>
+              </div>
+              <p className="mb-3 text-xs text-gray-500">
+                保存后会直接同步 sub2api 数据库的 custom_menu_items；关闭开关会移除本页面对应的菜单项，不影响其他菜单。
+              </p>
+              {form.sub2api_published && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>sub2api 可见角色</Label>
+                    <Select
+                      value={form.sub2api_visibility}
+                      onValueChange={(value: 'user' | 'admin') => setForm({ ...form, sub2api_visibility: value })}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="user">普通用户</SelectItem>
+                        <SelectItem value="admin">管理员</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="sub2api-menu-name">sub2api 菜单名称</Label>
+                    <Input
+                      id="sub2api-menu-name"
+                      value={form.sub2api_menu_name}
+                      onChange={(event) => setForm({ ...form, sub2api_menu_name: event.target.value })}
+                      placeholder={form.title || '菜单名称'}
+                      maxLength={50}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="space-y-2">
               <Label>
                 {form.content_type === 'react' ? 'React 组件代码 (TSX)' : '内容 (HTML)'}

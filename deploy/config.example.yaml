@@ -45,6 +45,16 @@ sub2api:
   # 同 Docker 网络部署：http://sub2api:8080（服务名解析）
   # 公网部署：https://sub2api.example.com（sub2api 的公网域名）
   base_url: "http://sub2api:8080"
+  # 浏览器可访问的扩展 URL，用于生成 custom_menu_items 的 iframe 地址。
+  public_url: "https://aux.example.com"
+  # sub2api PostgreSQL；填写后页面管理可直接同步 settings.custom_menu_items。
+  database:
+    host: "postgres"
+    port: 5432
+    user: "sub2api"
+    password: "change-me"
+    dbname: "sub2api"
+    sslmode: "disable"
 
 
 # ---- JWT 配置 ----

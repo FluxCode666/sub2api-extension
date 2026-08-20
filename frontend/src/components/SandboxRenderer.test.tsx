@@ -18,6 +18,7 @@ describe('SandboxRenderer navigation bridge', () => {
 
     const iframe = container.querySelector('iframe')
     expect(iframe).not.toBeNull()
+    expect(iframe?.getAttribute('sandbox')).toBe('allow-scripts allow-top-navigation-by-user-activation')
     const srcdoc = iframe?.getAttribute('srcdoc') ?? ''
 
     expect(srcdoc).toContain('data-metadata-href="api_docs_href"')
