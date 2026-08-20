@@ -17,7 +17,9 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar'
 import { LayoutDashboard, FileText, FilePlus2, ExternalLink, Images } from 'lucide-react'
-import { fetchDynamicPages, getMergedRegistry } from '@/lib/dynamic-pages'
+import { fetchDynamicPages, getMergedRegistry, subscribeDynamicPages } from '@/lib/dynamic-pages'
+import { getMenuIcon } from '@/lib/menu-icons'
+import { Toaster } from '@/components/ui/sonner'
 import '@fontsource-variable/geist'
 import './AdminConsole.css'
 
@@ -34,13 +36,15 @@ export default function AdminLayout() {
   const [, setRegistryVersion] = useState(0)
   useEffect(() => {
     let active = true
-    // Admin 菜单需要动态 admin 页；此调用发生在 AdminGuard 放行后，
-    // 使用受守卫的 /api/aux/admin/pages，不再通过公开清单暴露 admin 元数据。
-    fetchDynamicPages({ includeAdmin: true }).then(() => {
+    const unsubscribe = subscribeDynamicPages(() => {
       if (active) setRegistryVersion((version) => version + 1)
     })
+    // Admin 菜单需要动态 admin 页；此调用发生在 AdminGuard 放行后，
+    // 使用受守卫的 /api/aux/admin/pages，不再通过公开清单暴露 admin 元数据。
+    fetchDynamicPages({ includeAdmin: true }).catch(() => {})
     return () => {
       active = false
+      unsubscribe()
     }
   }, [])
 
@@ -134,7 +138,7 @@ export default function AdminLayout() {
                     <SidebarMenuItem key={page.id}>
                       <SidebarMenuButton asChild>
                         <NavLink to={page.path} end>
-                          <ExternalLink className="h-4 w-4" />
+                          <DynamicPageIcon name={page.icon} />
                           <span>{page.title}</span>
                         </NavLink>
                       </SidebarMenuButton>
@@ -172,6 +176,13 @@ export default function AdminLayout() {
           <Outlet />
         </main>
       </SidebarInset>
+      {/* 管理端所有写操作共用同一套成功/失败反馈。 */}
+      <Toaster position="top-right" />
     </SidebarProvider>
   )
+}
+
+function DynamicPageIcon({ name }: { name?: string }) {
+  const Icon = getMenuIcon(name)
+  return <Icon className="h-4 w-4" aria-hidden="true" />
 }

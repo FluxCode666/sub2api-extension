@@ -1,18 +1,31 @@
-# sub2api-extension · sub2api 附属内容承载系统
+# sub2api-extension · sub2api 附属管理与动态页面系统
 
 [![Go](https://img.shields.io/badge/Go-1.26.5-00ADD8?logo=go)]() [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)]() [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript)]()
 
-独立部署的 web 应用，作为 [sub2api](../sub2api) 的内容源。通过 sub2api 现有的 iframe 机制嵌入，**零代码改动 sub2api**（全部对接走 sub2api 后台配置项）。
+`sub2api-extension` 是 [sub2api](../sub2api) 的附属系统，不是独立官网，也不提供内置官网首页。它以独立 Web 应用运行，通过 sub2api 现有的 iframe 和菜单配置接入，**无需修改 sub2api 代码**。
 
-## 它解决什么问题
+系统的默认入口是管理端：访问 `/` 会跳转到 `/admin/dashboard`。公开页面不是固定的官网首页，而是由管理员创建和维护的数据库动态页面；需要公开内容时，使用 `/p/:slug` 访问对应页面。
 
-sub2api 需要一个承载动态内容与页面分析的子系统，但不能为了它修改自身代码。sub2api-extension 以独立服务的形式提供：
+## 定位与入口
 
-- **官网动态页面** —— 原 `HomePage.tsx` 已迁移到数据库页面 `home`，可通过 sub2api `home_content` 的 URL iframe 模式嵌入
-- **Sub2API 官方页面** —— 保留在数据库页面 `sub2api-home`，可独立预览和编辑
-- **独立管理页面** —— 通过 sub2api 的 `custom_menu_items`（控制台菜单）经 iframe 加载，也支持直接登录
-- **页面分析/埋点** —— 采集当前管理页面的访问与功能点击，仪表盘展示「有哪些页面、访问量、功能使用度」
-- **管理员转发验证** —— 管理端页面经 sub2api iframe token 换取附属会话，无需重复登录
+本项目围绕 sub2api 的管理扩展、动态页面和使用分析提供能力：
+
+- **附属管理端** —— 通过 sub2api 的 `custom_menu_items` 以 iframe 方式打开，也支持独立登录。
+- **动态页面编写** —— 管理员可以创建、编辑、启停和删除数据库页面，不需要改动前端源码。
+- **页面分析与埋点** —— 统计当前页面的访问量和功能点击，在分析仪表盘中查看使用情况。
+- **身份转发验证** —— 管理端接收 sub2api iframe token，换取附属系统自己的管理员会话。
+
+| 入口 | 说明 |
+| --- | --- |
+| `/` | 重定向到 `/admin/dashboard`，不是官网首页 |
+| `/admin/dashboard` | 分析仪表盘，展示页面访问和功能使用度 |
+| `/admin/pages` | 动态页面管理，管理员编写和维护页面 |
+| `/admin/assets` | 图片资源管理 |
+| `/admin/p/:slug` | 需要管理员会话的动态页面 |
+| `/p/:slug` | 公开动态页面；仅当数据库中存在并启用对应页面时可访问 |
+| `/login` | 独立管理员登录入口 |
+
+项目不会为 `/` 渲染官网内容，也不会把某个固定页面视为官网首页。若 sub2api 需要展示公开内容，应由管理员创建公开动态页面后，再将该页面 URL 配置到 sub2api 的相应设置中。
 
 ## 架构
 
@@ -23,9 +36,11 @@ sub2api 需要一个承载动态内容与页面分析的子系统，但不能为
                                 ▼
 ┌──────────────── sub2api-extension（独立部署）─────────────────────────────────┐
 │  前端 React SPA                     后端 Go + Gin + Ent                │
-│  /admin/dashboard  控制台首页        /api/aux/*          公开配置/埋点   │
-│  /p/home           数据库官网页面    /api/aux/admin/*    受 AdminGuard   │
-│  /admin/*  管理端（需会话）         转发验证 → sub2api /auth/me        │
+│  /                    → /admin/dashboard   /api/aux/*       公开页面/埋点 │
+│  /admin/dashboard     分析仪表盘          /api/aux/admin/*  AdminGuard   │
+│  /admin/pages         动态页面管理        转发验证 → sub2api /auth/me    │
+│  /p/:slug             公开动态页面                                      │
+│  /admin/p/:slug       管理员动态页面                                    │
 │                                          │                            │
 │                                          ▼                            │
 │                                   自有 PostgreSQL                     │
@@ -33,20 +48,33 @@ sub2api 需要一个承载动态内容与页面分析的子系统，但不能为
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
-`/` 会跳转到 `/admin/dashboard` 控制台首页；原硬编码官网已迁移为数据库动态页面 `/p/home`，Sub2API 官方页面保留在 `/p/sub2api-home`。
+`/` 只负责跳转到 `/admin/dashboard`。系统没有独立官网首页；所有公开内容均来自数据库中的动态页面 `/p/:slug`，页面是否存在、是否启用和如何展示由管理员配置。
 
 ## 核心特性
 
 - **零侵入 sub2api** —— iframe 对接走 sub2api 现有 `custom_menu_items` 配置，CSP `frame-src` 由 sub2api 自动注入
-- **双主题官网** —— 浅色为默认主题，支持手动切换暗色，并可通过 `?theme=light|dark` 初始化
-- **动态伙伴列表** —— 配置为空时不展示，有配置时自动循环横向滚动并支持左右拖拽
+- **管理员动态页面能力** —— 页面管理器提供 Monaco 编辑器，支持 HTML 和 React/TSX 两种内容类型
+- **页面可见性与路由** —— 页面可设为公开(`/p/:slug`)或管理员(`/admin/p/:slug`)，并可启停、设置菜单图标和元数据
+- **隔离与运行时渲染** —— HTML 页面在隔离 iframe 中渲染，React 页面支持运行时编译 TSX
 - **管理员会话守卫** —— `AdminGuard` 组件用 iframe 传入的 sub2api token 转发验证，签发附属系统自有 JWT（`X-Aux-Session` 头）
 - **匿名埋点** —— 公开写入面（不经守卫），per-IP 令牌桶限流 + 4KB body 限制，防滥用
 - **分析仪表盘** —— 聚合当前注册页面的访问量与功能使用度，历史已删除页面的数据保留但不展示
-- **三个示例页面** —— 静态内容、交互埋点、受保护 API 请求均可从 Dashboard 点击进入
 - **标准 API 信封** —— `{code, message, data?}` 成功 / `{code, message, reason?}` 错误
 - **单镜像部署** —— 多阶段 Docker 构建，后端同源托管前端 dist，无 CORS
 - **CI/CD 流水线** —— GitHub Actions 四条工作流（CI / 安全扫描 / 测试部署 / 生产部署），多架构镜像构建推送 GHCR，SSH 部署、健康检查与自动回滚
+
+## 管理员动态页面编写能力
+
+项目现有的页面编写能力由页面管理界面、数据库页面模型和动态渲染宿主组成。管理员在 `/admin/pages` 中即可完成以下操作；仓库同时提供 [`sub2api-extension-page-writer`](.agents/skills/sub2api-extension-page-writer/SKILL.md) skill，供开发者或协作代理按项目约束创建、修改和检查动态页面。该 skill 是仓库协作规范，不会替代管理员登录或绕过页面权限。
+
+1. 创建页面并填写 `slug`、标题、可见性和启用状态。
+2. 选择 `HTML` 或 `React/TSX` 内容类型，在 Monaco 编辑器中编写页面内容。
+3. 配置页面元数据，例如描述、Logo、菜单图标、全屏模式和入口链接。
+4. 保存后直接预览、编辑、启停或删除页面。
+
+页面内容保存在附属系统自己的 PostgreSQL `pages` 表中，不依赖 seed 脚本才能运行。HTML 页面通过隔离 iframe 渲染；React 页面支持运行时编译完整 TSX 组件。公开页面访问 `/p/<slug>`，管理员页面访问 `/admin/p/<slug>`。
+
+更完整的字段约束、鉴权方式和 API 示例见 [docs/PAGE_API.md](docs/PAGE_API.md)。
 
 ## 技术栈
 
@@ -87,9 +115,12 @@ sub2api-extension/
 │   ├── .env.example             # 生产环境变量示例
 │   ├── build-and-push.sh        # 手动构建推送镜像脚本
 │   └── nginx/                   # 宿主机 NGINX HTTPS 反向代理配置
+├── tools/
+│   └── page-admin.py             # 动态页面管理员 API 命令行工具
 ├── .github/
 │   ├── workflows/               # CI / 安全扫描 / 测试部署 / 生产部署
 │   └── CICD.md                  # ← CI/CD 完整文档（流水线/Secrets/部署/回滚）
+├── .agents/skills/              # 页面编写、sub2api 集成和部署运维 skills
 ├── docs/
 │   └── INTEGRATION.md           # ← sub2api 侧集成配置指南（必读）
 ├── Dockerfile                   # 多阶段构建（前端 + 后端 → 单镜像）
@@ -120,7 +151,7 @@ curl http://localhost:8787/health
 # 预期: {"status":"ok","service":"sub2api-extension"}
 ```
 
-开发用 compose 含 `aux-postgres` 服务并从源码构建镜像。附属系统启动后，可将 `/p/home` 配置到 sub2api `home_content`，并用 `custom_menu_items` 添加 `/admin/dashboard` 与 `/admin/pages`。**完整集成步骤见 [docs/INTEGRATION.md](docs/INTEGRATION.md)。**
+开发用 compose 含 `aux-postgres` 服务并从源码构建镜像。附属系统启动后，可用 `custom_menu_items` 添加 `/admin/dashboard` 与 `/admin/pages`；如需向 sub2api 提供公开内容，再把已创建的 `/p/<slug>` 动态页面 URL 配置到 sub2api 的对应设置。**完整集成步骤见 [docs/INTEGRATION.md](docs/INTEGRATION.md)。**
 
 ### 测试与生产部署
 
@@ -210,7 +241,7 @@ pnpm install
 pnpm dev        # 开发服务器 http://localhost:3100
 ```
 
-前端 dev server 监听 `3100`，已配置 `/api` 代理到 `http://127.0.0.1:8004`（即后端 `make dev` 的端口）。浏览器访问 `http://localhost:3100` 即可。
+前端 dev server 监听 `3100`，已配置 `/api` 代理到 `http://127.0.0.1:8004`（即后端 `make dev` 的端口）。浏览器访问 `http://localhost:3100/` 会重定向到分析仪表盘；系统不会在根路径展示官网首页。
 
 ### 管理端登录
 
@@ -249,7 +280,7 @@ pnpm typecheck       # tsc --noEmit
 pnpm build           # tsc -b && vite build
 ```
 
-当前基线：后端全量测试通过，前端 119 个测试通过。
+当前基线：后端全量测试通过，前端全量测试通过（测试数量随页面能力变化，以 CI 实际结果为准）。
 
 ## 配置
 
@@ -269,11 +300,15 @@ pnpm build           # tsc -b && vite build
 ## 约束与边界
 
 - **不修改 sub2api 代码** —— 所有集成通过 sub2api 现有接缝完成
-- **公开首页与管理端分离** —— `home_content` 使用公开动态页面 `/p/home`；根路径 `/` 作为控制台快捷入口，页面管理和分析仪表盘使用会传 token 的 `custom_menu_items`
+- **没有内置官网首页** —— 根路径 `/` 永远作为控制台入口跳转到 `/admin/dashboard`；公开内容只能通过管理员创建的 `/p/:slug` 动态页面提供
+- **公开页面与管理端分离** —— sub2api 如需嵌入公开内容，可把已启用的 `/p/:slug` URL 配置到对应设置；页面管理和分析仪表盘使用会传 token 的 `custom_menu_items`
 - **自有数据库** —— sub2api-extension 使用独立 PostgreSQL，不复用 sub2api 的数据库
 - **Ent 生成代码** —— `backend/ent/` 是 `ent/schema/*.go` 的生成产物，修改 schema 后需 `go generate ./ent`
 
 ## 文档
 
+- **[CHANGELOG.md](CHANGELOG.md)** —— 版本变更记录
 - **[docs/INTEGRATION.md](docs/INTEGRATION.md)** —— sub2api 侧 `custom_menu_items` 集成配置指南（架构、部署、CSP、验收清单、故障排查）
+- **[docs/PAGE_API.md](docs/PAGE_API.md)** —— 动态页面管理员 API、鉴权、字段约束与调用示例
+- **[tools/page-admin.py](tools/page-admin.py)** —— 无第三方依赖的管理员页面 API 命令行工具
 - **[.github/CICD.md](.github/CICD.md)** —— CI/CD 完整文档（测试/生产环境、Secrets、首次部署、发布、回滚与故障排查）

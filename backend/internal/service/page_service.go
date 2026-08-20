@@ -87,6 +87,7 @@ type PageListItem struct {
 	Enabled     bool            `json:"enabled"`
 	Route       string          `json:"route"` // /p/<slug> 或 /admin/p/<slug>
 	PageID      string          `json:"page_id"`
+	MenuIcon    string          `json:"menu_icon,omitempty"` // 管理员侧边栏图标名(metadata.menu_icon)
 	UpdatedAt   time.Time       `json:"updated_at"`
 }
 
@@ -339,6 +340,12 @@ func (s *entPageStore) List(ctx context.Context) ([]PageListItem, error) {
 	}
 	items := make([]PageListItem, 0, len(pages))
 	for _, p := range pages {
+		menuIcon := ""
+		if p.Visibility == string(VisibilityAdmin) {
+			if raw, ok := p.Metadata["menu_icon"].(string); ok {
+				menuIcon = strings.TrimSpace(raw)
+			}
+		}
 		items = append(items, PageListItem{
 			ID:          p.ID,
 			Slug:        p.Slug,
@@ -348,6 +355,7 @@ func (s *entPageStore) List(ctx context.Context) ([]PageListItem, error) {
 			Enabled:     p.Enabled,
 			Route:       pageRoute(p.Slug, PageVisibility(p.Visibility)),
 			PageID:      pageID(p.Slug),
+			MenuIcon:    menuIcon,
 			UpdatedAt:   p.UpdatedAt,
 		})
 	}

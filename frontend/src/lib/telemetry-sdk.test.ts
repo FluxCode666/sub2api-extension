@@ -9,6 +9,28 @@ import {
 import { resetVisitorId } from './visitor-id'
 import { getAdminSession } from './admin-auth'
 
+vi.mock('./dynamic-pages', () => ({
+  getMergedPageByPath: (path: string) => {
+    if (path === '/admin/p/example-content') {
+      return {
+        id: 'page:example-content',
+        title: '静态内容示例',
+        path,
+        visibility: 'admin',
+      }
+    }
+    if (path === '/admin/p/example-interaction') {
+      return {
+        id: 'page:example-interaction',
+        title: '交互与埋点示例',
+        path,
+        visibility: 'admin',
+      }
+    }
+    return undefined
+  },
+}))
+
 // mock fetch 全局, 拦截上报请求
 const fetchMock = vi.fn()
 vi.stubGlobal('fetch', fetchMock)
@@ -159,12 +181,12 @@ describe('telemetry-sdk', () => {
 
       expect(fetchMock).toHaveBeenCalledTimes(1)
 
-      window.history.pushState({}, '', '/admin/examples/content')
+      window.history.pushState({}, '', '/admin/p/example-content')
 
       expect(fetchMock).toHaveBeenCalledTimes(2)
       const [, init] = fetchMock.mock.calls[1]
       const body = JSON.parse(init.body as string)
-      expect(body.page_id).toBe('example-content')
+      expect(body.page_id).toBe('page:example-content')
     })
 
     it('does NOT report when path is not in page-registry (e.g. /unknown)', () => {
@@ -203,8 +225,8 @@ describe('telemetry-sdk', () => {
 
       expect(fetchMock).toHaveBeenCalledTimes(1)
 
-      window.history.pushState({}, '', '/admin/examples/content')
-      window.history.pushState({}, '', '/admin/examples/interaction')
+      window.history.pushState({}, '', '/admin/p/example-content')
+      window.history.pushState({}, '', '/admin/p/example-interaction')
       window.history.pushState({}, '', '/admin/dashboard')
 
       expect(fetchMock).toHaveBeenCalledTimes(4)
@@ -216,7 +238,7 @@ describe('telemetry-sdk', () => {
 
       expect(fetchMock).toHaveBeenCalledTimes(1)
 
-      window.history.pushState({}, '', '/admin/examples/content')
+      window.history.pushState({}, '', '/admin/p/example-content')
       expect(fetchMock).toHaveBeenCalledTimes(2)
 
       // jsdom 的 history.back() 是异步的, 直接设置目标 URL 后触发 popstate。

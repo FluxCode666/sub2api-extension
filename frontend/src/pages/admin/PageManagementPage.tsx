@@ -8,8 +8,10 @@
  *
  * Monaco 编辑器懒加载(React.lazy), 避免拖慢主 bundle。
  */
-import { useCallback, useEffect, useState, lazy, Suspense } from 'react'
+import { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react'
+import { Link } from 'react-router-dom'
 import { apiClient, type AuxEnvelope } from '@/lib/api-client'
+import { refreshDynamicPages } from '@/lib/dynamic-pages'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -22,6 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { MenuIconPicker } from '@/components/MenuIconPicker'
 import {
   Select,
   SelectContent,
@@ -37,7 +40,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, RefreshCw } from 'lucide-react'
+import { MENU_ICON_OPTIONS } from '@/lib/menu-icons'
+import { toast } from 'sonner'
 
 // Monaco 懒加载(避免拖慢主 bundle)
 const MonacoEditor = lazy(() => import('@monaco-editor/react').then((m) => ({ default: m.default })))
@@ -52,6 +57,7 @@ interface PageListItem {
   enabled: boolean
   route: string
   page_id: string
+  menu_icon?: string
   updated_at: string
 }
 
@@ -74,7 +80,24 @@ interface PageForm {
   content_type: 'html' | 'react'
   content_html: string
   metadata: Record<string, string>
+  menu_icon: string
   enabled: boolean
+}
+
+/** 元数据编辑行的 UI 状态；id 不会随着用户修改键名而变化。 */
+interface MetadataEntry {
+  id: string
+  key: string
+  value: string
+}
+
+function metadataEntriesToRecord(entries: MetadataEntry[]): Record<string, string> {
+  const metadata: Record<string, string> = {}
+  for (const entry of entries) {
+    // 空键只保留在编辑器行中，不能写入通用元数据对象。
+    if (entry.key) metadata[entry.key] = entry.value
+  }
+  return metadata
 }
 
 const EMPTY_FORM: PageForm = {
@@ -84,6 +107,7 @@ const EMPTY_FORM: PageForm = {
   content_type: 'html',
   content_html: '',
   metadata: {},
+  menu_icon: 'menu',
   enabled: true,
 }
 
@@ -92,25 +116,47 @@ const MAX_CONTENT_BYTES = 256 * 1024
 export default function PageManagementPage() {
   const [pages, setPages] = useState<PageListItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState<PageForm>(EMPTY_FORM)
+  const [metadataEntries, setMetadataEntries] = useState<MetadataEntry[]>([])
+  const metadataEntryId = useRef(0)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
   const [slugHint, setSlugHint] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<PageListItem | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [togglingId, setTogglingId] = useState<number | null>(null)
+
+  const createMetadataEntries = (metadata: Record<string, string>): MetadataEntry[] => (
+    Object.entries(metadata).map(([key, value]) => ({
+      id: `metadata-${metadataEntryId.current++}`,
+      key,
+      value,
+    }))
+  )
+
+  const commitMetadataEntries = (entries: MetadataEntry[]) => {
+    setMetadataEntries(entries)
+    setForm((current) => ({
+      ...current,
+      metadata: metadataEntriesToRecord(entries),
+    }))
+  }
 
   // 列表加载
-  const loadPages = useCallback(async () => {
+  const loadPages = useCallback(async (): Promise<boolean> => {
     setLoading(true)
     setError('')
     try {
       const res = await apiClient.get<AuxEnvelope<PageListResponse>>('/admin/pages')
       setPages(res.data?.items ?? [])
+      return true
     } catch {
       setError('加载页面列表失败,请检查会话或网络')
+      return false
     } finally {
       setLoading(false)
     }
@@ -119,6 +165,18 @@ export default function PageManagementPage() {
   useEffect(() => {
     loadPages()
   }, [loadPages])
+
+  const handleRefresh = async () => {
+    if (refreshing || loading) return
+    setRefreshing(true)
+    const success = await loadPages()
+    if (success) {
+      toast.success('页面列表刷新成功')
+    } else {
+      toast.error('页面列表刷新失败')
+    }
+    setRefreshing(false)
+  }
 
   // slug 实时校验(格式 + 与现有页冲突)
   useEffect(() => {
@@ -156,8 +214,9 @@ export default function PageManagementPage() {
       </div>
     </div>
   )
-}`
+    }`
     setForm({ ...EMPTY_FORM, content_type: 'react', content_html: exampleReactCode })
+    setMetadataEntries([])
     setFormError('')
     setSlugHint('')
     setDialogOpen(true)
@@ -172,6 +231,7 @@ export default function PageManagementPage() {
       const res = await apiClient.get<AuxEnvelope<PageDetail>>(`/admin/pages/${page.id}`)
       const detail = res.data
       if (detail) {
+        const metadata = detail.metadata ?? {}
         setForm({
           slug: detail.slug,
           title: detail.title,
@@ -180,12 +240,16 @@ export default function PageManagementPage() {
           content_html: detail.content_type === 'react'
             ? (detail.content_react ?? '')
             : (detail.content_html ?? ''),
-          metadata: detail.metadata ?? {},
+          metadata,
+          menu_icon: metadata.menu_icon ?? detail.menu_icon ?? 'menu',
           enabled: detail.enabled,
         })
+        setMetadataEntries(createMetadataEntries(metadata))
       }
     } catch {
-      setFormError('加载页面详情失败')
+      const message = '加载页面详情失败'
+      setFormError(message)
+      toast.error(message)
     }
   }
 
@@ -193,28 +257,44 @@ export default function PageManagementPage() {
     setFormError('')
     // 客户端校验
     if (!form.slug.trim()) {
-      setFormError('slug 不能为空')
+      const message = 'slug 不能为空'
+      setFormError(message)
+      toast.error(message)
       return
     }
     if (!form.title.trim()) {
-      setFormError('标题不能为空')
+      const message = '标题不能为空'
+      setFormError(message)
+      toast.error(message)
       return
     }
     if (slugHint.startsWith('slug') || slugHint.startsWith('该 slug')) {
       setFormError(slugHint)
+      toast.error(slugHint)
       return
     }
     if (form.content_html.length > MAX_CONTENT_BYTES) {
-      setFormError(`内容超过 ${MAX_CONTENT_BYTES} 字节上限`)
+      const message = `内容超过 ${MAX_CONTENT_BYTES} 字节上限`
+      setFormError(message)
+      toast.error(message)
       return
     }
     const logo = (form.metadata.logo ?? '').trim()
     if (logo && !/^https?:\/\//i.test(logo)) {
-      setFormError('Logo 必须是图片资源页复制的 HTTP URL，或其他 HTTP/HTTPS 图片地址')
+      const message = 'Logo 必须是图片资源页复制的 HTTP URL，或其他 HTTP/HTTPS 图片地址'
+      setFormError(message)
+      toast.error(message)
       return
     }
     setSaving(true)
     try {
+      const metadata = { ...form.metadata }
+      if (form.visibility === 'admin') {
+        metadata.menu_icon = form.menu_icon
+      } else {
+        // 菜单图标只对管理员侧边栏有意义，避免公开页面元数据留下误导配置。
+        delete metadata.menu_icon
+      }
       const body = {
         slug: form.slug,
         title: form.title,
@@ -222,7 +302,7 @@ export default function PageManagementPage() {
         content_type: form.content_type,
         content_html: form.content_type === 'html' ? form.content_html : '',
         content_react: form.content_type === 'react' ? form.content_html : '',
-        metadata: form.metadata,
+        metadata,
         enabled: form.enabled,
       }
       if (editingId !== null) {
@@ -231,21 +311,29 @@ export default function PageManagementPage() {
         await apiClient.post('/admin/pages', body)
       }
       setDialogOpen(false)
+      toast.success(editingId !== null ? '页面保存成功' : '页面创建成功')
       await loadPages()
-    } catch (e) {
-      setFormError('保存失败,可能 slug 冲突或会话过期')
+      await refreshDynamicPages({ includeAdmin: true })
+    } catch {
+      const message = '保存失败,可能 slug 冲突或会话过期'
+      setFormError(message)
+      toast.error(message)
     } finally {
       setSaving(false)
     }
   }
 
   const handleToggleEnabled = async (page: PageListItem) => {
+    if (togglingId !== null) return
+    setTogglingId(page.id)
     try {
       // 后端需要完整的 PageInput，所以先获取页面详情
       const res = await apiClient.get<AuxEnvelope<PageDetail>>(`/admin/pages/${page.id}`)
       const detail = res.data
       if (!detail) {
-        setError('获取页面详情失败')
+        const message = '获取页面详情失败'
+        setError(message)
+        toast.error(message)
         return
       }
       // 发送完整数据，只更新 enabled 字段
@@ -259,9 +347,15 @@ export default function PageManagementPage() {
         metadata: detail.metadata ?? {},
         enabled: !page.enabled,
       })
+      toast.success(`${page.title}已${page.enabled ? '停用' : '启用'}`)
       await loadPages()
+      await refreshDynamicPages({ includeAdmin: true })
     } catch {
-      setError('切换状态失败')
+      const message = '切换状态失败'
+      setError(message)
+      toast.error(message)
+    } finally {
+      setTogglingId(null)
     }
   }
 
@@ -271,9 +365,13 @@ export default function PageManagementPage() {
     try {
       await apiClient.del(`/admin/pages/${deleteTarget.id}`)
       setDeleteTarget(null)
+      toast.success('页面删除成功')
       await loadPages()
+      await refreshDynamicPages({ includeAdmin: true })
     } catch {
-      setError('删除失败')
+      const message = '删除失败'
+      setError(message)
+      toast.error(message)
     } finally {
       setDeleting(false)
     }
@@ -290,10 +388,16 @@ export default function PageManagementPage() {
             创建、编辑、删除动态页面,配置路由与权限。
           </p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          新建页面
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => void handleRefresh()} disabled={loading || refreshing}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? '刷新中' : '刷新'}
+          </Button>
+          <Button onClick={openCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            新建页面
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -337,7 +441,13 @@ export default function PageManagementPage() {
                     {page.slug}
                   </TableCell>
                   <TableCell className="text-sm text-gray-600 dark:text-gray-400">
-                    {page.route}
+                    <Link
+                      to={page.route}
+                      className="aux-page-route-link"
+                      aria-label={`打开${page.title}页面`}
+                    >
+                      {page.route}
+                    </Link>
                   </TableCell>
                   <TableCell className="text-sm">
                     <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${
@@ -349,12 +459,15 @@ export default function PageManagementPage() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
+                    <div className="aux-page-status-control">
                       <Switch
+                        className="aux-page-status-switch"
                         checked={page.enabled}
+                        disabled={togglingId === page.id}
+                        aria-label={`${page.enabled ? '停用' : '启用'}${page.title}`}
                         onCheckedChange={() => handleToggleEnabled(page)}
                       />
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                      <span className={`aux-page-status-badge ${page.enabled ? 'is-enabled' : 'is-disabled'}`}>
                         {page.enabled ? '已启用' : '已停用'}
                       </span>
                     </div>
@@ -446,6 +559,19 @@ export default function PageManagementPage() {
                 </Select>
               </div>
             </div>
+            {form.visibility === 'admin' && (
+              <div className="space-y-2">
+                <Label htmlFor="menu-icon">侧边菜单图标</Label>
+                <MenuIconPicker
+                  id="menu-icon"
+                  value={form.menu_icon}
+                  onValueChange={(value) => setForm({ ...form, menu_icon: value })}
+                />
+                <p className="text-xs text-gray-500">
+                  仅管理员可见页面会出现在控制台侧边栏；当前提供 {MENU_ICON_OPTIONS.length} 个 Lucide 图标，可输入图标名称或值搜索，名称保存在通用元数据的 menu_icon 键中。
+                </p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>
                 {form.content_type === 'react' ? 'React 组件代码 (TSX)' : '内容 (HTML)'}
@@ -486,31 +612,34 @@ export default function PageManagementPage() {
               <p className="text-xs text-gray-500">
                 Logo 等配置统一保存在这里；图片请先在“图片资源”页上传，再将 HTTP URL 填入 logo 的值。
               </p>
+              <p className="text-xs text-gray-500">
+                官网 home 页可用 <code>console_href</code>、<code>api_docs_href</code>、<code>usage_guide_href</code>、<code>contact_sales_href</code>、<code>terms_href</code> 配置入口；值支持相对路径或完整 HTTP/HTTPS 地址。
+              </p>
               <div className="space-y-2">
-                {Object.entries(form.metadata).map(([key, value]) => (
-                  <div key={key} className="flex gap-2">
+                {metadataEntries.map((entry, index) => (
+                  <div key={entry.id} className="flex gap-2">
                     <Input
                       placeholder="键"
-                      value={key}
+                      value={entry.key}
                       onChange={(e) => {
                         const newKey = e.target.value
-                        const newMetadata = { ...form.metadata }
-                        delete newMetadata[key]
-                        if (newKey) {
-                          newMetadata[newKey] = value
-                        }
-                        setForm({ ...form, metadata: newMetadata })
+                        commitMetadataEntries(metadataEntries.map((currentEntry, currentIndex) => (
+                          currentIndex === index
+                            ? { ...currentEntry, key: newKey }
+                            : currentEntry
+                        )))
                       }}
                       className="flex-1"
                     />
                     <Input
                       placeholder="值"
-                      value={value}
+                      value={entry.value}
                       onChange={(e) => {
-                        setForm({
-                          ...form,
-                          metadata: { ...form.metadata, [key]: e.target.value },
-                        })
+                        commitMetadataEntries(metadataEntries.map((currentEntry, currentIndex) => (
+                          currentIndex === index
+                            ? { ...currentEntry, value: e.target.value }
+                            : currentEntry
+                        )))
                       }}
                       className="flex-1"
                     />
@@ -518,9 +647,7 @@ export default function PageManagementPage() {
                       variant="outline"
                       size="icon"
                       onClick={() => {
-                        const newMetadata = { ...form.metadata }
-                        delete newMetadata[key]
-                        setForm({ ...form, metadata: newMetadata })
+                        commitMetadataEntries(metadataEntries.filter((currentEntry) => currentEntry.id !== entry.id))
                       }}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -531,11 +658,21 @@ export default function PageManagementPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    const newKey = `key${Object.keys(form.metadata).length + 1}`
-                    setForm({
-                      ...form,
-                      metadata: { ...form.metadata, [newKey]: '' },
-                    })
+                    const existingKeys = new Set(metadataEntries.map((entry) => entry.key))
+                    let suffix = metadataEntries.length + 1
+                    let newKey = `key${suffix}`
+                    while (existingKeys.has(newKey)) {
+                      suffix += 1
+                      newKey = `key${suffix}`
+                    }
+                    commitMetadataEntries([
+                      ...metadataEntries,
+                      {
+                        id: `metadata-${metadataEntryId.current++}`,
+                        key: newKey,
+                        value: '',
+                      },
+                    ])
                   }}
                 >
                   <Plus className="mr-2 h-4 w-4" />

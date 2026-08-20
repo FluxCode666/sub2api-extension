@@ -6,7 +6,7 @@
  *     无法访问父应用 localStorage/JWT/Cookie/DOM。用户脚本被隔离。
  *   - srcdoc 注入内容(不经过主 DOM), 严格 CSP 限制: default-src 'none',
  *     script/style 只允许内联，合作伙伴 icon 仅允许 https/data 图片。
- *   - 父↔iframe 通信仅经 postMessage(feature-click 埋点上报钩子)。
+ *   - 父↔iframe 通信仅经 postMessage(埋点上报与宿主顶层导航钩子)。
  *
  * 埋点:
  *   iframe 内脚本通过 window.parent.postMessage({type:'feature-click', featureId}, '*')
@@ -31,21 +31,70 @@ interface SandboxRendererProps {
   scrollWithinFrame?: boolean
 }
 
-/** iframe 内注入的引导脚本: 监听 click 事件, 上报 feature-click。 */
+/** iframe 内注入的引导脚本: 监听 click 事件, 上报埋点并把页面跳转交给宿主。 */
 const SANDBOX_BOOTSTRAP = `
 <script>
 (function(){
-  // 拦截带 data-feature-id 的元素点击, 上报 feature-click
+  // 所有离开当前文档的链接都交给宿主窗口做顶层导航。sandbox iframe
+  // 没有 allow-same-origin，直接在 iframe 内加载宿主 SPA 会产生 opaque
+  // origin(null)，开发环境的 Vite 模块请求因此触发 CORS 并显示空白页。
+  // 纯页内 #锚点仍留在 iframe 内，官网的 frame 滚动和导航不受影响。
+  function postNavigation(event, anchor) {
+    var href = (anchor.getAttribute('href') || '').trim();
+    var target = (anchor.getAttribute('target') || '').trim().toLowerCase();
+    if (!href || href === '#') return;
+    if (/^javascript:/i.test(href)) {
+      event.preventDefault();
+      return;
+    }
+    var isHash = href.charAt(0) === '#';
+    var targetTop = target === '_top' || target === '_parent' || target === '_blank';
+    if (isHash && !targetTop) return;
+    event.preventDefault();
+    try {
+      window.parent.postMessage({
+        type: 'aux-navigation',
+        href: href,
+        target: target || '_self'
+      }, '*');
+    } catch(_) {}
+  }
+
   document.addEventListener('click', function(e){
     var el = e.target;
+    var anchor = null;
     while(el && el !== document.body){
-      var fid = el.getAttribute('data-feature-id');
+      var fid = el.getAttribute ? el.getAttribute('data-feature-id') : null;
       if(fid){
         try { window.parent.postMessage({ type: 'aux-feature-click', featureId: fid }, '*'); } catch(_){}
       }
+      if (el.tagName && el.tagName.toLowerCase() === 'a') {
+        anchor = anchor || el;
+      }
       el = el.parentElement;
     }
+    if (anchor) postNavigation(e, anchor);
   }, true);
+})();
+</script>`
+
+/** iframe 内注入的元数据链接引导脚本: 支持任意动态 HTML 声明 data-metadata-href。 */
+const METADATA_LINK_BOOTSTRAP = `
+<script>
+(function(){
+  var metadata = window.__AUX_METADATA__ || {};
+  function isSafeNavigation(value) {
+    var href = String(value == null ? '' : value).trim();
+    if (!href || /^javascript:/i.test(href)) return false;
+    if (/^(https?:|mailto:|tel:|\\/|#)/i.test(href)) return true;
+    return !/^[a-z][a-z0-9+.-]*:/i.test(href);
+  }
+  document.querySelectorAll('[data-metadata-href]').forEach(function(el){
+    var key = el.getAttribute('data-metadata-href');
+    if (!key || metadata[key] == null) return;
+    var value = String(metadata[key]).trim();
+    if (value && isSafeNavigation(value)) el.setAttribute('href', value);
+  });
 })();
 </script>`
 
@@ -103,6 +152,32 @@ export default function SandboxRenderer({
 
       if (data.type === 'aux-feature-click' && typeof data.featureId === 'string') {
         trackFeatureClick(pageIdRef.current, data.featureId)
+        return
+      }
+
+      // 兼容旧版引导脚本发送的控制台消息；新版统一发送 aux-navigation。
+      if (
+        (data.type === 'aux-navigation' || data.type === 'aux-console-navigation') &&
+        event.source === iframeRef.current?.contentWindow &&
+        typeof data.href === 'string'
+      ) {
+        const href = data.href.trim()
+        if (!href) return
+        try {
+          const target = new URL(href, window.location.href)
+          if (!isSafeNavigationProtocol(target.protocol)) return
+          const targetName = typeof data.target === 'string' ? data.target.toLowerCase() : '_self'
+          if (targetName === '_blank') {
+            // postMessage 会跨一个任务边界，部分浏览器可能阻止弹窗；失败时
+            // 降级为当前窗口导航，确保链接始终可用且不会回到 iframe。
+            const opened = window.open(target.href, '_blank', 'noopener,noreferrer')
+            if (!opened) window.location.assign(target.href)
+          } else {
+            window.location.assign(target.href)
+          }
+        } catch {
+          // 忽略无效地址，保持当前页面可用。
+        }
         return
       }
 
@@ -168,6 +243,7 @@ ${title ? `<title>${escapeHtml(title)}</title>` : ''}
 <body>
 ${metadataBootstrap}
 ${content}
+${METADATA_LINK_BOOTSTRAP}
 ${SANDBOX_BOOTSTRAP}
 ${expandsToContent ? FRAME_SIZE_BOOTSTRAP : ''}
 </body>
@@ -194,6 +270,10 @@ ${expandsToContent ? FRAME_SIZE_BOOTSTRAP : ''}
       />
     </div>
   )
+}
+
+function isSafeNavigationProtocol(protocol: string): boolean {
+  return protocol === 'http:' || protocol === 'https:' || protocol === 'mailto:' || protocol === 'tel:'
 }
 
 function escapeHtml(s: string): string {

@@ -1,7 +1,7 @@
 /**
  * 动态页面注册表合并 —— KTD7 命名空间隔离的核心。
  *
- * 静态核心页(dashboard/examples)保留在 page-registry.ts 的
+ * 静态核心页(dashboard/assets)保留在 page-registry.ts 的
  * PAGE_REGISTRY 数组里(代码登记, 不可变)。公开动态页来自 /api/aux/pages；
  * admin 动态页仅在管理会话建立后从 /api/aux/admin/pages 获取。
  *
@@ -34,6 +34,8 @@ export interface DynamicPageItem {
   enabled: boolean
   route: string
   page_id: string
+  /** 管理员菜单图标名，来自 metadata.menu_icon。 */
+  menu_icon?: string
   updated_at: string
 }
 
@@ -49,6 +51,11 @@ let dynamicPagesCache: DynamicPageItem[] = []
 let dynamicPagesStatus: DynamicPagesStatus = 'idle'
 let dynamicPagesRequest: Promise<DynamicPageItem[]> | null = null
 let dynamicPagesIncludeAdmin = false
+const dynamicPagesListeners = new Set<() => void>()
+
+function notifyDynamicPagesListeners(): void {
+  for (const listener of dynamicPagesListeners) listener()
+}
 
 export interface FetchDynamicPagesOptions {
   /** 是否从受 AdminGuard 保护的管理端点读取 admin 动态页。 */
@@ -82,12 +89,14 @@ export function fetchDynamicPages(options: FetchDynamicPagesOptions = {}): Promi
       dynamicPagesCache = res.data?.items ?? []
       dynamicPagesIncludeAdmin = includeAdmin
       dynamicPagesStatus = 'loaded'
+      notifyDynamicPagesListeners()
       return dynamicPagesCache
     })
     .catch(() => {
       // 后端不可达时降级: 仅静态页可用, 不阻塞前端
       dynamicPagesCache = []
       dynamicPagesStatus = 'error'
+      notifyDynamicPagesListeners()
       return []
     })
     .finally(() => {
@@ -95,6 +104,19 @@ export function fetchDynamicPages(options: FetchDynamicPagesOptions = {}): Promi
     })
 
   return dynamicPagesRequest
+}
+
+/** 订阅动态页面清单变化，供侧边栏等长驻布局在 CRUD 后刷新。 */
+export function subscribeDynamicPages(listener: () => void): () => void {
+  dynamicPagesListeners.add(listener)
+  return () => dynamicPagesListeners.delete(listener)
+}
+
+/** 强制重新读取动态页面清单（页面管理 CRUD 完成后使用）。 */
+export function refreshDynamicPages(options: FetchDynamicPagesOptions = {}): Promise<DynamicPageItem[]> {
+  dynamicPagesStatus = 'idle'
+  dynamicPagesIncludeAdmin = false
+  return fetchDynamicPages(options)
 }
 
 /** 获取缓存的动态页清单(同步, 需先调用 fetchDynamicPages)。 */
@@ -117,6 +139,7 @@ function dynamicItemToEntry(item: DynamicPageItem): PageEntry {
     title: item.title,
     path: item.route, // "/p/<slug>" 或 "/admin/p/<slug>"
     visibility: item.visibility,
+    icon: item.menu_icon,
   }
 }
 
@@ -125,7 +148,11 @@ function dynamicItemToEntry(item: DynamicPageItem): PageEntry {
  * 这是 R5 与 KTD7 的核心数据结构: 侧边栏菜单、仪表盘页面清单、埋点 page_id 共享此命名空间。
  */
 export function getMergedRegistry(): readonly PageEntry[] {
-  const dynamicEntries = dynamicPagesCache.map(dynamicItemToEntry)
+  // Admin 列表端点也会返回已停用页面供页面管理使用；停用页不应继续出现在
+  // 侧边栏、仪表盘或埋点当前页面清单中（访问本身也会被后端拒绝）。
+  const dynamicEntries = dynamicPagesCache
+    .filter((item) => item.enabled)
+    .map(dynamicItemToEntry)
   return [...STATIC_PAGE_REGISTRY, ...dynamicEntries]
 }
 
@@ -150,4 +177,5 @@ export function resetDynamicPagesCacheForTest(): void {
   dynamicPagesStatus = 'idle'
   dynamicPagesRequest = null
   dynamicPagesIncludeAdmin = false
+  dynamicPagesListeners.clear()
 }

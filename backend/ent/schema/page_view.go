@@ -35,7 +35,7 @@ func (PageView) Annotations() []schema.Annotation {
 // Fields 定义页面访问埋点字段。
 func (PageView) Fields() []ent.Field {
 	return []ent.Field{
-		// page_id 来自 page-registry 的 id(如 "dashboard", "example-content")。
+		// page_id 来自合并页面注册表的 id(静态核心页或 "page:<slug>")。
 		field.String("page_id").
 			MaxLen(128).
 			NotEmpty().

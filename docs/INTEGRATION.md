@@ -6,6 +6,8 @@ sub2api-extension 根路径 `/` 会跳转到控制台 `/admin/dashboard`。原�
 
 官网内容在页面管理中维护。管理员可在 `/admin/pages` 编辑数据库中的 `home` 页面，公开访问路径为 `/p/home`。
 
+官网页脚入口可通过 `home` 页元数据配置：`console_href`、`api_docs_href`、`usage_guide_href`、`contact_sales_href`、`terms_href`。值可填写完整的 `http://` / `https://` 地址；为空时沿用官网默认的页内锚点。
+
 ## 架构
 
 ```text

@@ -1,7 +1,7 @@
 # =============================================================================
 # Sub2API Extension - 生产环境部署
 # =============================================================================
-# 仅允许从 main 手动触发并填写版本号。
+# 支持从 main 手动触发，或推送 semver tag 自动触发生产发布。
 # 流程：完整 CI 门禁 → 多架构版本镜像 → GHCR → Environment 审批 → SSH 部署。
 # 镜像标签：<version> 以及 latest。部署失败会尝试恢复上一标签。
 # =============================================================================
@@ -9,6 +9,10 @@
 name: Deploy Production
 
 on:
+  push:
+    tags:
+      - 'v*.*.*'
+      - '[0-9]*.[0-9]*.[0-9]*'
   workflow_dispatch:
     inputs:
       version:
@@ -53,8 +57,12 @@ jobs:
       - name: Require main branch
         shell: bash
         run: |
-          if [ "$GITHUB_REF_NAME" != "main" ]; then
-            echo "Production deployment must be dispatched from main, got: $GITHUB_REF_NAME" >&2
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && [ "$GITHUB_REF_NAME" != "main" ]; then
+            echo "Manual production deployment must be dispatched from main, got: $GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$GITHUB_REF_TYPE" != "tag" ]; then
+            echo "Automatic production deployment must be triggered by a tag" >&2
             exit 1
           fi
 
@@ -65,10 +73,14 @@ jobs:
         id: meta
         shell: bash
         env:
-          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_VERSION: ${{ inputs.version || '' }}
         run: |
           set -euo pipefail
-          TAG="$INPUT_VERSION"
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            TAG="$GITHUB_REF_NAME"
+          else
+            TAG="$INPUT_VERSION"
+          fi
           if ! [[ "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
             echo "Version must look like 1.2.3, v1.2.3 or 1.2.3-rc.1" >&2
             exit 1

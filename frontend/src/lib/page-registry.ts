@@ -1,7 +1,7 @@
 /**
  * 页面清单注册表 —— 页面身份的单一真相源 (KTD7)。
  *
- * 静态核心页(dashboard/examples)在此声明(代码登记, 不可变)。
+ * 静态核心页(dashboard/assets)在此声明(代码登记, 不可变)。
  * 动态页(管理员创建)来自后端 /api/aux/pages, 在 lib/dynamic-pages.ts 与静态注册表合并。
  *
  * - App.tsx 路由与 registry 共享同一 id 命名空间
@@ -32,14 +32,17 @@ export interface PageEntry {
   path: string
   /** 可见性: public 无需认证; admin 需管理员会话。 */
   visibility: PageVisibility
+  /** 动态管理员菜单图标名，来自 metadata.menu_icon。静态页通常不设置。 */
+  icon?: string
 }
 
 /**
- * 静态核心页面清单(代码登记, 不可变)。
+ * 静态核心页面清单(代码登记, 不可变)。示例页已经迁移到 pages 表，
+ * 由 AdminLayout 的“动态页面”分组展示。
  * 动态页由 lib/dynamic-pages.ts 在 bootstrap 时合并(getMergedRegistry)。
  *
- * 与 App.tsx 已注册的静态管理路由一一对应。
- * 测试 (page-registry.test.ts) 验证此一致性。
+ * 与 App.tsx 中的静态核心管理路由一一对应；旧示例路由仅作为兼容入口保留，
+ * 不再参与静态注册或当前页面统计。测试 (page-registry.test.ts) 验证此一致性。
  */
 export const STATIC_PAGE_REGISTRY: readonly PageEntry[] = [
   {
@@ -52,24 +55,6 @@ export const STATIC_PAGE_REGISTRY: readonly PageEntry[] = [
     id: 'image-assets',
     title: '图片资源',
     path: '/admin/assets',
-    visibility: 'admin',
-  },
-  {
-    id: 'example-content',
-    title: '静态内容示例',
-    path: '/admin/examples/content',
-    visibility: 'admin',
-  },
-  {
-    id: 'example-interaction',
-    title: '交互与埋点示例',
-    path: '/admin/examples/interaction',
-    visibility: 'admin',
-  },
-  {
-    id: 'example-api',
-    title: 'API 请求示例',
-    path: '/admin/examples/api',
     visibility: 'admin',
   },
 ] as const

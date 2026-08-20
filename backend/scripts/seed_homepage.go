@@ -54,9 +54,15 @@ func main() {
 		"full_bleed": "true",
 		"logo":       "",
 		// frame 模式让动态官网在沙箱内部滚动，使 fixed 导航与内容处于同一滚动上下文。
-		"scroll_mode": "frame",
-		"source":      "TERALEMO homepage implementation (migrated to database HTML)",
-		"site_name":   "TERALEMO",
+		"scroll_mode":        "frame",
+		"source":             "TERALEMO homepage implementation (migrated to database HTML)",
+		"site_name":          "TERALEMO",
+		"copyright_year":     "2026",
+		"console_href":       "/admin/dashboard",
+		"api_docs_href":      "",
+		"usage_guide_href":   "",
+		"contact_sales_href": "",
+		"terms_href":         "",
 		// trusted_partners 元数据示例（控制台页面管理中以字符串值保存 JSON）：
 		// {"enabled":true,"items":[{"icon":"","name":"星辰互娱"}]}
 		// enabled=false 或 items=[] 时，官网自动隐藏该板块；超过 5 项才开启循环。
@@ -216,8 +222,9 @@ func getHomePageHTML() string {
     .teralemo-wordmark {
       display: inline-block;
       color: var(--home-text);
-      background-image: linear-gradient(90deg, #c18a63 0%, #6c9b92 25%, #9180a8 50%, #ad9760 75%, #c18a63 100%);
-      background-size: 280% 100%;
+      /* 两个完全相同的色带首尾相接，动画重置时不会跳回第一帧。 */
+      background-image: linear-gradient(90deg, #c18a63 0%, #6c9b92 12.5%, #9180a8 25%, #ad9760 37.5%, #c18a63 50%, #6c9b92 62.5%, #9180a8 75%, #ad9760 87.5%, #c18a63 100%);
+      background-size: 200% 100%;
       background-position: 0% 50%;
       background-clip: text;
       -webkit-background-clip: text;
@@ -324,7 +331,7 @@ func getHomePageHTML() string {
     }
 
     .teralemo-hero h1 {
-      font-size: clamp(2.5rem, 6vw, 4.5rem);
+      font-size: clamp(3rem, 7vw, 5.5rem);
       font-weight: 800;
       letter-spacing: -0.03em;
       line-height: 1.1;
@@ -558,6 +565,10 @@ func getHomePageHTML() string {
       color: var(--home-text-dim);
       line-height: 1.6;
     }
+    .teralemo-copyright {
+      margin-top: 1rem;
+      font-size: 0.75rem !important;
+    }
 
     .teralemo-footer a {
       display: block;
@@ -651,8 +662,9 @@ func getHomePageHTML() string {
     }
     .teralemo-partner:hover img { filter: grayscale(0); opacity: 1; }
     @keyframes teralemo-brand-gradient {
-      from { background-position: 0% 50%; }
-      to { background-position: 100% 50%; }
+      /* 背景图的后半段是前半段的副本，100% 与 0% 画面完全一致；反向移动让颜色从左向右流动。 */
+      from { background-position: 100% 50%; }
+      to { background-position: 0% 50%; }
     }
     @media (prefers-reduced-motion: reduce) {
       .teralemo-wordmark {
@@ -776,7 +788,7 @@ func getHomePageHTML() string {
           <svg class="teralemo-theme-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.1 15.2A8.4 8.4 0 0 1 8.8 3.9 8.5 8.5 0 1 0 20.1 15.2Z" /></svg>
           <svg class="teralemo-theme-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.5" /><path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M18.7 5.3l-1.8 1.8M7.1 16.9l-1.8 1.8" /></svg>
         </button>
-        <a class="teralemo-nav-cta" href="/admin" data-feature-id="nav-console">控制台</a>
+        <a class="teralemo-nav-cta" href="/admin" data-feature-id="nav-console" data-metadata-href="console_href">控制台</a>
       </div>
     </header>
 
@@ -921,7 +933,7 @@ func getHomePageHTML() string {
             <p class="teralemo-kicker">开发者体验</p>
             <h2>接入一次，网关持续演进。</h2>
             <p>应用侧保持熟悉的调用方式，策略、路由和治理能力由 TERALEMO 统一承接。</p>
-            <a class="teralemo-text-link" href="#contact" data-feature-id="developer-docs">查看 API 文档 ↗</a>
+            <a class="teralemo-text-link" href="#contact" data-feature-id="developer-docs" data-metadata-href="api_docs_href">查看 API 文档 ↗</a>
           </div>
           <div class="teralemo-code-block" aria-label="接口示例">
             <div class="teralemo-code-protocols" role="tablist" aria-label="接口协议">
@@ -953,10 +965,10 @@ func getHomePageHTML() string {
     </main>
 
     <footer class="teralemo-footer teralemo-shell">
-      <div><strong class="teralemo-wordmark">TERALEMO</strong><p>生产级 AI 网关，为产品、Agent 和研发平台提供统一的接入、治理与运行能力。</p></div>
+      <div><strong class="teralemo-wordmark">TERALEMO</strong><p>生产级 AI 网关，为产品、Agent 和研发平台提供统一的接入、治理与运行能力。</p><p class="teralemo-copyright" data-copyright>© 2026 TERALEMO. 保留所有权利。</p></div>
       <div><strong>产品</strong><a href="#platform">平台能力</a><a href="#capabilities">治理能力</a></div>
-      <div><strong>资源</strong><a href="#developers">API 文档</a><a href="#developers">使用指南</a></div>
-      <div><strong>服务支持</strong><a href="#contact">联系商务</a><a href="#contact">服务条款</a></div>
+      <div><strong>资源</strong><a href="#developers" data-metadata-href="api_docs_href">API 文档</a><a href="#developers" data-metadata-href="usage_guide_href">使用指南</a></div>
+      <div><strong>服务支持</strong><a href="#contact" data-metadata-href="contact_sales_href">联系商务</a><a href="#contact" data-metadata-href="terms_href">服务条款</a></div>
     </footer>
   </div>
   <script>
@@ -1025,6 +1037,40 @@ func getHomePageHTML() string {
       });
     }
 
+    function renderCopyright() {
+      var metadata = window.__AUX_METADATA__ || {};
+      var siteName = typeof metadata.site_name === 'string' ? metadata.site_name.trim() : '';
+      var year = metadata.copyright_year == null ? '' : String(metadata.copyright_year).trim();
+      if (!siteName) siteName = 'TERALEMO';
+      if (!/^\d{4}$/.test(year)) year = String(new Date().getFullYear());
+
+      document.querySelectorAll('.teralemo-wordmark').forEach(function (el) {
+        el.textContent = siteName;
+      });
+      var copyright = document.querySelector('[data-copyright]');
+      if (copyright) copyright.textContent = '© ' + year + ' ' + siteName + '. 保留所有权利。';
+    }
+
+    function isSafeNavigation(value) {
+      var href = String(value == null ? '' : value).trim();
+      if (!href || /^javascript:/i.test(href)) return false;
+      if (/^(https?:|mailto:|tel:|\/|#)/i.test(href)) return true;
+      return !/^[a-z][a-z0-9+.-]*:/i.test(href);
+    }
+
+    function renderMetadataLinks() {
+      var metadata = window.__AUX_METADATA__ || {};
+      document.querySelectorAll('[data-metadata-href]').forEach(function (el) {
+        var key = el.getAttribute('data-metadata-href');
+        if (!key) return;
+        var value = metadata[key];
+        if (value == null) return;
+        value = String(value).trim();
+        if (!value || !isSafeNavigation(value)) return;
+        el.setAttribute('href', value);
+      });
+    }
+
     function parseTrustedPartners() {
       var raw = (window.__AUX_METADATA__ || {}).trusted_partners;
       if (!raw) return null;
@@ -1083,6 +1129,8 @@ func getHomePageHTML() string {
       viewport.addEventListener('pointercancel', stopDragging);
     }
     renderBrandLogo();
+    renderCopyright();
+    renderMetadataLinks();
     renderTrustedPartners();
 
     var examples = {

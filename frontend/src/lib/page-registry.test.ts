@@ -21,24 +21,6 @@ const expectedPages = [
     path: '/admin/assets',
     visibility: 'admin',
   },
-  {
-    id: 'example-content',
-    title: '静态内容示例',
-    path: '/admin/examples/content',
-    visibility: 'admin',
-  },
-  {
-    id: 'example-interaction',
-    title: '交互与埋点示例',
-    path: '/admin/examples/interaction',
-    visibility: 'admin',
-  },
-  {
-    id: 'example-api',
-    title: 'API 请求示例',
-    path: '/admin/examples/api',
-    visibility: 'admin',
-  },
 ]
 
 describe('page-registry', () => {
@@ -61,11 +43,9 @@ describe('page-registry', () => {
   })
 
   it('finds current pages by id and path', () => {
-    expect(getPageById('example-content')?.path).toBe('/admin/examples/content')
-    expect(getPageByPath('/admin/examples/interaction')?.id).toBe(
-      'example-interaction',
-    )
-    expect(getPageByPath('/admin/examples/api')?.id).toBe('example-api')
+    expect(getPageById('example-content')).toBeUndefined()
+    expect(getPageByPath('/admin/examples/interaction')).toBeUndefined()
+    expect(getPageByPath('/admin/examples/api')).toBeUndefined()
     expect(getPageByPath('/nope')).toBeUndefined()
   })
 

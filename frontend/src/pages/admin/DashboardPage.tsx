@@ -140,7 +140,6 @@ export default function DashboardPage() {
       ease: 'power3.out',
     })
     gsap.from('.aux-metric-card', {
-      y: 38,
       opacity: 0,
       stagger: 0.07,
       duration: 0.72,
@@ -221,11 +220,19 @@ export default function DashboardPage() {
           </div>
         </div>
         <div className="aux-dashboard-hero-orbit" aria-hidden="true">
-          <div className="aux-orbit-ring aux-orbit-ring--outer" />
-          <div className="aux-orbit-ring aux-orbit-ring--inner" />
+          <div className="aux-orbit-track aux-orbit-track--outer">
+            <div className="aux-orbit-ring aux-orbit-ring--outer" />
+            <div className="aux-orbit-spinner aux-orbit-spinner--outer">
+              <span className="aux-orbit-dot aux-orbit-dot--two" />
+            </div>
+          </div>
+          <div className="aux-orbit-track aux-orbit-track--inner">
+            <div className="aux-orbit-ring aux-orbit-ring--inner" />
+            <div className="aux-orbit-spinner aux-orbit-spinner--inner">
+              <span className="aux-orbit-dot aux-orbit-dot--one" />
+            </div>
+          </div>
           <div className="aux-orbit-core"><Gauge /></div>
-          <span className="aux-orbit-dot aux-orbit-dot--one" />
-          <span className="aux-orbit-dot aux-orbit-dot--two" />
           <div className="aux-orbit-caption"><span>运行状态</span><strong>已同步</strong></div>
         </div>
       </section>

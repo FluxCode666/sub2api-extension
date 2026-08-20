@@ -2,13 +2,13 @@
  * 埋点 SDK —— 前端数据采集与上报。
  *
  * 职责:
- *   - initTelemetry(): 监听 SPA 路由切换, 自动上报 page_view(用 page-registry 解析 page id)。
+ *   - initTelemetry(): 监听 SPA 路由切换, 自动上报 page_view(用合并注册表解析 page id)。
  *   - trackFeatureClick(pageId, featureId): 手动上报功能点击。
  *   - 上报失败静默丢弃(fire-and-forget), 绝不抛错到页面(KTD4)。
  *
  * 设计要点:
- *   1. page id 来自 page-registry(KTD7): 路由切换时用 getPageByPath(pathname) 解析,
- *      路径不在 registry → 不上报(避免 404 噪声)。
+ *   1. page id 来自合并注册表(KTD7): 路由切换时优先用 getMergedPageByPath(pathname)
+ *      解析动态页，静态核心页用 page-registry 作为 fallback；路径不在 registry → 不上报。
  *   2. 埋点端点匿名可写(R8/R11): 上报走 /api/aux/telemetry/*, 不需要会话 token。
  *   3. 上报失败不阻塞页面(KTD4): 用 fetch + catch, 所有错误静默丢弃。
  *   4. 访客 id 区分匿名/管理员: getVisitorId() 取持久 id, isCurrentUserAdmin() 判断管理员。
@@ -16,6 +16,7 @@
  *
  * Covers KTD4, KTD7, R8(页面访问埋点), R9(功能使用埋点), R11(自有采集)。
  */
+import { getMergedPageByPath } from './dynamic-pages'
 import { getPageByPath } from './page-registry'
 import { getVisitorId, isCurrentUserAdmin } from './visitor-id'
 
@@ -88,12 +89,14 @@ export function trackFeatureClick(pageId: string, featureId: string): void {
 }
 
 /**
- * 处理路由变化: 用当前路径从 page-registry 解析 page id, 上报 page_view。
+ * 处理路由变化: 用当前路径从合并注册表解析 page id, 上报 page_view。
  *
  * 路径不在 registry(如 404) → 不上报(避免噪声)。
  */
 function handleRouteChange(pathname: string): void {
-  const page = getPageByPath(pathname)
+  // 动态页清单异步加载，缓存命中后优先使用动态注册表；在 bootstrap 尚未完成时
+  // 仍通过静态注册表识别核心页面，避免动态列表请求影响既有页面埋点。
+  const page = getMergedPageByPath(pathname) ?? getPageByPath(pathname)
   const isAdmin = isCurrentUserAdmin()
   const routeKey = page
     ? `${pathname}:${isAdmin ? 'admin' : 'anonymous'}`

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
-import { Check, Copy, ImageIcon, Loader2, Upload } from 'lucide-react'
+import { Check, Copy, ImageIcon, Loader2, RefreshCw, Upload } from 'lucide-react'
 import { apiClient, type AuxEnvelope } from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
 
 interface ImageAsset {
   id: number
@@ -22,11 +23,12 @@ export default function ImageAssetsPage() {
   const inputRef = useRef<HTMLInputElement>(null)
   const [items, setItems] = useState<ImageAsset[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
   const [copiedId, setCopiedId] = useState<number | null>(null)
 
-  const loadAssets = useCallback(async () => {
+  const loadAssets = useCallback(async (): Promise<boolean> => {
     setLoading(true)
     setError('')
     try {
@@ -37,8 +39,10 @@ export default function ImageAssetsPage() {
         // 避免反向代理把内部容器域名写进页面元数据。
         url: new URL(item.url, window.location.origin).href,
       })))
+      return true
     } catch {
       setError('图片资源加载失败，请检查管理会话或后端服务。')
+      return false
     } finally {
       setLoading(false)
     }
@@ -48,14 +52,30 @@ export default function ImageAssetsPage() {
     loadAssets()
   }, [loadAssets])
 
+  const handleRefresh = async () => {
+    if (refreshing || loading || uploading) return
+    setRefreshing(true)
+    const success = await loadAssets()
+    if (success) {
+      toast.success('图片资源刷新成功')
+    } else {
+      toast.error('图片资源刷新失败')
+    }
+    setRefreshing(false)
+  }
+
   const uploadFile = async (file: File) => {
     setError('')
     if (!file.type.startsWith('image/')) {
-      setError('只能上传 PNG、JPEG、GIF 或 WebP 图片。')
+      const message = '只能上传 PNG、JPEG、GIF 或 WebP 图片。'
+      setError(message)
+      toast.error(message)
       return
     }
     if (file.size > MAX_IMAGE_BYTES) {
-      setError('单张图片不能超过 10MB。')
+      const message = '单张图片不能超过 10MB。'
+      setError(message)
+      toast.error(message)
       return
     }
 
@@ -64,9 +84,12 @@ export default function ImageAssetsPage() {
       const formData = new FormData()
       formData.append('file', file)
       await apiClient.upload<AuxEnvelope<ImageAsset>>('/admin/assets', formData, { timeout: 60_000 })
+      toast.success('图片上传成功')
       await loadAssets()
     } catch {
-      setError('上传失败。请确认文件格式正确、大小不超过 10MB，并已执行数据库迁移。')
+      const message = '上传失败。请确认文件格式正确、大小不超过 10MB，并已执行数据库迁移。'
+      setError(message)
+      toast.error(message)
     } finally {
       setUploading(false)
       if (inputRef.current) inputRef.current.value = ''
@@ -82,9 +105,12 @@ export default function ImageAssetsPage() {
     try {
       await writeClipboardText(asset.url)
       setCopiedId(asset.id)
+      toast.success('图片 URL 已复制')
       window.setTimeout(() => setCopiedId((current) => current === asset.id ? null : current), 1600)
     } catch {
-      setError('复制失败，请手动选择 URL 复制。')
+      const message = '复制失败，请手动选择 URL 复制。'
+      setError(message)
+      toast.error(message)
     }
   }
 
@@ -97,7 +123,11 @@ export default function ImageAssetsPage() {
             图片以文件形式持久化，数据库只记录文件路径。上传后复制 HTTP URL，并粘贴到动态页面元数据中。
           </p>
         </div>
-        <div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => void handleRefresh()} disabled={loading || refreshing || uploading}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? '刷新中' : '刷新'}
+          </Button>
           <input
             ref={inputRef}
             type="file"

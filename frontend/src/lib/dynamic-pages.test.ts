@@ -56,6 +56,7 @@ describe('dynamic-pages', () => {
           enabled: true,
           route: '/admin/p/admin-page',
           page_id: 'page:admin-page',
+          menu_icon: 'activity',
           updated_at: '2026-01-01T00:00:00Z',
         }],
       },
@@ -64,7 +65,31 @@ describe('dynamic-pages', () => {
     await fetchDynamicPages({ includeAdmin: true })
 
     expect(mockedGet).toHaveBeenCalledWith('/admin/pages')
-    expect(getMergedRegistry().some((page) => page.id === 'page:admin-page')).toBe(true)
+    expect(getMergedRegistry().find((page) => page.id === 'page:admin-page')).toMatchObject({
+      icon: 'activity',
+    })
+  })
+
+  it('does not expose disabled pages in the merged navigation registry', async () => {
+    mockedGet.mockResolvedValueOnce({
+      data: {
+        items: [{
+          id: 3,
+          slug: 'disabled-page',
+          title: '已停用页面',
+          visibility: 'admin',
+          content_type: 'html',
+          enabled: false,
+          route: '/admin/p/disabled-page',
+          page_id: 'page:disabled-page',
+          updated_at: '2026-01-01T00:00:00Z',
+        }],
+      },
+    })
+
+    await fetchDynamicPages({ includeAdmin: true })
+
+    expect(getMergedRegistry().some((page) => page.id === 'page:disabled-page')).toBe(false)
   })
 
   it('upgrades a public cache to the guarded admin list when requested', async () => {

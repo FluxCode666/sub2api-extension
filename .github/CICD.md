@@ -9,7 +9,7 @@
 | CI | `.github/workflows/ci.yml` | push `main`、Pull Request、被部署工作流调用 | Go 测试与 lint、前端类型检查、测试和构建 |
 | Security Scan | `.github/workflows/security-scan.yml` | Pull Request、每周一 | `govulncheck` 与 `pnpm audit` |
 | Deploy Test | `.github/workflows/deploy-test.yml` | push `test`，或手动触发 | 构建测试镜像并部署测试环境 |
-| Deploy Production | `.github/workflows/deploy-production.yml` | 仅手动触发 | 从 `main` 构建版本镜像并部署生产环境 |
+| Deploy Production | `.github/workflows/deploy-production.yml` | 推送 semver tag，或从 `main` 手动触发 | 从版本 tag 构建镜像并部署生产环境 |
 
 发布链路如下：
 
@@ -20,6 +20,7 @@
    │
    ├─ push test ───── 完整 CI ── test-<sha7> / test-latest ── 测试服务器
    │
+   ├─ push v1.2.3 ──── 完整 CI ── v1.2.3 / latest ─────────── 生产服务器
    └─ main 手动发布 ─ 完整 CI ── <version> / latest ───────── 生产服务器
                                       │
                                       └─ Compose 健康检查失败时恢复上一标签
@@ -86,7 +87,7 @@ ghcr.io/<owner>/sub2api-extension:test-latest
 
 ## 4. 生产环境部署
 
-生产工作流只能在 GitHub Actions 页面手动运行，并且运行时选择的分支必须是 `main`。工作流会再次校验分支，避免从功能分支发布生产镜像。
+生产工作流支持两种触发方式：向仓库推送符合 semver 的 `v1.2.3`（或 `1.2.3`）tag，或在 GitHub Actions 页面手动运行。手动运行时必须选择 `main` 分支；tag 触发时自动使用 tag 作为镜像版本号。
 
 手动参数：
 

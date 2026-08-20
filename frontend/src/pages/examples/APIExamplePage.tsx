@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { apiClient, type AuxEnvelope } from '@/lib/api-client'
 import { trackFeatureClick } from '@/lib/telemetry-sdk'
+import { toast } from 'sonner'
 
 interface ExampleStatus {
   service: string
@@ -39,6 +40,9 @@ export default function APIExamplePage() {
       if (controller.signal.aborted || requestRef.current.id !== requestId) return
 
       if (envelope.code !== 0 || !envelope.data) {
+        if (trackAction) {
+          toast.error(envelope.message || '服务状态刷新失败')
+        }
         setState({
           status: 'error',
           message: envelope.message || '服务返回的数据格式无效',
@@ -46,8 +50,14 @@ export default function APIExamplePage() {
         return
       }
       setState({ status: 'success', data: envelope.data })
+      if (trackAction) {
+        toast.success('服务状态刷新成功')
+      }
     } catch (error) {
       if (controller.signal.aborted || requestRef.current.id !== requestId) return
+      if (trackAction) {
+        toast.error('服务状态刷新失败')
+      }
       setState({
         status: 'error',
         message: error instanceof Error ? error.message : '未知请求错误',
