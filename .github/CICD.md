@@ -230,7 +230,6 @@ openssl rand -hex 32
 SUB2API_EXTENSION_IMAGE=ghcr.io/your-org/sub2api-extension
 SUB2API_EXTENSION_IMAGE_TAG=latest
 SUB2API_EXTENSION_CONTAINER_NAME=aux-backend
-SUB2API_EXTENSION_PUBLIC_HOST=aux.example.com
 DATABASE_HOST=<生产数据库地址>
 DATABASE_USER=<生产数据库用户>
 DATABASE_PASSWORD=<生产数据库密码>
@@ -247,10 +246,12 @@ SUB2API_EXTENSION_JWT_SECRET=<生产专用随机密钥>
 docker compose -f docker-compose.yml --env-file .env config -q
 docker compose -f docker-compose.yml --env-file .env up -d
 docker compose -f docker-compose.yml --env-file .env ps
-curl --fail http://127.0.0.1:8787/health
+curl --fail http://127.0.0.1:8004/health
 ```
 
 后续流水线会自动同步最新 `docker-compose.yml`，但不会覆盖服务器上的 `.env.test` 或 `.env`。
+每次部署会先运行 Compose 中的 `aux-migrate` 一次性服务，确保本系统的页面和埋点表已创建，
+迁移成功后才启动 `aux-backend`；迁移失败会阻止发布并进入回滚流程。
 
 ## 7. NGINX 与证书
 
@@ -259,7 +260,6 @@ curl --fail http://127.0.0.1:8787/health
 ```text
 deploy/nginx/nginx.conf
 deploy/nginx/conf.d/sub2api-extension.conf
-deploy/nginx/snippets/sub2api-extension-proxy.conf
 ```
 
 部署前将 `aux.example.com` 替换为真实域名。证书目录统一为：
@@ -274,12 +274,11 @@ deploy/nginx/snippets/sub2api-extension-proxy.conf
 ```bash
 sudo install -Dm644 deploy/nginx/nginx.conf /etc/nginx/nginx.conf
 sudo install -Dm644 deploy/nginx/conf.d/sub2api-extension.conf /etc/nginx/conf.d/sub2api-extension.conf
-sudo install -Dm644 deploy/nginx/snippets/sub2api-extension-proxy.conf /etc/nginx/snippets/sub2api-extension-proxy.conf
 sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-Compose 默认只绑定 `127.0.0.1:8787`，公网流量应统一通过 NGINX HTTPS 进入。完整说明见 `deploy/nginx/README.md`。
+Compose 默认只绑定 `127.0.0.1:8004`，公网流量应统一通过 NGINX HTTPS 进入。完整说明见 `deploy/nginx/README.md`。
 
 ## 8. 部署、健康检查与回滚
 
@@ -289,7 +288,9 @@ SSH 部署阶段会执行：
 2. 更新 `SUB2API_EXTENSION_IMAGE`、`SUB2API_EXTENSION_IMAGE_TAG` 和 `SUB2API_EXTENSION_CONTAINER_NAME`。
 3. 运行 `docker compose config -q`。
 4. 登录 GHCR 并拉取本次镜像。
-5. 使用 `docker compose up -d --remove-orphans aux-backend` 更新容器。
+5. 拉取 `aux-backend` 和 `aux-migrate` 镜像，并使用
+   `docker compose up -d --force-recreate --remove-orphans aux-backend` 更新容器；
+   Compose 会先等待 `aux-migrate` 成功退出。
 6. 最多等待约 5 分钟，直到 Compose 将容器标记为 `healthy`。
 7. 若失败，输出最近 100 行日志并尝试恢复上一镜像标签。
 8. 成功后清理 7 天以前未使用的镜像层。
@@ -297,7 +298,7 @@ SSH 部署阶段会执行：
 Compose 健康检查访问容器内的：
 
 ```text
-http://localhost:8787/health
+http://localhost:8004/health
 ```
 
 如果 Environment Variable `PUBLIC_URL` 已配置，工作流还会从 GitHub Runner 验证：
@@ -403,7 +404,7 @@ docker network inspect sub2api-network
 cd /opt/sub2api-extension
 docker compose -f docker-compose.yml --env-file .env ps
 docker compose -f docker-compose.yml --env-file .env logs --tail=200 aux-backend
-curl -v http://127.0.0.1:8787/health
+curl -v http://127.0.0.1:8004/health
 ```
 
 重点检查数据库连通性、`SUB2API_BASE_URL`、JWT 密钥、端口占用和数据目录权限。

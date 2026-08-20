@@ -222,17 +222,17 @@ jobs:
               printf '%s' "$GHCR_PAT" | docker login ghcr.io -u "$GHCR_OWNER" --password-stdin
             fi
 
-            compose pull aux-backend
-            if compose up -d --remove-orphans aux-backend && wait_healthy; then
+            compose pull aux-backend aux-migrate
+            if compose up -d --force-recreate --remove-orphans aux-backend && wait_healthy; then
               echo "Test deployment healthy: $IMAGE_TAG"
             else
               echo "Test deployment failed; collecting logs" >&2
-              compose logs --tail=100 aux-backend || true
+              compose logs --tail=100 aux-migrate aux-backend || true
               if [ -n "$PREVIOUS_TAG" ] && [ "$PREVIOUS_TAG" != "$IMAGE_TAG" ]; then
                 echo "Rolling back to $PREVIOUS_TAG"
                 update_env SUB2API_EXTENSION_IMAGE_TAG "$PREVIOUS_TAG"
-                compose pull aux-backend || true
-                compose up -d --remove-orphans aux-backend || true
+                compose pull aux-backend aux-migrate || true
+                compose up -d --force-recreate --remove-orphans aux-backend || true
                 wait_healthy || true
               fi
               exit 1

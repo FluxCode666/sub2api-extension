@@ -16,6 +16,7 @@ package admin
 
 import (
 	"context"
+	"log"
 
 	"sub2api-extension/internal/pkg/response"
 	"sub2api-extension/internal/service"
@@ -56,6 +57,10 @@ func newAnalyticsHandlerWithProvider(provider analyticsProvider) *AnalyticsHandl
 func (h *AnalyticsHandler) GetOverview(c *gin.Context) {
 	resp, err := h.provider.GetOverview(c.Request.Context())
 	if err != nil {
+		// Keep the client response generic, but retain the database error in the
+		// server log so production failures (for example missing schema tables)
+		// can be diagnosed without exposing internals to administrators.
+		log.Printf("[AnalyticsHandler.GetOverview] query failed: %v", err)
 		response.InternalError(c, "failed to fetch analytics overview")
 		return
 	}
