@@ -20,7 +20,7 @@ sub2api 控制台
       -> AdminGuard 验证或换取 aux 会话
 ```
 
-sub2api-extension 使用自己的 PostgreSQL 保存页面访问和功能点击数据。管理员身份通过 sub2api iframe token 或独立账号密码登录验证。页面上架功能会额外使用具备读写权限的连接访问 sub2api PostgreSQL 的 `settings` 表，同步 `custom_menu_items`；不会把 sub2api 的业务表映射到扩展 Ent schema。
+sub2api-extension 使用自己的 PostgreSQL 保存页面访问和功能点击数据。管理员身份通过 sub2api iframe token 或独立账号密码登录验证；两个系统不共享数据库。
 
 ## 1. 部署 sub2api-extension
 
@@ -37,13 +37,6 @@ cp .env.dev.example .env.dev
 SUB2API_EXTENSION_POSTGRES_PASSWORD=<强密码>
 SUB2API_EXTENSION_JWT_SECRET=<openssl rand -hex 32 的输出>
 SUB2API_BASE_URL=http://sub2api:8080
-# 页面上架功能（可选，但启用上架开关时必须配置）
-SUB2API_DATABASE_HOST=postgres
-SUB2API_DATABASE_PORT=5432
-SUB2API_DATABASE_USER=sub2api
-SUB2API_DATABASE_PASSWORD=<sub2api 数据库密码>
-SUB2API_DATABASE_DBNAME=sub2api
-SUB2API_EXTENSION_PUBLIC_URL=https://aux.example.com
 ```
 
 启动并检查：
@@ -117,12 +110,6 @@ sub2api 会把 URL 作为 iframe 地址。`theme=light` 或 `theme=dark` 可指�
 | `sort_order` | 菜单排序数字 |
 
 保存后，sub2api 会通过 `buildEmbeddedUrl` 附加 `user_id`、`token`、`theme`、`lang`、`ui_mode` 等参数。sub2api-extension 的 `AdminGuard` 使用 token 验证管理员身份并签发自己的会话。
-
-### 2.3 从页面管理直接上架
-
-配置 `SUB2API_DATABASE_*` 和 `SUB2API_EXTENSION_PUBLIC_URL` 后，打开扩展的「页面管理」，每个页面会显示「sub2api」上架开关。开启后会在 sub2api `settings` 表的 `custom_menu_items` 数组中创建/更新一项；菜单名称和可见角色（普通用户/管理员）可在页面编辑框中单独配置。扩展使用稳定且符合 sub2api 长度限制的 `aux-page-<页面 ID>` 作为菜单 ID，只修改自己的菜单项，其他手工配置的菜单会保留。关闭开关、删除页面或修改页面 URL 时会同步移除/更新对应项。
-
-页面的访问路径仍由页面自身可见性决定：公开页使用 `/p/<slug>`，管理员页使用 `/admin/p/<slug>`；sub2api 可见角色只控制菜单是否展示。`SUB2API_EXTENSION_PUBLIC_URL` 必须是浏览器可访问的完整 origin，不能填写 `aux-backend` 等 Docker 内部服务名。
 
 ## 3. 页面管理与 Dashboard
 
@@ -202,7 +189,6 @@ sub2api 会从 `custom_menu_items[].url` 提取 origin，并自动加入 `Conten
 1. 检查浏览器 Console 中的 `frame-src` 错误。
 2. 确认菜单 URL 是完整的 `http://` 或 `https://` URL。
 3. 重新保存 `custom_menu_items`，让 sub2api 刷新允许的 origin。
-
 
 ## 6. 验收清单
 

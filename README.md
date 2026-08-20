@@ -151,7 +151,7 @@ curl http://localhost:8787/health
 # 预期: {"status":"ok","service":"sub2api-extension"}
 ```
 
-开发用 compose 含 `aux-postgres` 服务并从源码构建镜像。附属系统启动后，可用 `custom_menu_items` 添加 `/admin/dashboard` 与 `/admin/pages`；如需向 sub2api 提供公开内容，再把已创建的 `/p/<slug>` 动态页面 URL 配置到 sub2api 的对应设置。配置 `SUB2API_DATABASE_*` 后，页面管理还可以直接同步 sub2api 的 `custom_menu_items`。**完整集成步骤见 [docs/INTEGRATION.md](docs/INTEGRATION.md)。**
+开发用 compose 含 `aux-postgres` 服务并从源码构建镜像。附属系统启动后，可用 `custom_menu_items` 添加 `/admin/dashboard` 与 `/admin/pages`；如需向 sub2api 提供公开内容，再把已创建的 `/p/<slug>` 动态页面 URL 配置到 sub2api 的对应设置。**完整集成步骤见 [docs/INTEGRATION.md](docs/INTEGRATION.md)。**
 
 ### 测试与生产部署
 
@@ -302,7 +302,7 @@ pnpm build           # tsc -b && vite build
 - **不修改 sub2api 代码** —— 所有集成通过 sub2api 现有接缝完成
 - **没有内置官网首页** —— 根路径 `/` 永远作为控制台入口跳转到 `/admin/dashboard`；公开内容只能通过管理员创建的 `/p/:slug` 动态页面提供
 - **公开页面与管理端分离** —— sub2api 如需嵌入公开内容，可把已启用的 `/p/:slug` URL 配置到对应设置；页面管理和分析仪表盘使用会传 token 的 `custom_menu_items`
-- **自有数据库** —— 页面、埋点和图片索引使用独立 PostgreSQL；页面上架只通过单独连接同步 sub2api 的 `settings.custom_menu_items`，不复用其业务表
+- **自有数据库** —— sub2api-extension 使用独立 PostgreSQL，不复用 sub2api 的数据库
 - **Ent 生成代码** —— `backend/ent/` 是 `ent/schema/*.go` 的生成产物，修改 schema 后需 `go generate ./ent`
 
 ## 文档

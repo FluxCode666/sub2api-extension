@@ -53,15 +53,12 @@ curl -fsS "$AUX_BASE/api/aux/admin/pages" \
     "logo": "https://aux.example.com/api/aux/assets/2",
     "menu_icon": "file-text"
   },
-  "enabled": true,
-  "sub2api_published": false,
-  "sub2api_visibility": "user",
-  "sub2api_menu_name": "产品文档"
+  "enabled": true
 }
 JSON
 ```
 
-字段约束：`slug` 只能使用小写字母、数字和连字符；`visibility` 是 `public` 或 `admin`；`content_type` 是 `html` 或 `react`；单页 HTML/React 内容上限 256 KiB；`metadata.logo` 如果存在必须是 `http://` 或 `https://` 地址。公开页面访问路径为 `/p/<slug>`，管理员页面访问路径为 `/admin/p/<slug>`。管理员页面可在 `metadata.menu_icon` 中设置侧边栏图标名（如 `file-text`、`activity`、`bar-chart-3`），仅 `visibility=admin` 且 `enabled=true` 的页面会进入扩展控制台动态菜单。`sub2api_published` 开启时会直接同步 sub2api PostgreSQL 的 `settings.custom_menu_items`；`sub2api_visibility` 只能是 `user` 或 `admin`，`sub2api_menu_name` 最多 50 个字符。需要同时设置 `SUB2API_DATABASE_*` 与 `SUB2API_EXTENSION_PUBLIC_URL`。
+字段约束：`slug` 只能使用小写字母、数字和连字符；`visibility` 是 `public` 或 `admin`；`content_type` 是 `html` 或 `react`；单页 HTML/React 内容上限 256 KiB；`metadata.logo` 如果存在必须是 `http://` 或 `https://` 地址。公开页面访问路径为 `/p/<slug>`，管理员页面访问路径为 `/admin/p/<slug>`。管理员页面可在 `metadata.menu_icon` 中设置侧边栏图标名（如 `file-text`、`activity`、`bar-chart-3`），仅 `visibility=admin` 且 `enabled=true` 的页面会进入控制台动态菜单。
 
 官网首页 `/p/home` 支持通过元数据覆盖以下入口链接（值可以是相对路径，也可以是完整的 `http://` / `https://` 地址；也支持 `mailto:` 和 `tel:`）：
 
