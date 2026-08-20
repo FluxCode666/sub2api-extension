@@ -13,6 +13,7 @@ package admin
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -51,6 +52,10 @@ func (h *PageHandler) List(c *gin.Context) {
 	}
 	items, err := h.provider.List(c.Request.Context())
 	if err != nil {
+		// Keep the public response generic, but retain the database/store error in
+		// the server log. This is especially useful when an existing production
+		// database has an older pages schema and Ent cannot scan all columns.
+		log.Printf("[PageHandler.List] query failed: %v", err)
 		response.InternalError(c, "failed to list pages")
 		return
 	}

@@ -204,6 +204,13 @@ jobs:
               done
               return 1
             }
+            run_migration() {
+              echo "Running database migration for $IMAGE_TAG"
+              # Do not rely on Compose reusing an already-completed dependency
+              # container. A one-off run always executes the migration image
+              # currently being deployed and streams its exit status/logs.
+              compose run --rm --no-deps aux-migrate
+            }
 
             PREVIOUS_TAG=$(sed -n 's/^SUB2API_EXTENSION_IMAGE_TAG=//p' "$ENV_FILE" | tail -n 1)
             update_env SUB2API_EXTENSION_IMAGE "$GHCR_IMAGE"
@@ -216,7 +223,7 @@ jobs:
             fi
 
             compose pull aux-backend aux-migrate
-            if compose up -d --force-recreate --remove-orphans aux-backend && wait_healthy; then
+            if run_migration && compose up -d --no-deps --force-recreate --remove-orphans aux-backend && wait_healthy; then
               echo "Production deployment healthy: $IMAGE_TAG"
             else
               echo "Production deployment failed; collecting logs" >&2
@@ -225,7 +232,7 @@ jobs:
                 echo "Rolling back to $PREVIOUS_TAG"
                 update_env SUB2API_EXTENSION_IMAGE_TAG "$PREVIOUS_TAG"
                 compose pull aux-backend aux-migrate || true
-                compose up -d --force-recreate --remove-orphans aux-backend || true
+                compose up -d --no-deps --force-recreate --remove-orphans aux-backend || true
                 wait_healthy || true
               fi
               exit 1
