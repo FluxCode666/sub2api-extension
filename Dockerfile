@@ -44,7 +44,8 @@ COPY frontend/ ./
 # accidentally omitted from the build context, fail the image build instead of
 # shipping an unstyled console that looks like its menu is not clickable.
 RUN pnpm run build && \
-    grep -Rqs 'position:fixed' dist/assets/*.css
+    grep -RqsF '.fixed{position:fixed' dist/assets/*.css && \
+    grep -RqsF '.flex{display:flex' dist/assets/*.css
 # 产物在 /app/frontend/dist
 
 # -----------------------------------------------------------------------------

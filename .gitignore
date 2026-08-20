@@ -31,7 +31,6 @@ pnpm-lock.yaml.bak
 # Vite 编译产物（由 .ts 生成，不入库）
 /frontend/vite.config.js
 /frontend/vite.config.d.ts
-/frontend/postcss.config.js
 
 # ============ 环境 / 密钥 ============
 .env
