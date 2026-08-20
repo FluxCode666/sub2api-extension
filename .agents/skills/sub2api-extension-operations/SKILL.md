@@ -43,7 +43,7 @@ Environment Secrets（测试环境使用 `TEST_` 区分，生产环境由 Enviro
 - 数据库地址、用户、库名和密码
 - sub2api 地址
 - JWT secret
-- 域名、宿主机端口和 NGINX upstream
+- 宿主机端口；域名、证书和 NGINX upstream 由部署者自行维护
 - Docker Compose project 和数据卷
 
 测试默认部署目录为 `/opt/sub2api-extension-test`，生产默认部署目录为 `/opt/sub2api-extension`。服务器目录只持有 `docker-compose.yml` 和 `.env.test`/`.env`；流水线同步 Compose 文件，但不覆盖环境文件中的数据库、JWT 和 sub2api 配置。
@@ -79,7 +79,7 @@ Environment Secrets（测试环境使用 `TEST_` 区分，生产环境由 Enviro
 /etc/nginx/certs/<domain>/privkey.pem
 ```
 
-修改域名后执行：
+域名和证书不由 Compose 或应用环境变量管理；请直接维护 `deploy/nginx/conf.d/sub2api-extension.conf` 或你自己的宿主机 NGINX 配置。修改域名后执行：
 
 ```bash
 sudo nginx -t

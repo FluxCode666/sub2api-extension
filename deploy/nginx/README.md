@@ -1,7 +1,7 @@
 # Sub2API Extension NGINX 生产配置
 
 这套配置参考 `upstream-hub/deploy/nginx`，假设 NGINX 安装在宿主机，
-`aux-backend` 由 `deploy/docker-compose.yml` 运行在宿主机 `127.0.0.1:8787`。
+`aux-backend` 由 `deploy/docker-compose.yml` 运行在宿主机 `127.0.0.1:8004`。
 
 ## 安装
 
@@ -11,8 +11,9 @@
 ```bash
 sudo install -Dm644 deploy/nginx/nginx.conf /etc/nginx/nginx.conf
 sudo install -Dm644 deploy/nginx/conf.d/sub2api-extension.conf /etc/nginx/conf.d/sub2api-extension.conf
-sudo install -Dm644 deploy/nginx/snippets/sub2api-extension-proxy.conf /etc/nginx/snippets/sub2api-extension-proxy.conf
 ```
+
+反代请求头已直接写入 `conf.d/sub2api-extension.conf`，不需要额外安装 snippets 文件。
 
 证书统一放在 NGINX 配置目录下：
 
@@ -33,15 +34,15 @@ sudo systemctl reload nginx
 ```bash
 cd deploy
 cp .env.example .env
-# 填写 SUB2API_EXTENSION_IMAGE、DATABASE_*、SUB2API_BASE_URL、SUB2API_EXTENSION_JWT_SECRET、SUB2API_EXTENSION_PUBLIC_HOST
+# 填写 SUB2API_EXTENSION_IMAGE、DATABASE_*、SUB2API_BASE_URL、SUB2API_EXTENSION_JWT_SECRET
 docker compose -f docker-compose.yml --env-file .env up -d
 
-curl http://127.0.0.1:8787/health
+curl http://127.0.0.1:8004/health
 curl -I https://<你的域名>/health
 ```
 
 生产 Compose 默认将应用端口绑定到 `127.0.0.1`，避免绕过 HTTPS NGINX。
-同一 `sub2api-network` 中的 sub2api 仍可以通过 `http://aux-backend:8787` 访问容器服务。
+同一 `sub2api-network` 中的 sub2api 仍可以通过 `http://aux-backend:8004` 访问容器服务。
 
 ## iframe 与图片 URL
 
