@@ -39,7 +39,12 @@ RUN --mount=type=cache,id=aux-pnpm-store,target=/root/.local/share/pnpm/store \
 
 # 复制前端源码并构建
 COPY frontend/ ./
-RUN pnpm run build
+# Keep the production image honest: the console relies on Tailwind utilities
+# (fixed sidebar, flex layout, responsive visibility). If PostCSS/Tailwind is
+# accidentally omitted from the build context, fail the image build instead of
+# shipping an unstyled console that looks like its menu is not clickable.
+RUN pnpm run build && \
+    grep -Rqs 'position:fixed' dist/assets/*.css
 # 产物在 /app/frontend/dist
 
 # -----------------------------------------------------------------------------
