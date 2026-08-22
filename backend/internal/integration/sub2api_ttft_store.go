@@ -84,7 +84,7 @@ func (s *Sub2APITTFTStore) listGroups(ctx context.Context) ([]*ttft.FilterOption
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	result := make([]*ttft.FilterOption, 0)
 	for rows.Next() {
@@ -109,7 +109,7 @@ func (s *Sub2APITTFTStore) listAccounts(ctx context.Context) ([]*ttft.FilterOpti
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	result := make([]*ttft.FilterOption, 0)
 	for rows.Next() {
@@ -207,7 +207,7 @@ func (s *Sub2APITTFTStore) queryBuckets(ctx context.Context, query ttft.Query, r
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var bucketIndex, bandOrder, minMs int
 		var band string
@@ -261,7 +261,7 @@ func (s *Sub2APITTFTStore) queryBucketStats(ctx context.Context, query ttft.Quer
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var bucketIndex int
 		var p50, p95, p99, avg, max sql.NullFloat64
