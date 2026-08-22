@@ -112,9 +112,12 @@ function toQueryISOString(date: string, clock: string, end = false): string {
   return new Date(`${date}T${clock}${suffix}`).toISOString()
 }
 
-function formatMs(value?: number): string {
-  if (value === undefined || value === null) return '—'
-  return `${value.toLocaleString('zh-CN')} ms`
+function formatMs(value?: number | null): string {
+  if (value === undefined || value === null || !Number.isFinite(value)) return '—'
+  if (value >= 1000) {
+    return `${(value / 1000).toLocaleString('zh-CN', { maximumFractionDigits: 2 })} s`
+  }
+  return `${Math.round(value).toLocaleString('zh-CN')} ms`
 }
 
 function segmentRepresentativeMs(segment: TTFTSegment): number {
@@ -692,7 +695,7 @@ function TTFTAreaChart({ buckets, granularity, selectedBucketIndex, onSelect }: 
           {Array.from({ length: yTicks + 1 }, (_, index) => {
             const value = (maxY / yTicks) * index
             const yy = y(value)
-            return <g key={value}><line x1={plot.left} x2={width - plot.right} y1={yy} y2={yy} className="aux-ttft-area-gridline" /><text x={plot.left - 12} y={yy + 4} textAnchor="end" className="aux-ttft-area-axis-label">{value >= 1000 ? `${(value / 1000).toFixed(value % 1000 ? 1 : 0)} s` : `${value} ms`}</text></g>
+            return <g key={value}><line x1={plot.left} x2={width - plot.right} y1={yy} y2={yy} className="aux-ttft-area-gridline" /><text x={plot.left - 12} y={yy + 4} textAnchor="end" className="aux-ttft-area-axis-label">{formatMs(value)}</text></g>
           })}
           <polygon className="aux-ttft-area-layer aux-ttft-area-p50" points={area('p50')} />
           <polygon className="aux-ttft-area-layer aux-ttft-area-p95" points={area('p95', 'p50')} />
