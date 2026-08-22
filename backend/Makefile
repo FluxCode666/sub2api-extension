@@ -7,12 +7,21 @@
 #
 # 开发环境启动：
 #   make dev        — 以 debug 模式启动后端，监听 8004（与前端 vite 代理一致）
-#   make migrate    — 一次性建表（ent 自动迁移），需 PG 已可达
+#   make migrate    — 一次性迁移附属系统自有数据库，需 PG 已可达
 #
-# 数据库/中间件需自行用本地 docker 启动，本 Makefile 不负责拉起 PG。
+# 完整 Docker 开发部署请在仓库根目录执行 make dev-up。
 # =============================================================================
 
-.PHONY: build test test-unit test-integration vet fmt tidy dev migrate
+.PHONY: build test test-unit test-integration vet fmt tidy dev migrate check-dev-database check-dev-sub2api-database
+
+BACKEND_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+PROJECT_ROOT := $(abspath $(BACKEND_DIR)/..)
+DEV_ENV_FILE ?= $(PROJECT_ROOT)/deploy/.env.dev
+
+# 复用 Docker 开发部署的本地环境文件。命令行传入的 DEV_* 变量仍具有最高优先级。
+# 这里只读取凭据和宿主机端口；容器内地址（postgres、aux-postgres）不会直接用于
+# 宿主机执行的 go run。
+-include $(DEV_ENV_FILE)
 
 VERSION ?= $(shell tr -d '\r\n' < ./cmd/server/VERSION 2>/dev/null || echo 0.1.0-dev)
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
@@ -21,45 +30,76 @@ LDFLAGS ?= -s -w -X main.Version=$(VERSION) -X main.Commit=$(COMMIT) -X main.Dat
 
 # ---- 开发环境变量 ----
 # 后端开发监听 8004（与 frontend/vite.config.ts 的 proxy target 一致）。
-# 数据库连接由开发者本地 docker 提供，此处只给默认值，可用环境变量覆盖。
-# 当前使用 sub2api-postgres 数据库（端口 15432），pages 表已在其中创建。
+# DATABASE_* 连接附属系统自己的 PostgreSQL，不得指向 Sub2API 数据库。
+# 默认从 deploy/.env.dev 读取宿主机端口和密码，也可用 DEV_* 显式覆盖。
 DEV_SERVER_PORT ?= 8004
 DEV_DATABASE_HOST ?= 127.0.0.1
-DEV_DATABASE_PORT ?= 15432
-DEV_DATABASE_USER ?= sub2api
-# 仅本地开发默认值；与 sub2api-postgres 容器一致。生产环境必须显式设置密码。
-DEV_DATABASE_PASSWORD ?= 123456
-DEV_DATABASE_DBNAME ?= sub2api
+DEV_DATABASE_PORT ?= $(or $(SUB2API_EXTENSION_POSTGRES_HOST_PORT),15433)
+DEV_DATABASE_USER ?= $(or $(SUB2API_EXTENSION_POSTGRES_USER),aux)
+DEV_DATABASE_PASSWORD ?= $(SUB2API_EXTENSION_POSTGRES_PASSWORD)
+DEV_DATABASE_DBNAME ?= $(or $(SUB2API_EXTENSION_POSTGRES_DB),auxdb)
+DEV_DATABASE_SSLMODE ?= disable
 
 # sub2api 对接。开发环境默认连接宿主机 8003 端口，可通过
 # SUB2API_BASE_URL 或 DEV_SUB2API_BASE_URL 覆盖。
-DEV_SUB2API_BASE_URL ?= $(if $(SUB2API_BASE_URL),$(SUB2API_BASE_URL),http://127.0.0.1:8003)
+# deploy/.env.dev 中的 SUB2API_BASE_URL 是容器地址 http://sub2api:8080，
+# 宿主机 go run 必须使用宿主机映射端口，因此这里不直接复用该值。
+DEV_SUB2API_BASE_URL ?= http://127.0.0.1:8003
+
+# 首字延迟看板直接读取 Sub2API PostgreSQL。宿主机默认通过 Sub2API Compose
+# 暴露的 127.0.0.1:15432 连接，不调用 Sub2API HTTP 数据接口。
+DEV_SUB2API_DATABASE_HOST ?= 127.0.0.1
+DEV_SUB2API_DATABASE_PORT ?= 15432
+DEV_SUB2API_DATABASE_USER ?= $(or $(SUB2API_DATABASE_USER),sub2api)
+DEV_SUB2API_DATABASE_PASSWORD ?= $(SUB2API_DATABASE_PASSWORD)
+DEV_SUB2API_DATABASE_DBNAME ?= $(or $(SUB2API_DATABASE_DBNAME),sub2api)
+DEV_SUB2API_DATABASE_SSLMODE ?= $(or $(SUB2API_DATABASE_SSLMODE),disable)
+DEV_SUB2API_EXTENSION_PUBLIC_URL ?= http://localhost:3100
+DEV_JWT_SECRET ?= $(or $(SUB2API_EXTENSION_JWT_SECRET),dev-secret-not-for-production)
+DEV_ASSET_DIR ?= data/assets
+
+check-dev-database: export DATABASE_PASSWORD := $(DEV_DATABASE_PASSWORD)
+check-dev-database:
+	@test -n "$${DATABASE_PASSWORD:-}" || { \
+		echo "DEV_DATABASE_PASSWORD 未设置（附属系统自有 PostgreSQL）" >&2; \
+		exit 1; \
+	}
+
+check-dev-sub2api-database: export SUB2API_DATABASE_PASSWORD := $(DEV_SUB2API_DATABASE_PASSWORD)
+check-dev-sub2api-database:
+	@test -n "$${SUB2API_DATABASE_PASSWORD:-}" || { \
+		echo "DEV_SUB2API_DATABASE_PASSWORD 未设置（Sub2API PostgreSQL）" >&2; \
+		exit 1; \
+	}
+
+# 使用 target-specific export，避免把密码展开到终端命令行中。
+dev migrate: export SERVER_PORT := $(DEV_SERVER_PORT)
+dev migrate: export DATABASE_HOST := $(DEV_DATABASE_HOST)
+dev migrate: export DATABASE_PORT := $(DEV_DATABASE_PORT)
+dev migrate: export DATABASE_USER := $(DEV_DATABASE_USER)
+dev migrate: export DATABASE_PASSWORD := $(DEV_DATABASE_PASSWORD)
+dev migrate: export DATABASE_DBNAME := $(DEV_DATABASE_DBNAME)
+dev migrate: export DATABASE_SSLMODE := $(DEV_DATABASE_SSLMODE)
+dev migrate: export JWT_SECRET := $(DEV_JWT_SECRET)
+dev migrate: export SUB2API_BASE_URL := $(DEV_SUB2API_BASE_URL)
+
+dev: export SERVER_MODE := debug
+dev: export SUB2API_EXTENSION_ASSET_DIR := $(DEV_ASSET_DIR)
+dev: export SUB2API_DATABASE_HOST := $(DEV_SUB2API_DATABASE_HOST)
+dev: export SUB2API_DATABASE_PORT := $(DEV_SUB2API_DATABASE_PORT)
+dev: export SUB2API_DATABASE_USER := $(DEV_SUB2API_DATABASE_USER)
+dev: export SUB2API_DATABASE_PASSWORD := $(DEV_SUB2API_DATABASE_PASSWORD)
+dev: export SUB2API_DATABASE_DBNAME := $(DEV_SUB2API_DATABASE_DBNAME)
+dev: export SUB2API_DATABASE_SSLMODE := $(DEV_SUB2API_DATABASE_SSLMODE)
+dev: export SUB2API_EXTENSION_PUBLIC_URL := $(DEV_SUB2API_EXTENSION_PUBLIC_URL)
 
 # dev: 以 debug 模式启动后端开发服务器。
-# 必需: JWT_SECRET（开发用任意值）、PG 已可达、建表已完成(make migrate)。
-dev:
-	SERVER_MODE=debug \
-	SERVER_PORT=$(DEV_SERVER_PORT) \
-	DATABASE_HOST=$(DEV_DATABASE_HOST) \
-	DATABASE_PORT=$(DEV_DATABASE_PORT) \
-	DATABASE_USER=$(DEV_DATABASE_USER) \
-	DATABASE_PASSWORD=$(DEV_DATABASE_PASSWORD) \
-	DATABASE_DBNAME=$(DEV_DATABASE_DBNAME) \
-	SUB2API_EXTENSION_ASSET_DIR=$(or $(SUB2API_EXTENSION_ASSET_DIR),data/assets) \
-	JWT_SECRET=$(or $(JWT_SECRET),dev-secret-not-for-production) \
-	SUB2API_BASE_URL=$(DEV_SUB2API_BASE_URL) \
+# 必需: 两个 PostgreSQL 密码、数据库均可达、自有库已完成 make migrate。
+dev: check-dev-database check-dev-sub2api-database
 	go run ./cmd/server
 
-# migrate: 一次性建表（ent 自动迁移）。需 PG 已可达且 DATABASE_* 指向正确库。
-# 用同样的开发连接参数。建表幂等，重复执行无副作用。
-migrate:
-	SERVER_PORT=$(DEV_SERVER_PORT) \
-	DATABASE_HOST=$(DEV_DATABASE_HOST) \
-	DATABASE_PORT=$(DEV_DATABASE_PORT) \
-	DATABASE_USER=$(DEV_DATABASE_USER) \
-	DATABASE_PASSWORD=$(DEV_DATABASE_PASSWORD) \
-	DATABASE_DBNAME=$(DEV_DATABASE_DBNAME) \
-	JWT_SECRET=$(or $(JWT_SECRET),dev-secret-not-for-production) \
+# migrate: 只迁移附属系统自有数据库。建表幂等，重复执行无副作用。
+migrate: check-dev-database
 	go run ./cmd/server -migrate
 
 # 编译后端二进制（纯 Go，CGO 关闭，便于交叉编译）

@@ -21,6 +21,12 @@ const expectedPages = [
     path: '/admin/assets',
     visibility: 'admin',
   },
+  {
+    id: 'ops-ttft',
+    title: '首字延迟',
+    path: '/admin/ops/ttft',
+    visibility: 'admin',
+  },
 ]
 
 describe('page-registry', () => {

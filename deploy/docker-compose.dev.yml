@@ -3,21 +3,26 @@
 # =============================================================================
 # 附属内容承载系统部署。零侵入 sub2api，独立运行。
 #
-# 两个服务：
+# 三个服务：
 #   - aux-postgres: 附属系统自有 PostgreSQL（独立库，不复用 sub2api 的 postgres）
+#   - aux-migrate:  附属系统数据库 schema 一次性迁移
 #   - aux-backend:  附属系统后端（内嵌前端 dist，单进程同源托管）
 #
 # 网络互联：
-#   加入 sub2api 的 sub2api-network（external）。
-#   - sub2api 经此网络以 iframe URL 访问附属系统（同网络用 http://aux-backend:8787）
-#   - 附属系统经此网络访问 sub2api（http://sub2api:8080）
+#   加入 sub2api 的 Compose 网络（external）。默认值
+#   deploy_sub2api-network 对应在 sub2api/deploy 目录运行 docker-compose.dev.yml
+#   时的项目网络；如果使用了其他 Compose project name，请通过
+#   SUB2API_DOCKER_NETWORK 覆盖。
+#   - 容器间可通过 aux-backend / sub2api 服务名通信；浏览器 iframe 必须使用
+#     SUB2API_EXTENSION_PUBLIC_URL，不能把 aux-backend 作为浏览器地址。
+#   - 附属系统经此网络访问 sub2api（http://sub2api:8080）和 PostgreSQL（postgres:5432）
 #
 # 前置条件：
-#   sub2api 已通过其自身的 Compose 文件部署，sub2api-network 已存在。
+#   sub2api 已通过其自身的 Compose 文件部署，SUB2API_DOCKER_NETWORK 已存在。
 #
 # 快速开始：
 #   1. 复制 .env.dev.example 到 .env.dev 并配置
-#   2. docker compose -f docker-compose.dev.yml --env-file .env.dev up -d
+#   2. docker compose -f docker-compose.dev.yml --env-file .env.dev up -d --build
 #   3. 检查日志: docker compose -f docker-compose.dev.yml --env-file .env.dev logs -f aux-backend
 #   4. 健康检查: curl http://localhost:${SUB2API_EXTENSION_SERVER_PORT:-8787}/health
 # =============================================================================
@@ -63,6 +68,38 @@ services:
       start_period: 10s
 
   # ===========================================================================
+  # Aux schema migration（一次性）
+  # ===========================================================================
+  # 后端启动不会自动迁移。开发 Compose 在启动应用前显式执行 -migrate，
+  # 只修改附属系统自己的 auxdb，不会修改 Sub2API 数据库。
+  aux-migrate:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: sub2api-extension:latest
+    restart: "no"
+    command: ["-migrate"]
+    environment:
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8787
+      - SERVER_MODE=${SERVER_MODE:-release}
+      - DATABASE_HOST=aux-postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USER=${SUB2API_EXTENSION_POSTGRES_USER:-aux}
+      - DATABASE_PASSWORD=${SUB2API_EXTENSION_POSTGRES_PASSWORD:?SUB2API_EXTENSION_POSTGRES_PASSWORD is required}
+      - DATABASE_DBNAME=${SUB2API_EXTENSION_POSTGRES_DB:-auxdb}
+      - DATABASE_SSLMODE=disable
+      # config.Load 在 -migrate 模式仍要求这两个配置存在。
+      - SUB2API_BASE_URL=${SUB2API_BASE_URL:-http://sub2api:8080}
+      - JWT_SECRET=${SUB2API_EXTENSION_JWT_SECRET:?SUB2API_EXTENSION_JWT_SECRET is required}
+      - TZ=${TZ:-Asia/Shanghai}
+    depends_on:
+      aux-postgres:
+        condition: service_healthy
+    networks:
+      - sub2api-network
+
+  # ===========================================================================
   # Aux Backend（附属系统应用：后端 + 内嵌前端）
   # ===========================================================================
   # 多阶段 Dockerfile 构建的单镜像：后端 Go 二进制 + 前端 dist。
@@ -97,6 +134,14 @@ services:
       # BaseURL: sub2api 后端地址。同 Docker 网络部署用 http://sub2api:8080；
       #          若附属系统与 sub2api 不在同一网络，用 sub2api 的公网域名。
       - SUB2API_BASE_URL=${SUB2API_BASE_URL:-http://sub2api:8080}
+      # ---- sub2api 数据库（页面上架同步 settings.custom_menu_items）----
+      - SUB2API_DATABASE_HOST=${SUB2API_DATABASE_HOST:-}
+      - SUB2API_DATABASE_PORT=${SUB2API_DATABASE_PORT:-5432}
+      - SUB2API_DATABASE_USER=${SUB2API_DATABASE_USER:-}
+      - SUB2API_DATABASE_PASSWORD=${SUB2API_DATABASE_PASSWORD:-}
+      - SUB2API_DATABASE_DBNAME=${SUB2API_DATABASE_DBNAME:-}
+      - SUB2API_DATABASE_SSLMODE=${SUB2API_DATABASE_SSLMODE:-disable}
+      - SUB2API_EXTENSION_PUBLIC_URL=${SUB2API_EXTENSION_PUBLIC_URL:-}
       # ---- JWT 配置（附属系统管理员会话签名）----
       # 重要：设置固定 JWT_SECRET，避免容器重启后会话失效。
       # 生成: openssl rand -hex 32
@@ -114,6 +159,8 @@ services:
     depends_on:
       aux-postgres:
         condition: service_healthy
+      aux-migrate:
+        condition: service_completed_successfully
     networks:
       - sub2api-network
     volumes:
@@ -149,8 +196,10 @@ volumes:
 # =============================================================================
 # sub2api-network 是 sub2api 自身的 Compose 文件创建的 bridge 网络。
 # 声明为 external：附属系统加入此网络以与 sub2api 互联，不重复创建。
-# sub2api 经此网络用 iframe URL（如 http://aux-backend:8787/）访问附属系统；
+# sub2api 与附属系统共享此网络；浏览器 iframe URL 仍由
+# SUB2API_EXTENSION_PUBLIC_URL 提供，不能使用 aux-backend 这类容器内部名称。
 # 附属系统经此网络用 http://sub2api:8080 访问 sub2api。
 networks:
   sub2api-network:
     external: true
+    name: ${SUB2API_DOCKER_NETWORK:-deploy_sub2api-network}

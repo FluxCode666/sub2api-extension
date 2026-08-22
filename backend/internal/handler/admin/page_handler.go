@@ -35,6 +35,10 @@ type pageProvider interface {
 	Delete(ctx context.Context, id int) error
 }
 
+type adminPageLister interface {
+	ListAdmin(ctx context.Context) ([]service.PageListItem, error)
+}
+
 // PageHandler 处理动态页面管理端点。
 type PageHandler struct {
 	provider pageProvider
@@ -50,7 +54,13 @@ func (h *PageHandler) List(c *gin.Context) {
 		response.InternalError(c, "page store is unavailable")
 		return
 	}
-	items, err := h.provider.List(c.Request.Context())
+	var items []service.PageListItem
+	var err error
+	if adminLister, ok := h.provider.(adminPageLister); ok {
+		items, err = adminLister.ListAdmin(c.Request.Context())
+	} else {
+		items, err = h.provider.List(c.Request.Context())
+	}
 	if err != nil {
 		// Keep the public response generic, but retain the database/store error in
 		// the server log. This is especially useful when an existing production

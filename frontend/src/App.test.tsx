@@ -34,7 +34,7 @@ vi.mock('@/pages/examples/APIExamplePage', () => ({
 
 function LocationProbe() {
   const location = useLocation()
-  return <output data-testid="location">{location.pathname}</output>
+  return <output data-testid="location">{location.pathname}{location.search}</output>
 }
 
 describe('App routing', () => {
@@ -50,6 +50,36 @@ describe('App routing', () => {
       expect(screen.getByTestId('location')).toHaveTextContent('/admin/dashboard')
     })
     expect(screen.getByRole('heading', { name: 'dashboard-page' })).toBeInTheDocument()
+  })
+
+  it('preserves sub2api embedded query parameters when redirecting the root path', async () => {
+    render(
+      <MemoryRouter initialEntries={['/?token=sub2api-jwt&user_id=7&ui_mode=embedded']}>
+        <App />
+        <LocationProbe />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location')).toHaveTextContent(
+        '/admin/dashboard?token=sub2api-jwt&user_id=7&ui_mode=embedded',
+      )
+    })
+  })
+
+  it('preserves sub2api embedded query parameters when redirecting /admin', async () => {
+    render(
+      <MemoryRouter initialEntries={['/admin?token=sub2api-jwt&ui_mode=embedded']}>
+        <App />
+        <LocationProbe />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location')).toHaveTextContent(
+        '/admin/dashboard?token=sub2api-jwt&ui_mode=embedded',
+      )
+    })
   })
 
   it('redirects the admin index to the canonical dashboard route', async () => {

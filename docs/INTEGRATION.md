@@ -20,11 +20,25 @@ sub2api 控制台
       -> AdminGuard 验证或换取 aux 会话
 ```
 
-sub2api-extension 使用自己的 PostgreSQL 保存页面访问和功能点击数据。管理员身份通过 sub2api iframe token 或独立账号密码登录验证；两个系统不共享数据库。
+sub2api-extension 使用自己的 PostgreSQL 保存页面访问和功能点击数据。管理员身份通过 sub2api iframe token 或独立账号密码登录验证。页面上架功能会额外使用具备读写权限的连接访问 sub2api PostgreSQL 的 `settings` 表，同步 `custom_menu_items`；运维首字延迟看板则使用同一连接只读 `usage_logs`、`groups` 和 `accounts` 表，不会把 sub2api 的业务表映射到扩展 Ent schema。
 
 ## 1. 部署 sub2api-extension
 
 ### 1.1 开发或单机 Compose
+
+先启动 Sub2API 开发 Compose。不要把扩展自己的 `aux-postgres` 当成
+Sub2API 数据库；首字延迟看板必须通过同一个 Docker 网络直连 Sub2API 的
+`postgres` 服务。
+
+```bash
+cd /Users/duegin/project/sub2api/deploy
+docker compose -f docker-compose.dev.yml up -d --build
+docker compose -f docker-compose.dev.yml ps
+```
+
+该命令默认创建 `deploy_sub2api-network`。如果使用了 `--project-name`，网络名会变成
+`<project-name>_sub2api-network`，需要同步填写扩展环境变量
+`SUB2API_DOCKER_NETWORK`。
 
 ```bash
 cd sub2api-extension/deploy
@@ -37,14 +51,30 @@ cp .env.dev.example .env.dev
 SUB2API_EXTENSION_POSTGRES_PASSWORD=<强密码>
 SUB2API_EXTENSION_JWT_SECRET=<openssl rand -hex 32 的输出>
 SUB2API_BASE_URL=http://sub2api:8080
+SUB2API_DOCKER_NETWORK=deploy_sub2api-network
+# 页面上架功能（可选，但启用上架开关时必须配置）
+SUB2API_DATABASE_HOST=postgres
+SUB2API_DATABASE_PORT=5432
+SUB2API_DATABASE_USER=sub2api
+SUB2API_DATABASE_PASSWORD=<sub2api 数据库密码>
+SUB2API_DATABASE_DBNAME=sub2api
+SUB2API_EXTENSION_PUBLIC_URL=https://aux.example.com
 ```
+
+`SUB2API_DATABASE_PASSWORD` 必须与 Sub2API Compose 使用的
+`POSTGRES_PASSWORD` 完全一致。`SUB2API_DATABASE_*` 是数据库连接参数，不是
+Sub2API HTTP API 配置；扩展不会调用 Sub2API 的首字延迟接口。
 
 启动并检查：
 
 ```bash
-docker compose -f docker-compose.dev.yml --env-file .env.dev up -d
+docker compose -f docker-compose.dev.yml --env-file .env.dev config -q
+docker compose -f docker-compose.dev.yml --env-file .env.dev up -d --build
 curl http://localhost:8787/health
 ```
+
+开发 Compose 会先运行 `aux-migrate` 创建/更新扩展自有 `auxdb` schema，再启动
+`aux-backend`。迁移服务不会修改 Sub2API PostgreSQL。
 
 健康检查应返回：
 
@@ -110,6 +140,14 @@ sub2api 会把 URL 作为 iframe 地址。`theme=light` 或 `theme=dark` 可指�
 | `sort_order` | 菜单排序数字 |
 
 保存后，sub2api 会通过 `buildEmbeddedUrl` 附加 `user_id`、`token`、`theme`、`lang`、`ui_mode` 等参数。sub2api-extension 的 `AdminGuard` 使用 token 验证管理员身份并签发自己的会话。
+
+管理端必须从 sub2api 的这个菜单入口打开（推荐 URL 使用 `/admin/dashboard`）；不要把不带查询参数的扩展 URL 直接当作已登录入口收藏或访问。sub2api 的登录 JWT 保存在 sub2api 自身的浏览器 origin 中，浏览器不会允许扩展跨 origin 读取它；只有菜单 iframe 注入的 `token`（或扩展自身已有的 `X-Aux-Session`）可以完成免登录进入。扩展会保留入口 URL 上的嵌入参数，根路径重定向不会丢失 `token`。
+
+### 2.3 从页面管理直接上架
+
+配置 `SUB2API_DATABASE_*` 和 `SUB2API_EXTENSION_PUBLIC_URL` 后，打开扩展的「页面管理」，每个页面会显示「sub2api」上架开关。开启后会在 sub2api `settings` 表的 `custom_menu_items` 数组中创建/更新一项；菜单名称和可见角色（普通用户/管理员）可在页面编辑框中单独配置。扩展使用稳定且符合 sub2api 长度限制的 `aux-page-<页面 ID>` 作为菜单 ID，只修改自己的菜单项，其他手工配置的菜单会保留。关闭开关、删除页面或修改页面 URL 时会同步移除/更新对应项。
+
+页面的访问路径仍由页面自身可见性决定：公开页使用 `/p/<slug>`，管理员页使用 `/admin/p/<slug>`；sub2api 可见角色只控制菜单是否展示。`SUB2API_EXTENSION_PUBLIC_URL` 必须是浏览器可访问的完整 origin，不能填写 `aux-backend` 等 Docker 内部服务名。
 
 ## 3. 页面管理与 Dashboard
 
@@ -190,6 +228,7 @@ sub2api 会从 `custom_menu_items[].url` 提取 origin，并自动加入 `Conten
 2. 确认菜单 URL 是完整的 `http://` 或 `https://` URL。
 3. 重新保存 `custom_menu_items`，让 sub2api 刷新允许的 origin。
 
+
 ## 6. 验收清单
 
 - [ ] sub2api-extension `/health` 返回 200。
@@ -201,6 +240,8 @@ sub2api 会从 `custom_menu_items[].url` 提取 origin，并自动加入 `Conten
 - [ ] sub2api `custom_menu_items` 已添加 `/admin/pages`。
 - [ ] `page_slug` 为空且 `visibility` 为 `admin`。
 - [ ] 管理员点击「内容分析」后 iframe 能显示 Dashboard。
+- [ ] 管理员点击「首字延迟」后，运维看板能从 Sub2API PostgreSQL 读取 `usage_logs.first_token_ms`。
+- [ ] 首字延迟看板的日期、时间段、分组、账号和分钟/小时/天粒度筛选能正常刷新火焰图。
 - [ ] 页面管理保存 `home` 后，刷新公开首页可读取最新 HTML。
 - [ ] Dashboard 中当前注册页面链接均可打开。
 - [ ] 交互示例的操作会进入 Dashboard 功能使用度。

@@ -16,7 +16,7 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
-import { LayoutDashboard, FileText, FilePlus2, ExternalLink, Images } from 'lucide-react'
+import { LayoutDashboard, FileText, FilePlus2, ExternalLink, Images, Flame } from 'lucide-react'
 import { fetchDynamicPages, getMergedRegistry, subscribeDynamicPages } from '@/lib/dynamic-pages'
 import { getMenuIcon } from '@/lib/menu-icons'
 import { Toaster } from '@/components/ui/sonner'
@@ -54,11 +54,14 @@ export default function AdminLayout() {
   // 动态页单独分组(来自 DB)
   const dynamicAdminPages = adminPages.filter((p) => p.id.startsWith('page:'))
   const staticAdminPages = adminPages.filter((p) => !p.id.startsWith('page:') && p.id !== 'image-assets')
+  const opsAdminPages = staticAdminPages.filter((page) => page.id.startsWith('ops-'))
+  const coreAdminPages = staticAdminPages.filter((page) => !page.id.startsWith('ops-'))
 
   // 静态核心管理页的图标映射
   const staticIcons: Record<string, React.ElementType> = {
     dashboard: LayoutDashboard,
     'image-assets': Images,
+    'ops-ttft': Flame,
   }
 
   return (
@@ -86,7 +89,7 @@ export default function AdminLayout() {
             <SidebarGroupLabel>核心</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {staticAdminPages.map((page) => {
+                {coreAdminPages.map((page) => {
                   const Icon = staticIcons[page.id] ?? FileText
                   return (
                     <SidebarMenuItem key={page.id}>
@@ -102,6 +105,29 @@ export default function AdminLayout() {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
+
+          {opsAdminPages.length > 0 && (
+            <SidebarGroup>
+              <SidebarGroupLabel>运维看板</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {opsAdminPages.map((page) => {
+                    const Icon = staticIcons[page.id] ?? Flame
+                    return (
+                      <SidebarMenuItem key={page.id}>
+                        <SidebarMenuButton asChild>
+                          <NavLink to={page.path} end>
+                            <Icon className="h-4 w-4" />
+                            <span>{page.title}</span>
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )}
 
           {/* 页面与图片资源管理入口 */}
           <SidebarGroup>

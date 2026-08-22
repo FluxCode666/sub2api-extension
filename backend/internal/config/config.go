@@ -66,7 +66,9 @@ func (d *DatabaseConfig) DSN() string {
 
 // Sub2APIConfig sub2api 对接配置（供管理员身份验证使用）。
 type Sub2APIConfig struct {
-	BaseURL string `mapstructure:"base_url"` // sub2api 后端基础 URL
+	BaseURL   string         `mapstructure:"base_url"`   // sub2api 后端基础 URL
+	PublicURL string         `mapstructure:"public_url"` // 浏览器可访问的扩展公网 URL
+	Database  DatabaseConfig `mapstructure:"database"`   // sub2api PostgreSQL（用于同步 custom_menu_items）
 }
 
 // JWTConfig JWT 签名配置（供 U3 管理员鉴权）。
@@ -142,6 +144,13 @@ func setDefaults() {
 	viper.SetDefault("database.sslmode", "disable")
 
 	viper.SetDefault("sub2api.base_url", "")
+	viper.SetDefault("sub2api.public_url", "")
+	viper.SetDefault("sub2api.database.host", "")
+	viper.SetDefault("sub2api.database.port", 5432)
+	viper.SetDefault("sub2api.database.user", "")
+	viper.SetDefault("sub2api.database.password", "")
+	viper.SetDefault("sub2api.database.dbname", "")
+	viper.SetDefault("sub2api.database.sslmode", "disable")
 
 	viper.SetDefault("jwt.secret", "")
 	viper.SetDefault("jwt.expire_hour", 24)
@@ -163,6 +172,12 @@ func normalize(cfg *Config) {
 	cfg.Database.SSLMode = strings.TrimSpace(cfg.Database.SSLMode)
 	cfg.Database.Password = strings.TrimSpace(cfg.Database.Password)
 	cfg.Sub2API.BaseURL = strings.TrimSpace(cfg.Sub2API.BaseURL)
+	cfg.Sub2API.PublicURL = strings.TrimRight(strings.TrimSpace(cfg.Sub2API.PublicURL), "/")
+	cfg.Sub2API.Database.Host = strings.TrimSpace(cfg.Sub2API.Database.Host)
+	cfg.Sub2API.Database.User = strings.TrimSpace(cfg.Sub2API.Database.User)
+	cfg.Sub2API.Database.DBName = strings.TrimSpace(cfg.Sub2API.Database.DBName)
+	cfg.Sub2API.Database.SSLMode = strings.TrimSpace(cfg.Sub2API.Database.SSLMode)
+	cfg.Sub2API.Database.Password = strings.TrimSpace(cfg.Sub2API.Database.Password)
 	cfg.JWT.Secret = strings.TrimSpace(cfg.JWT.Secret)
 	cfg.Assets.Dir = strings.TrimSpace(cfg.Assets.Dir)
 	if cfg.Assets.Dir == "" {
@@ -217,7 +232,16 @@ func LoadFromEnv() (*Config, error) {
 			SSLMode:  getEnv("DATABASE_SSLMODE", "disable"),
 		},
 		Sub2API: Sub2APIConfig{
-			BaseURL: getEnv("SUB2API_BASE_URL", ""),
+			BaseURL:   getEnv("SUB2API_BASE_URL", ""),
+			PublicURL: getEnv("SUB2API_EXTENSION_PUBLIC_URL", ""),
+			Database: DatabaseConfig{
+				Host:     getEnv("SUB2API_DATABASE_HOST", ""),
+				Port:     getEnvInt("SUB2API_DATABASE_PORT", 5432),
+				User:     getEnv("SUB2API_DATABASE_USER", ""),
+				Password: getEnv("SUB2API_DATABASE_PASSWORD", ""),
+				DBName:   getEnv("SUB2API_DATABASE_DBNAME", ""),
+				SSLMode:  getEnv("SUB2API_DATABASE_SSLMODE", "disable"),
+			},
 		},
 		JWT: JWTConfig{
 			Secret:     getEnv("JWT_SECRET", ""),

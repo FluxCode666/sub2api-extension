@@ -55,6 +55,10 @@ func (h *PagePublicHandler) List(c *gin.Context) {
 	publicItems := make([]service.PageListItem, 0, len(items))
 	for _, item := range items {
 		if item.Enabled && item.Visibility == service.VisibilityPublic {
+			// sub2api 菜单名称/角色属于管理配置，不通过公开页面清单暴露。
+			item.Sub2APIPublished = false
+			item.Sub2APIVisibility = ""
+			item.Sub2APIMenuName = ""
 			publicItems = append(publicItems, item)
 		}
 	}
@@ -81,6 +85,19 @@ func (h *PagePublicHandler) GetBySlug(c *gin.Context) {
 		}
 		response.Error(c, 404, "page not found")
 		return
+	}
+	// 上架配置仅供管理端使用；公开页面响应不应携带角色、菜单名或内部开关。
+	p.Sub2APIPublished = false
+	p.Sub2APIVisibility = ""
+	p.Sub2APIMenuName = ""
+	if p.Metadata != nil {
+		metadata := make(map[string]interface{}, len(p.Metadata))
+		for key, value := range p.Metadata {
+			if key != "sub2api_published" && key != "sub2api_visibility" && key != "sub2api_menu_name" {
+				metadata[key] = value
+			}
+		}
+		p.Metadata = metadata
 	}
 	response.Success(c, p)
 }

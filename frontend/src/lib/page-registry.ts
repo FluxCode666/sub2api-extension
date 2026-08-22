@@ -1,7 +1,7 @@
 /**
  * 页面清单注册表 —— 页面身份的单一真相源 (KTD7)。
  *
- * 静态核心页(dashboard/assets)在此声明(代码登记, 不可变)。
+ * 静态核心页(dashboard/assets/ops-ttft)在此声明(代码登记, 不可变)。
  * 动态页(管理员创建)来自后端 /api/aux/pages, 在 lib/dynamic-pages.ts 与静态注册表合并。
  *
  * - App.tsx 路由与 registry 共享同一 id 命名空间
@@ -38,7 +38,8 @@ export interface PageEntry {
 
 /**
  * 静态核心页面清单(代码登记, 不可变)。示例页已经迁移到 pages 表，
- * 由 AdminLayout 的“动态页面”分组展示。
+ * 由 AdminLayout 的“动态页面”分组展示；运维看板页面保留在代码中，
+ * 由 AdminLayout 的“运维看板”分组展示。
  * 动态页由 lib/dynamic-pages.ts 在 bootstrap 时合并(getMergedRegistry)。
  *
  * 与 App.tsx 中的静态核心管理路由一一对应；旧示例路由仅作为兼容入口保留，
@@ -55,6 +56,12 @@ export const STATIC_PAGE_REGISTRY: readonly PageEntry[] = [
     id: 'image-assets',
     title: '图片资源',
     path: '/admin/assets',
+    visibility: 'admin',
+  },
+  {
+    id: 'ops-ttft',
+    title: '首字延迟',
+    path: '/admin/ops/ttft',
     visibility: 'admin',
   },
 ] as const

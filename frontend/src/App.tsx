@@ -8,7 +8,7 @@
  * 路由 meta 思路对齐 sub2api frontend/src/router/index.ts:
  *   requiresAuth / requiresAdmin 通过 guard 组件实现 (U3)。
  */
-import { Link, Navigate, Routes, Route } from 'react-router-dom'
+import { Link, Navigate, Routes, Route, useLocation } from 'react-router-dom'
 import PublicLayout from '@/layouts/PublicLayout'
 import AdminLayout from '@/layouts/AdminLayout'
 import AdminGuard from '@/components/AdminGuard'
@@ -16,6 +16,7 @@ import LoginPage from '@/pages/LoginPage'
 import DashboardPage from '@/pages/admin/DashboardPage'
 import PageManagementPage from '@/pages/admin/PageManagementPage'
 import ImageAssetsPage from '@/pages/admin/ImageAssetsPage'
+import TTFTFlamegraphPage from '@/pages/admin/TTFTFlamegraphPage'
 import AdminDynamicPage from '@/pages/admin/AdminDynamicPage'
 import DynamicPage from '@/pages/DynamicPage'
 import ContentExamplePage from '@/pages/examples/ContentExamplePage'
@@ -42,11 +43,32 @@ function NotFound() {
   )
 }
 
+/**
+ * 将入口路径规范化到控制台时保留 sub2api 注入的查询参数。
+ *
+ * custom_menu_items 以 iframe 打开扩展时会在 URL 上附加 `token`、`user_id`
+ * 等嵌入上下文。若这里使用字符串 Navigate，React Router 会丢掉 search，
+ * AdminGuard 随后无法完成 session exchange，表现为已登录用户再次看到登录页。
+ */
+function AdminEntryRedirect() {
+  const location = useLocation()
+  return (
+    <Navigate
+      to={{
+        pathname: '/admin/dashboard',
+        search: location.search,
+        hash: location.hash,
+      }}
+      replace
+    />
+  )
+}
+
 export default function App() {
   return (
     <Routes>
       {/* 根路径是控制台入口；官网首页由数据库动态页面 /p/home 提供。 */}
-      <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+      <Route path="/" element={<AdminEntryRedirect />} />
       {/* 独立登录入口: AdminGuard 的 no-embedded-token 分支重定向到此。
           功能路由, 不登记到 page-registry (非内容页, 不污染埋点仪表盘)。 */}
       <Route element={<PublicLayout />}>
@@ -57,10 +79,11 @@ export default function App() {
       {/* 管理端: 需管理员会话 (对应 sub2api custom_menu_items, 传 token) */}
       <Route path="/admin" element={<AdminGuard><AdminLayout /></AdminGuard>}>
         {/* U6: 仪表盘为管理端首页 (R10) */}
-        <Route index element={<Navigate to="/admin/dashboard" replace />} />
+        <Route index element={<AdminEntryRedirect />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="pages" element={<PageManagementPage />} />
         <Route path="assets" element={<ImageAssetsPage />} />
+        <Route path="ops/ttft" element={<TTFTFlamegraphPage />} />
         {/* 动态页面(admin): /admin/p/:slug, 经 AdminGuard, on-demand fetch */}
         <Route path="p/:slug" element={<AdminDynamicPage />} />
         <Route path="examples/content" element={<ContentExamplePage />} />

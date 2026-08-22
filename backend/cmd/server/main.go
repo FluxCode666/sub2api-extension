@@ -78,6 +78,19 @@ func main() {
 		}
 	}()
 
+	// 页面上架需要直接修改 sub2api 的 settings.custom_menu_items。
+	// 未配置 SUB2API_DATABASE_HOST 时保持兼容：页面 CRUD 可用，但上架功能不可用。
+	var sub2apiMenuPublisher service.PagePublisher
+	var sub2apiDB *sql.DB
+	if cfg.Sub2API.Database.Host != "" {
+		sub2apiDB, err = initSub2APIDatabase(cfg)
+		if err != nil {
+			log.Fatalf("Failed to initialize sub2api database: %v", err)
+		}
+		defer func() { _ = sub2apiDB.Close() }()
+		sub2apiMenuPublisher = integration.NewSub2APIMenuStore(sub2apiDB, cfg.Sub2API.PublicURL)
+	}
+
 	// 装配路由
 	healthHandler := web.NewHealthHandler()
 
@@ -104,7 +117,7 @@ func main() {
 
 	// 动态页面管理链: ent client → page store → page service → handlers(public + admin)
 	pageStore := service.NewEntPageStore(entClient)
-	pageService := service.NewPageService(pageStore)
+	pageService := service.NewPageService(pageStore, sub2apiMenuPublisher)
 	pagePublicHandler := handler.NewPagePublicHandler(pageService)
 	pageAdminHandler := adminhandler.NewPageHandler(pageService)
 
@@ -113,7 +126,13 @@ func main() {
 	imageAssetService := service.NewImageAssetService(imageAssetStore, cfg.Assets.Dir)
 	imageAssetHandler := adminhandler.NewImageAssetHandler(imageAssetService)
 
-	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, imageAssetHandler)
+	// 运维首字延迟看板直接读取 sub2api PostgreSQL 的 usage_logs/groups/accounts。
+	// 未配置数据库时仍注册 handler，由接口返回清晰的 503，而不是让前端遇到无意义的 404。
+	ttftStore := integration.NewSub2APITTFTStore(sub2apiDB)
+	ttftService := service.NewTTFTService(ttftStore)
+	ttftHandler := adminhandler.NewTTFTHandler(ttftService)
+
+	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, imageAssetHandler, ttftHandler)
 
 	// 启动 HTTP 服务器
 	addr := cfg.Server.Address()
@@ -148,6 +167,23 @@ func main() {
 	}
 
 	log.Println("Server exited")
+}
+
+func initSub2APIDatabase(cfg *config.Config) (*sql.DB, error) {
+	dsn := cfg.Sub2API.Database.DSN()
+	log.Printf("Connecting to sub2api PostgreSQL at %s:%d/%s", cfg.Sub2API.Database.Host, cfg.Sub2API.Database.Port, cfg.Sub2API.Database.DBName)
+	db, err := sql.Open("postgres", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("opening sub2api database/sql: %w", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("pinging sub2api database: %w", err)
+	}
+	log.Println("sub2api database connected successfully")
+	return db, nil
 }
 
 // initEnt 初始化 Ent 客户端并连接 PostgreSQL，执行一次 ping 确认可达性。

@@ -30,9 +30,10 @@ import (
 // authHandler 为 nil 时跳过管理员会话路由(用于健康检查等最小启动场景)。
 // telemetryHandler 为 nil 时跳过埋点上报路由(U5 端点)。
 // analyticsHandler 为 nil 时跳过分析仪表盘路由(U6 端点)。
+// optionalHandlers 中传入 TTFTHandler 时注册 Sub2API 数据库首字延迟看板路由。
 // pagePublicHandler 为 nil 时跳过公开页面获取端点。
 // pageAdminHandler 为 nil 时跳过管理端页面 CRUD 端点。
-// optionalHandlers 可传 HomepageConfigHandler 与 ImageAssetHandler，保留可选形式以兼容
+// optionalHandlers 可传 HomepageConfigHandler、ImageAssetHandler 与 TTFTHandler，保留可选形式以兼容
 // 最小启动场景和既有路由测试。
 func SetupRouter(cfg *config.Config, healthHandler *web.HealthHandler, authHandler *handler.AuthHandler, authService *service.AuthService, telemetryHandler *handler.TelemetryHandler, analyticsHandler *adminhandler.AnalyticsHandler, pagePublicHandler *handler.PagePublicHandler, pageAdminHandler *adminhandler.PageHandler, optionalHandlers ...any) *gin.Engine {
 	if cfg.Server.Mode == "release" {
@@ -131,12 +132,15 @@ func SetPageHandlers(public *handler.PagePublicHandler, admin *adminhandler.Page
 func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authService *service.AuthService, telemetryHandler *handler.TelemetryHandler, analyticsHandler *adminhandler.AnalyticsHandler, pagePublicHandler *handler.PagePublicHandler, pageAdminHandler *adminhandler.PageHandler, optionalHandlers ...any) {
 	var homepageHandler *adminhandler.HomepageConfigHandler
 	var imageAssetHandler *adminhandler.ImageAssetHandler
+	var ttftHandler *adminhandler.TTFTHandler
 	for _, optionalHandler := range optionalHandlers {
 		switch typed := optionalHandler.(type) {
 		case *adminhandler.HomepageConfigHandler:
 			homepageHandler = typed
 		case *adminhandler.ImageAssetHandler:
 			imageAssetHandler = typed
+		case *adminhandler.TTFTHandler:
+			ttftHandler = typed
 		}
 	}
 	if homepageHandler == nil {
@@ -217,6 +221,12 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			if imageAssetHandler != nil {
 				guarded.GET("/assets", imageAssetHandler.List)
 				guarded.POST("/assets", imageAssetHandler.Upload)
+			}
+
+			// 运维首字延迟看板：handler 内部通过 database/sql 直读
+			// Sub2API PostgreSQL，不调用 Sub2API HTTP API。
+			if ttftHandler != nil {
+				guarded.GET("/ops/ttft", ttftHandler.GetTTFT)
 			}
 
 			// 管理端 API 请求示例: 无数据库或 sub2api 依赖。

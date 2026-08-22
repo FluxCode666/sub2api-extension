@@ -13,6 +13,7 @@
 - **附属管理端** —— 通过 sub2api 的 `custom_menu_items` 以 iframe 方式打开，也支持独立登录。
 - **动态页面编写** —— 管理员可以创建、编辑、启停和删除数据库页面，不需要改动前端源码。
 - **页面分析与埋点** —— 统计当前页面的访问量和功能点击，在分析仪表盘中查看使用情况。
+- **首字延迟火焰图** —— 运维看板直接读取 Sub2API PostgreSQL 的 `usage_logs.first_token_ms`，支持日期、时间段、分组、账号筛选，以及分钟/小时/天三种时间粒度。
 - **身份转发验证** —— 管理端接收 sub2api iframe token，换取附属系统自己的管理员会话。
 
 | 入口 | 说明 |
@@ -21,6 +22,7 @@
 | `/admin/dashboard` | 分析仪表盘，展示页面访问和功能使用度 |
 | `/admin/pages` | 动态页面管理，管理员编写和维护页面 |
 | `/admin/assets` | 图片资源管理 |
+| `/admin/ops/ttft` | 运维看板：首字延迟火焰图（直读 Sub2API 数据库） |
 | `/admin/p/:slug` | 需要管理员会话的动态页面 |
 | `/p/:slug` | 公开动态页面；仅当数据库中存在并启用对应页面时可访问 |
 | `/login` | 独立管理员登录入口 |
@@ -89,13 +91,14 @@
 
 ```
 sub2api-extension/
+├── Makefile                     # Docker 开发部署统一入口（dev-up/status/logs/down）
 ├── backend/
 │   ├── cmd/server/              # 程序入口 + VERSION 文件
 │   ├── internal/
 │   │   ├── config/              # 配置（环境变量 + viper）
 │   │   ├── handler/             # HTTP handler（auth/telemetry/admin）
 │   │   ├── service/             # 业务逻辑（auth/telemetry/analytics）
-│   │   ├── integration/         # sub2api 客户端（登录与身份转发验证）
+│   │   ├── integration/         # sub2api 身份客户端 + PostgreSQL 直连适配器
 │   │   ├── server/              # Gin 路由装配 + middleware（AdminGuard/TelemetryGuard）
 │   │   ├── pkg/response/        # 标准信封工具
 │   │   └── web/                 # 健康检查
@@ -129,29 +132,42 @@ sub2api-extension/
 
 ## 快速开始（Docker 开发部署）
 
-**前置条件：** sub2api 已通过其 `deploy/docker-compose.yml` 部署，`sub2api-network` 已存在。
+**前置条件：** 先启动 Sub2API 的开发 Compose。它默认创建
+`deploy_sub2api-network`；如果使用其他 Compose project name，需在 `.env.dev` 中设置
+对应的 `SUB2API_DOCKER_NETWORK`。
 
 ```bash
-cd deploy
+cd /Users/duegin/project/sub2api/deploy
+docker compose -f docker-compose.dev.yml up -d --build
+
+cd /Users/duegin/project/aux-system/deploy
 cp .env.dev.example .env.dev
 ```
 
-编辑 `.env.dev`，至少设置三个必需项：
+编辑 `.env.dev`，至少设置以下必需项：
 
 ```bash
 SUB2API_EXTENSION_POSTGRES_PASSWORD=<强密码>          # 附属系统自有 PostgreSQL
 SUB2API_EXTENSION_JWT_SECRET=$(openssl rand -hex 32) # 附属系统会话签名密钥
+SUB2API_DOCKER_NETWORK=deploy_sub2api-network          # Sub2API Compose 外部网络
+SUB2API_DATABASE_HOST=postgres                          # Sub2API PostgreSQL 服务
+SUB2API_DATABASE_PASSWORD=<与 sub2api 的 POSTGRES_PASSWORD 一致>
 ```
 
 启动并验证：
 
 ```bash
-docker compose -f docker-compose.dev.yml --env-file .env.dev up -d
+cd /Users/duegin/project/aux-system
+make dev-config
+make dev-up
 curl http://localhost:8787/health
 # 预期: {"status":"ok","service":"sub2api-extension"}
 ```
 
-开发用 compose 含 `aux-postgres` 服务并从源码构建镜像。附属系统启动后，可用 `custom_menu_items` 添加 `/admin/dashboard` 与 `/admin/pages`；如需向 sub2api 提供公开内容，再把已创建的 `/p/<slug>` 动态页面 URL 配置到 sub2api 的对应设置。**完整集成步骤见 [docs/INTEGRATION.md](docs/INTEGRATION.md)。**
+后续可使用 `make dev-status`、`make dev-logs`、`make dev-health` 和
+`make dev-down` 管理开发部署；`dev-down` 会保留 PostgreSQL 和图片数据卷。
+
+开发用 compose 含 `aux-postgres` 服务并从源码构建镜像。附属系统启动后，可用 `custom_menu_items` 添加 `/admin/dashboard` 与 `/admin/pages`；如需向 sub2api 提供公开内容，再把已创建的 `/p/<slug>` 动态页面 URL 配置到 sub2api 的对应设置。配置 `SUB2API_DATABASE_*` 后，页面管理还可以直接同步 sub2api 的 `custom_menu_items`。**完整集成步骤见 [docs/INTEGRATION.md](docs/INTEGRATION.md)。**
 
 ### 测试与生产部署
 
@@ -191,7 +207,9 @@ docker compose -f docker-compose.yml --env-file .env up -d
 后端连接 PostgreSQL（默认 `127.0.0.1:15433`，库名 `auxdb`，用户 `aux`）。自行用 docker 起一个：
 
 ```bash
-docker run -d --name aux-pg -e POSTGRES_USER=aux -e POSTGRES_PASSWORD=aux \
+export AUX_DEV_POSTGRES_PASSWORD='<本地开发密码>'
+docker run -d --name aux-pg -e POSTGRES_USER=aux \
+  -e POSTGRES_PASSWORD="$AUX_DEV_POSTGRES_PASSWORD" \
   -e POSTGRES_DB=auxdb -p 127.0.0.1:15433:5432 postgres:18-alpine
 ```
 
@@ -220,16 +238,22 @@ make dev
 | `DEV_DATABASE_HOST` | `127.0.0.1` | PG 地址（与 Docker 的 IPv4 绑定一致） |
 | `DEV_DATABASE_PORT` | `15433` | 独立 aux PostgreSQL 的宿主机端口 |
 | `DEV_DATABASE_USER` | `aux` | PG 用户 |
-| `DEV_DATABASE_PASSWORD` | `aux` | 本地 `aux-pg` 容器的开发密码；生产环境必须显式设置 |
+| `DEV_DATABASE_PASSWORD` | `deploy/.env.dev` | 本地 `aux-pg` 密码；默认读取 `SUB2API_EXTENSION_POSTGRES_PASSWORD` |
 | `DEV_DATABASE_DBNAME` | `auxdb` | PG 库名 |
+| `DEV_SUB2API_DATABASE_HOST` | `127.0.0.1` | Sub2API PostgreSQL 地址 |
+| `DEV_SUB2API_DATABASE_PORT` | `15432` | Sub2API PostgreSQL 宿主机端口 |
+| `DEV_SUB2API_DATABASE_USER` | `sub2api` | Sub2API PostgreSQL 用户 |
+| `DEV_SUB2API_DATABASE_PASSWORD` | `deploy/.env.dev` | 默认读取 `SUB2API_DATABASE_PASSWORD`；首字延迟看板必需 |
+| `DEV_SUB2API_DATABASE_DBNAME` | `sub2api` | Sub2API 数据库名 |
 | `JWT_SECRET` | `dev-secret-not-for-production` | 开发用签名密钥 |
 
 > 本地 `SUB2API_BASE_URL` 默认是 `http://127.0.0.1:8003`，可通过环境变量覆盖；它用于账号密码登录和 iframe 管理员身份转发验证。
 
-PG 密码有特殊字符时，直接导出环境变量再 `make dev`：
+`backend/Makefile` 会自动读取 `deploy/.env.dev`。需要临时覆盖时，可直接导出环境变量：
 
 ```bash
-export DEV_DATABASE_PASSWORD='your@password'
+export DEV_DATABASE_PASSWORD='<auxdb 密码>'
+export DEV_SUB2API_DATABASE_PASSWORD='<Sub2API PostgreSQL 密码>'
 make dev
 ```
 
@@ -241,14 +265,15 @@ pnpm install
 pnpm dev        # 开发服务器 http://localhost:3100
 ```
 
-前端 dev server 监听 `3100`，已配置 `/api` 代理到 `http://127.0.0.1:8004`（即后端 `make dev` 的端口）。浏览器访问 `http://localhost:3100/` 会重定向到分析仪表盘；系统不会在根路径展示官网首页。
+前端 dev server 监听 `3100`。`/api` 代理优先使用 `VITE_AUX_BACKEND_URL`；未设置时会读取本地 `deploy/.env.dev` 的 `SUB2API_EXTENSION_SERVER_PORT`（当前 Docker 开发环境为 `8788`）。如果启动 `backend/make dev`（`8004`），请使用 `VITE_AUX_BACKEND_URL=http://127.0.0.1:8004 pnpm dev`。浏览器访问 `http://localhost:3100/` 会重定向到分析仪表盘；系统不会在根路径展示官网首页。
 
 ### 管理端登录
 
-管理端页面（如 `/admin/pages`）需要通过 sub2api 管理员身份验证。本地开发环境默认管理员账号：
+管理端页面（如 `/admin/pages`）需要通过 sub2api 管理员身份验证。本地开发环境管理员账号由
+`sub2api/deploy/.env` 的 `ADMIN_EMAIL` / `ADMIN_PASSWORD` 配置：
 
 - **邮箱**: `admin@sub2api.local`
-- **密码**: `123456`
+- **密码**: 不在仓库文档中记录，请使用 Sub2API 环境文件中的值
 
 登录 sub2api 控制台（`http://localhost:8003`）后，可通过 iframe token 自动转发验证到 sub2api-extension 管理端。
 
@@ -292,6 +317,11 @@ pnpm build           # tsc -b && vite build
 | `BIND_HOST` | 宿主机端口绑定地址；生产 NGINX 模式建议本机 | `127.0.0.1`（生产示例） |
 | `SUB2API_EXTENSION_POSTGRES_PASSWORD` | 自有 PG 密码（**必需**） | — |
 | `SUB2API_BASE_URL` | sub2api 后端地址 | `http://sub2api:8080` |
+| `SUB2API_DOCKER_NETWORK` | Sub2API Compose 外部网络（首字延迟直连数据库） | `deploy_sub2api-network` |
+| `SUB2API_DATABASE_HOST` | Sub2API PostgreSQL 主机（首字延迟必需） | `postgres` |
+| `SUB2API_DATABASE_PORT` | Sub2API PostgreSQL 端口 | `5432` |
+| `SUB2API_DATABASE_USER` / `SUB2API_DATABASE_PASSWORD` | Sub2API PostgreSQL 凭据（密码不提交） | — |
+| `SUB2API_DATABASE_DBNAME` | Sub2API 数据库名 | `sub2api` |
 | `SUB2API_EXTENSION_JWT_SECRET` | 会话签名密钥（**必需**） | — |
 | `SUB2API_EXTENSION_JWT_EXPIRE_HOUR` | 会话有效期（小时） | `24` |
 | `SERVER_MODE` | `release` / `debug` | `release` |
@@ -302,7 +332,7 @@ pnpm build           # tsc -b && vite build
 - **不修改 sub2api 代码** —— 所有集成通过 sub2api 现有接缝完成
 - **没有内置官网首页** —— 根路径 `/` 永远作为控制台入口跳转到 `/admin/dashboard`；公开内容只能通过管理员创建的 `/p/:slug` 动态页面提供
 - **公开页面与管理端分离** —— sub2api 如需嵌入公开内容，可把已启用的 `/p/:slug` URL 配置到对应设置；页面管理和分析仪表盘使用会传 token 的 `custom_menu_items`
-- **自有数据库** —— sub2api-extension 使用独立 PostgreSQL，不复用 sub2api 的数据库
+- **自有数据库** —— 页面、埋点和图片索引使用独立 PostgreSQL；页面上架只通过单独连接同步 sub2api 的 `settings.custom_menu_items`，不复用其业务表
 - **Ent 生成代码** —— `backend/ent/` 是 `ent/schema/*.go` 的生成产物，修改 schema 后需 `go generate ./ent`
 
 ## 文档
