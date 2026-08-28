@@ -11,6 +11,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -96,6 +98,7 @@ type PageListItem struct {
 	Route             string          `json:"route"` // /p/<slug> 或 /admin/p/<slug>
 	PageID            string          `json:"page_id"`
 	MenuIcon          string          `json:"menu_icon,omitempty"` // 管理员侧边栏图标名(metadata.menu_icon)
+	CreatedAt         time.Time       `json:"created_at"`
 	UpdatedAt         time.Time       `json:"updated_at"`
 	Sub2APIPublished  bool            `json:"sub2api_published"`
 	Sub2APIVisibility string          `json:"sub2api_visibility,omitempty"`
@@ -137,24 +140,30 @@ func (s *PageService) Create(ctx context.Context, input PageInput) (*Page, error
 		return nil, errors.New("page store is unavailable")
 	}
 	if err := validatePageInput(input, true); err != nil {
+		log.Printf("[PageService.Create] validation failed slug=%q: %v", input.Slug, err)
 		return nil, err
 	}
 	exists, err := s.store.SlugExists(ctx, input.Slug, 0)
 	if err != nil {
+		log.Printf("[PageService.Create] slug existence check failed slug=%q: %v", input.Slug, err)
 		return nil, err
 	}
 	if exists {
+		log.Printf("[PageService.Create] slug conflict slug=%q", input.Slug)
 		return nil, ErrSlugConflict
 	}
 	normalized := normalizeInput(input)
 	created, err := s.store.Create(ctx, normalized)
 	if err != nil {
+		log.Printf("[PageService.Create] store create failed slug=%q: %v", normalized.Slug, err)
 		return nil, err
 	}
 	applyPublicationFields(created, normalized)
 	if err := s.syncPublication(ctx, nil, created); err != nil {
-		return nil, err
+		log.Printf("[PageService.Create] page persisted with sub2api sync warning page_id=%d slug=%q published=%t: %v", created.ID, created.Slug, created.Sub2APIPublished, err)
+		return created, &PublicationSyncError{Page: created, Err: err}
 	}
+	log.Printf("[PageService.Create] page persisted page_id=%d slug=%q published=%t", created.ID, created.Slug, created.Sub2APIPublished)
 	return created, nil
 }
 
@@ -169,45 +178,87 @@ func (s *PageService) List(ctx context.Context) ([]PageListItem, error) {
 // ListAdmin 列出页面并从 sub2api custom_menu_items 补充上架状态。
 // 公开页面清单不调用该方法，避免 sub2api 数据库短暂不可用影响公开页面。
 func (s *PageService) ListAdmin(ctx context.Context) ([]PageListItem, error) {
+	started := time.Now()
 	items, err := s.List(ctx)
-	if err != nil || s.publisher == nil {
+	if err != nil {
+		log.Printf("[PageService.ListAdmin] page store list failed elapsed=%s: %v", time.Since(started), err)
+		return items, err
+	}
+	if s.publisher == nil {
+		for i := range items {
+			// Without a live publisher there is no authoritative sub2api state.
+			// Do not surface the page's last requested value as if it were verified.
+			items[i].Sub2APIPublished = false
+		}
+		log.Printf("[PageService.ListAdmin] publisher unavailable pages=%d published=0 elapsed=%s", len(items), time.Since(started))
 		return items, err
 	}
 	published, err := s.publisher.List(ctx)
 	if err != nil {
+		log.Printf("[PageService.ListAdmin] sub2api menu list failed pages=%d: %v", len(items), err)
+		// 不要把 sub2api 查询错误降级为成功：调用方需要感知真实故障，
+		// 否则管理页会显示可能已经过期的上架状态。
 		return nil, err
 	}
+	matchedCount := 0
+	mismatchCount := 0
 	for i := range items {
 		items[i].Sub2APIPublished = false
-		if publication, ok := published[menuIDForPageID(strconv.Itoa(items[i].ID))]; ok {
-			items[i].Sub2APIPublished = true
-			items[i].Sub2APIVisibility = publication.Visibility
-			items[i].Sub2APIMenuName = publication.Label
+		expected := pagePublicationForFields(items[i].ID, items[i].PageID, items[i].Slug, items[i].Title, items[i].Visibility, items[i].Sub2APIVisibility, items[i].Sub2APIMenuName)
+		if publication, ok := published[expected.MenuID]; ok {
+			matched, reason := s.publicationMatches(expected, publication)
+			if matched {
+				matchedCount++
+				items[i].Sub2APIPublished = true
+				items[i].Sub2APIVisibility = publication.Visibility
+				items[i].Sub2APIMenuName = publication.Label
+			} else {
+				mismatchCount++
+				log.Printf("[PageService.ListAdmin] sub2api publication mismatch page_id=%d menu_id=%q: %s", items[i].ID, expected.MenuID, reason)
+			}
 		}
 	}
+	log.Printf("[PageService.ListAdmin] loaded pages=%d menu_items=%d matched=%d mismatched=%d elapsed=%s", len(items), len(published), matchedCount, mismatchCount, time.Since(started))
 	return items, nil
 }
 
 // GetByID 按 id 获取(含内容, 管理端用)。
 func (s *PageService) GetByID(ctx context.Context, id int) (*Page, error) {
+	started := time.Now()
 	if s == nil || s.store == nil {
 		return nil, errors.New("page store is unavailable")
 	}
 	p, err := s.store.GetByID(ctx, id)
-	if err != nil || s.publisher == nil {
+	if err != nil {
+		log.Printf("[PageService.GetByID] page store get failed page_id=%d elapsed=%s: %v", id, time.Since(started), err)
+		return p, err
+	}
+	if s.publisher == nil {
+		p.Sub2APIPublished = false
+		log.Printf("[PageService.GetByID] publisher unavailable page_id=%d elapsed=%s", id, time.Since(started))
 		return p, err
 	}
 	published, err := s.publisher.List(ctx)
 	if err != nil {
+		log.Printf("[PageService.GetByID] sub2api menu list failed page_id=%d: %v", p.ID, err)
+		// 不吞掉同步查询错误，避免返回不可信的上架状态。
 		return nil, err
 	}
-	if publication, ok := published[menuIDForPageID(strconv.Itoa(p.ID))]; ok {
-		p.Sub2APIPublished = true
-		p.Sub2APIVisibility = publication.Visibility
-		p.Sub2APIMenuName = publication.Label
+	expected := pagePublicationForPage(p)
+	if publication, ok := published[expected.MenuID]; ok {
+		matched, reason := s.publicationMatches(expected, publication)
+		if matched {
+			p.Sub2APIPublished = true
+			p.Sub2APIVisibility = publication.Visibility
+			p.Sub2APIMenuName = publication.Label
+		} else {
+			p.Sub2APIPublished = false
+			log.Printf("[PageService.GetByID] sub2api publication mismatch page_id=%d menu_id=%q: %s", p.ID, expected.MenuID, reason)
+		}
 	} else {
 		p.Sub2APIPublished = false
 	}
+	log.Printf("[PageService.GetByID] loaded page_id=%d published=%t elapsed=%s", p.ID, p.Sub2APIPublished, time.Since(started))
 	return p, nil
 }
 
@@ -247,31 +298,38 @@ func (s *PageService) Update(ctx context.Context, id int, input PageInput) (*Pag
 		return nil, errors.New("page store is unavailable")
 	}
 	if err := validatePageInput(input, false); err != nil {
+		log.Printf("[PageService.Update] validation failed page_id=%d slug=%q: %v", id, input.Slug, err)
 		return nil, err
 	}
 	if input.Slug != "" {
 		exists, err := s.store.SlugExists(ctx, input.Slug, id)
 		if err != nil {
+			log.Printf("[PageService.Update] slug existence check failed page_id=%d slug=%q: %v", id, input.Slug, err)
 			return nil, err
 		}
 		if exists {
+			log.Printf("[PageService.Update] slug conflict page_id=%d slug=%q", id, input.Slug)
 			return nil, ErrSlugConflict
 		}
 	}
 	previous, err := s.store.GetByID(ctx, id)
 	if err != nil {
+		log.Printf("[PageService.Update] load page failed page_id=%d: %v", id, err)
 		return nil, err
 	}
 	input = mergePublicationInput(previous, input)
 	normalized := normalizeInput(input)
 	updated, err := s.store.Update(ctx, id, normalized)
 	if err != nil {
+		log.Printf("[PageService.Update] store update failed page_id=%d: %v", id, err)
 		return nil, err
 	}
 	applyPublicationFields(updated, normalized)
 	if err := s.syncPublication(ctx, previous, updated); err != nil {
-		return nil, err
+		log.Printf("[PageService.Update] page persisted with sub2api sync warning page_id=%d slug=%q published=%t: %v", updated.ID, updated.Slug, updated.Sub2APIPublished, err)
+		return updated, &PublicationSyncError{Page: updated, Err: err}
 	}
+	log.Printf("[PageService.Update] page persisted page_id=%d slug=%q published=%t", updated.ID, updated.Slug, updated.Sub2APIPublished)
 	return updated, nil
 }
 
@@ -282,14 +340,28 @@ func (s *PageService) Delete(ctx context.Context, id int) error {
 	}
 	previous, err := s.store.GetByID(ctx, id)
 	if err != nil {
+		log.Printf("[PageService.Delete] load page failed page_id=%d: %v", id, err)
+		return err
+	}
+	if s.publisher == nil && previous.Sub2APIPublished {
+		err := errors.New("sub2api menu publisher is unavailable")
+		log.Printf("[PageService.Delete] cannot unpublish published page_id=%d: %v", previous.ID, err)
 		return err
 	}
 	if s.publisher != nil {
-		if err := s.publisher.Unpublish(ctx, menuIDForPageID(strconv.Itoa(previous.ID))); err != nil {
+		menuID := menuIDForPageID(strconv.Itoa(previous.ID))
+		log.Printf("[PageService.Delete] unpublish before delete page_id=%d menu_id=%q", previous.ID, menuID)
+		if err := s.publisher.Unpublish(ctx, menuID); err != nil {
+			log.Printf("[PageService.Delete] unpublish failed page_id=%d menu_id=%q: %v", previous.ID, menuID, err)
 			return err
 		}
 	}
-	return s.store.Delete(ctx, id)
+	if err := s.store.Delete(ctx, id); err != nil {
+		log.Printf("[PageService.Delete] store delete failed page_id=%d: %v", id, err)
+		return err
+	}
+	log.Printf("[PageService.Delete] deleted page_id=%d slug=%q", previous.ID, previous.Slug)
+	return nil
 }
 
 func menuIDForPageID(pageID string) string {
@@ -297,35 +369,97 @@ func menuIDForPageID(pageID string) string {
 	return "aux-page-" + pageID
 }
 
-func (s *PageService) syncPublication(ctx context.Context, previous, current *Page) error {
-	if s.publisher == nil || current == nil {
-		return nil
+func pagePublicationForPage(page *Page) sub2apimenu.PagePublication {
+	if page == nil {
+		return sub2apimenu.PagePublication{}
 	}
-	if previous != nil && previous.Sub2APIPublished && !current.Sub2APIPublished {
-		return s.publisher.Unpublish(ctx, menuIDForPageID(strconv.Itoa(previous.ID)))
-	}
-	if !current.Sub2APIPublished {
-		return nil
-	}
-	visibility := current.Sub2APIVisibility
+	return pagePublicationForFields(page.ID, page.PageID, page.Slug, page.Title, page.Visibility, page.Sub2APIVisibility, page.Sub2APIMenuName)
+}
+
+func pagePublicationForFields(id int, pageID, slug, title string, pageVisibility PageVisibility, sub2apiVisibility, menuName string) sub2apimenu.PagePublication {
+	visibility := sub2apiVisibility
 	if visibility != "user" && visibility != "admin" {
 		visibility = "user"
-		if current.Visibility == VisibilityAdmin {
+		if pageVisibility == VisibilityAdmin {
 			visibility = "admin"
 		}
 	}
-	label := strings.TrimSpace(current.Sub2APIMenuName)
+	label := strings.TrimSpace(menuName)
 	if label == "" {
-		label = current.Title
+		label = strings.TrimSpace(title)
 	}
-	return s.publisher.Publish(ctx, sub2apimenu.PagePublication{
-		MenuID:     menuIDForPageID(strconv.Itoa(current.ID)),
-		PageID:     current.PageID,
-		Slug:       current.Slug,
+	return sub2apimenu.PagePublication{
+		MenuID:     menuIDForPageID(strconv.Itoa(id)),
+		PageID:     pageID,
+		Slug:       slug,
 		Label:      label,
-		URL:        pageRoute(current.Slug, current.Visibility),
+		URL:        pageRoute(slug, pageVisibility),
 		Visibility: visibility,
-	})
+	}
+}
+
+func (s *PageService) publicationMatches(expected, actual sub2apimenu.PagePublication) (bool, string) {
+	if matcher, ok := s.publisher.(sub2apimenu.PublicationMatcher); ok {
+		return matcher.PublicationMatches(expected, actual)
+	}
+	if expected.MenuID != actual.MenuID {
+		return false, "menu id changed"
+	}
+	if expected.Label != actual.Label {
+		return false, "menu label changed"
+	}
+	if expected.Visibility != actual.Visibility {
+		return false, "menu visibility changed"
+	}
+	if expected.PageSlug != actual.PageSlug {
+		return false, "menu page_slug changed"
+	}
+	actualURL, err := url.ParseRequestURI(strings.TrimSpace(actual.URL))
+	if err != nil || actualURL.Path != expected.URL || actualURL.RawQuery != "" || actualURL.Fragment != "" {
+		return false, "menu URL changed"
+	}
+	return true, ""
+}
+
+func (s *PageService) syncPublication(ctx context.Context, previous, current *Page) error {
+	started := time.Now()
+	if current == nil {
+		return nil
+	}
+	if s.publisher == nil {
+		needsSync := current.Sub2APIPublished || (previous != nil && previous.Sub2APIPublished && !current.Sub2APIPublished)
+		if needsSync {
+			err := errors.New("sub2api menu publisher is unavailable")
+			log.Printf("[PageService.syncPublication] cannot synchronize page_id=%d slug=%q published=%t: %v", current.ID, current.Slug, current.Sub2APIPublished, err)
+			return err
+		}
+		log.Printf("[PageService.syncPublication] skipped page_id=%d slug=%q publisher_configured=false published=false elapsed=%s", current.ID, current.Slug, time.Since(started))
+		return nil
+	}
+	if previous != nil && previous.Sub2APIPublished && !current.Sub2APIPublished {
+		log.Printf("[PageService.syncPublication] unpublish page_id=%d slug=%q", current.ID, current.Slug)
+		menuID := menuIDForPageID(strconv.Itoa(previous.ID))
+		if err := s.publisher.Unpublish(ctx, menuID); err != nil {
+			log.Printf("[PageService.syncPublication] unpublish failed page_id=%d menu_id=%q elapsed=%s: %v", current.ID, menuID, time.Since(started), err)
+			return err
+		}
+		log.Printf("[PageService.syncPublication] unpublish succeeded page_id=%d menu_id=%q elapsed=%s", current.ID, menuID, time.Since(started))
+		return nil
+	}
+	if !current.Sub2APIPublished {
+		log.Printf("[PageService.syncPublication] no-op unpublished page_id=%d slug=%q", current.ID, current.Slug)
+		return nil
+	}
+	publication := pagePublicationForPage(current)
+	visibility := publication.Visibility
+	log.Printf("[PageService.syncPublication] publish page_id=%d slug=%q menu_id=%q visibility=%q", current.ID, current.Slug, menuIDForPageID(strconv.Itoa(current.ID)), visibility)
+	err := s.publisher.Publish(ctx, publication)
+	if err != nil {
+		log.Printf("[PageService.syncPublication] publish failed page_id=%d slug=%q elapsed=%s: %v", current.ID, current.Slug, time.Since(started), err)
+		return err
+	}
+	log.Printf("[PageService.syncPublication] publish succeeded page_id=%d slug=%q elapsed=%s", current.ID, current.Slug, time.Since(started))
+	return nil
 }
 
 func mergePublicationInput(previous *Page, input PageInput) PageInput {
@@ -365,6 +499,27 @@ var (
 	ErrSlugConflict = errors.New("slug already exists")
 	ErrPageNotFound = errors.New("page not found")
 )
+
+// PublicationSyncError 表示页面主数据已经持久化，但 sub2api 菜单同步失败。
+// 该错误必须由管理端转换为 2xx + warning，避免用户重复提交造成重复页面。
+type PublicationSyncError struct {
+	Page *Page
+	Err  error
+}
+
+func (e *PublicationSyncError) Error() string {
+	if e == nil || e.Err == nil {
+		return "sub2api publication sync failed after page persisted"
+	}
+	return "sub2api publication sync failed after page persisted: " + e.Err.Error()
+}
+
+func (e *PublicationSyncError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
+}
 
 // validatePageInput 校验输入。requireSlug=true 时 slug 必填(创建场景)。
 func validatePageInput(input PageInput, requireSlug bool) error {
@@ -567,6 +722,7 @@ func (s *entPageStore) List(ctx context.Context) ([]PageListItem, error) {
 			Route:       pageRoute(p.Slug, PageVisibility(p.Visibility)),
 			PageID:      pageID(p.Slug),
 			MenuIcon:    menuIcon,
+			CreatedAt:   p.CreatedAt,
 			UpdatedAt:   p.UpdatedAt,
 			Sub2APIPublished: func() bool {
 				published, _, _ := publicationFromMetadata(p.Metadata, PageVisibility(p.Visibility), p.Title)

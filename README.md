@@ -202,16 +202,13 @@ docker compose -f docker-compose.yml --env-file .env up -d
 
 开发环境用命令直接启动后端和前端，不依赖 Docker 部署。**数据库与中间件需自行用本地 docker 启动**（本仓库不负责拉起 PostgreSQL）。
 
-### 前置：启动 PostgreSQL 并建库
+### 前置：启动 sub2api PostgreSQL
 
-后端连接 PostgreSQL（默认 `127.0.0.1:15433`，库名 `auxdb`，用户 `aux`）。自行用 docker 起一个：
-
-```bash
-export AUX_DEV_POSTGRES_PASSWORD='<本地开发密码>'
-docker run -d --name aux-pg -e POSTGRES_USER=aux \
-  -e POSTGRES_PASSWORD="$AUX_DEV_POSTGRES_PASSWORD" \
-  -e POSTGRES_DB=auxdb -p 127.0.0.1:15433:5432 postgres:18-alpine
-```
+直接运行 `cd backend && make dev` 时，扩展和 sub2api 共用本地 sub2api PostgreSQL。
+默认连接 `127.0.0.1:15432`，凭据为 `POSTGRES_USER=sub2api`、
+`POSTGRES_PASSWORD=123456`、`POSTGRES_DB=sub2api`。请先启动 sub2api 的
+Compose 服务（其 PostgreSQL 应映射到宿主机 `15432`），或按实际值覆盖下面的
+`DEV_*` 变量。
 
 ### 后端
 
@@ -236,15 +233,16 @@ make dev
 |------|------|------|
 | `DEV_SERVER_PORT` | `8004` | 后端监听端口（与前端 vite 代理一致） |
 | `DEV_DATABASE_HOST` | `127.0.0.1` | PG 地址（与 Docker 的 IPv4 绑定一致） |
-| `DEV_DATABASE_PORT` | `15433` | 独立 aux PostgreSQL 的宿主机端口 |
-| `DEV_DATABASE_USER` | `aux` | PG 用户 |
-| `DEV_DATABASE_PASSWORD` | `deploy/.env.dev` | 本地 `aux-pg` 密码；默认读取 `SUB2API_EXTENSION_POSTGRES_PASSWORD` |
-| `DEV_DATABASE_DBNAME` | `auxdb` | PG 库名 |
+| `DEV_DATABASE_PORT` | `15432` | sub2api PostgreSQL 的宿主机端口 |
+| `DEV_DATABASE_USER` | `sub2api` | PG 用户；默认读取 `POSTGRES_USER` |
+| `DEV_DATABASE_PASSWORD` | `123456` | PG 密码；默认读取 `POSTGRES_PASSWORD` |
+| `DEV_DATABASE_DBNAME` | `sub2api` | PG 库名；默认读取 `POSTGRES_DB` |
 | `DEV_SUB2API_DATABASE_HOST` | `127.0.0.1` | Sub2API PostgreSQL 地址 |
 | `DEV_SUB2API_DATABASE_PORT` | `15432` | Sub2API PostgreSQL 宿主机端口 |
 | `DEV_SUB2API_DATABASE_USER` | `sub2api` | Sub2API PostgreSQL 用户 |
-| `DEV_SUB2API_DATABASE_PASSWORD` | `deploy/.env.dev` | 默认读取 `SUB2API_DATABASE_PASSWORD`；首字延迟看板必需 |
+| `DEV_SUB2API_DATABASE_PASSWORD` | `123456` | 默认与 `DEV_DATABASE_PASSWORD` 相同；首字延迟看板必需 |
 | `DEV_SUB2API_DATABASE_DBNAME` | `sub2api` | Sub2API 数据库名 |
+| `DEV_SUB2API_EXTENSION_PUBLIC_URL` | `http://localhost:3100` | 浏览器可访问的扩展 origin；上架菜单必需 |
 | `JWT_SECRET` | `dev-secret-not-for-production` | 开发用签名密钥 |
 
 > 本地 `SUB2API_BASE_URL` 默认是 `http://127.0.0.1:8003`，可通过环境变量覆盖；它用于账号密码登录和 iframe 管理员身份转发验证。
@@ -252,10 +250,24 @@ make dev
 `backend/Makefile` 会自动读取 `deploy/.env.dev`。需要临时覆盖时，可直接导出环境变量：
 
 ```bash
-export DEV_DATABASE_PASSWORD='<auxdb 密码>'
-export DEV_SUB2API_DATABASE_PASSWORD='<Sub2API PostgreSQL 密码>'
+# 也可直接复用 sub2api 的 POSTGRES_* 命名：
+POSTGRES_USER=sub2api POSTGRES_PASSWORD=123456 POSTGRES_DB=sub2api make dev
+
+# 或使用扩展 Makefile 的显式覆盖变量：
+# 如 sub2api 使用了不同的本地凭据，可直接覆盖：
+export DEV_DATABASE_HOST=127.0.0.1
+export DEV_DATABASE_PORT=15432
+export DEV_DATABASE_USER=sub2api
+export DEV_DATABASE_PASSWORD=123456
+export DEV_DATABASE_DBNAME=sub2api
+# 页面上架 URL（前端 Vite 默认端口 3100）
+export DEV_SUB2API_EXTENSION_PUBLIC_URL=http://localhost:3100
 make dev
 ```
+
+如果直接运行 `go run ./cmd/server`（不经过 Makefile），也必须显式传入
+`SUB2API_EXTENSION_PUBLIC_URL=http://localhost:3100`；否则页面数据仍会保存，
+但同步 `custom_menu_items` 时会提示 `sub2api public URL is required to publish a page`。
 
 ### 前端
 
@@ -265,7 +277,10 @@ pnpm install
 pnpm dev        # 开发服务器 http://localhost:3100
 ```
 
-前端 dev server 监听 `3100`。`/api` 代理优先使用 `VITE_AUX_BACKEND_URL`；未设置时会读取本地 `deploy/.env.dev` 的 `SUB2API_EXTENSION_SERVER_PORT`（当前 Docker 开发环境为 `8788`）。如果启动 `backend/make dev`（`8004`），请使用 `VITE_AUX_BACKEND_URL=http://127.0.0.1:8004 pnpm dev`。浏览器访问 `http://localhost:3100/` 会重定向到分析仪表盘；系统不会在根路径展示官网首页。
+前端 dev server 监听 `3100`，独立后端 `cd backend && make dev` 默认监听 `8004`，前端会自动代理到该端口。
+如果使用 Docker 开发部署（宿主机端口通常为 `8788`），请使用
+`VITE_AUX_BACKEND_URL=http://127.0.0.1:8788 pnpm dev` 覆盖代理地址。浏览器访问
+`http://localhost:3100/` 会重定向到分析仪表盘；系统不会在根路径展示官网首页。
 
 ### 管理端登录
 

@@ -17,7 +17,21 @@ import { AUX_API_BASE_URL } from './api-base'
 export interface AuxEnvelope<T> {
   code: number
   message: string
+  reason?: string
   data?: T
+}
+
+/** 后端错误响应，保留 message/reason 供管理页面显示可执行提示。 */
+export class AuxApiError extends Error {
+  readonly status: number
+  readonly reason?: string
+
+  constructor(status: number, message: string, reason?: string) {
+    super(message)
+    this.name = 'AuxApiError'
+    this.status = status
+    this.reason = reason
+  }
 }
 
 const AUTH_HEADER = 'X-Aux-Token'
@@ -102,17 +116,34 @@ export async function apiRequest<T>(
   try {
     const response = await fetch(url, init)
     if (!response.ok) {
+      let payload: Partial<AuxEnvelope<unknown>> | undefined
+      try {
+        payload = (await response.json()) as Partial<AuxEnvelope<unknown>>
+      } catch (parseError) {
+        // 非 JSON 响应仍使用 HTTP 状态码生成错误，但保留解析异常帮助排查代理/网关问题。
+        console.warn('[apiRequest] non-JSON error response', {
+          url,
+          status: response.status,
+          error: parseError,
+        })
+      }
+      const message = payload?.message || `Aux API request failed: ${response.status} ${response.statusText}`
+      const apiError = new AuxApiError(response.status, message, payload?.reason)
+      console.error('[apiRequest] request failed', {
+        url,
+        status: response.status,
+        message,
+        reason: payload?.reason,
+      })
       // 401 未授权：先清除本地会话，再跳转到登录页。
       // 只检查 JWT 格式/过期时间无法确认后端签名仍有效；不清除会话会让
       // LoginPage 再次识别旧会话并跳回控制台，形成 /admin ↔ /login 循环。
       if (response.status === 401 && window.location.pathname.startsWith('/admin')) {
         clearAdminSession()
         window.location.href = '/login'
-        throw new Error('Unauthorized: redirecting to login')
+        throw new AuxApiError(response.status, 'Unauthorized: redirecting to login', payload?.reason)
       }
-      throw new Error(
-        `Aux API request failed: ${response.status} ${response.statusText}`,
-      )
+      throw apiError
     }
     return (await response.json()) as T
   } finally {

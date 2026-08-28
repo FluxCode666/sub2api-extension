@@ -93,9 +93,15 @@ func Load() (*Config, error) {
 	// 环境变量支持
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	// AutomaticEnv 只会读取已绑定/默认的键；显式绑定确保 SUB2API_EXTENSION_ASSET_DIR
-	// 能覆盖 assets.dir（尤其是生产容器的 /app/data/assets）。
-	_ = viper.BindEnv("assets.dir", "SUB2API_EXTENSION_ASSET_DIR")
+	// 这两个环境变量带有 SUB2API_EXTENSION_ 前缀，无法由默认的点号转
+	// 下划线规则推导出来，必须绑定到对应配置键。特别是 public_url：
+	// Makefile 虽然会导出它，未绑定时 Viper 只会查找 SUB2API_PUBLIC_URL。
+	if err := viper.BindEnv("sub2api.public_url", "SUB2API_EXTENSION_PUBLIC_URL"); err != nil {
+		return nil, fmt.Errorf("bind sub2api public URL environment variable: %w", err)
+	}
+	if err := viper.BindEnv("assets.dir", "SUB2API_EXTENSION_ASSET_DIR"); err != nil {
+		return nil, fmt.Errorf("bind asset directory environment variable: %w", err)
+	}
 
 	setDefaults()
 

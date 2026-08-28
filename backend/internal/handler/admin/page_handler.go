@@ -80,11 +80,19 @@ func (h *PageHandler) Create(c *gin.Context) {
 	}
 	var input service.PageInput
 	if err := c.ShouldBindJSON(&input); err != nil {
+		log.Printf("[PageHandler.Create] invalid JSON input: %v", err)
 		response.BadRequest(c, "invalid page input")
 		return
 	}
 	p, err := h.provider.Create(c.Request.Context(), input)
 	if err != nil {
+		var syncErr *service.PublicationSyncError
+		if errors.As(err, &syncErr) && p != nil {
+			log.Printf("[PageHandler.Create] returning persisted page with sync warning page_id=%d slug=%q: %v", p.ID, p.Slug, syncErr.Err)
+			response.CreatedWithReason(c, p, "page saved with warning", "页面已保存，但 sub2api 菜单同步失败，请稍后重试")
+			return
+		}
+		log.Printf("[PageHandler.Create] failed slug=%q title=%q: %v", input.Slug, input.Title, err)
 		handlePageError(c, err)
 		return
 	}
@@ -143,11 +151,19 @@ func (h *PageHandler) Update(c *gin.Context) {
 	}
 	var input service.PageInput
 	if err := c.ShouldBindJSON(&input); err != nil {
+		log.Printf("[PageHandler.Update] invalid JSON input page_id=%d: %v", id, err)
 		response.BadRequest(c, "invalid page input")
 		return
 	}
 	p, err := h.provider.Update(c.Request.Context(), id, input)
 	if err != nil {
+		var syncErr *service.PublicationSyncError
+		if errors.As(err, &syncErr) && p != nil {
+			log.Printf("[PageHandler.Update] returning persisted page with sync warning page_id=%d slug=%q: %v", p.ID, p.Slug, syncErr.Err)
+			response.SuccessWithReason(c, p, "page saved with warning", "页面已保存，但 sub2api 菜单同步失败，请稍后重试")
+			return
+		}
+		log.Printf("[PageHandler.Update] failed page_id=%d slug=%q title=%q: %v", id, input.Slug, input.Title, err)
 		handlePageError(c, err)
 		return
 	}
@@ -179,6 +195,11 @@ func parseID(c *gin.Context) (int, error) {
 
 // handlePageError 将服务层错误映射为 HTTP 响应。
 func handlePageError(c *gin.Context, err error) {
+	if err != nil {
+		// 对客户端返回稳定的通用消息，但完整错误必须进入服务端日志，
+		// 便于定位数据库、sub2api 或上下文超时等根因。
+		log.Printf("[PageHandler] operation failed path=%s method=%s: %v", c.Request.URL.Path, c.Request.Method, err)
+	}
 	if errors.Is(err, service.ErrSlugConflict) {
 		response.ErrorWithReason(c, http.StatusConflict, "slug already exists", err.Error())
 		return

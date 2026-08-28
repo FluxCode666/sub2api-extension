@@ -145,9 +145,11 @@ sub2api 会把 URL 作为 iframe 地址。`theme=light` 或 `theme=dark` 可指�
 
 ### 2.3 从页面管理直接上架
 
-配置 `SUB2API_DATABASE_*` 和 `SUB2API_EXTENSION_PUBLIC_URL` 后，打开扩展的「页面管理」，每个页面会显示「sub2api」上架开关。开启后会在 sub2api `settings` 表的 `custom_menu_items` 数组中创建/更新一项；菜单名称和可见角色（普通用户/管理员）可在页面编辑框中单独配置。扩展使用稳定且符合 sub2api 长度限制的 `aux-page-<页面 ID>` 作为菜单 ID，只修改自己的菜单项，其他手工配置的菜单会保留。关闭开关、删除页面或修改页面 URL 时会同步移除/更新对应项。
+配置 `SUB2API_DATABASE_*` 和 `SUB2API_EXTENSION_PUBLIC_URL` 后，打开扩展的「页面管理」，每个页面会显示「sub2api」上架开关。开启后会在 sub2api `settings` 表的 `custom_menu_items` 数组中追加一项；若本扩展自己的 `aux-page-<页面 ID>` 已存在，则只更新这一项。菜单名称和可见角色（普通用户/管理员）可在页面编辑框中单独配置，不会覆盖其他手工菜单。关闭开关、删除页面或修改页面 URL 时会同步移除/更新对应项。
 
 页面的访问路径仍由页面自身可见性决定：公开页使用 `/p/<slug>`，管理员页使用 `/admin/p/<slug>`；sub2api 可见角色只控制菜单是否展示。`SUB2API_EXTENSION_PUBLIC_URL` 必须是浏览器可访问的完整 origin，不能填写 `aux-backend` 等 Docker 内部服务名。
+
+管理页显示的“已上架”不是只看 `aux-page-<页面 ID>` 是否存在。扩展会重新计算期望的 URL、菜单名称和可见角色，并与 sub2api 当前 `custom_menu_items` 中的 URL、名称、角色及 `page_slug` 逐项核对；管理员在 sub2api 中改动任一受管字段后，该页面会显示为“未上架”，可在扩展页面管理中重新保存以恢复同步。
 
 ## 3. 页面管理与 Dashboard
 

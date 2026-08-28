@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -75,6 +76,25 @@ func TestLoadFromEnv_Sub2APIDatabaseAndPublicURL(t *testing.T) {
 	assert.Equal(t, "postgres", cfg.Sub2API.Database.Host)
 	assert.Equal(t, 5433, cfg.Sub2API.Database.Port)
 	assert.Equal(t, "sub2api", cfg.Sub2API.Database.DBName)
+}
+
+// main 使用 Load（Viper），不是 LoadFromEnv。这个测试确保 make dev 导出的
+// SUB2API_EXTENSION_PUBLIC_URL 能被真实启动路径读取，而不是被误映射为
+// SUB2API_PUBLIC_URL 后静默丢失。
+func TestLoadBindsExtensionPublicURL(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(viper.Reset)
+	clearEnv(t)
+	t.Setenv("DATABASE_HOST", "localhost")
+	t.Setenv("DATABASE_USER", "sub2api")
+	t.Setenv("DATABASE_DBNAME", "sub2api")
+	t.Setenv("JWT_SECRET", "test-secret-key")
+	t.Setenv("SUB2API_BASE_URL", "http://127.0.0.1:8003")
+	t.Setenv("SUB2API_EXTENSION_PUBLIC_URL", "http://localhost:3100/")
+
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.Equal(t, "http://localhost:3100", cfg.Sub2API.PublicURL)
 }
 
 func TestLoadFromEnv_MissingDBHost(t *testing.T) {

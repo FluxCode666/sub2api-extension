@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -83,12 +84,26 @@ func main() {
 	var sub2apiMenuPublisher service.PagePublisher
 	var sub2apiDB *sql.DB
 	if cfg.Sub2API.Database.Host != "" {
+		if strings.TrimSpace(cfg.Sub2API.PublicURL) == "" {
+			// The database connection is still useful for reads (for example the
+			// operations dashboard), but publishing a page needs a browser-reachable
+			// origin to build the custom_menu_items URL. Keep startup successful and
+			// make the missing setting explicit instead of hiding it until a toggle is
+			// clicked in the admin UI.
+			log.Printf("[main] sub2api menu publication configured without public URL; set SUB2API_EXTENSION_PUBLIC_URL (for local Vite: http://localhost:3100, Docker: the mapped extension origin)")
+		} else {
+			// Do not print the URL itself: deployments may include credentials or
+			// other sensitive query material even though a plain origin is expected.
+			log.Printf("[main] sub2api menu publication public URL configured=true")
+		}
 		sub2apiDB, err = initSub2APIDatabase(cfg)
 		if err != nil {
 			log.Fatalf("Failed to initialize sub2api database: %v", err)
 		}
 		defer func() { _ = sub2apiDB.Close() }()
 		sub2apiMenuPublisher = integration.NewSub2APIMenuStore(sub2apiDB, cfg.Sub2API.PublicURL)
+	} else {
+		log.Printf("[main] sub2api database integration disabled: SUB2API_DATABASE_HOST is empty; publication and TTFT data access will be unavailable")
 	}
 
 	// 装配路由
@@ -171,30 +186,35 @@ func main() {
 
 func initSub2APIDatabase(cfg *config.Config) (*sql.DB, error) {
 	dsn := cfg.Sub2API.Database.DSN()
-	log.Printf("Connecting to sub2api PostgreSQL at %s:%d/%s", cfg.Sub2API.Database.Host, cfg.Sub2API.Database.Port, cfg.Sub2API.Database.DBName)
+	log.Printf("[initSub2APIDatabase] connecting host=%s port=%d db=%s user=%s sslmode=%s public_url_configured=%t", cfg.Sub2API.Database.Host, cfg.Sub2API.Database.Port, cfg.Sub2API.Database.DBName, cfg.Sub2API.Database.User, cfg.Sub2API.Database.SSLMode, strings.TrimSpace(cfg.Sub2API.PublicURL) != "")
+	started := time.Now()
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
+		log.Printf("[initSub2APIDatabase] sql.Open failed elapsed=%s: %v", time.Since(started), err)
 		return nil, fmt.Errorf("opening sub2api database/sql: %w", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := db.PingContext(ctx); err != nil {
+		log.Printf("[initSub2APIDatabase] ping failed elapsed=%s: %v", time.Since(started), err)
 		_ = db.Close()
 		return nil, fmt.Errorf("pinging sub2api database: %w", err)
 	}
-	log.Println("sub2api database connected successfully")
+	log.Printf("[initSub2APIDatabase] connected successfully elapsed=%s", time.Since(started))
 	return db, nil
 }
 
 // initEnt 初始化 Ent 客户端并连接 PostgreSQL，执行一次 ping 确认可达性。
 func initEnt(cfg *config.Config) (*ent.Client, error) {
 	dsn := cfg.Database.DSN()
-	log.Printf("Connecting to PostgreSQL at %s:%d/%s", cfg.Database.Host, cfg.Database.Port, cfg.Database.DBName)
+	log.Printf("[initEnt] connecting host=%s port=%d db=%s user=%s sslmode=%s", cfg.Database.Host, cfg.Database.Port, cfg.Database.DBName, cfg.Database.User, cfg.Database.SSLMode)
+	started := time.Now()
 
 	// 可达性检查: 用同一 DSN 开一个临时连接池 ping, 确认可达后丢弃, 再开 ent client。
 	// ent client 的底层 driver 未导出, 无法直接复用其连接池 ping。
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
+		log.Printf("[initEnt] sql.Open failed elapsed=%s: %v", time.Since(started), err)
 		return nil, fmt.Errorf("opening database/sql: %w", err)
 	}
 	defer func() { _ = db.Close() }()
@@ -202,16 +222,18 @@ func initEnt(cfg *config.Config) (*ent.Client, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := db.PingContext(ctx); err != nil {
+		log.Printf("[initEnt] ping failed elapsed=%s: %v", time.Since(started), err)
 		return nil, fmt.Errorf("pinging database: %w", err)
 	}
 
 	// 开启 ent client
 	client, err := ent.Open("postgres", dsn)
 	if err != nil {
+		log.Printf("[initEnt] ent.Open failed elapsed=%s: %v", time.Since(started), err)
 		return nil, fmt.Errorf("opening ent client: %w", err)
 	}
 
-	log.Println("Ent client connected to PostgreSQL successfully")
+	log.Printf("[initEnt] connected successfully elapsed=%s", time.Since(started))
 	return client, nil
 }
 

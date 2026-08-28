@@ -27,7 +27,7 @@ vi.mock('./embedded', () => ({
   getEmbeddedContext: vi.fn(() => null),
 }))
 
-import { apiClient, apiRequest, type AuxEnvelope } from './api-client'
+import { apiClient, apiRequest, AuxApiError, type AuxEnvelope } from './api-client'
 import { getAdminSessionToken } from './admin-auth'
 import { getEmbeddedContext } from './embedded'
 
@@ -147,6 +147,21 @@ describe('api-client', () => {
       fetchMock.mockResolvedValueOnce(mockResponse(503, {}))
 
       await expect(apiRequest('/x')).rejects.toThrow(/503/)
+    })
+
+    it('preserves backend message and reason on non-ok JSON response', async () => {
+      fetchMock.mockResolvedValueOnce(mockResponse(500, {
+        code: 500,
+        message: 'page operation failed',
+        reason: 'sub2api settings table unavailable',
+      }))
+
+      await expect(apiRequest('/admin/pages')).rejects.toMatchObject({
+        name: 'AuxApiError',
+        status: 500,
+        message: 'page operation failed',
+        reason: 'sub2api settings table unavailable',
+      } satisfies Partial<AuxApiError>)
     })
 
     it('throws on 401 unauthorized', async () => {

@@ -2,7 +2,10 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
+
+	"sub2api-extension/internal/sub2apimenu"
 )
 
 // fakePageStore 内存实现, 用于服务层单测(不依赖数据库)。
@@ -36,7 +39,9 @@ func (s *fakePageStore) List(ctx context.Context) ([]PageListItem, error) {
 		items = append(items, PageListItem{
 			ID: p.ID, Slug: p.Slug, Title: p.Title, Visibility: p.Visibility,
 			ContentType: p.ContentType, Enabled: p.Enabled, Route: pageRoute(p.Slug, p.Visibility),
-			PageID: p.PageID, UpdatedAt: p.UpdatedAt,
+			PageID: p.PageID, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
+			Sub2APIPublished: p.Sub2APIPublished, Sub2APIVisibility: p.Sub2APIVisibility,
+			Sub2APIMenuName: p.Sub2APIMenuName,
 		})
 	}
 	return items, nil
@@ -107,6 +112,30 @@ var errFakeNotFound = errFake("not found")
 type errFake string
 
 func (e errFake) Error() string { return string(e) }
+
+type fakePagePublisher struct {
+	publishErr error
+	listErr    error
+	published  []sub2apimenu.PagePublication
+	listed     map[string]sub2apimenu.PagePublication
+}
+
+func (p *fakePagePublisher) List(context.Context) (map[string]sub2apimenu.PagePublication, error) {
+	if p.listErr != nil {
+		return nil, p.listErr
+	}
+	if p.listed == nil {
+		return map[string]sub2apimenu.PagePublication{}, nil
+	}
+	return p.listed, nil
+}
+
+func (p *fakePagePublisher) Publish(_ context.Context, publication sub2apimenu.PagePublication) error {
+	p.published = append(p.published, publication)
+	return p.publishErr
+}
+
+func (p *fakePagePublisher) Unpublish(context.Context, string) error { return nil }
 
 func TestPageService_Create_Validation(t *testing.T) {
 	store := newFakePageStore()
@@ -210,6 +239,165 @@ func TestPageService_Update(t *testing.T) {
 		t.Errorf("Update: enabled=%v, want false", updated.Enabled)
 	}
 }
+
+func TestPageService_CreatePersistsWhenSub2APISyncFails(t *testing.T) {
+	store := newFakePageStore()
+	publisher := &fakePagePublisher{publishErr: errors.New("settings table unavailable")}
+	svc := NewPageService(store, publisher)
+
+	p, err := svc.Create(context.Background(), PageInput{
+		Slug: "published-page", Title: "Published", Visibility: VisibilityPublic,
+		Sub2APIPublished: boolPtr(true),
+	})
+	if err == nil {
+		t.Fatal("Create: expected publication sync warning")
+	}
+	var syncErr *PublicationSyncError
+	if !errors.As(err, &syncErr) {
+		t.Fatalf("Create: expected PublicationSyncError, got %T: %v", err, err)
+	}
+	if p == nil || p.ID == 0 {
+		t.Fatal("Create: expected persisted page in error result")
+	}
+	if _, getErr := store.GetByID(context.Background(), p.ID); getErr != nil {
+		t.Fatalf("Create: persisted page not readable: %v", getErr)
+	}
+}
+
+func TestPageService_ListAdminPropagatesSub2APIListFailure(t *testing.T) {
+	store := newFakePageStore()
+	store.pages[1] = &Page{ID: 1, Slug: "docs", Title: "Docs", Visibility: VisibilityPublic, Enabled: true}
+	listErr := errors.New("settings read failed")
+	svc := NewPageService(store, &fakePagePublisher{listErr: listErr})
+
+	items, err := svc.ListAdmin(context.Background())
+	if !errors.Is(err, listErr) {
+		t.Fatalf("ListAdmin error = %v, want %v", err, listErr)
+	}
+	if items != nil {
+		t.Fatalf("ListAdmin items = %#v, want nil when publisher list fails", items)
+	}
+}
+
+func TestPageService_ListAdminDoesNotTrustUnverifiedStoredPublication(t *testing.T) {
+	store := newFakePageStore()
+	store.pages[1] = &Page{
+		ID: 1, Slug: "docs", Title: "Docs", Visibility: VisibilityPublic, Enabled: true,
+		Sub2APIPublished: true,
+	}
+	svc := NewPageService(store)
+
+	items, err := svc.ListAdmin(context.Background())
+	if err != nil {
+		t.Fatalf("ListAdmin error = %v", err)
+	}
+	if len(items) != 1 || items[0].Sub2APIPublished {
+		t.Fatalf("ListAdmin exposed unverified publication: %#v", items)
+	}
+}
+
+func TestPageService_ListAdminMarksExternallyChangedPublicationUnpublished(t *testing.T) {
+	store := newFakePageStore()
+	store.pages[1] = &Page{ID: 1, Slug: "docs", Title: "Docs", Visibility: VisibilityPublic, Enabled: true, PageID: "page:docs"}
+	publisher := &fakePagePublisher{listed: map[string]sub2apimenu.PagePublication{
+		"aux-page-1": {
+			MenuID:     "aux-page-1",
+			Label:      "Renamed in sub2api",
+			URL:        "https://aux.example.com/p/docs",
+			Visibility: "user",
+		},
+	}}
+	svc := NewPageService(store, publisher)
+
+	items, err := svc.ListAdmin(context.Background())
+	if err != nil {
+		t.Fatalf("ListAdmin error = %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("ListAdmin items = %#v, want one item", items)
+	}
+	if items[0].Sub2APIPublished {
+		t.Fatalf("ListAdmin marked externally renamed menu as published: %#v", items[0])
+	}
+}
+
+func TestPageService_ListAdminMarksMatchingPublicationPublished(t *testing.T) {
+	store := newFakePageStore()
+	store.pages[1] = &Page{ID: 1, Slug: "docs", Title: "Docs", Visibility: VisibilityPublic, Enabled: true, PageID: "page:docs"}
+	publisher := &fakePagePublisher{listed: map[string]sub2apimenu.PagePublication{
+		"aux-page-1": {
+			MenuID:     "aux-page-1",
+			Label:      "Docs",
+			URL:        "https://aux.example.com/p/docs",
+			Visibility: "user",
+		},
+	}}
+	svc := NewPageService(store, publisher)
+
+	items, err := svc.ListAdmin(context.Background())
+	if err != nil {
+		t.Fatalf("ListAdmin error = %v", err)
+	}
+	if len(items) != 1 || !items[0].Sub2APIPublished {
+		t.Fatalf("ListAdmin did not mark matching menu as published: %#v", items)
+	}
+}
+
+func TestPageService_GetByIDMarksExternallyChangedPublicationUnpublished(t *testing.T) {
+	store := newFakePageStore()
+	store.pages[1] = &Page{ID: 1, Slug: "docs", Title: "Docs", Visibility: VisibilityPublic, Enabled: true, PageID: "page:docs"}
+	publisher := &fakePagePublisher{listed: map[string]sub2apimenu.PagePublication{
+		"aux-page-1": {
+			MenuID:     "aux-page-1",
+			Label:      "Docs",
+			URL:        "https://aux.example.com/p/other",
+			Visibility: "user",
+		},
+	}}
+	svc := NewPageService(store, publisher)
+
+	page, err := svc.GetByID(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("GetByID error = %v", err)
+	}
+	if page.Sub2APIPublished {
+		t.Fatalf("GetByID marked externally moved menu as published: %#v", page)
+	}
+}
+
+func TestPageService_GetByIDPropagatesSub2APIListFailure(t *testing.T) {
+	store := newFakePageStore()
+	store.pages[1] = &Page{ID: 1, Slug: "docs", Title: "Docs", Visibility: VisibilityPublic, Enabled: true}
+	listErr := errors.New("settings read failed")
+	svc := NewPageService(store, &fakePagePublisher{listErr: listErr})
+
+	p, err := svc.GetByID(context.Background(), 1)
+	if !errors.Is(err, listErr) {
+		t.Fatalf("GetByID error = %v, want %v", err, listErr)
+	}
+	if p != nil {
+		t.Fatalf("GetByID page = %#v, want nil when publisher list fails", p)
+	}
+}
+
+func TestPageService_GetByIDDoesNotTrustUnverifiedStoredPublication(t *testing.T) {
+	store := newFakePageStore()
+	store.pages[1] = &Page{
+		ID: 1, Slug: "docs", Title: "Docs", Visibility: VisibilityPublic, Enabled: true,
+		Sub2APIPublished: true,
+	}
+	svc := NewPageService(store)
+
+	page, err := svc.GetByID(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("GetByID error = %v", err)
+	}
+	if page.Sub2APIPublished {
+		t.Fatalf("GetByID exposed unverified publication: %#v", page)
+	}
+}
+
+func boolPtr(value bool) *bool { return &value }
 
 func TestPageRoute(t *testing.T) {
 	if r := pageRoute("foo", VisibilityPublic); r != "/p/foo" {
