@@ -52,7 +52,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("打开数据库失败: %v", err)
 	}
-	defer client.Close()
+	defer func() {
+		if closeErr := client.Close(); closeErr != nil {
+			log.Printf("Failed to close ent client: %v", closeErr)
+		}
+	}()
 
 	ctx := context.Background()
 	pages := []examplePage{
@@ -172,8 +176,8 @@ export default function InteractionExample({ pageId }) {
     try {
       let visitorId = localStorage.getItem('aux_visitor_id');
       if (!visitorId) { visitorId = 'dynamic-' + Date.now() + '-' + Math.random().toString(16).slice(2); localStorage.setItem('aux_visitor_id', visitorId); }
-      fetch('/api/aux/telemetry/feature-click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page_id: pageId, feature_id: featureId, visitor_id: visitorId, is_admin: true }), keepalive: true }).catch(function () {});
-    } catch (_) {}
+      fetch('/api/aux/telemetry/feature-click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page_id: pageId, feature_id: featureId, visitor_id: visitorId, is_admin: true }), keepalive: true }).catch(function (error) { console.error('[dynamic-page] feature telemetry failed', error); });
+    } catch (error) { console.error('[dynamic-page] feature telemetry setup failed', error); }
   }
   function update(next, featureId) { setCount(next); report(featureId); }
   return <main style={{maxWidth: 760, margin: '0 auto', padding: 32, fontFamily: 'system-ui, sans-serif', color: '#1f2937'}}>
@@ -189,9 +193,9 @@ export default function InteractionExample({ pageId }) {
 const apiReact = `
 export default function APIExample({ pageId }) {
   const [state, setState] = React.useState({ status: 'loading', data: null, message: '' });
-  const getToken = function () { try { const raw = localStorage.getItem('aux_admin_session'); return raw ? JSON.parse(raw).token : ''; } catch (_) { return ''; } };
+  const getToken = function () { try { const raw = localStorage.getItem('aux_admin_session'); return raw ? JSON.parse(raw).token : ''; } catch (error) { console.error('[dynamic-page] failed to read admin session', error); return ''; } };
   const load = function (track) {
-    if (track) { try { const raw = localStorage.getItem('aux_visitor_id') || 'dynamic-api-' + Date.now(); fetch('/api/aux/telemetry/feature-click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page_id: pageId, feature_id: 'refresh-status', visitor_id: raw, is_admin: true }), keepalive: true }).catch(function () {}); } catch (_) {} }
+    if (track) { try { const raw = localStorage.getItem('aux_visitor_id') || 'dynamic-api-' + Date.now(); fetch('/api/aux/telemetry/feature-click', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page_id: pageId, feature_id: 'refresh-status', visitor_id: raw, is_admin: true }), keepalive: true }).catch(function (error) { console.error('[dynamic-page] status telemetry failed', error); }); } catch (error) { console.error('[dynamic-page] status telemetry setup failed', error); } }
     setState({ status: 'loading', data: null, message: '' });
     fetch('/api/aux/admin/examples/status', { headers: { 'X-Aux-Session': getToken() } }).then(function (response) { return response.json(); }).then(function (envelope) { if (envelope.code !== 0 || !envelope.data) throw new Error(envelope.message || '服务返回的数据格式无效'); setState({ status: 'success', data: envelope.data, message: '' }); }).catch(function (error) { setState({ status: 'error', data: null, message: error && error.message ? error.message : '未知请求错误' }); });
   };
