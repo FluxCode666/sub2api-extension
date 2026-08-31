@@ -54,8 +54,9 @@ export function getVisitorId(): string {
     localStorage.setItem(VISITOR_ID_KEY, newId)
     memoryVisitorId = newId
     return newId
-  } catch {
-    // localStorage 不可用: 退化为内存 id
+  } catch (error) {
+    // localStorage 不可用: 退化为内存 id，但保留诊断日志。
+    console.error('[visitor-id] failed to read/write localStorage', error)
     if (!memoryVisitorId) {
       memoryVisitorId = generateVisitorId()
     }
@@ -79,8 +80,9 @@ export function resetVisitorId(): void {
   memoryVisitorId = null
   try {
     localStorage.removeItem(VISITOR_ID_KEY)
-  } catch {
-    // localStorage 不可用
+  } catch (error) {
+    // localStorage 不可用，但不能静默吞掉清理失败。
+    console.error('[visitor-id] failed to clear localStorage', error)
   }
 }
 

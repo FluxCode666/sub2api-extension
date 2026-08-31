@@ -135,12 +135,17 @@ export async function apiRequest<T>(
         message,
         reason: payload?.reason,
       })
-      // 401 未授权：先清除本地会话，再跳转到登录页。
+      // 401 未授权：先清除本地会话，再重新进入管理入口。
       // 只检查 JWT 格式/过期时间无法确认后端签名仍有效；不清除会话会让
       // LoginPage 再次识别旧会话并跳回控制台，形成 /admin ↔ /login 循环。
+      // iframe 场景必须保留 sub2api 注入的查询参数，否则 AdminGuard 无法
+      // 重新 exchangeSession，只能让管理员再次手动登录。
       if (response.status === 401 && window.location.pathname.startsWith('/admin')) {
         clearAdminSession()
-        window.location.href = '/login'
+        const embeddedSearch = window.location.search
+        window.location.href = embeddedSearch
+          ? `/admin/dashboard${embeddedSearch}`
+          : '/login'
         throw new AuxApiError(response.status, 'Unauthorized: redirecting to login', payload?.reason)
       }
       throw apiError

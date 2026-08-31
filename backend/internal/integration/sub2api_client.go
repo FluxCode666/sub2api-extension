@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -69,8 +70,9 @@ func (c *Sub2APIClient) VerifyAdminJWT(ctx context.Context, token string) (isAdm
 }
 
 // VerifyUserJWT verifies a Sub2API access token for a customer-facing
-// embedded page. Unlike VerifyAdminJWT it accepts every valid account role;
-// authorization is based on the verified user ID, never iframe parameters.
+// embedded page.  Unlike VerifyAdminJWT it deliberately accepts every valid
+// account role; authorization of a request is always based on the verified
+// returned user ID, never on the iframe's user_id query parameter.
 func (c *Sub2APIClient) VerifyUserJWT(ctx context.Context, token string) (*Sub2APIUserInfo, error) {
 	return c.verifyJWT(ctx, token)
 }
@@ -93,7 +95,11 @@ func (c *Sub2APIClient) verifyJWT(ctx context.Context, token string) (*Sub2APIUs
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrSub2APIUnreachable, err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Printf("[Sub2APIClient.verifyJWT] failed to close response body: %v", closeErr)
+		}
+	}()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -180,7 +186,11 @@ func (c *Sub2APIClient) Login(ctx context.Context, req Sub2APILoginRequest) (*Su
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrSub2APIUnreachable, err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Printf("[Sub2APIClient.Login] failed to close response body: %v", closeErr)
+		}
+	}()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

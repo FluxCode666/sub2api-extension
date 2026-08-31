@@ -58,7 +58,7 @@ const SANDBOX_BOOTSTRAP = `
         href: href,
         target: target || '_self'
       }, '*');
-    } catch(_) {}
+    } catch(error) { console.error('[sandbox] navigation message failed', error); }
   }
 
   document.addEventListener('click', function(e){
@@ -67,7 +67,7 @@ const SANDBOX_BOOTSTRAP = `
     while(el && el !== document.body){
       var fid = el.getAttribute ? el.getAttribute('data-feature-id') : null;
       if(fid){
-        try { window.parent.postMessage({ type: 'aux-feature-click', featureId: fid }, '*'); } catch(_){}
+        try { window.parent.postMessage({ type: 'aux-feature-click', featureId: fid }, '*'); } catch(error){ console.error('[sandbox] feature telemetry message failed', error); }
       }
       if (el.tagName && el.tagName.toLowerCase() === 'a') {
         anchor = anchor || el;
@@ -109,7 +109,7 @@ const FRAME_SIZE_BOOTSTRAP = `
       var rect = root.getBoundingClientRect();
       var height = Math.ceil(rect.top + rect.height);
       window.parent.postMessage({ type: 'aux-frame-height', height: height }, '*');
-    } catch (_) {}
+    } catch (error) { console.error('[sandbox] frame height message failed', error); }
   }
   window.addEventListener('message', function(event){
     var data = event.data;
@@ -118,7 +118,7 @@ const FRAME_SIZE_BOOTSTRAP = `
     document.documentElement.style.setProperty('--aux-parent-scroll-y', offset + 'px');
     try {
       window.dispatchEvent(new CustomEvent('auxparentscroll', { detail: { offset: offset } }));
-    } catch (_) {}
+    } catch (error) { console.error('[sandbox] parent scroll event failed', error); }
   });
   window.addEventListener('load', reportHeight);
   if (window.ResizeObserver) {
@@ -182,8 +182,8 @@ export default function SandboxRenderer({
             // Keep extension-local links inside the current extension frame.
             window.location.assign(target.href)
           }
-        } catch {
-          // 忽略无效地址，保持当前页面可用。
+        } catch (error) {
+          console.error('[SandboxRenderer] invalid navigation message', error)
         }
         return
       }
@@ -291,9 +291,10 @@ function navigateTopLevel(href: string): void {
       window.top.location.href = href
       return
     }
-  } catch {
+  } catch (error) {
     // Fall back to the current window below when a browser blocks the top
     // navigation assignment (for example in a restricted embedded context).
+    console.error('[SandboxRenderer] top-level navigation blocked; using current window', error)
   }
   window.location.assign(href)
 }

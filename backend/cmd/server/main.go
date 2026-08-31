@@ -103,7 +103,11 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to initialize sub2api database: %v", err)
 		}
-		defer func() { _ = sub2apiDB.Close() }()
+		defer func() {
+			if closeErr := sub2apiDB.Close(); closeErr != nil {
+				log.Printf("[main] failed to close sub2api database: %v", closeErr)
+			}
+		}()
 		menuStore := integration.NewSub2APIMenuStore(sub2apiDB, cfg.Sub2API.PublicURL)
 		sub2apiMenuPublisher = menuStore
 		invoiceMenuPublisher = menuStore
@@ -146,6 +150,17 @@ func main() {
 	imageAssetService := service.NewImageAssetService(imageAssetStore, cfg.Assets.Dir)
 	imageAssetHandler := adminhandler.NewImageAssetHandler(imageAssetService)
 
+	// 日志链：Ent 持久化 + stdout 输出；系统日志和操作日志页面共用此服务。
+	logStore := service.NewEntLogStore(entClient)
+	logService := service.NewLogService(logStore)
+	logHandler := adminhandler.NewLogHandler(logService)
+	if err := logService.RecordSystem(context.Background(), service.SystemLogRecord{
+		Level: service.LogLevelInfo, Source: "startup", Message: "aux service initialized",
+		Details: fmt.Sprintf("version=%s mode=%s", Version, cfg.Server.Mode),
+	}); err != nil {
+		log.Printf("[main] failed to persist startup log: %v", err)
+	}
+
 	// 发票模块只读 Sub2API 的已完成余额充值订单；申请、资料和开票文件
 	// 始终保存在扩展自己的数据库/私有文件目录中。
 	invoiceOrderStore := integration.NewSub2APIPaymentOrderStore(sub2apiDB)
@@ -171,7 +186,7 @@ func main() {
 	ttftService := service.NewTTFTService(ttftStore)
 	ttftHandler := adminhandler.NewTTFTHandler(ttftService)
 
-	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, imageAssetHandler, ttftHandler, invoiceUserHandler, invoiceAdminHandler)
+	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, imageAssetHandler, ttftHandler, invoiceUserHandler, invoiceAdminHandler, logService, logHandler)
 
 	// 启动 HTTP 服务器
 	addr := cfg.Server.Address()
@@ -206,6 +221,9 @@ func main() {
 	}
 
 	log.Println("Server exited")
+	if err := logService.RecordSystem(context.Background(), service.SystemLogRecord{Level: service.LogLevelInfo, Source: "shutdown", Message: "aux service stopped"}); err != nil {
+		log.Printf("[main] failed to persist shutdown log: %v", err)
+	}
 }
 
 func initSub2APIDatabase(cfg *config.Config) (*sql.DB, error) {
@@ -221,7 +239,9 @@ func initSub2APIDatabase(cfg *config.Config) (*sql.DB, error) {
 	defer cancel()
 	if err := db.PingContext(ctx); err != nil {
 		log.Printf("[initSub2APIDatabase] ping failed elapsed=%s: %v", time.Since(started), err)
-		_ = db.Close()
+		if closeErr := db.Close(); closeErr != nil {
+			log.Printf("[initSub2APIDatabase] failed to close probe database: %v", closeErr)
+		}
 		return nil, fmt.Errorf("pinging sub2api database: %w", err)
 	}
 	log.Printf("[initSub2APIDatabase] connected successfully elapsed=%s", time.Since(started))
@@ -241,7 +261,11 @@ func initEnt(cfg *config.Config) (*ent.Client, error) {
 		log.Printf("[initEnt] sql.Open failed elapsed=%s: %v", time.Since(started), err)
 		return nil, fmt.Errorf("opening database/sql: %w", err)
 	}
-	defer func() { _ = db.Close() }()
+	defer func() {
+		if closeErr := db.Close(); closeErr != nil {
+			log.Printf("[initEnt] failed to close probe database: %v", closeErr)
+		}
+	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -273,7 +297,11 @@ func runMigration(cfg *config.Config) error {
 	if err != nil {
 		return fmt.Errorf("opening database/sql: %w", err)
 	}
-	defer func() { _ = db.Close() }()
+	defer func() {
+		if closeErr := db.Close(); closeErr != nil {
+			log.Printf("[runMigration] failed to close database: %v", closeErr)
+		}
+	}()
 
 	drv := entsql.OpenDB("postgres", db)
 	if err := migrate.NewSchema(drv).Create(context.Background()); err != nil {

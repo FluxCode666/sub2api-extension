@@ -31,6 +31,7 @@ import (
 // telemetryHandler 为 nil 时跳过埋点上报路由(U5 端点)。
 // analyticsHandler 为 nil 时跳过分析仪表盘路由(U6 端点)。
 // optionalHandlers 中传入 TTFTHandler 时注册 Sub2API 数据库首字延迟看板路由。
+// optionalHandlers 中传入 LogService 与 LogHandler 时启用请求/操作审计和日志查询路由。
 // pagePublicHandler 为 nil 时跳过公开页面获取端点。
 // pageAdminHandler 为 nil 时跳过管理端页面 CRUD 端点。
 // optionalHandlers 可传 HomepageConfigHandler、ImageAssetHandler 与 TTFTHandler，保留可选形式以兼容
@@ -42,6 +43,15 @@ func SetupRouter(cfg *config.Config, healthHandler *web.HealthHandler, authHandl
 
 	r := gin.New()
 	r.Use(gin.Logger())
+	// 可选的持久化请求日志；最小启动/路由测试场景传 nil 时仍保留 Gin access log。
+	var logService *service.LogService
+	for _, optionalHandler := range optionalHandlers {
+		if typed, ok := optionalHandler.(*service.LogService); ok {
+			logService = typed
+		}
+	}
+	r.Use(middleware.RequestLogger(logService))
+	// Recovery 放在请求日志内层，使请求日志能记录 panic 恢复后的 500。
 	r.Use(gin.Recovery())
 
 	// 重置前端 fallback: 每次 SetupRouter 从干净状态开始, 避免包级变量跨测试残留。
@@ -133,6 +143,8 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 	var homepageHandler *adminhandler.HomepageConfigHandler
 	var imageAssetHandler *adminhandler.ImageAssetHandler
 	var ttftHandler *adminhandler.TTFTHandler
+	var logHandler *adminhandler.LogHandler
+	var logService *service.LogService
 	var invoiceUserHandler *handler.InvoiceUserHandler
 	var invoiceAdminHandler *adminhandler.InvoiceAdminHandler
 	for _, optionalHandler := range optionalHandlers {
@@ -143,6 +155,10 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			imageAssetHandler = typed
 		case *adminhandler.TTFTHandler:
 			ttftHandler = typed
+		case *adminhandler.LogHandler:
+			logHandler = typed
+		case *service.LogService:
+			logService = typed
 		case *handler.InvoiceUserHandler:
 			invoiceUserHandler = typed
 		case *adminhandler.InvoiceAdminHandler:
@@ -209,6 +225,9 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 	if authService != nil {
 		guarded := admin.Group("")
 		guarded.Use(middleware.AdminGuard(authService))
+		if logService != nil {
+			guarded.Use(middleware.OperationLogger(logService))
+		}
 		{
 			// 占位: 确认守卫生效。U4+ 替换为具体路由。
 			guarded.GET("", func(c *gin.Context) {
@@ -244,6 +263,14 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			// Sub2API PostgreSQL，不调用 Sub2API HTTP API。
 			if ttftHandler != nil {
 				guarded.GET("/ops/ttft", ttftHandler.GetTTFT)
+			}
+			if logHandler != nil {
+				guarded.GET("/logs/system", logHandler.ListSystem)
+				guarded.GET("/logs/operations", logHandler.ListOperation)
+				// Singular/explicit aliases keep bookmarked integrations compatible.
+				guarded.GET("/logs/operation", logHandler.ListOperation)
+				guarded.GET("/system-logs", logHandler.ListSystem)
+				guarded.GET("/operation-logs", logHandler.ListOperation)
 			}
 			if invoiceAdminHandler != nil {
 				guarded.GET("/invoices/config", invoiceAdminHandler.GetFeature)

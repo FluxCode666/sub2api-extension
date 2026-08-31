@@ -8,9 +8,11 @@ import (
 	"sub2api-extension/ent/invoiceorder"
 	"sub2api-extension/ent/invoiceprofile"
 	"sub2api-extension/ent/invoicerequest"
+	"sub2api-extension/ent/operationlog"
 	"sub2api-extension/ent/page"
 	"sub2api-extension/ent/pageview"
 	"sub2api-extension/ent/schema"
+	"sub2api-extension/ent/systemlog"
 	"sub2api-extension/ent/systemmeta"
 	"time"
 )
@@ -235,6 +237,52 @@ func init() {
 	invoicerequest.DefaultUpdatedAt = invoicerequestDescUpdatedAt.Default.(func() time.Time)
 	// invoicerequest.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	invoicerequest.UpdateDefaultUpdatedAt = invoicerequestDescUpdatedAt.UpdateDefault.(func() time.Time)
+	operationlogFields := schema.OperationLog{}.Fields()
+	_ = operationlogFields
+	// operationlogDescUsername is the schema descriptor for username field.
+	operationlogDescUsername := operationlogFields[1].Descriptor()
+	// operationlog.UsernameValidator is a validator for the "username" field. It is called by the builders before save.
+	operationlog.UsernameValidator = operationlogDescUsername.Validators[0].(func(string) error)
+	// operationlogDescAction is the schema descriptor for action field.
+	operationlogDescAction := operationlogFields[2].Descriptor()
+	// operationlog.ActionValidator is a validator for the "action" field. It is called by the builders before save.
+	operationlog.ActionValidator = func() func(string) error {
+		validators := operationlogDescAction.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(action string) error {
+			for _, fn := range fns {
+				if err := fn(action); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// operationlogDescResource is the schema descriptor for resource field.
+	operationlogDescResource := operationlogFields[3].Descriptor()
+	// operationlog.ResourceValidator is a validator for the "resource" field. It is called by the builders before save.
+	operationlog.ResourceValidator = operationlogDescResource.Validators[0].(func(string) error)
+	// operationlogDescResourceID is the schema descriptor for resource_id field.
+	operationlogDescResourceID := operationlogFields[4].Descriptor()
+	// operationlog.ResourceIDValidator is a validator for the "resource_id" field. It is called by the builders before save.
+	operationlog.ResourceIDValidator = operationlogDescResourceID.Validators[0].(func(string) error)
+	// operationlogDescStatus is the schema descriptor for status field.
+	operationlogDescStatus := operationlogFields[5].Descriptor()
+	// operationlog.DefaultStatus holds the default value on creation for the status field.
+	operationlog.DefaultStatus = operationlogDescStatus.Default.(string)
+	// operationlog.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	operationlog.StatusValidator = operationlogDescStatus.Validators[0].(func(string) error)
+	// operationlogDescIPAddress is the schema descriptor for ip_address field.
+	operationlogDescIPAddress := operationlogFields[7].Descriptor()
+	// operationlog.IPAddressValidator is a validator for the "ip_address" field. It is called by the builders before save.
+	operationlog.IPAddressValidator = operationlogDescIPAddress.Validators[0].(func(string) error)
+	// operationlogDescCreatedAt is the schema descriptor for created_at field.
+	operationlogDescCreatedAt := operationlogFields[8].Descriptor()
+	// operationlog.DefaultCreatedAt holds the default value on creation for the created_at field.
+	operationlog.DefaultCreatedAt = operationlogDescCreatedAt.Default.(func() time.Time)
 	pageFields := schema.Page{}.Fields()
 	_ = pageFields
 	// pageDescSlug is the schema descriptor for slug field.
@@ -345,6 +393,32 @@ func init() {
 	pageviewDescCreatedAt := pageviewFields[3].Descriptor()
 	// pageview.DefaultCreatedAt holds the default value on creation for the created_at field.
 	pageview.DefaultCreatedAt = pageviewDescCreatedAt.Default.(func() time.Time)
+	systemlogFields := schema.SystemLog{}.Fields()
+	_ = systemlogFields
+	// systemlogDescLevel is the schema descriptor for level field.
+	systemlogDescLevel := systemlogFields[0].Descriptor()
+	// systemlog.DefaultLevel holds the default value on creation for the level field.
+	systemlog.DefaultLevel = systemlogDescLevel.Default.(string)
+	// systemlog.LevelValidator is a validator for the "level" field. It is called by the builders before save.
+	systemlog.LevelValidator = systemlogDescLevel.Validators[0].(func(string) error)
+	// systemlogDescSource is the schema descriptor for source field.
+	systemlogDescSource := systemlogFields[1].Descriptor()
+	// systemlog.DefaultSource holds the default value on creation for the source field.
+	systemlog.DefaultSource = systemlogDescSource.Default.(string)
+	// systemlog.SourceValidator is a validator for the "source" field. It is called by the builders before save.
+	systemlog.SourceValidator = systemlogDescSource.Validators[0].(func(string) error)
+	// systemlogDescMessage is the schema descriptor for message field.
+	systemlogDescMessage := systemlogFields[2].Descriptor()
+	// systemlog.MessageValidator is a validator for the "message" field. It is called by the builders before save.
+	systemlog.MessageValidator = systemlogDescMessage.Validators[0].(func(string) error)
+	// systemlogDescRequestID is the schema descriptor for request_id field.
+	systemlogDescRequestID := systemlogFields[4].Descriptor()
+	// systemlog.RequestIDValidator is a validator for the "request_id" field. It is called by the builders before save.
+	systemlog.RequestIDValidator = systemlogDescRequestID.Validators[0].(func(string) error)
+	// systemlogDescCreatedAt is the schema descriptor for created_at field.
+	systemlogDescCreatedAt := systemlogFields[5].Descriptor()
+	// systemlog.DefaultCreatedAt holds the default value on creation for the created_at field.
+	systemlog.DefaultCreatedAt = systemlogDescCreatedAt.Default.(func() time.Time)
 	systemmetaFields := schema.SystemMeta{}.Fields()
 	_ = systemmetaFields
 	// systemmetaDescKey is the schema descriptor for key field.

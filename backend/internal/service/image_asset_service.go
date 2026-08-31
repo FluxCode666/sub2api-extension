@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -96,7 +97,9 @@ func (s *ImageAssetService) Upload(ctx context.Context, originalName string, sou
 	_, writeErr := file.Write(contents)
 	closeErr := file.Close()
 	if writeErr != nil || closeErr != nil {
-		_ = os.Remove(absolutePath)
+		if removeErr := os.Remove(absolutePath); removeErr != nil {
+			log.Printf("[ImageAssetService.Upload] failed to remove incomplete file path=%q: %v", absolutePath, removeErr)
+		}
 		if writeErr != nil {
 			return nil, fmt.Errorf("write image file: %w", writeErr)
 		}
@@ -110,7 +113,9 @@ func (s *ImageAssetService) Upload(ctx context.Context, originalName string, sou
 		Size:         int64(len(contents)),
 	})
 	if err != nil {
-		_ = os.Remove(absolutePath)
+		if removeErr := os.Remove(absolutePath); removeErr != nil {
+			log.Printf("[ImageAssetService.Upload] failed to remove orphan file path=%q: %v", absolutePath, removeErr)
+		}
 		return nil, err
 	}
 	return asset, nil

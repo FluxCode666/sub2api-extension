@@ -14,6 +14,7 @@
 - **动态页面编写** —— 管理员可以创建、编辑、启停和删除数据库页面，不需要改动前端源码。
 - **页面分析与埋点** —— 统计当前页面的访问量和功能点击，在分析仪表盘中查看使用情况。
 - **首字延迟火焰图** —— 运维看板直接读取 Sub2API PostgreSQL 的 `usage_logs.first_token_ms`，支持日期、时间段、分组、账号筛选，以及分钟/小时/天三种时间粒度。
+- **系统日志与操作审计** —— 请求、运行错误和管理员变更分别持久化到日志页，支持级别/结果筛选、搜索和分页；错误同时输出到服务端日志。
 - **身份转发验证** —— 管理端接收 sub2api iframe token，换取附属系统自己的管理员会话。
 
 | 入口 | 说明 |
@@ -23,6 +24,8 @@
 | `/admin/pages` | 动态页面管理，管理员编写和维护页面 |
 | `/admin/assets` | 图片资源管理 |
 | `/admin/ops/ttft` | 运维看板：首字延迟火焰图（直读 Sub2API 数据库） |
+| `/admin/logs/system` | 系统日志：请求、运行状态和错误事件 |
+| `/admin/logs/operation` | 操作日志：管理员变更审计 |
 | `/admin/p/:slug` | 需要管理员会话的动态页面 |
 | `/p/:slug` | 公开动态页面；仅当数据库中存在并启用对应页面时可访问 |
 | `/login` | 独立管理员登录入口 |
@@ -46,7 +49,8 @@
 │                                          │                            │
 │                                          ▼                            │
 │                                   自有 PostgreSQL                     │
-│                            (system_meta / page_view / feature_click)  │
+│                    (system_meta / page_views / feature_clicks)      │
+│                       (system_logs / operation_logs)                │
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -223,8 +227,9 @@ make migrate
 make dev
 ```
 
-`make migrate` 也会创建 `image_assets`、`invoice_profiles`、`invoice_requests` 和
-`invoice_orders` 表；图片文件本身写入 `SUB2API_EXTENSION_ASSET_DIR`，数据库只保存相对路径。
+`make migrate` 也会创建 `image_assets`、`invoice_profiles`、`invoice_requests`、
+`invoice_orders`、`system_logs` 和 `operation_logs` 表；
+图片文件本身写入 `SUB2API_EXTENSION_ASSET_DIR`，数据库只保存相对路径。
 
 `make dev` 通过环境变量注入开发配置：
 

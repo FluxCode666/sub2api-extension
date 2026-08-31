@@ -54,6 +54,7 @@ export default function APIExamplePage() {
         toast.success('服务状态刷新成功')
       }
     } catch (error) {
+      console.error('[APIExamplePage] status request failed', error)
       if (controller.signal.aborted || requestRef.current.id !== requestId) return
       if (trackAction) {
         toast.error('服务状态刷新失败')

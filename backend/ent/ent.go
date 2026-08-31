@@ -12,8 +12,10 @@ import (
 	"sub2api-extension/ent/invoiceorder"
 	"sub2api-extension/ent/invoiceprofile"
 	"sub2api-extension/ent/invoicerequest"
+	"sub2api-extension/ent/operationlog"
 	"sub2api-extension/ent/page"
 	"sub2api-extension/ent/pageview"
+	"sub2api-extension/ent/systemlog"
 	"sub2api-extension/ent/systemmeta"
 	"sync"
 
@@ -85,8 +87,10 @@ func checkColumn(t, c string) error {
 			invoiceorder.Table:   invoiceorder.ValidColumn,
 			invoiceprofile.Table: invoiceprofile.ValidColumn,
 			invoicerequest.Table: invoicerequest.ValidColumn,
+			operationlog.Table:   operationlog.ValidColumn,
 			page.Table:           page.ValidColumn,
 			pageview.Table:       pageview.ValidColumn,
+			systemlog.Table:      systemlog.ValidColumn,
 			systemmeta.Table:     systemmeta.ValidColumn,
 		})
 	})

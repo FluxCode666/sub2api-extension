@@ -16,8 +16,10 @@ import (
 	"sub2api-extension/ent/invoiceorder"
 	"sub2api-extension/ent/invoiceprofile"
 	"sub2api-extension/ent/invoicerequest"
+	"sub2api-extension/ent/operationlog"
 	"sub2api-extension/ent/page"
 	"sub2api-extension/ent/pageview"
+	"sub2api-extension/ent/systemlog"
 	"sub2api-extension/ent/systemmeta"
 
 	"entgo.io/ent"
@@ -40,10 +42,14 @@ type Client struct {
 	InvoiceProfile *InvoiceProfileClient
 	// InvoiceRequest is the client for interacting with the InvoiceRequest builders.
 	InvoiceRequest *InvoiceRequestClient
+	// OperationLog is the client for interacting with the OperationLog builders.
+	OperationLog *OperationLogClient
 	// Page is the client for interacting with the Page builders.
 	Page *PageClient
 	// PageView is the client for interacting with the PageView builders.
 	PageView *PageViewClient
+	// SystemLog is the client for interacting with the SystemLog builders.
+	SystemLog *SystemLogClient
 	// SystemMeta is the client for interacting with the SystemMeta builders.
 	SystemMeta *SystemMetaClient
 }
@@ -62,8 +68,10 @@ func (c *Client) init() {
 	c.InvoiceOrder = NewInvoiceOrderClient(c.config)
 	c.InvoiceProfile = NewInvoiceProfileClient(c.config)
 	c.InvoiceRequest = NewInvoiceRequestClient(c.config)
+	c.OperationLog = NewOperationLogClient(c.config)
 	c.Page = NewPageClient(c.config)
 	c.PageView = NewPageViewClient(c.config)
+	c.SystemLog = NewSystemLogClient(c.config)
 	c.SystemMeta = NewSystemMetaClient(c.config)
 }
 
@@ -162,8 +170,10 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		InvoiceOrder:   NewInvoiceOrderClient(cfg),
 		InvoiceProfile: NewInvoiceProfileClient(cfg),
 		InvoiceRequest: NewInvoiceRequestClient(cfg),
+		OperationLog:   NewOperationLogClient(cfg),
 		Page:           NewPageClient(cfg),
 		PageView:       NewPageViewClient(cfg),
+		SystemLog:      NewSystemLogClient(cfg),
 		SystemMeta:     NewSystemMetaClient(cfg),
 	}, nil
 }
@@ -189,8 +199,10 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		InvoiceOrder:   NewInvoiceOrderClient(cfg),
 		InvoiceProfile: NewInvoiceProfileClient(cfg),
 		InvoiceRequest: NewInvoiceRequestClient(cfg),
+		OperationLog:   NewOperationLogClient(cfg),
 		Page:           NewPageClient(cfg),
 		PageView:       NewPageViewClient(cfg),
+		SystemLog:      NewSystemLogClient(cfg),
 		SystemMeta:     NewSystemMetaClient(cfg),
 	}, nil
 }
@@ -222,7 +234,8 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.FeatureClick, c.ImageAsset, c.InvoiceOrder, c.InvoiceProfile,
-		c.InvoiceRequest, c.Page, c.PageView, c.SystemMeta,
+		c.InvoiceRequest, c.OperationLog, c.Page, c.PageView, c.SystemLog,
+		c.SystemMeta,
 	} {
 		n.Use(hooks...)
 	}
@@ -233,7 +246,8 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.FeatureClick, c.ImageAsset, c.InvoiceOrder, c.InvoiceProfile,
-		c.InvoiceRequest, c.Page, c.PageView, c.SystemMeta,
+		c.InvoiceRequest, c.OperationLog, c.Page, c.PageView, c.SystemLog,
+		c.SystemMeta,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -252,10 +266,14 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.InvoiceProfile.mutate(ctx, m)
 	case *InvoiceRequestMutation:
 		return c.InvoiceRequest.mutate(ctx, m)
+	case *OperationLogMutation:
+		return c.OperationLog.mutate(ctx, m)
 	case *PageMutation:
 		return c.Page.mutate(ctx, m)
 	case *PageViewMutation:
 		return c.PageView.mutate(ctx, m)
+	case *SystemLogMutation:
+		return c.SystemLog.mutate(ctx, m)
 	case *SystemMetaMutation:
 		return c.SystemMeta.mutate(ctx, m)
 	default:
@@ -928,6 +946,139 @@ func (c *InvoiceRequestClient) mutate(ctx context.Context, m *InvoiceRequestMuta
 	}
 }
 
+// OperationLogClient is a client for the OperationLog schema.
+type OperationLogClient struct {
+	config
+}
+
+// NewOperationLogClient returns a client for the OperationLog from the given config.
+func NewOperationLogClient(c config) *OperationLogClient {
+	return &OperationLogClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `operationlog.Hooks(f(g(h())))`.
+func (c *OperationLogClient) Use(hooks ...Hook) {
+	c.hooks.OperationLog = append(c.hooks.OperationLog, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `operationlog.Intercept(f(g(h())))`.
+func (c *OperationLogClient) Intercept(interceptors ...Interceptor) {
+	c.inters.OperationLog = append(c.inters.OperationLog, interceptors...)
+}
+
+// Create returns a builder for creating a OperationLog entity.
+func (c *OperationLogClient) Create() *OperationLogCreate {
+	mutation := newOperationLogMutation(c.config, OpCreate)
+	return &OperationLogCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of OperationLog entities.
+func (c *OperationLogClient) CreateBulk(builders ...*OperationLogCreate) *OperationLogCreateBulk {
+	return &OperationLogCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *OperationLogClient) MapCreateBulk(slice any, setFunc func(*OperationLogCreate, int)) *OperationLogCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &OperationLogCreateBulk{err: fmt.Errorf("calling to OperationLogClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*OperationLogCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &OperationLogCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for OperationLog.
+func (c *OperationLogClient) Update() *OperationLogUpdate {
+	mutation := newOperationLogMutation(c.config, OpUpdate)
+	return &OperationLogUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *OperationLogClient) UpdateOne(_m *OperationLog) *OperationLogUpdateOne {
+	mutation := newOperationLogMutation(c.config, OpUpdateOne, withOperationLog(_m))
+	return &OperationLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *OperationLogClient) UpdateOneID(id int) *OperationLogUpdateOne {
+	mutation := newOperationLogMutation(c.config, OpUpdateOne, withOperationLogID(id))
+	return &OperationLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for OperationLog.
+func (c *OperationLogClient) Delete() *OperationLogDelete {
+	mutation := newOperationLogMutation(c.config, OpDelete)
+	return &OperationLogDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *OperationLogClient) DeleteOne(_m *OperationLog) *OperationLogDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *OperationLogClient) DeleteOneID(id int) *OperationLogDeleteOne {
+	builder := c.Delete().Where(operationlog.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &OperationLogDeleteOne{builder}
+}
+
+// Query returns a query builder for OperationLog.
+func (c *OperationLogClient) Query() *OperationLogQuery {
+	return &OperationLogQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeOperationLog},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a OperationLog entity by its id.
+func (c *OperationLogClient) Get(ctx context.Context, id int) (*OperationLog, error) {
+	return c.Query().Where(operationlog.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *OperationLogClient) GetX(ctx context.Context, id int) *OperationLog {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *OperationLogClient) Hooks() []Hook {
+	return c.hooks.OperationLog
+}
+
+// Interceptors returns the client interceptors.
+func (c *OperationLogClient) Interceptors() []Interceptor {
+	return c.inters.OperationLog
+}
+
+func (c *OperationLogClient) mutate(ctx context.Context, m *OperationLogMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&OperationLogCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&OperationLogUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&OperationLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&OperationLogDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown OperationLog mutation op: %q", m.Op())
+	}
+}
+
 // PageClient is a client for the Page schema.
 type PageClient struct {
 	config
@@ -1194,6 +1345,139 @@ func (c *PageViewClient) mutate(ctx context.Context, m *PageViewMutation) (Value
 	}
 }
 
+// SystemLogClient is a client for the SystemLog schema.
+type SystemLogClient struct {
+	config
+}
+
+// NewSystemLogClient returns a client for the SystemLog from the given config.
+func NewSystemLogClient(c config) *SystemLogClient {
+	return &SystemLogClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `systemlog.Hooks(f(g(h())))`.
+func (c *SystemLogClient) Use(hooks ...Hook) {
+	c.hooks.SystemLog = append(c.hooks.SystemLog, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `systemlog.Intercept(f(g(h())))`.
+func (c *SystemLogClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SystemLog = append(c.inters.SystemLog, interceptors...)
+}
+
+// Create returns a builder for creating a SystemLog entity.
+func (c *SystemLogClient) Create() *SystemLogCreate {
+	mutation := newSystemLogMutation(c.config, OpCreate)
+	return &SystemLogCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SystemLog entities.
+func (c *SystemLogClient) CreateBulk(builders ...*SystemLogCreate) *SystemLogCreateBulk {
+	return &SystemLogCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SystemLogClient) MapCreateBulk(slice any, setFunc func(*SystemLogCreate, int)) *SystemLogCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SystemLogCreateBulk{err: fmt.Errorf("calling to SystemLogClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SystemLogCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SystemLogCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SystemLog.
+func (c *SystemLogClient) Update() *SystemLogUpdate {
+	mutation := newSystemLogMutation(c.config, OpUpdate)
+	return &SystemLogUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SystemLogClient) UpdateOne(_m *SystemLog) *SystemLogUpdateOne {
+	mutation := newSystemLogMutation(c.config, OpUpdateOne, withSystemLog(_m))
+	return &SystemLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SystemLogClient) UpdateOneID(id int) *SystemLogUpdateOne {
+	mutation := newSystemLogMutation(c.config, OpUpdateOne, withSystemLogID(id))
+	return &SystemLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SystemLog.
+func (c *SystemLogClient) Delete() *SystemLogDelete {
+	mutation := newSystemLogMutation(c.config, OpDelete)
+	return &SystemLogDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SystemLogClient) DeleteOne(_m *SystemLog) *SystemLogDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SystemLogClient) DeleteOneID(id int) *SystemLogDeleteOne {
+	builder := c.Delete().Where(systemlog.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SystemLogDeleteOne{builder}
+}
+
+// Query returns a query builder for SystemLog.
+func (c *SystemLogClient) Query() *SystemLogQuery {
+	return &SystemLogQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSystemLog},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SystemLog entity by its id.
+func (c *SystemLogClient) Get(ctx context.Context, id int) (*SystemLog, error) {
+	return c.Query().Where(systemlog.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SystemLogClient) GetX(ctx context.Context, id int) *SystemLog {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *SystemLogClient) Hooks() []Hook {
+	return c.hooks.SystemLog
+}
+
+// Interceptors returns the client interceptors.
+func (c *SystemLogClient) Interceptors() []Interceptor {
+	return c.inters.SystemLog
+}
+
+func (c *SystemLogClient) mutate(ctx context.Context, m *SystemLogMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SystemLogCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SystemLogUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SystemLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SystemLogDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SystemLog mutation op: %q", m.Op())
+	}
+}
+
 // SystemMetaClient is a client for the SystemMeta schema.
 type SystemMetaClient struct {
 	config
@@ -1330,11 +1614,11 @@ func (c *SystemMetaClient) mutate(ctx context.Context, m *SystemMetaMutation) (V
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		FeatureClick, ImageAsset, InvoiceOrder, InvoiceProfile, InvoiceRequest, Page,
-		PageView, SystemMeta []ent.Hook
+		FeatureClick, ImageAsset, InvoiceOrder, InvoiceProfile, InvoiceRequest,
+		OperationLog, Page, PageView, SystemLog, SystemMeta []ent.Hook
 	}
 	inters struct {
-		FeatureClick, ImageAsset, InvoiceOrder, InvoiceProfile, InvoiceRequest, Page,
-		PageView, SystemMeta []ent.Interceptor
+		FeatureClick, ImageAsset, InvoiceOrder, InvoiceProfile, InvoiceRequest,
+		OperationLog, Page, PageView, SystemLog, SystemMeta []ent.Interceptor
 	}
 )

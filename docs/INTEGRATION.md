@@ -276,6 +276,7 @@ Sub2API 用户下拉选项。管理员还可以调用 `POST /api/aux/admin/invoi
 - [ ] `page_slug` 为空且 `visibility` 为 `admin`。
 - [ ] 管理员点击「内容分析」后 iframe 能显示 Dashboard。
 - [ ] 管理员点击「首字延迟」后，运维看板能从 Sub2API PostgreSQL 读取 `usage_logs.first_token_ms`。
+- [ ] 管理员可在「系统日志」查看请求/运行错误，在「操作日志」查看管理员变更记录。
 - [ ] 首字延迟看板的日期、时间段、分组、账号和分钟/小时/天粒度筛选能正常刷新火焰图。
 - [ ] 页面管理保存 `home` 后，刷新公开首页可读取最新 HTML。
 - [ ] Dashboard 中当前注册页面链接均可打开。

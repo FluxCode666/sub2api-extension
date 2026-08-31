@@ -16,7 +16,7 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
-import { LayoutDashboard, FileText, FilePlus2, ExternalLink, Images, Flame, ReceiptText } from 'lucide-react'
+import { LayoutDashboard, FileText, FilePlus2, ExternalLink, Images, Flame, ReceiptText, Terminal, ClipboardList } from 'lucide-react'
 import { fetchDynamicPages, getMergedRegistry, subscribeDynamicPages } from '@/lib/dynamic-pages'
 import { getMenuIcon } from '@/lib/menu-icons'
 import { Toaster } from '@/components/ui/sonner'
@@ -41,7 +41,9 @@ export default function AdminLayout() {
     })
     // Admin 菜单需要动态 admin 页；此调用发生在 AdminGuard 放行后，
     // 使用受守卫的 /api/aux/admin/pages，不再通过公开清单暴露 admin 元数据。
-    fetchDynamicPages({ includeAdmin: true }).catch(() => {})
+    fetchDynamicPages({ includeAdmin: true }).catch((error: unknown) => {
+      console.error('[AdminLayout] failed to load admin menu pages', error)
+    })
     return () => {
       active = false
       unsubscribe()
@@ -155,6 +157,22 @@ export default function AdminLayout() {
                     <NavLink to="/admin/invoices" end>
                       <ReceiptText className="h-4 w-4" />
                       <span>发票管理</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink to="/admin/logs/system" end>
+                      <Terminal className="h-4 w-4" />
+                      <span>系统日志</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink to="/admin/logs/operation" end>
+                      <ClipboardList className="h-4 w-4" />
+                      <span>操作日志</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

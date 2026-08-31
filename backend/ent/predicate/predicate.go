@@ -21,11 +21,17 @@ type InvoiceProfile func(*sql.Selector)
 // InvoiceRequest is the predicate function for invoicerequest builders.
 type InvoiceRequest func(*sql.Selector)
 
+// OperationLog is the predicate function for operationlog builders.
+type OperationLog func(*sql.Selector)
+
 // Page is the predicate function for page builders.
 type Page func(*sql.Selector)
 
 // PageView is the predicate function for pageview builders.
 type PageView func(*sql.Selector)
+
+// SystemLog is the predicate function for systemlog builders.
+type SystemLog func(*sql.Selector)
 
 // SystemMeta is the predicate function for systemmeta builders.
 type SystemMeta func(*sql.Selector)

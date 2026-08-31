@@ -22,10 +22,14 @@ type Tx struct {
 	InvoiceProfile *InvoiceProfileClient
 	// InvoiceRequest is the client for interacting with the InvoiceRequest builders.
 	InvoiceRequest *InvoiceRequestClient
+	// OperationLog is the client for interacting with the OperationLog builders.
+	OperationLog *OperationLogClient
 	// Page is the client for interacting with the Page builders.
 	Page *PageClient
 	// PageView is the client for interacting with the PageView builders.
 	PageView *PageViewClient
+	// SystemLog is the client for interacting with the SystemLog builders.
+	SystemLog *SystemLogClient
 	// SystemMeta is the client for interacting with the SystemMeta builders.
 	SystemMeta *SystemMetaClient
 
@@ -164,8 +168,10 @@ func (tx *Tx) init() {
 	tx.InvoiceOrder = NewInvoiceOrderClient(tx.config)
 	tx.InvoiceProfile = NewInvoiceProfileClient(tx.config)
 	tx.InvoiceRequest = NewInvoiceRequestClient(tx.config)
+	tx.OperationLog = NewOperationLogClient(tx.config)
 	tx.Page = NewPageClient(tx.config)
 	tx.PageView = NewPageViewClient(tx.config)
+	tx.SystemLog = NewSystemLogClient(tx.config)
 	tx.SystemMeta = NewSystemMetaClient(tx.config)
 }
 

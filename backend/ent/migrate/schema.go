@@ -164,6 +164,42 @@ var (
 			},
 		},
 	}
+	// OperationLogsColumns holds the columns for the "operation_logs" table.
+	OperationLogsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "user_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "username", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "action", Type: field.TypeString, Size: 128},
+		{Name: "resource", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "resource_id", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "status", Type: field.TypeString, Size: 16, Default: "success"},
+		{Name: "details", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "ip_address", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// OperationLogsTable holds the schema information for the "operation_logs" table.
+	OperationLogsTable = &schema.Table{
+		Name:       "operation_logs",
+		Columns:    OperationLogsColumns,
+		PrimaryKey: []*schema.Column{OperationLogsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "operationlog_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{OperationLogsColumns[1], OperationLogsColumns[9]},
+			},
+			{
+				Name:    "operationlog_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{OperationLogsColumns[6], OperationLogsColumns[9]},
+			},
+			{
+				Name:    "operationlog_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{OperationLogsColumns[9]},
+			},
+		},
+	}
 	// PagesColumns holds the columns for the "pages" table.
 	PagesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -237,6 +273,39 @@ var (
 			},
 		},
 	}
+	// SystemLogsColumns holds the columns for the "system_logs" table.
+	SystemLogsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "level", Type: field.TypeString, Size: 16, Default: "INFO"},
+		{Name: "source", Type: field.TypeString, Size: 128, Default: "system"},
+		{Name: "message", Type: field.TypeString, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "details", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "request_id", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// SystemLogsTable holds the schema information for the "system_logs" table.
+	SystemLogsTable = &schema.Table{
+		Name:       "system_logs",
+		Columns:    SystemLogsColumns,
+		PrimaryKey: []*schema.Column{SystemLogsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "systemlog_level_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{SystemLogsColumns[1], SystemLogsColumns[6]},
+			},
+			{
+				Name:    "systemlog_source_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{SystemLogsColumns[2], SystemLogsColumns[6]},
+			},
+			{
+				Name:    "systemlog_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{SystemLogsColumns[6]},
+			},
+		},
+	}
 	// SystemMetaColumns holds the columns for the "system_meta" table.
 	SystemMetaColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -256,8 +325,10 @@ var (
 		InvoiceOrdersTable,
 		InvoiceProfilesTable,
 		InvoiceRequestsTable,
+		OperationLogsTable,
 		PagesTable,
 		PageViewsTable,
+		SystemLogsTable,
 		SystemMetaTable,
 	}
 )
@@ -278,11 +349,17 @@ func init() {
 	InvoiceRequestsTable.Annotation = &entsql.Annotation{
 		Table: "invoice_requests",
 	}
+	OperationLogsTable.Annotation = &entsql.Annotation{
+		Table: "operation_logs",
+	}
 	PagesTable.Annotation = &entsql.Annotation{
 		Table: "pages",
 	}
 	PageViewsTable.Annotation = &entsql.Annotation{
 		Table: "page_views",
+	}
+	SystemLogsTable.Annotation = &entsql.Annotation{
+		Table: "system_logs",
 	}
 	SystemMetaTable.Annotation = &entsql.Annotation{
 		Table: "system_meta",

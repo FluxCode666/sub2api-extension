@@ -67,6 +67,7 @@ export async function compileReactCode(tsxCode: string): Promise<string> {
 
     return result.code
   } catch (error: any) {
+    console.error('[dynamic-react-compiler] failed to compile source', error)
     throw new Error(`编译失败: ${error.message}`)
   }
 }
@@ -99,6 +100,7 @@ export function createComponentFromCode(compiledCode: string): React.ComponentTy
 
     return Component
   } catch (error: any) {
+    console.error('[dynamic-react-compiler] failed to create component', error)
     throw new Error(`组件创建失败: ${error.message}`)
   }
 }

@@ -68,6 +68,21 @@ describe('apiRequest 401 handling', () => {
     expect(window.location.href).toBe('/login')
   })
 
+  it('should preserve embedded parameters so iframe sessions can be exchanged again', async () => {
+    window.location.pathname = '/admin/invoices'
+    window.location.search = '?token=sub2api-token&user_id=1&ui_mode=embedded'
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized',
+    } as Response)
+
+    await expect(apiRequest('/admin/invoices')).rejects.toThrow('Unauthorized: redirecting to login')
+
+    expect(window.location.href).toBe('/admin/dashboard?token=sub2api-token&user_id=1&ui_mode=embedded')
+  })
+
   it('should not redirect when 401 occurs on non-admin path', async () => {
     // 设置当前路径为公开页面
     window.location.pathname = '/p/home'

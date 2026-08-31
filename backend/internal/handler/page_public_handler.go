@@ -11,6 +11,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"log"
 
 	"sub2api-extension/internal/pkg/response"
 	"sub2api-extension/internal/service"
@@ -49,6 +50,7 @@ func (h *PagePublicHandler) List(c *gin.Context) {
 	}
 	items, err := h.provider.List(c.Request.Context())
 	if err != nil {
+		log.Printf("[PagePublicHandler.List] query failed: %v", err)
 		response.Success(c, gin.H{"items": []any{}})
 		return
 	}
@@ -79,6 +81,7 @@ func (h *PagePublicHandler) GetBySlug(c *gin.Context) {
 	}
 	p, err := h.provider.GetPublicBySlug(c.Request.Context(), slug)
 	if err != nil {
+		log.Printf("[PagePublicHandler.GetBySlug] query failed slug=%q: %v", slug, err)
 		if errors.Is(err, service.ErrPageNotFound) {
 			response.Error(c, 404, "page not found")
 			return

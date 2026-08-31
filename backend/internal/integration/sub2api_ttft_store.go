@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -84,7 +85,11 @@ func (s *Sub2APITTFTStore) listGroups(ctx context.Context) ([]*ttft.FilterOption
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = rows.Close() }()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil {
+			log.Printf("[Sub2APITTFTStore.listGroups] failed to close rows: %v", closeErr)
+		}
+	}()
 
 	result := make([]*ttft.FilterOption, 0)
 	for rows.Next() {
@@ -109,7 +114,11 @@ func (s *Sub2APITTFTStore) listAccounts(ctx context.Context) ([]*ttft.FilterOpti
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = rows.Close() }()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil {
+			log.Printf("[Sub2APITTFTStore.listAccounts] failed to close rows: %v", closeErr)
+		}
+	}()
 
 	result := make([]*ttft.FilterOption, 0)
 	for rows.Next() {
@@ -207,7 +216,11 @@ func (s *Sub2APITTFTStore) queryBuckets(ctx context.Context, query ttft.Query, r
 	if err != nil {
 		return err
 	}
-	defer func() { _ = rows.Close() }()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil {
+			log.Printf("[Sub2APITTFTStore.queryBuckets] failed to close rows: %v", closeErr)
+		}
+	}()
 	for rows.Next() {
 		var bucketIndex, bandOrder, minMs int
 		var band string
@@ -261,7 +274,11 @@ func (s *Sub2APITTFTStore) queryBucketStats(ctx context.Context, query ttft.Quer
 	if err != nil {
 		return err
 	}
-	defer func() { _ = rows.Close() }()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil {
+			log.Printf("[Sub2APITTFTStore.queryBucketStats] failed to close rows: %v", closeErr)
+		}
+	}()
 	for rows.Next() {
 		var bucketIndex int
 		var p50, p95, p99, avg, max sql.NullFloat64

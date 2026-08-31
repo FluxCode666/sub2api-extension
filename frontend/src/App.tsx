@@ -18,6 +18,8 @@ import PageManagementPage from '@/pages/admin/PageManagementPage'
 import ImageAssetsPage from '@/pages/admin/ImageAssetsPage'
 import TTFTFlamegraphPage from '@/pages/admin/TTFTFlamegraphPage'
 import InvoiceManagementPage from '@/pages/admin/InvoiceManagementPage'
+import SystemLogsPage from '@/pages/admin/SystemLogsPage'
+import OperationLogsPage from '@/pages/admin/OperationLogsPage'
 import InvoicePortalPage from '@/pages/InvoicePortalPage'
 import AdminDynamicPage from '@/pages/admin/AdminDynamicPage'
 import DynamicPage from '@/pages/DynamicPage'
@@ -28,8 +30,8 @@ import { fetchDynamicPages } from '@/lib/dynamic-pages'
 
 // bootstrap: 获取动态页清单, 与静态注册表合并(KTD7)。
 // 失败时降级为仅静态页, 不阻塞前端。
-fetchDynamicPages().catch(() => {
-  /* 降级: 仅静态页可用 */
+fetchDynamicPages().catch((error: unknown) => {
+  console.error('[App] failed to bootstrap dynamic pages; using static registry', error)
 })
 
 function NotFound() {
@@ -90,6 +92,9 @@ export default function App() {
         <Route path="assets" element={<ImageAssetsPage />} />
         <Route path="ops/ttft" element={<TTFTFlamegraphPage />} />
         <Route path="invoices" element={<InvoiceManagementPage />} />
+        <Route path="logs/system" element={<SystemLogsPage />} />
+        <Route path="logs/operation" element={<OperationLogsPage />} />
+        <Route path="logs/operations" element={<OperationLogsPage />} />
         {/* 动态页面(admin): /admin/p/:slug, 经 AdminGuard, on-demand fetch */}
         <Route path="p/:slug" element={<AdminDynamicPage />} />
         <Route path="examples/content" element={<ContentExamplePage />} />

@@ -8,6 +8,7 @@ package handler
 
 import (
 	"errors"
+	"log"
 
 	"sub2api-extension/internal/integration"
 	"sub2api-extension/internal/pkg/response"
@@ -64,12 +65,14 @@ type LoginRequest struct {
 func (h *AuthHandler) CreateSession(c *gin.Context) {
 	var req CreateSessionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("[AuthHandler.CreateSession] invalid request body: %v", err)
 		response.BadRequest(c, "token is required")
 		return
 	}
 
 	user, err := h.authService.VerifyAdminToken(c.Request.Context(), req.Token)
 	if err != nil {
+		log.Printf("[AuthHandler.CreateSession] token verification failed: %v", err)
 		switch {
 		case errors.Is(err, service.ErrNotAdmin):
 			response.Forbidden(c, "admin access required")
@@ -85,6 +88,7 @@ func (h *AuthHandler) CreateSession(c *gin.Context) {
 
 	sessionToken, err := h.authService.IssueSession(user)
 	if err != nil {
+		log.Printf("[AuthHandler.CreateSession] failed to issue session: %v", err)
 		response.InternalError(c, "failed to issue session")
 		return
 	}
@@ -116,12 +120,14 @@ func (h *AuthHandler) CreateSession(c *gin.Context) {
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("[AuthHandler.Login] invalid request body: %v", err)
 		response.BadRequest(c, "email and password are required")
 		return
 	}
 
 	user, err := h.authService.LoginAdmin(c.Request.Context(), req.Email, req.Password)
 	if err != nil {
+		log.Printf("[AuthHandler.Login] login failed email=%q: %v", req.Email, err)
 		switch {
 		case errors.Is(err, integration.ErrInvalidCredentials):
 			response.Unauthorized(c, "邮箱或密码错误")
@@ -139,6 +145,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	sessionToken, err := h.authService.IssueSession(user)
 	if err != nil {
+		log.Printf("[AuthHandler.Login] failed to issue session: %v", err)
 		response.InternalError(c, "failed to issue session")
 		return
 	}

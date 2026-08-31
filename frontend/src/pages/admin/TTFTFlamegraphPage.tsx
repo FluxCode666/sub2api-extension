@@ -260,6 +260,7 @@ export default function TTFTFlamegraphPage() {
       setView({ status: 'ready', data })
       setSelectedBucketIndex(null)
     } catch (error) {
+      console.error('[TTFTFlamegraphPage] failed to load TTFT data', error)
       const message = error instanceof Error ? error.message : '首字延迟数据加载失败'
       setView((current) => ({ status: 'error', message, data: current.status === 'ready' ? current.data : undefined }))
     } finally {
