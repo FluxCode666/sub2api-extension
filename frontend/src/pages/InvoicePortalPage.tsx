@@ -283,6 +283,35 @@ function hasFormValues(form: typeof emptyForm): boolean { return Object.values(f
 function validateProfileForm(form: typeof emptyForm): string { if (!form.invoice_title.trim() || !form.taxpayer_id.trim() || !form.contact_email.trim()) return '请先填写发票抬头、纳税人识别号和收票邮箱。'; if (!form.contact_email.includes('@')) return '请输入有效的收票邮箱。'; return '' }
 function Field({ label, required, className, children }: { label: string; required?: boolean; className?: string; children: ReactNode }) { return <div className={className}><Label className="mb-2 block text-sm font-medium text-slate-700">{label}{required && <span className="ml-1 text-rose-500">*</span>}</Label>{children}</div> }
 function Message({ tone, children }: { tone: 'error' | 'success'; children: ReactNode }) { const styles = tone === 'error' ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'; return <div role={tone === 'error' ? 'alert' : 'status'} aria-live={tone === 'error' ? 'assertive' : 'polite'} className={`rounded-xl border px-4 py-3 text-sm ${styles}`}>{children}</div> }
-function LoadingState() { return <main className="invoice-state invoice-state--loading"><div className="invoice-state-card"><span className="invoice-state-mark"><Loader2 className="h-5 w-5 animate-spin" /></span><h1>正在打开企业发票中心</h1><p>正在同步你的充值记录与默认开票资料…</p></div></main> }
-function DisabledState() { return <main className="invoice-state"><div className="invoice-state-card"><span className="invoice-state-mark"><FileText className="h-5 w-5" /></span><h1>发票服务暂未开放</h1><p>管理员暂时关闭了在线发票申请入口，请联系客户服务获取帮助。</p></div></main> }
+function InvoiceStateBrand() {
+  return <div className="invoice-state-brand" aria-label="企业发票中心"><span className="invoice-state-brand-mark">AUX</span><span>企业发票中心</span></div>
+}
+
+function LoadingState() {
+  return (
+    <main className="invoice-portal invoice-state invoice-state--loading" role="status" aria-live="polite" aria-busy="true">
+      <InvoiceStateBrand />
+      <div className="invoice-state-card">
+        <span className="invoice-state-mark" aria-hidden="true"><Loader2 className="invoice-state-loader" /></span>
+        <p className="invoice-state-kicker">安全连接中</p>
+        <h1>正在载入企业发票中心</h1>
+        <p>正在同步充值记录、默认开票资料和申请进度</p>
+        <div className="invoice-state-progress" aria-hidden="true"><span /></div>
+      </div>
+    </main>
+  )
+}
+
+function DisabledState() {
+  return (
+    <main className="invoice-portal invoice-state">
+      <InvoiceStateBrand />
+      <div className="invoice-state-card">
+        <span className="invoice-state-mark" aria-hidden="true"><FileText /></span>
+        <h1>发票服务暂未开放</h1>
+        <p>管理员暂时关闭了在线发票申请入口，请联系客户服务获取帮助。</p>
+      </div>
+    </main>
+  )
+}
 function EmptyOrders() { return <div className="invoice-empty-orders"><CheckCircle2 className="h-8 w-8 text-emerald-500" /><p>暂无可申请开票的订单</p><span>已完成订单申请过发票后将不会重复出现。</span></div> }
