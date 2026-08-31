@@ -16,6 +16,12 @@ import (
 
 const customMenuItemsSettingKey = "custom_menu_items"
 
+// invoiceMenuIconSVG is intentionally inline so the user-facing menu remains
+// self-contained in Sub2API's settings and does not depend on an extension
+// asset URL. It follows the same currentColor/24px SVG convention used by
+// Sub2API's built-in sidebar icons.
+const invoiceMenuIconSVG = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1 1 0 0 1 20 3v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6A1.3 1.3 0 0 1 4 21V3Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 9h8M8 13h8M8 17h5"/></svg>`
+
 // Sub2APIMenuStore 直接读写 sub2api settings 表中的 custom_menu_items 设置。
 // 只修改由本扩展创建的菜单项，其余 sub2api 菜单字段会原样保留。
 type Sub2APIMenuStore struct {
@@ -274,6 +280,59 @@ func (s *Sub2APIMenuStore) Unpublish(ctx context.Context, menuID string) error {
 	}
 	log.Printf("[Sub2APIMenuStore.Unpublish] succeeded menu_id=%q elapsed=%s", menuID, time.Since(started))
 	return nil
+}
+
+// SetInvoiceMenu publishes or removes the customer-facing invoice portal in
+// Sub2API's custom menu.  The dedicated stable ID keeps this capability
+// separate from database-managed content pages while still preserving every
+// unrelated menu item and its ordering.
+func (s *Sub2APIMenuStore) SetInvoiceMenu(ctx context.Context, enabled bool) error {
+	const menuID = "aux-invoice"
+	if s == nil || s.db == nil {
+		return errors.New("sub2api database is unavailable")
+	}
+	if !enabled {
+		return s.mutate(ctx, func(items []customMenuItem) ([]customMenuItem, error) {
+			filtered := make([]customMenuItem, 0, len(items))
+			for _, item := range items {
+				if item.ID != menuID {
+					filtered = append(filtered, item)
+				}
+			}
+			return filtered, nil
+		})
+	}
+	menuURL, err := s.absoluteURL("/invoice")
+	if err != nil {
+		return err
+	}
+	return s.mutate(ctx, func(items []customMenuItem) ([]customMenuItem, error) {
+		for i, item := range items {
+			if item.ID == menuID {
+				items[i] = mergeInvoiceMenuItem(item, menuURL)
+				return items, nil
+			}
+		}
+		maxOrder := -1
+		for _, item := range items {
+			if item.SortOrder > maxOrder {
+				maxOrder = item.SortOrder
+			}
+		}
+		return append(items, customMenuItem{ID: menuID, Label: "发票管理", IconSVG: invoiceMenuIconSVG, URL: menuURL, Visibility: "user", SortOrder: maxOrder + 1}), nil
+	})
+}
+
+func mergeInvoiceMenuItem(existing customMenuItem, menuURL string) customMenuItem {
+	return customMenuItem{
+		ID:         "aux-invoice",
+		Label:      "发票管理",
+		IconSVG:    invoiceMenuIconSVG,
+		URL:        menuURL,
+		Visibility: "user",
+		SortOrder:  existing.SortOrder,
+		extra:      existing.extra,
+	}
 }
 
 func (s *Sub2APIMenuStore) absoluteURL(path string) (string, error) {

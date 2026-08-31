@@ -3,9 +3,9 @@
 package hook
 
 import (
-	"sub2api-extension/ent"
 	"context"
 	"fmt"
+	"sub2api-extension/ent"
 )
 
 // The FeatureClickFunc type is an adapter to allow the use of ordinary
@@ -30,6 +30,42 @@ func (f ImageAssetFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ImageAssetMutation", m)
+}
+
+// The InvoiceOrderFunc type is an adapter to allow the use of ordinary
+// function as InvoiceOrder mutator.
+type InvoiceOrderFunc func(context.Context, *ent.InvoiceOrderMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f InvoiceOrderFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.InvoiceOrderMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.InvoiceOrderMutation", m)
+}
+
+// The InvoiceProfileFunc type is an adapter to allow the use of ordinary
+// function as InvoiceProfile mutator.
+type InvoiceProfileFunc func(context.Context, *ent.InvoiceProfileMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f InvoiceProfileFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.InvoiceProfileMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.InvoiceProfileMutation", m)
+}
+
+// The InvoiceRequestFunc type is an adapter to allow the use of ordinary
+// function as InvoiceRequest mutator.
+type InvoiceRequestFunc func(context.Context, *ent.InvoiceRequestMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f InvoiceRequestFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.InvoiceRequestMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.InvoiceRequestMutation", m)
 }
 
 // The PageFunc type is an adapter to allow the use of ordinary

@@ -3,10 +3,10 @@
 package ent
 
 import (
-	"sub2api-extension/ent/systemmeta"
 	"context"
 	"errors"
 	"fmt"
+	"sub2api-extension/ent/systemmeta"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"

@@ -61,24 +61,43 @@ func NewSub2APIClient(baseURL string) *Sub2APIClient {
 // 当 sub2api 返回 401(token 无效/过期)时, err 为 ErrInvalidToken, user 为 nil。
 // 当 sub2api 返回其他非 200 时, err 描述状态码。
 func (c *Sub2APIClient) VerifyAdminJWT(ctx context.Context, token string) (isAdmin bool, user *Sub2APIUserInfo, err error) {
+	info, err := c.verifyJWT(ctx, token)
+	if err != nil {
+		return false, nil, err
+	}
+	return info.Role == "admin", info, nil
+}
+
+// VerifyUserJWT verifies a Sub2API access token for a customer-facing
+// embedded page. Unlike VerifyAdminJWT it accepts every valid account role;
+// authorization is based on the verified user ID, never iframe parameters.
+func (c *Sub2APIClient) VerifyUserJWT(ctx context.Context, token string) (*Sub2APIUserInfo, error) {
+	return c.verifyJWT(ctx, token)
+}
+
+func (c *Sub2APIClient) verifyJWT(ctx context.Context, token string) (*Sub2APIUserInfo, error) {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return nil, ErrInvalidToken
+	}
 	url := c.baseURL + "/api/v1/auth/me"
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return false, nil, fmt.Errorf("building request to sub2api: %w", err)
+		return nil, fmt.Errorf("building request to sub2api: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return false, nil, fmt.Errorf("%w: %w", ErrSub2APIUnreachable, err)
+		return nil, fmt.Errorf("%w: %w", ErrSub2APIUnreachable, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return false, nil, fmt.Errorf("reading sub2api response: %w", err)
+		return nil, fmt.Errorf("reading sub2api response: %w", err)
 	}
 
 	// 先按状态码判定 token 有效性: sub2api 在 token 无效/过期时返回 401。
@@ -86,30 +105,28 @@ func (c *Sub2APIClient) VerifyAdminJWT(ctx context.Context, token string) (isAdm
 	// (如反向代理/网关返回纯文本或 HTML 错误页), 若先解码会落入"不可达"桶,
 	// 误导前端展示"服务不可达"而非"身份已失效"(R4 错误分级语义)。
 	if resp.StatusCode == http.StatusUnauthorized {
-		return false, nil, ErrInvalidToken
+		return nil, ErrInvalidToken
 	}
 
 	var envelope sub2APIEnvelope
 	if err := json.Unmarshal(body, &envelope); err != nil {
-		return false, nil, fmt.Errorf("decoding sub2api response: %w", err)
+		return nil, fmt.Errorf("decoding sub2api response: %w", err)
 	}
 
 	// 其他非 200 视为错误(含合规拦截 403、5xx 等)
 	if resp.StatusCode != http.StatusOK {
-		return false, nil, fmt.Errorf("sub2api returned status %d: %s", resp.StatusCode, envelope.Message)
+		return nil, fmt.Errorf("sub2api returned status %d: %s", resp.StatusCode, envelope.Message)
 	}
 
 	// 解析 data 中的用户信息
 	var info Sub2APIUserInfo
 	if len(envelope.Data) == 0 {
-		return false, nil, fmt.Errorf("sub2api response missing data field")
+		return nil, fmt.Errorf("sub2api response missing data field")
 	}
 	if err := json.Unmarshal(envelope.Data, &info); err != nil {
-		return false, nil, fmt.Errorf("decoding sub2api user data: %w", err)
+		return nil, fmt.Errorf("decoding sub2api user data: %w", err)
 	}
-
-	isAdmin = info.Role == "admin"
-	return isAdmin, &info, nil
+	return &info, nil
 }
 
 // Sub2APILoginRequest sub2api 登录请求体。

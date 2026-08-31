@@ -3,9 +3,9 @@
 package ent
 
 import (
-	"sub2api-extension/ent/featureclick"
 	"fmt"
 	"strings"
+	"sub2api-extension/ent/featureclick"
 	"time"
 
 	"entgo.io/ent"

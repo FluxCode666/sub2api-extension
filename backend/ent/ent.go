@@ -3,15 +3,18 @@
 package ent
 
 import (
-	"sub2api-extension/ent/featureclick"
-	"sub2api-extension/ent/imageasset"
-	"sub2api-extension/ent/page"
-	"sub2api-extension/ent/pageview"
-	"sub2api-extension/ent/systemmeta"
 	"context"
 	"errors"
 	"fmt"
 	"reflect"
+	"sub2api-extension/ent/featureclick"
+	"sub2api-extension/ent/imageasset"
+	"sub2api-extension/ent/invoiceorder"
+	"sub2api-extension/ent/invoiceprofile"
+	"sub2api-extension/ent/invoicerequest"
+	"sub2api-extension/ent/page"
+	"sub2api-extension/ent/pageview"
+	"sub2api-extension/ent/systemmeta"
 	"sync"
 
 	"entgo.io/ent"
@@ -77,11 +80,14 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			featureclick.Table: featureclick.ValidColumn,
-			imageasset.Table:   imageasset.ValidColumn,
-			page.Table:         page.ValidColumn,
-			pageview.Table:     pageview.ValidColumn,
-			systemmeta.Table:   systemmeta.ValidColumn,
+			featureclick.Table:   featureclick.ValidColumn,
+			imageasset.Table:     imageasset.ValidColumn,
+			invoiceorder.Table:   invoiceorder.ValidColumn,
+			invoiceprofile.Table: invoiceprofile.ValidColumn,
+			invoicerequest.Table: invoicerequest.ValidColumn,
+			page.Table:           page.ValidColumn,
+			pageview.Table:       pageview.ValidColumn,
+			systemmeta.Table:     systemmeta.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

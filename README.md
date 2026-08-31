@@ -223,7 +223,8 @@ make migrate
 make dev
 ```
 
-`make migrate` 也会创建 `image_assets` 表；图片文件本身写入 `SUB2API_EXTENSION_ASSET_DIR`，数据库只保存相对路径。
+`make migrate` 也会创建 `image_assets`、`invoice_profiles`、`invoice_requests` 和
+`invoice_orders` 表；图片文件本身写入 `SUB2API_EXTENSION_ASSET_DIR`，数据库只保存相对路径。
 
 `make dev` 通过环境变量注入开发配置：
 

@@ -231,6 +231,39 @@ sub2api 会从 `custom_menu_items[].url` 提取 origin，并自动加入 `Conten
 3. 重新保存 `custom_menu_items`，让 sub2api 刷新允许的 origin。
 
 
+## 发票中心（企业客户）
+
+扩展提供一个可嵌入 Sub2API 的用户端页面 `/invoice`。页面通过
+`X-Aux-Token` 验证当前 Sub2API 用户，只展示该用户已完成的余额充值订单，
+并按订单的 `amount` 汇总申请金额；订单在首次申请时即被唯一锁定，不能重复开票。
+用户填写企业抬头、税号、收票邮箱等资料后提交申请，申请记录和开票文件保存在
+扩展自己的数据库/数据卷中，不会写入 Sub2API 业务表。用户还可以点击“保存为默认资料”
+保存抬头、税号、邮箱、电话、注册地址和银行信息；下次进入发票中心会自动填充，提交历史
+申请时仍会保存一份独立快照。
+
+管理员从扩展控制台的「发票管理」页面处理申请：可标记“开票中”或“已驳回”，
+填写备注，并上传不超过 20MB 的 PDF/PNG/JPEG 发票文件。上传完成后状态自动变为
+“已开具”，用户可以在嵌入页面下载文件。文件下载同样需要已验证的用户或管理员会话。
+
+「Sub2API 用户端入口」开关是动态上架控制：开启时扩展会在 Sub2API
+`settings.custom_menu_items` 中幂等创建/更新 `id=aux-invoice` 的用户菜单，URL 为
+扩展公网地址的 `/invoice`；关闭时只移除该受管菜单项，不影响其他自定义菜单。开启
+菜单会始终写入内置的收据 SVG 图标，升级后已存在的旧菜单也会在服务启动时幂等补齐。
+开启菜单前需要配置 `SUB2API_DATABASE_*` 与 `SUB2API_EXTENSION_PUBLIC_URL`，且公网 URL
+必须能被浏览器访问（不能填写 Docker 内部服务名）。
+
+直接访问页面的公开配置端点为 `GET /api/aux/invoices/config`；用户端接口为
+`GET/PUT /api/aux/invoices/profile`、`GET /api/aux/invoices/eligible-orders`、
+`GET /api/aux/invoices/requests?page=1&page_size=5` 和 `POST /api/aux/invoices/requests`，均要求
+Sub2API 注入的 `X-Aux-Token`。资料接口只按已验证用户身份读写，不能通过请求参数访问
+其他用户的资料。申请记录接口返回 `items`、`total`、`page`、`page_size`、`total_pages`，
+用户端默认每页 5 条并支持滚动加载。管理员接口位于受保护的 `/api/aux/admin/invoices/*`，
+列表支持 `page/page_size` 分页，以及 `keyword`（企业名称）、`taxpayer_id`、`start_date/end_date`、
+`status` 和 `user_id` 筛选；`GET /api/aux/admin/invoices/users?email=...` 提供按邮箱模糊搜索的
+Sub2API 用户下拉选项。管理员还可以调用 `POST /api/aux/admin/invoices/manual`，按 `user_id`、
+发票资料和线下转账金额创建没有关联充值订单的开票记录；服务端会重新从 Sub2API 查询并快照用户邮箱/名称，
+不会信任请求体中的身份字段。手动记录默认状态为 `PENDING`，后续处理和发票文件上传流程与普通申请一致。
+
 ## 6. 验收清单
 
 - [ ] sub2api-extension `/health` 返回 200。
@@ -249,6 +282,12 @@ sub2api 会从 `custom_menu_items[].url` 提取 origin，并自动加入 `Conten
 - [ ] 交互示例的操作会进入 Dashboard 功能使用度。
 - [ ] API 示例能读取 `/api/aux/admin/examples/status`。
 - [ ] 非管理员或失效 token 无法访问管理端 API。
+- [ ] 管理员可在「发票管理」开关用户端入口，并在 Sub2API 菜单中看到/移除 `发票管理`。
+- [ ] Sub2API 用户菜单中的 `发票管理` 包含收据 SVG 图标。
+- [ ] 用户端只显示自己的已完成充值订单，提交后订单不可重复选择。
+- [ ] 用户保存默认开票资料后，刷新/重新进入页面会自动填充，且只能读取自己的资料。
+- [ ] 用户提交申请、管理员更新状态并上传发票文件后，用户可带会话下载文件。
+- [ ] 用户申请记录默认每页 5 条，滚动到底部可继续加载；管理员列表可按企业、税号、日期、状态和 Sub2API 用户邮箱筛选并翻页。
 
 ## 7. 故障排查
 

@@ -16,6 +16,12 @@ type Tx struct {
 	FeatureClick *FeatureClickClient
 	// ImageAsset is the client for interacting with the ImageAsset builders.
 	ImageAsset *ImageAssetClient
+	// InvoiceOrder is the client for interacting with the InvoiceOrder builders.
+	InvoiceOrder *InvoiceOrderClient
+	// InvoiceProfile is the client for interacting with the InvoiceProfile builders.
+	InvoiceProfile *InvoiceProfileClient
+	// InvoiceRequest is the client for interacting with the InvoiceRequest builders.
+	InvoiceRequest *InvoiceRequestClient
 	// Page is the client for interacting with the Page builders.
 	Page *PageClient
 	// PageView is the client for interacting with the PageView builders.
@@ -155,6 +161,9 @@ func (tx *Tx) Client() *Client {
 func (tx *Tx) init() {
 	tx.FeatureClick = NewFeatureClickClient(tx.config)
 	tx.ImageAsset = NewImageAssetClient(tx.config)
+	tx.InvoiceOrder = NewInvoiceOrderClient(tx.config)
+	tx.InvoiceProfile = NewInvoiceProfileClient(tx.config)
+	tx.InvoiceRequest = NewInvoiceRequestClient(tx.config)
 	tx.Page = NewPageClient(tx.config)
 	tx.PageView = NewPageViewClient(tx.config)
 	tx.SystemMeta = NewSystemMetaClient(tx.config)

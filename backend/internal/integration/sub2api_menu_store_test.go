@@ -97,3 +97,16 @@ func TestSub2APIMenuStorePublishClearsPageSlugForIframeMode(t *testing.T) {
 	require.Equal(t, 4, updated.SortOrder)
 	require.Equal(t, "<svg />", updated.IconSVG)
 }
+
+func TestSub2APIMenuStoreInvoiceMenuProvidesDefaultIcon(t *testing.T) {
+	updated := mergeInvoiceMenuItem(customMenuItem{SortOrder: 7}, "https://aux.example.com/invoice")
+	require.Equal(t, "aux-invoice", updated.ID)
+	require.Equal(t, "发票管理", updated.Label)
+	require.Equal(t, "user", updated.Visibility)
+	require.Equal(t, 7, updated.SortOrder)
+	require.Contains(t, updated.IconSVG, "<svg")
+	require.Contains(t, updated.IconSVG, "currentColor")
+
+	stale := mergeInvoiceMenuItem(customMenuItem{IconSVG: "<svg data-old=\"true\"></svg>", SortOrder: 2}, "https://aux.example.com/invoice")
+	require.Equal(t, invoiceMenuIconSVG, stale.IconSVG)
+}

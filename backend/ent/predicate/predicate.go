@@ -12,6 +12,15 @@ type FeatureClick func(*sql.Selector)
 // ImageAsset is the predicate function for imageasset builders.
 type ImageAsset func(*sql.Selector)
 
+// InvoiceOrder is the predicate function for invoiceorder builders.
+type InvoiceOrder func(*sql.Selector)
+
+// InvoiceProfile is the predicate function for invoiceprofile builders.
+type InvoiceProfile func(*sql.Selector)
+
+// InvoiceRequest is the predicate function for invoicerequest builders.
+type InvoiceRequest func(*sql.Selector)
+
 // Page is the predicate function for page builders.
 type Page func(*sql.Selector)
 

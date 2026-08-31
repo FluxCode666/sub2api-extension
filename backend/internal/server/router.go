@@ -133,6 +133,8 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 	var homepageHandler *adminhandler.HomepageConfigHandler
 	var imageAssetHandler *adminhandler.ImageAssetHandler
 	var ttftHandler *adminhandler.TTFTHandler
+	var invoiceUserHandler *handler.InvoiceUserHandler
+	var invoiceAdminHandler *adminhandler.InvoiceAdminHandler
 	for _, optionalHandler := range optionalHandlers {
 		switch typed := optionalHandler.(type) {
 		case *adminhandler.HomepageConfigHandler:
@@ -141,6 +143,10 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			imageAssetHandler = typed
 		case *adminhandler.TTFTHandler:
 			ttftHandler = typed
+		case *handler.InvoiceUserHandler:
+			invoiceUserHandler = typed
+		case *adminhandler.InvoiceAdminHandler:
+			invoiceAdminHandler = typed
 		}
 	}
 	if homepageHandler == nil {
@@ -162,6 +168,17 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 		if pagePublicHandler != nil {
 			aux.GET("/pages", pagePublicHandler.List)
 			aux.GET("/pages/:slug", pagePublicHandler.GetBySlug)
+		}
+		if invoiceUserHandler != nil {
+			aux.GET("/invoices/config", invoiceUserHandler.Config)
+			invoices := aux.Group("/invoices")
+			invoices.Use(invoiceUserHandler.Guard())
+			invoices.GET("/profile", invoiceUserHandler.GetProfile)
+			invoices.PUT("/profile", invoiceUserHandler.SaveProfile)
+			invoices.GET("/eligible-orders", invoiceUserHandler.ListEligibleOrders)
+			invoices.GET("/requests", invoiceUserHandler.ListRequests)
+			invoices.POST("/requests", invoiceUserHandler.Create)
+			invoices.GET("/requests/:id/document", invoiceUserHandler.Download)
 		}
 
 		// U5: 埋点上报端点(匿名可写,不经 AdminGuard)。
@@ -227,6 +244,16 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			// Sub2API PostgreSQL，不调用 Sub2API HTTP API。
 			if ttftHandler != nil {
 				guarded.GET("/ops/ttft", ttftHandler.GetTTFT)
+			}
+			if invoiceAdminHandler != nil {
+				guarded.GET("/invoices/config", invoiceAdminHandler.GetFeature)
+				guarded.PUT("/invoices/config", invoiceAdminHandler.SetFeature)
+				guarded.GET("/invoices", invoiceAdminHandler.List)
+				guarded.GET("/invoices/users", invoiceAdminHandler.ListUsers)
+				guarded.POST("/invoices/manual", invoiceAdminHandler.CreateManual)
+				guarded.PUT("/invoices/:id/status", invoiceAdminHandler.UpdateStatus)
+				guarded.POST("/invoices/:id/document", invoiceAdminHandler.UploadDocument)
+				guarded.GET("/invoices/:id/document", invoiceAdminHandler.Download)
 			}
 
 			// 管理端 API 请求示例: 无数据库或 sub2api 依赖。

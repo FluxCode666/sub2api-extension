@@ -13,6 +13,9 @@ import (
 
 	"sub2api-extension/ent/featureclick"
 	"sub2api-extension/ent/imageasset"
+	"sub2api-extension/ent/invoiceorder"
+	"sub2api-extension/ent/invoiceprofile"
+	"sub2api-extension/ent/invoicerequest"
 	"sub2api-extension/ent/page"
 	"sub2api-extension/ent/pageview"
 	"sub2api-extension/ent/systemmeta"
@@ -31,6 +34,12 @@ type Client struct {
 	FeatureClick *FeatureClickClient
 	// ImageAsset is the client for interacting with the ImageAsset builders.
 	ImageAsset *ImageAssetClient
+	// InvoiceOrder is the client for interacting with the InvoiceOrder builders.
+	InvoiceOrder *InvoiceOrderClient
+	// InvoiceProfile is the client for interacting with the InvoiceProfile builders.
+	InvoiceProfile *InvoiceProfileClient
+	// InvoiceRequest is the client for interacting with the InvoiceRequest builders.
+	InvoiceRequest *InvoiceRequestClient
 	// Page is the client for interacting with the Page builders.
 	Page *PageClient
 	// PageView is the client for interacting with the PageView builders.
@@ -50,6 +59,9 @@ func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.FeatureClick = NewFeatureClickClient(c.config)
 	c.ImageAsset = NewImageAssetClient(c.config)
+	c.InvoiceOrder = NewInvoiceOrderClient(c.config)
+	c.InvoiceProfile = NewInvoiceProfileClient(c.config)
+	c.InvoiceRequest = NewInvoiceRequestClient(c.config)
 	c.Page = NewPageClient(c.config)
 	c.PageView = NewPageViewClient(c.config)
 	c.SystemMeta = NewSystemMetaClient(c.config)
@@ -143,13 +155,16 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:          ctx,
-		config:       cfg,
-		FeatureClick: NewFeatureClickClient(cfg),
-		ImageAsset:   NewImageAssetClient(cfg),
-		Page:         NewPageClient(cfg),
-		PageView:     NewPageViewClient(cfg),
-		SystemMeta:   NewSystemMetaClient(cfg),
+		ctx:            ctx,
+		config:         cfg,
+		FeatureClick:   NewFeatureClickClient(cfg),
+		ImageAsset:     NewImageAssetClient(cfg),
+		InvoiceOrder:   NewInvoiceOrderClient(cfg),
+		InvoiceProfile: NewInvoiceProfileClient(cfg),
+		InvoiceRequest: NewInvoiceRequestClient(cfg),
+		Page:           NewPageClient(cfg),
+		PageView:       NewPageViewClient(cfg),
+		SystemMeta:     NewSystemMetaClient(cfg),
 	}, nil
 }
 
@@ -167,13 +182,16 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:          ctx,
-		config:       cfg,
-		FeatureClick: NewFeatureClickClient(cfg),
-		ImageAsset:   NewImageAssetClient(cfg),
-		Page:         NewPageClient(cfg),
-		PageView:     NewPageViewClient(cfg),
-		SystemMeta:   NewSystemMetaClient(cfg),
+		ctx:            ctx,
+		config:         cfg,
+		FeatureClick:   NewFeatureClickClient(cfg),
+		ImageAsset:     NewImageAssetClient(cfg),
+		InvoiceOrder:   NewInvoiceOrderClient(cfg),
+		InvoiceProfile: NewInvoiceProfileClient(cfg),
+		InvoiceRequest: NewInvoiceRequestClient(cfg),
+		Page:           NewPageClient(cfg),
+		PageView:       NewPageViewClient(cfg),
+		SystemMeta:     NewSystemMetaClient(cfg),
 	}, nil
 }
 
@@ -202,21 +220,23 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
-	c.FeatureClick.Use(hooks...)
-	c.ImageAsset.Use(hooks...)
-	c.Page.Use(hooks...)
-	c.PageView.Use(hooks...)
-	c.SystemMeta.Use(hooks...)
+	for _, n := range []interface{ Use(...Hook) }{
+		c.FeatureClick, c.ImageAsset, c.InvoiceOrder, c.InvoiceProfile,
+		c.InvoiceRequest, c.Page, c.PageView, c.SystemMeta,
+	} {
+		n.Use(hooks...)
+	}
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
-	c.FeatureClick.Intercept(interceptors...)
-	c.ImageAsset.Intercept(interceptors...)
-	c.Page.Intercept(interceptors...)
-	c.PageView.Intercept(interceptors...)
-	c.SystemMeta.Intercept(interceptors...)
+	for _, n := range []interface{ Intercept(...Interceptor) }{
+		c.FeatureClick, c.ImageAsset, c.InvoiceOrder, c.InvoiceProfile,
+		c.InvoiceRequest, c.Page, c.PageView, c.SystemMeta,
+	} {
+		n.Intercept(interceptors...)
+	}
 }
 
 // Mutate implements the ent.Mutator interface.
@@ -226,6 +246,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.FeatureClick.mutate(ctx, m)
 	case *ImageAssetMutation:
 		return c.ImageAsset.mutate(ctx, m)
+	case *InvoiceOrderMutation:
+		return c.InvoiceOrder.mutate(ctx, m)
+	case *InvoiceProfileMutation:
+		return c.InvoiceProfile.mutate(ctx, m)
+	case *InvoiceRequestMutation:
+		return c.InvoiceRequest.mutate(ctx, m)
 	case *PageMutation:
 		return c.Page.mutate(ctx, m)
 	case *PageViewMutation:
@@ -500,6 +526,405 @@ func (c *ImageAssetClient) mutate(ctx context.Context, m *ImageAssetMutation) (V
 		return (&ImageAssetDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown ImageAsset mutation op: %q", m.Op())
+	}
+}
+
+// InvoiceOrderClient is a client for the InvoiceOrder schema.
+type InvoiceOrderClient struct {
+	config
+}
+
+// NewInvoiceOrderClient returns a client for the InvoiceOrder from the given config.
+func NewInvoiceOrderClient(c config) *InvoiceOrderClient {
+	return &InvoiceOrderClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `invoiceorder.Hooks(f(g(h())))`.
+func (c *InvoiceOrderClient) Use(hooks ...Hook) {
+	c.hooks.InvoiceOrder = append(c.hooks.InvoiceOrder, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `invoiceorder.Intercept(f(g(h())))`.
+func (c *InvoiceOrderClient) Intercept(interceptors ...Interceptor) {
+	c.inters.InvoiceOrder = append(c.inters.InvoiceOrder, interceptors...)
+}
+
+// Create returns a builder for creating a InvoiceOrder entity.
+func (c *InvoiceOrderClient) Create() *InvoiceOrderCreate {
+	mutation := newInvoiceOrderMutation(c.config, OpCreate)
+	return &InvoiceOrderCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of InvoiceOrder entities.
+func (c *InvoiceOrderClient) CreateBulk(builders ...*InvoiceOrderCreate) *InvoiceOrderCreateBulk {
+	return &InvoiceOrderCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *InvoiceOrderClient) MapCreateBulk(slice any, setFunc func(*InvoiceOrderCreate, int)) *InvoiceOrderCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &InvoiceOrderCreateBulk{err: fmt.Errorf("calling to InvoiceOrderClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*InvoiceOrderCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &InvoiceOrderCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for InvoiceOrder.
+func (c *InvoiceOrderClient) Update() *InvoiceOrderUpdate {
+	mutation := newInvoiceOrderMutation(c.config, OpUpdate)
+	return &InvoiceOrderUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *InvoiceOrderClient) UpdateOne(_m *InvoiceOrder) *InvoiceOrderUpdateOne {
+	mutation := newInvoiceOrderMutation(c.config, OpUpdateOne, withInvoiceOrder(_m))
+	return &InvoiceOrderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *InvoiceOrderClient) UpdateOneID(id int) *InvoiceOrderUpdateOne {
+	mutation := newInvoiceOrderMutation(c.config, OpUpdateOne, withInvoiceOrderID(id))
+	return &InvoiceOrderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for InvoiceOrder.
+func (c *InvoiceOrderClient) Delete() *InvoiceOrderDelete {
+	mutation := newInvoiceOrderMutation(c.config, OpDelete)
+	return &InvoiceOrderDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *InvoiceOrderClient) DeleteOne(_m *InvoiceOrder) *InvoiceOrderDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *InvoiceOrderClient) DeleteOneID(id int) *InvoiceOrderDeleteOne {
+	builder := c.Delete().Where(invoiceorder.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &InvoiceOrderDeleteOne{builder}
+}
+
+// Query returns a query builder for InvoiceOrder.
+func (c *InvoiceOrderClient) Query() *InvoiceOrderQuery {
+	return &InvoiceOrderQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeInvoiceOrder},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a InvoiceOrder entity by its id.
+func (c *InvoiceOrderClient) Get(ctx context.Context, id int) (*InvoiceOrder, error) {
+	return c.Query().Where(invoiceorder.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *InvoiceOrderClient) GetX(ctx context.Context, id int) *InvoiceOrder {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *InvoiceOrderClient) Hooks() []Hook {
+	return c.hooks.InvoiceOrder
+}
+
+// Interceptors returns the client interceptors.
+func (c *InvoiceOrderClient) Interceptors() []Interceptor {
+	return c.inters.InvoiceOrder
+}
+
+func (c *InvoiceOrderClient) mutate(ctx context.Context, m *InvoiceOrderMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&InvoiceOrderCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&InvoiceOrderUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&InvoiceOrderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&InvoiceOrderDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown InvoiceOrder mutation op: %q", m.Op())
+	}
+}
+
+// InvoiceProfileClient is a client for the InvoiceProfile schema.
+type InvoiceProfileClient struct {
+	config
+}
+
+// NewInvoiceProfileClient returns a client for the InvoiceProfile from the given config.
+func NewInvoiceProfileClient(c config) *InvoiceProfileClient {
+	return &InvoiceProfileClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `invoiceprofile.Hooks(f(g(h())))`.
+func (c *InvoiceProfileClient) Use(hooks ...Hook) {
+	c.hooks.InvoiceProfile = append(c.hooks.InvoiceProfile, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `invoiceprofile.Intercept(f(g(h())))`.
+func (c *InvoiceProfileClient) Intercept(interceptors ...Interceptor) {
+	c.inters.InvoiceProfile = append(c.inters.InvoiceProfile, interceptors...)
+}
+
+// Create returns a builder for creating a InvoiceProfile entity.
+func (c *InvoiceProfileClient) Create() *InvoiceProfileCreate {
+	mutation := newInvoiceProfileMutation(c.config, OpCreate)
+	return &InvoiceProfileCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of InvoiceProfile entities.
+func (c *InvoiceProfileClient) CreateBulk(builders ...*InvoiceProfileCreate) *InvoiceProfileCreateBulk {
+	return &InvoiceProfileCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *InvoiceProfileClient) MapCreateBulk(slice any, setFunc func(*InvoiceProfileCreate, int)) *InvoiceProfileCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &InvoiceProfileCreateBulk{err: fmt.Errorf("calling to InvoiceProfileClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*InvoiceProfileCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &InvoiceProfileCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for InvoiceProfile.
+func (c *InvoiceProfileClient) Update() *InvoiceProfileUpdate {
+	mutation := newInvoiceProfileMutation(c.config, OpUpdate)
+	return &InvoiceProfileUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *InvoiceProfileClient) UpdateOne(_m *InvoiceProfile) *InvoiceProfileUpdateOne {
+	mutation := newInvoiceProfileMutation(c.config, OpUpdateOne, withInvoiceProfile(_m))
+	return &InvoiceProfileUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *InvoiceProfileClient) UpdateOneID(id int) *InvoiceProfileUpdateOne {
+	mutation := newInvoiceProfileMutation(c.config, OpUpdateOne, withInvoiceProfileID(id))
+	return &InvoiceProfileUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for InvoiceProfile.
+func (c *InvoiceProfileClient) Delete() *InvoiceProfileDelete {
+	mutation := newInvoiceProfileMutation(c.config, OpDelete)
+	return &InvoiceProfileDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *InvoiceProfileClient) DeleteOne(_m *InvoiceProfile) *InvoiceProfileDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *InvoiceProfileClient) DeleteOneID(id int) *InvoiceProfileDeleteOne {
+	builder := c.Delete().Where(invoiceprofile.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &InvoiceProfileDeleteOne{builder}
+}
+
+// Query returns a query builder for InvoiceProfile.
+func (c *InvoiceProfileClient) Query() *InvoiceProfileQuery {
+	return &InvoiceProfileQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeInvoiceProfile},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a InvoiceProfile entity by its id.
+func (c *InvoiceProfileClient) Get(ctx context.Context, id int) (*InvoiceProfile, error) {
+	return c.Query().Where(invoiceprofile.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *InvoiceProfileClient) GetX(ctx context.Context, id int) *InvoiceProfile {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *InvoiceProfileClient) Hooks() []Hook {
+	return c.hooks.InvoiceProfile
+}
+
+// Interceptors returns the client interceptors.
+func (c *InvoiceProfileClient) Interceptors() []Interceptor {
+	return c.inters.InvoiceProfile
+}
+
+func (c *InvoiceProfileClient) mutate(ctx context.Context, m *InvoiceProfileMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&InvoiceProfileCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&InvoiceProfileUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&InvoiceProfileUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&InvoiceProfileDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown InvoiceProfile mutation op: %q", m.Op())
+	}
+}
+
+// InvoiceRequestClient is a client for the InvoiceRequest schema.
+type InvoiceRequestClient struct {
+	config
+}
+
+// NewInvoiceRequestClient returns a client for the InvoiceRequest from the given config.
+func NewInvoiceRequestClient(c config) *InvoiceRequestClient {
+	return &InvoiceRequestClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `invoicerequest.Hooks(f(g(h())))`.
+func (c *InvoiceRequestClient) Use(hooks ...Hook) {
+	c.hooks.InvoiceRequest = append(c.hooks.InvoiceRequest, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `invoicerequest.Intercept(f(g(h())))`.
+func (c *InvoiceRequestClient) Intercept(interceptors ...Interceptor) {
+	c.inters.InvoiceRequest = append(c.inters.InvoiceRequest, interceptors...)
+}
+
+// Create returns a builder for creating a InvoiceRequest entity.
+func (c *InvoiceRequestClient) Create() *InvoiceRequestCreate {
+	mutation := newInvoiceRequestMutation(c.config, OpCreate)
+	return &InvoiceRequestCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of InvoiceRequest entities.
+func (c *InvoiceRequestClient) CreateBulk(builders ...*InvoiceRequestCreate) *InvoiceRequestCreateBulk {
+	return &InvoiceRequestCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *InvoiceRequestClient) MapCreateBulk(slice any, setFunc func(*InvoiceRequestCreate, int)) *InvoiceRequestCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &InvoiceRequestCreateBulk{err: fmt.Errorf("calling to InvoiceRequestClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*InvoiceRequestCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &InvoiceRequestCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for InvoiceRequest.
+func (c *InvoiceRequestClient) Update() *InvoiceRequestUpdate {
+	mutation := newInvoiceRequestMutation(c.config, OpUpdate)
+	return &InvoiceRequestUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *InvoiceRequestClient) UpdateOne(_m *InvoiceRequest) *InvoiceRequestUpdateOne {
+	mutation := newInvoiceRequestMutation(c.config, OpUpdateOne, withInvoiceRequest(_m))
+	return &InvoiceRequestUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *InvoiceRequestClient) UpdateOneID(id int) *InvoiceRequestUpdateOne {
+	mutation := newInvoiceRequestMutation(c.config, OpUpdateOne, withInvoiceRequestID(id))
+	return &InvoiceRequestUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for InvoiceRequest.
+func (c *InvoiceRequestClient) Delete() *InvoiceRequestDelete {
+	mutation := newInvoiceRequestMutation(c.config, OpDelete)
+	return &InvoiceRequestDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *InvoiceRequestClient) DeleteOne(_m *InvoiceRequest) *InvoiceRequestDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *InvoiceRequestClient) DeleteOneID(id int) *InvoiceRequestDeleteOne {
+	builder := c.Delete().Where(invoicerequest.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &InvoiceRequestDeleteOne{builder}
+}
+
+// Query returns a query builder for InvoiceRequest.
+func (c *InvoiceRequestClient) Query() *InvoiceRequestQuery {
+	return &InvoiceRequestQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeInvoiceRequest},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a InvoiceRequest entity by its id.
+func (c *InvoiceRequestClient) Get(ctx context.Context, id int) (*InvoiceRequest, error) {
+	return c.Query().Where(invoicerequest.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *InvoiceRequestClient) GetX(ctx context.Context, id int) *InvoiceRequest {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *InvoiceRequestClient) Hooks() []Hook {
+	return c.hooks.InvoiceRequest
+}
+
+// Interceptors returns the client interceptors.
+func (c *InvoiceRequestClient) Interceptors() []Interceptor {
+	return c.inters.InvoiceRequest
+}
+
+func (c *InvoiceRequestClient) mutate(ctx context.Context, m *InvoiceRequestMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&InvoiceRequestCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&InvoiceRequestUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&InvoiceRequestUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&InvoiceRequestDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown InvoiceRequest mutation op: %q", m.Op())
 	}
 }
 
@@ -905,9 +1330,11 @@ func (c *SystemMetaClient) mutate(ctx context.Context, m *SystemMetaMutation) (V
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		FeatureClick, ImageAsset, Page, PageView, SystemMeta []ent.Hook
+		FeatureClick, ImageAsset, InvoiceOrder, InvoiceProfile, InvoiceRequest, Page,
+		PageView, SystemMeta []ent.Hook
 	}
 	inters struct {
-		FeatureClick, ImageAsset, Page, PageView, SystemMeta []ent.Interceptor
+		FeatureClick, ImageAsset, InvoiceOrder, InvoiceProfile, InvoiceRequest, Page,
+		PageView, SystemMeta []ent.Interceptor
 	}
 )

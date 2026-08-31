@@ -3,10 +3,10 @@
 package ent
 
 import (
-	"sub2api-extension/ent/featureclick"
 	"context"
 	"errors"
 	"fmt"
+	"sub2api-extension/ent/featureclick"
 	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"

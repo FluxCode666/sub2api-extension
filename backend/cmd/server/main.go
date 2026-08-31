@@ -82,6 +82,9 @@ func main() {
 	// 页面上架需要直接修改 sub2api 的 settings.custom_menu_items。
 	// 未配置 SUB2API_DATABASE_HOST 时保持兼容：页面 CRUD 可用，但上架功能不可用。
 	var sub2apiMenuPublisher service.PagePublisher
+	var invoiceMenuPublisher interface {
+		SetInvoiceMenu(context.Context, bool) error
+	}
 	var sub2apiDB *sql.DB
 	if cfg.Sub2API.Database.Host != "" {
 		if strings.TrimSpace(cfg.Sub2API.PublicURL) == "" {
@@ -101,7 +104,9 @@ func main() {
 			log.Fatalf("Failed to initialize sub2api database: %v", err)
 		}
 		defer func() { _ = sub2apiDB.Close() }()
-		sub2apiMenuPublisher = integration.NewSub2APIMenuStore(sub2apiDB, cfg.Sub2API.PublicURL)
+		menuStore := integration.NewSub2APIMenuStore(sub2apiDB, cfg.Sub2API.PublicURL)
+		sub2apiMenuPublisher = menuStore
+		invoiceMenuPublisher = menuStore
 	} else {
 		log.Printf("[main] sub2api database integration disabled: SUB2API_DATABASE_HOST is empty; publication and TTFT data access will be unavailable")
 	}
@@ -141,13 +146,32 @@ func main() {
 	imageAssetService := service.NewImageAssetService(imageAssetStore, cfg.Assets.Dir)
 	imageAssetHandler := adminhandler.NewImageAssetHandler(imageAssetService)
 
+	// 发票模块只读 Sub2API 的已完成余额充值订单；申请、资料和开票文件
+	// 始终保存在扩展自己的数据库/私有文件目录中。
+	invoiceOrderStore := integration.NewSub2APIPaymentOrderStore(sub2apiDB)
+	invoiceService := service.NewInvoiceService(entClient, invoiceOrderStore, cfg.Assets.Dir)
+	if invoiceMenuPublisher != nil {
+		syncCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		enabled, readErr := invoiceService.FeatureEnabled(syncCtx)
+		if readErr != nil {
+			log.Printf("[main] failed to read invoice feature state for menu sync: %v", readErr)
+		} else if enabled {
+			if syncErr := invoiceMenuPublisher.SetInvoiceMenu(syncCtx, true); syncErr != nil {
+				log.Printf("[main] failed to sync enabled invoice menu: %v", syncErr)
+			}
+		}
+		cancel()
+	}
+	invoiceUserHandler := handler.NewInvoiceUserHandler(invoiceService, sub2apiClient)
+	invoiceAdminHandler := adminhandler.NewInvoiceAdminHandler(invoiceService, invoiceMenuPublisher)
+
 	// 运维首字延迟看板直接读取 sub2api PostgreSQL 的 usage_logs/groups/accounts。
 	// 未配置数据库时仍注册 handler，由接口返回清晰的 503，而不是让前端遇到无意义的 404。
 	ttftStore := integration.NewSub2APITTFTStore(sub2apiDB)
 	ttftService := service.NewTTFTService(ttftStore)
 	ttftHandler := adminhandler.NewTTFTHandler(ttftService)
 
-	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, imageAssetHandler, ttftHandler)
+	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, imageAssetHandler, ttftHandler, invoiceUserHandler, invoiceAdminHandler)
 
 	// 启动 HTTP 服务器
 	addr := cfg.Server.Address()

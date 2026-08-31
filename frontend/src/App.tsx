@@ -17,6 +17,8 @@ import DashboardPage from '@/pages/admin/DashboardPage'
 import PageManagementPage from '@/pages/admin/PageManagementPage'
 import ImageAssetsPage from '@/pages/admin/ImageAssetsPage'
 import TTFTFlamegraphPage from '@/pages/admin/TTFTFlamegraphPage'
+import InvoiceManagementPage from '@/pages/admin/InvoiceManagementPage'
+import InvoicePortalPage from '@/pages/InvoicePortalPage'
 import AdminDynamicPage from '@/pages/admin/AdminDynamicPage'
 import DynamicPage from '@/pages/DynamicPage'
 import ContentExamplePage from '@/pages/examples/ContentExamplePage'
@@ -76,6 +78,9 @@ export default function App() {
       </Route>
       {/* 动态页面(public): /p/:slug, on-demand fetch 内容, 硬刷新可工作 */}
       <Route path="/p/:slug" element={<DynamicPage />} />
+      {/* 用户端发票中心：由 Sub2API custom_menu_items 以 iframe 打开并注入 token。 */}
+      <Route path="/invoice" element={<InvoicePortalPage />} />
+      <Route path="/invoices" element={<InvoicePortalPage />} />
       {/* 管理端: 需管理员会话 (对应 sub2api custom_menu_items, 传 token) */}
       <Route path="/admin" element={<AdminGuard><AdminLayout /></AdminGuard>}>
         {/* U6: 仪表盘为管理端首页 (R10) */}
@@ -84,6 +89,7 @@ export default function App() {
         <Route path="pages" element={<PageManagementPage />} />
         <Route path="assets" element={<ImageAssetsPage />} />
         <Route path="ops/ttft" element={<TTFTFlamegraphPage />} />
+        <Route path="invoices" element={<InvoiceManagementPage />} />
         {/* 动态页面(admin): /admin/p/:slug, 经 AdminGuard, on-demand fetch */}
         <Route path="p/:slug" element={<AdminDynamicPage />} />
         <Route path="examples/content" element={<ContentExamplePage />} />

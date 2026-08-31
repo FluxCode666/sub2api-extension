@@ -3,9 +3,9 @@
 package ent
 
 import (
-	"sub2api-extension/ent/systemmeta"
 	"fmt"
 	"strings"
+	"sub2api-extension/ent/systemmeta"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"

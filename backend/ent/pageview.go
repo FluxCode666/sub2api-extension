@@ -3,9 +3,9 @@
 package ent
 
 import (
-	"sub2api-extension/ent/pageview"
 	"fmt"
 	"strings"
+	"sub2api-extension/ent/pageview"
 	"time"
 
 	"entgo.io/ent"

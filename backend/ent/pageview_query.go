@@ -3,11 +3,11 @@
 package ent
 
 import (
-	"sub2api-extension/ent/pageview"
-	"sub2api-extension/ent/predicate"
 	"context"
 	"fmt"
 	"math"
+	"sub2api-extension/ent/pageview"
+	"sub2api-extension/ent/predicate"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
