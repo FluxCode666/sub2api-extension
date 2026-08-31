@@ -24,11 +24,6 @@ type LogHandler struct{ provider logProvider }
 
 func NewLogHandler(svc *service.LogService) *LogHandler { return &LogHandler{provider: svc} }
 
-// newLogHandlerWithProvider keeps handler tests independent from a database.
-func newLogHandlerWithProvider(provider logProvider) *LogHandler {
-	return &LogHandler{provider: provider}
-}
-
 // ListSystem GET /api/aux/admin/logs/system。
 func (h *LogHandler) ListSystem(c *gin.Context) {
 	if h == nil || h.provider == nil {
