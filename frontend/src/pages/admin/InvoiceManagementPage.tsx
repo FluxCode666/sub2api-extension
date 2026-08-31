@@ -168,14 +168,36 @@ function InvoiceFiltersForm(props: InvoiceFiltersFormProps) {
 
 function DateRangeFilter({ startDate, endDate, onStartDateChange, onEndDateChange, onApply }: { startDate: string; endDate: string; onStartDateChange: (value: string) => void; onEndDateChange: (value: string) => void; onApply: (overrides?: InvoiceFilterOverrides) => void }) {
   const [open, setOpen] = useState(false)
-  const selected: DateRange | undefined = startDate || endDate ? { from: parseLocalDate(startDate), to: parseLocalDate(endDate) } : undefined
+  const [draftRange, setDraftRange] = useState<DateRange | undefined>()
   const summary = startDate && endDate ? `${startDate} 至 ${endDate}` : startDate ? `${startDate} 起` : endDate ? `截至 ${endDate}` : '选择申请日期范围'
+  const draftSummary = draftRange?.from
+    ? draftRange.to
+      ? `${localDateString(draftRange.from)} 至 ${localDateString(draftRange.to)}`
+      : `${localDateString(draftRange.from)} 起，请选择结束日期`
+    : summary
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen)
+    setDraftRange(undefined)
+  }
   return <div className="xl:col-span-2">
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild><Button type="button" variant="outline" className="w-full justify-start font-normal"><CalendarDays className="mr-2 h-4 w-4 text-muted-foreground" /><span className="truncate">{summary}</span></Button></PopoverTrigger>
       <PopoverContent align="start" sideOffset={8} collisionPadding={12} className="invoice-date-range-popover">
-        <Calendar className="invoice-date-range-calendar" mode="range" selected={selected} onSelect={(next) => { const nextStart = next?.from ? localDateString(next.from) : ''; const nextEnd = next?.to ? localDateString(next.to) : ''; onStartDateChange(nextStart); onEndDateChange(nextEnd); if (nextStart && nextEnd) { setOpen(false); onApply({ startDate: nextStart, endDate: nextEnd }) } }} numberOfMonths={1} locale={zhCN} autoFocus />
-        <div className="invoice-date-range-footer"><span className="text-xs text-muted-foreground"><Check className="mr-1 inline h-3.5 w-3.5" />{summary}</span><Button type="button" size="sm" variant="ghost" onClick={() => { onStartDateChange(''); onEndDateChange(''); setOpen(false); onApply({ startDate: '', endDate: '' }) }}>清除</Button></div>
+        <Calendar className="invoice-date-range-calendar" mode="range" selected={draftRange} onSelect={(next) => {
+          if (!draftRange?.from) {
+            setDraftRange(next?.from ? { from: next.from } : undefined)
+            return
+          }
+          if (!next?.from || !next.to) return
+          const nextStart = localDateString(next.from)
+          const nextEnd = localDateString(next.to)
+          setDraftRange({ from: next.from, to: next.to })
+          onStartDateChange(nextStart)
+          onEndDateChange(nextEnd)
+          setOpen(false)
+          onApply({ startDate: nextStart, endDate: nextEnd })
+        }} numberOfMonths={1} locale={zhCN} autoFocus />
+        <div className="invoice-date-range-footer"><span className="text-xs text-muted-foreground"><Check className="mr-1 inline h-3.5 w-3.5" />{draftSummary}</span><Button type="button" size="sm" variant="ghost" onClick={() => { setDraftRange(undefined); onStartDateChange(''); onEndDateChange(''); setOpen(false); onApply({ startDate: '', endDate: '' }) }}>清除</Button></div>
       </PopoverContent>
     </Popover>
   </div>
@@ -210,13 +232,6 @@ function InvoiceUserCombobox({ selectedUser, searchValue, userOptions, onSearchC
       </PopoverContent>
     </Popover>
   </Command>
-}
-
-function parseLocalDate(value: string): Date | undefined {
-  const [year, month, day] = value.split('-').map(Number)
-  if (!year || !month || !day) return undefined
-  const date = new Date(year, month - 1, day)
-  return Number.isNaN(date.getTime()) ? undefined : date
 }
 
 function localDateString(value: Date): string {
