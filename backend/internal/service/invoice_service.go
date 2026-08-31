@@ -505,7 +505,15 @@ func (s *InvoiceService) ListForAdminPage(ctx context.Context, filters InvoiceAd
 	}
 	query := s.store.client.InvoiceRequest.Query()
 	if filters.Keyword != "" {
-		query = query.Where(invoicerequest.InvoiceTitleContainsFold(limitText(filters.Keyword, 200)))
+		keyword := limitText(filters.Keyword, 200)
+		if filters.TaxpayerID != "" {
+			query = query.Where(invoicerequest.InvoiceTitleContainsFold(keyword))
+		} else {
+			query = query.Where(invoicerequest.Or(
+				invoicerequest.InvoiceTitleContainsFold(keyword),
+				invoicerequest.TaxpayerIDContainsFold(strings.ToUpper(limitText(keyword, 64))),
+			))
+		}
 	}
 	if filters.TaxpayerID != "" {
 		query = query.Where(invoicerequest.TaxpayerIDContainsFold(strings.ToUpper(limitText(filters.TaxpayerID, 64))))
