@@ -539,11 +539,11 @@ func (s *NotificationService) send(ctx context.Context, typ string, cfg map[stri
 func (s *NotificationService) sendResend(ctx context.Context, cfg map[string]interface{}, subject, body string) error {
 	key, from := configString(cfg, "api_key"), configString(cfg, "from")
 	if key == "" || from == "" {
-		return errors.New("Resend 需要 api_key 和 from")
+		return errors.New("通知渠道 Resend 需要 api_key 和 from")
 	}
 	to := configStrings(cfg, "to", "recipients")
 	if len(to) == 0 {
-		return errors.New("Resend 至少需要一个收件人")
+		return errors.New("通知渠道 Resend 至少需要一个收件人")
 	}
 	requestBody := map[string]interface{}{"from": from, "to": to, "subject": subject, "text": body}
 	return postJSON(ctx, s.httpClient, "https://api.resend.com/emails", requestBody, map[string]string{"Authorization": "Bearer " + key})
@@ -552,11 +552,11 @@ func (s *NotificationService) sendResend(ctx context.Context, cfg map[string]int
 func (s *NotificationService) sendWebhook(ctx context.Context, cfg map[string]interface{}, subject, body string, payload map[string]interface{}) error {
 	target := configString(cfg, "url")
 	if target == "" {
-		return errors.New("Webhook 需要 url")
+		return errors.New("通知渠道 Webhook 需要 url")
 	}
 	u, err := url.Parse(target)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		return errors.New("Webhook url 无效")
+		return errors.New("通知渠道 Webhook url 无效")
 	}
 	parsed := u
 	provider := normalizeWebhookProvider(configString(cfg, "provider"))
@@ -739,7 +739,7 @@ func postJSONDecode(ctx context.Context, client *http.Client, target string, val
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	responseData, readErr := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if readErr != nil {
 		return readErr
@@ -781,13 +781,13 @@ func sendSMTP(ctx context.Context, cfg map[string]interface{}, subject, body str
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	_ = conn.SetDeadline(time.Now().Add(10 * time.Second))
 	client, err := smtp.NewClient(conn, host)
 	if err != nil {
 		return err
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 	if port != 465 && configBool(cfg, "starttls", true) {
 		ok, _ := client.Extension("STARTTLS")
 		if !ok {
@@ -896,13 +896,13 @@ func validateNotificationConfig(typ NotificationChannelType, cfg map[string]inte
 		}
 	case NotificationChannelResend:
 		if configString(cfg, "api_key") == "" || configString(cfg, "from") == "" {
-			return errors.New("Resend 需要 api_key 和 from，收件人请在具体业务通知中配置")
+			return errors.New("通知渠道 Resend 需要 api_key 和 from，收件人请在具体业务通知中配置")
 		}
 	case NotificationChannelWebhook:
 		target := configString(cfg, "url")
 		u, err := url.Parse(target)
 		if target == "" || err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
-			return errors.New("Webhook 需要 url")
+			return errors.New("通知渠道 Webhook 需要 url")
 		}
 		provider := normalizeWebhookProvider(configString(cfg, "provider"))
 		if provider != "generic" && provider != "wecom" && provider != "feishu_bot" && provider != "dingtalk" {

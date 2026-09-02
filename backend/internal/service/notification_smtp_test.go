@@ -15,7 +15,7 @@ func TestSendSMTPUsesSenderAsUsernameWhenPasswordIsConfigured(t *testing.T) {
 	if err != nil {
 		t.Fatalf("listen SMTP test server: %v", err)
 	}
-	defer listener.Close()
+	defer func() { _ = listener.Close() }()
 
 	serverErr := make(chan error, 1)
 	go func() {
@@ -24,7 +24,7 @@ func TestSendSMTPUsesSenderAsUsernameWhenPasswordIsConfigured(t *testing.T) {
 			serverErr <- acceptErr
 			return
 		}
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 		_ = conn.SetDeadline(time.Now().Add(3 * time.Second))
 		reader, writer := bufio.NewReader(conn), bufio.NewWriter(conn)
 		write := func(reply string) error {
