@@ -46,3 +46,25 @@ func TestSearchSub2APIUsersRequiresConfiguredSource(t *testing.T) {
 		t.Fatalf("expected database unavailable, got %v", err)
 	}
 }
+
+func TestValidateInvoiceInputRequiresSingleOrder(t *testing.T) {
+	base := InvoiceRequestInput{
+		InvoiceTitle: "Acme",
+		TaxpayerID:   "91310000",
+		ContactEmail: "billing@acme.example",
+	}
+
+	for _, orderIDs := range [][]int64{nil, {}, {101, 102}} {
+		input := base
+		input.OrderIDs = orderIDs
+		if err := validateInvoiceInput(input); err == nil {
+			t.Fatalf("validateInvoiceInput(%v) should reject order selection", orderIDs)
+		}
+	}
+
+	valid := base
+	valid.OrderIDs = []int64{101}
+	if err := validateInvoiceInput(valid); err != nil {
+		t.Fatalf("single order should be accepted: %v", err)
+	}
+}

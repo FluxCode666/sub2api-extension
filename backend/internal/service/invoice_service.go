@@ -895,8 +895,8 @@ func validateInvoiceInput(input InvoiceRequestInput) error {
 	if !strings.Contains(input.ContactEmail, "@") {
 		return fmt.Errorf("contact email is invalid")
 	}
-	if len(input.OrderIDs) == 0 || len(input.OrderIDs) > 100 {
-		return fmt.Errorf("select between 1 and 100 recharge orders")
+	if len(input.OrderIDs) != 1 {
+		return fmt.Errorf("select exactly 1 recharge order")
 	}
 	seen := make(map[int64]bool, len(input.OrderIDs))
 	for _, id := range input.OrderIDs {

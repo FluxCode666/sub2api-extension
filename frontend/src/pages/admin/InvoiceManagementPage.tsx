@@ -165,7 +165,7 @@ function InvoiceFiltersForm(props: InvoiceFiltersFormProps) {
     <div className="md:col-span-2 xl:col-span-3">
       <InvoiceUserCombobox selectedUser={props.selectedUser} searchValue={props.userSearch} userOptions={props.userOptions} onSearchChange={props.onUserSearchChange} onSelect={props.onUserSelect} onClear={props.onClearUser} placeholder="按 Sub2API 用户邮箱搜索" />
     </div>
-    <div className="flex items-center gap-2 md:col-span-2 xl:col-span-3"><Button type="submit"><Search className="mr-2 h-4 w-4" />筛选</Button>{props.selectedUser && <span className="truncate text-xs text-gray-500">已选择：{props.selectedUser.email}</span>}</div>
+    <div className="flex items-center gap-2 md:col-span-2 xl:col-span-3"><Button type="submit"><Search className="mr-2 h-4 w-4" />查询</Button>{props.selectedUser && <span className="truncate text-xs text-gray-500">已选择：{props.selectedUser.email}</span>}</div>
   </form>
 }
 

@@ -197,7 +197,7 @@ body {
 .invoice-order-card:hover { border-color: #b6b9d9; box-shadow: 0 16px 28px rgba(30,31,39,0.08); }
 .invoice-order-card.is-selected { border-color: #7169ec; background: linear-gradient(145deg, #fff 0%, #f5f5ff 100%); box-shadow: 0 14px 28px rgba(79,70,229,0.12); }
 .invoice-order-card-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.invoice-checkbox { display: inline-grid; width: 23px; height: 23px; place-items: center; border: 1px solid #d4d4cf; border-radius: 7px; color: #fff; background: #fff; transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease; }
+.invoice-checkbox { display: inline-grid; width: 23px; height: 23px; place-items: center; border: 1px solid #d4d4cf; border-radius: 50%; color: #fff; background: #fff; transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease; }
 .invoice-order-card.is-selected .invoice-checkbox { border-color: var(--invoice-indigo); background: var(--invoice-indigo); transform: scale(1.04); }
 .invoice-order-date { color: #9296a0; font-size: 11px; }
 .invoice-order-card-bar { position: absolute; right: 17px; bottom: 17px; left: 17px; height: 2px; overflow: hidden; border-radius: 99px; background: #f0f0eb; }
