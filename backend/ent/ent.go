@@ -12,6 +12,8 @@ import (
 	"sub2api-extension/ent/invoiceorder"
 	"sub2api-extension/ent/invoiceprofile"
 	"sub2api-extension/ent/invoicerequest"
+	"sub2api-extension/ent/notificationchannel"
+	"sub2api-extension/ent/notificationdelivery"
 	"sub2api-extension/ent/operationlog"
 	"sub2api-extension/ent/page"
 	"sub2api-extension/ent/pageview"
@@ -82,16 +84,18 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			featureclick.Table:   featureclick.ValidColumn,
-			imageasset.Table:     imageasset.ValidColumn,
-			invoiceorder.Table:   invoiceorder.ValidColumn,
-			invoiceprofile.Table: invoiceprofile.ValidColumn,
-			invoicerequest.Table: invoicerequest.ValidColumn,
-			operationlog.Table:   operationlog.ValidColumn,
-			page.Table:           page.ValidColumn,
-			pageview.Table:       pageview.ValidColumn,
-			systemlog.Table:      systemlog.ValidColumn,
-			systemmeta.Table:     systemmeta.ValidColumn,
+			featureclick.Table:         featureclick.ValidColumn,
+			imageasset.Table:           imageasset.ValidColumn,
+			invoiceorder.Table:         invoiceorder.ValidColumn,
+			invoiceprofile.Table:       invoiceprofile.ValidColumn,
+			invoicerequest.Table:       invoicerequest.ValidColumn,
+			notificationchannel.Table:  notificationchannel.ValidColumn,
+			notificationdelivery.Table: notificationdelivery.ValidColumn,
+			operationlog.Table:         operationlog.ValidColumn,
+			page.Table:                 page.ValidColumn,
+			pageview.Table:             pageview.ValidColumn,
+			systemlog.Table:            systemlog.ValidColumn,
+			systemmeta.Table:           systemmeta.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

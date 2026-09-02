@@ -8,6 +8,8 @@ import (
 	"sub2api-extension/ent/invoiceorder"
 	"sub2api-extension/ent/invoiceprofile"
 	"sub2api-extension/ent/invoicerequest"
+	"sub2api-extension/ent/notificationchannel"
+	"sub2api-extension/ent/notificationdelivery"
 	"sub2api-extension/ent/operationlog"
 	"sub2api-extension/ent/page"
 	"sub2api-extension/ent/pageview"
@@ -237,6 +239,100 @@ func init() {
 	invoicerequest.DefaultUpdatedAt = invoicerequestDescUpdatedAt.Default.(func() time.Time)
 	// invoicerequest.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	invoicerequest.UpdateDefaultUpdatedAt = invoicerequestDescUpdatedAt.UpdateDefault.(func() time.Time)
+	notificationchannelFields := schema.NotificationChannel{}.Fields()
+	_ = notificationchannelFields
+	// notificationchannelDescName is the schema descriptor for name field.
+	notificationchannelDescName := notificationchannelFields[0].Descriptor()
+	// notificationchannel.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	notificationchannel.NameValidator = func() func(string) error {
+		validators := notificationchannelDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// notificationchannelDescType is the schema descriptor for type field.
+	notificationchannelDescType := notificationchannelFields[1].Descriptor()
+	// notificationchannel.TypeValidator is a validator for the "type" field. It is called by the builders before save.
+	notificationchannel.TypeValidator = func() func(string) error {
+		validators := notificationchannelDescType.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(_type string) error {
+			for _, fn := range fns {
+				if err := fn(_type); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// notificationchannelDescEnabled is the schema descriptor for enabled field.
+	notificationchannelDescEnabled := notificationchannelFields[3].Descriptor()
+	// notificationchannel.DefaultEnabled holds the default value on creation for the enabled field.
+	notificationchannel.DefaultEnabled = notificationchannelDescEnabled.Default.(bool)
+	// notificationchannelDescCreatedAt is the schema descriptor for created_at field.
+	notificationchannelDescCreatedAt := notificationchannelFields[4].Descriptor()
+	// notificationchannel.DefaultCreatedAt holds the default value on creation for the created_at field.
+	notificationchannel.DefaultCreatedAt = notificationchannelDescCreatedAt.Default.(func() time.Time)
+	// notificationchannelDescUpdatedAt is the schema descriptor for updated_at field.
+	notificationchannelDescUpdatedAt := notificationchannelFields[5].Descriptor()
+	// notificationchannel.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	notificationchannel.DefaultUpdatedAt = notificationchannelDescUpdatedAt.Default.(func() time.Time)
+	// notificationchannel.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	notificationchannel.UpdateDefaultUpdatedAt = notificationchannelDescUpdatedAt.UpdateDefault.(func() time.Time)
+	notificationdeliveryFields := schema.NotificationDelivery{}.Fields()
+	_ = notificationdeliveryFields
+	// notificationdeliveryDescChannelName is the schema descriptor for channel_name field.
+	notificationdeliveryDescChannelName := notificationdeliveryFields[1].Descriptor()
+	// notificationdelivery.DefaultChannelName holds the default value on creation for the channel_name field.
+	notificationdelivery.DefaultChannelName = notificationdeliveryDescChannelName.Default.(string)
+	// notificationdelivery.ChannelNameValidator is a validator for the "channel_name" field. It is called by the builders before save.
+	notificationdelivery.ChannelNameValidator = notificationdeliveryDescChannelName.Validators[0].(func(string) error)
+	// notificationdeliveryDescChannelType is the schema descriptor for channel_type field.
+	notificationdeliveryDescChannelType := notificationdeliveryFields[2].Descriptor()
+	// notificationdelivery.DefaultChannelType holds the default value on creation for the channel_type field.
+	notificationdelivery.DefaultChannelType = notificationdeliveryDescChannelType.Default.(string)
+	// notificationdelivery.ChannelTypeValidator is a validator for the "channel_type" field. It is called by the builders before save.
+	notificationdelivery.ChannelTypeValidator = notificationdeliveryDescChannelType.Validators[0].(func(string) error)
+	// notificationdeliveryDescEvent is the schema descriptor for event field.
+	notificationdeliveryDescEvent := notificationdeliveryFields[3].Descriptor()
+	// notificationdelivery.EventValidator is a validator for the "event" field. It is called by the builders before save.
+	notificationdelivery.EventValidator = notificationdeliveryDescEvent.Validators[0].(func(string) error)
+	// notificationdeliveryDescStatus is the schema descriptor for status field.
+	notificationdeliveryDescStatus := notificationdeliveryFields[4].Descriptor()
+	// notificationdelivery.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	notificationdelivery.StatusValidator = notificationdeliveryDescStatus.Validators[0].(func(string) error)
+	// notificationdeliveryDescRecipient is the schema descriptor for recipient field.
+	notificationdeliveryDescRecipient := notificationdeliveryFields[5].Descriptor()
+	// notificationdelivery.DefaultRecipient holds the default value on creation for the recipient field.
+	notificationdelivery.DefaultRecipient = notificationdeliveryDescRecipient.Default.(string)
+	// notificationdelivery.RecipientValidator is a validator for the "recipient" field. It is called by the builders before save.
+	notificationdelivery.RecipientValidator = notificationdeliveryDescRecipient.Validators[0].(func(string) error)
+	// notificationdeliveryDescSubject is the schema descriptor for subject field.
+	notificationdeliveryDescSubject := notificationdeliveryFields[6].Descriptor()
+	// notificationdelivery.DefaultSubject holds the default value on creation for the subject field.
+	notificationdelivery.DefaultSubject = notificationdeliveryDescSubject.Default.(string)
+	// notificationdelivery.SubjectValidator is a validator for the "subject" field. It is called by the builders before save.
+	notificationdelivery.SubjectValidator = notificationdeliveryDescSubject.Validators[0].(func(string) error)
+	// notificationdeliveryDescAttempts is the schema descriptor for attempts field.
+	notificationdeliveryDescAttempts := notificationdeliveryFields[9].Descriptor()
+	// notificationdelivery.DefaultAttempts holds the default value on creation for the attempts field.
+	notificationdelivery.DefaultAttempts = notificationdeliveryDescAttempts.Default.(int)
+	// notificationdeliveryDescCreatedAt is the schema descriptor for created_at field.
+	notificationdeliveryDescCreatedAt := notificationdeliveryFields[11].Descriptor()
+	// notificationdelivery.DefaultCreatedAt holds the default value on creation for the created_at field.
+	notificationdelivery.DefaultCreatedAt = notificationdeliveryDescCreatedAt.Default.(func() time.Time)
 	operationlogFields := schema.OperationLog{}.Fields()
 	_ = operationlogFields
 	// operationlogDescUsername is the schema descriptor for username field.

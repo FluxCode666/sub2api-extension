@@ -179,6 +179,8 @@ func main() {
 	}
 	invoiceUserHandler := handler.NewInvoiceUserHandler(invoiceService, sub2apiClient)
 	invoiceAdminHandler := adminhandler.NewInvoiceAdminHandler(invoiceService, invoiceMenuPublisher)
+	notificationService := service.NewNotificationService(entClient)
+	notificationAdminHandler := adminhandler.NewNotificationAdminHandler(notificationService)
 
 	// 运维首字延迟看板直接读取 sub2api PostgreSQL 的 usage_logs/groups/accounts。
 	// 未配置数据库时仍注册 handler，由接口返回清晰的 503，而不是让前端遇到无意义的 404。
@@ -186,7 +188,7 @@ func main() {
 	ttftService := service.NewTTFTService(ttftStore)
 	ttftHandler := adminhandler.NewTTFTHandler(ttftService)
 
-	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, imageAssetHandler, ttftHandler, invoiceUserHandler, invoiceAdminHandler, logService, logHandler)
+	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, imageAssetHandler, ttftHandler, invoiceUserHandler, invoiceAdminHandler, notificationAdminHandler, logService, logHandler)
 
 	// 启动 HTTP 服务器
 	addr := cfg.Server.Address()

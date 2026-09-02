@@ -106,7 +106,8 @@ dev: export SUB2API_EXTENSION_PUBLIC_URL := $(DEV_SUB2API_EXTENSION_PUBLIC_URL)
 dev: check-dev-database check-dev-sub2api-database check-dev-sub2api-public-url
 	go run ./cmd/server
 
-# migrate: 迁移本地 sub2api 数据库中的扩展表。建表幂等，重复执行无副作用。
+# migrate: 迁移本地 sub2api 数据库中的扩展表（含通知渠道和消息通知日志）。
+# 建表幂等，重复执行无副作用。
 migrate: check-dev-database
 	go run ./cmd/server -migrate
 

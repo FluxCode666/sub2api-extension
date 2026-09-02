@@ -174,10 +174,13 @@ type entInvoiceStore struct{ client *ent.Client }
 func NewEntInvoiceStore(client *ent.Client) *entInvoiceStore { return &entInvoiceStore{client: client} }
 
 type InvoiceService struct {
-	store       *entInvoiceStore
-	orders      InvoiceOrderSource
-	users       InvoiceUserSource
-	userLookup  InvoiceUserLookup
+	store      *entInvoiceStore
+	orders     InvoiceOrderSource
+	users      InvoiceUserSource
+	userLookup InvoiceUserLookup
+	notifier   interface {
+		NotifyInvoiceApplication(context.Context, *InvoiceRequest) error
+	}
 	documentDir string
 }
 
@@ -195,6 +198,7 @@ func NewInvoiceService(client *ent.Client, orders InvoiceOrderSource, assetDir s
 		orders:      orders,
 		users:       users,
 		userLookup:  userLookup,
+		notifier:    NewNotificationService(client),
 		documentDir: filepath.Join(strings.TrimSpace(assetDir), "invoices"),
 	}
 }
@@ -387,7 +391,16 @@ func (s *InvoiceService) Create(ctx context.Context, userID int64, email, name s
 	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
-	return s.getByID(ctx, created.ID)
+	result, err := s.getByID(ctx, created.ID)
+	if err != nil {
+		return nil, err
+	}
+	if s.notifier != nil {
+		if notifyErr := s.notifier.NotifyInvoiceApplication(ctx, result); notifyErr != nil {
+			log.Printf("[InvoiceService.Create] invoice notification failed request_id=%d: %v", result.ID, notifyErr)
+		}
+	}
+	return result, nil
 }
 
 // CreateManual creates an invoice request for an offline transfer. The
@@ -450,7 +463,16 @@ func (s *InvoiceService) CreateManual(ctx context.Context, input ManualInvoiceRe
 	if err != nil {
 		return nil, err
 	}
-	return s.getByID(ctx, created.ID)
+	result, err := s.getByID(ctx, created.ID)
+	if err != nil {
+		return nil, err
+	}
+	if s.notifier != nil {
+		if notifyErr := s.notifier.NotifyInvoiceApplication(ctx, result); notifyErr != nil {
+			log.Printf("[InvoiceService.CreateManual] invoice notification failed request_id=%d: %v", result.ID, notifyErr)
+		}
+	}
+	return result, nil
 }
 
 func (s *InvoiceService) ListForUser(ctx context.Context, userID int64) ([]InvoiceRequest, error) {

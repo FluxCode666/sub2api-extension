@@ -22,6 +22,10 @@ type Tx struct {
 	InvoiceProfile *InvoiceProfileClient
 	// InvoiceRequest is the client for interacting with the InvoiceRequest builders.
 	InvoiceRequest *InvoiceRequestClient
+	// NotificationChannel is the client for interacting with the NotificationChannel builders.
+	NotificationChannel *NotificationChannelClient
+	// NotificationDelivery is the client for interacting with the NotificationDelivery builders.
+	NotificationDelivery *NotificationDeliveryClient
 	// OperationLog is the client for interacting with the OperationLog builders.
 	OperationLog *OperationLogClient
 	// Page is the client for interacting with the Page builders.
@@ -168,6 +172,8 @@ func (tx *Tx) init() {
 	tx.InvoiceOrder = NewInvoiceOrderClient(tx.config)
 	tx.InvoiceProfile = NewInvoiceProfileClient(tx.config)
 	tx.InvoiceRequest = NewInvoiceRequestClient(tx.config)
+	tx.NotificationChannel = NewNotificationChannelClient(tx.config)
+	tx.NotificationDelivery = NewNotificationDeliveryClient(tx.config)
 	tx.OperationLog = NewOperationLogClient(tx.config)
 	tx.Page = NewPageClient(tx.config)
 	tx.PageView = NewPageViewClient(tx.config)

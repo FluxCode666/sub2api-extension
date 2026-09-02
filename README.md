@@ -129,7 +129,9 @@ sub2api-extension/
 │   └── CICD.md                  # ← CI/CD 完整文档（流水线/Secrets/部署/回滚）
 ├── .agents/skills/              # 页面编写、sub2api 集成和部署运维 skills
 ├── docs/
-│   └── INTEGRATION.md           # ← sub2api 侧集成配置指南（必读）
+│   ├── INTEGRATION.md           # ← sub2api 侧集成配置指南（必读）
+│   ├── PAGE_API.md               # ← 动态页面 API 文档
+│   └── WEBHOOK.md                # ← 通用 Webhook 接入协议
 ├── Dockerfile                   # 多阶段构建（前端 + 后端 → 单镜像）
 └── .dockerignore
 ```
@@ -228,8 +230,16 @@ make dev
 ```
 
 `make migrate` 也会创建 `image_assets`、`invoice_profiles`、`invoice_requests`、
-`invoice_orders`、`system_logs` 和 `operation_logs` 表；
+`invoice_orders`、`notification_channels`、`notification_deliveries`、`system_logs`
+和 `operation_logs` 表；
 图片文件本身写入 `SUB2API_EXTENSION_ASSET_DIR`，数据库只保存相对路径。
+
+通知渠道管理位于管理端 `/admin/notifications`。邮箱 SMTP 和 Resend 渠道只保存发件人、连接信息和凭据；收件人需要在具体业务事件（当前为发票申请通知）中填写，可填写多个邮箱地址，支持逗号、分号或空格分隔。
+消息通知日志支持开始/结束日期时间查询及分页浏览。
+
+通知渠道列表中可直接选择 Webhook、飞书应用、飞书机器人、企业微信机器人或钉钉机器人。Webhook 发送系统统一 JSON，并支持 `Authorization`、`X-Webhook-Secret`；企业微信使用机器人 URL 中的 `key`，飞书机器人可填写安全设置中的签名密钥，钉钉使用 URL 中的 `access_token` 并可填写加签密钥，签名参数均由服务端自动生成。
+
+通用 Webhook 的完整接入协议、请求体示例、接收端代码和故障排查见 [docs/WEBHOOK.md](docs/WEBHOOK.md)。
 
 `make dev` 通过环境变量注入开发配置：
 
@@ -361,5 +371,6 @@ pnpm build           # tsc -b && vite build
 - **[CHANGELOG.md](CHANGELOG.md)** —— 版本变更记录
 - **[docs/INTEGRATION.md](docs/INTEGRATION.md)** —— sub2api 侧 `custom_menu_items` 集成配置指南（架构、部署、CSP、验收清单、故障排查）
 - **[docs/PAGE_API.md](docs/PAGE_API.md)** —— 动态页面管理员 API、鉴权、字段约束与调用示例
+- **[docs/WEBHOOK.md](docs/WEBHOOK.md)** —— 通用 Webhook 配置、协议、请求体示例、接收端代码与故障排查
 - **[tools/page-admin.py](tools/page-admin.py)** —— 无第三方依赖的管理员页面 API 命令行工具
 - **[.github/CICD.md](.github/CICD.md)** —— CI/CD 完整文档（测试/生产环境、Secrets、首次部署、发布、回滚与故障排查）

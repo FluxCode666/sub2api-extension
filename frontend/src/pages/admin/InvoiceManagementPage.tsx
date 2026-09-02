@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Download, FilePlus2, FileUp, Loader2, Search, Settings2, X } from 'lucide-react'
+import { CalendarDays, Check, Download, FilePlus2, FileUp, Loader2, Search, Settings2, X } from 'lucide-react'
 import type { DateRange } from 'react-day-picker'
 import { zhCN } from 'date-fns/locale'
 import { apiClient, AuxApiError, type AuxEnvelope } from '@/lib/api-client'
@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Calendar } from '@/components/ui/calendar'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
@@ -22,6 +23,7 @@ interface InvoiceUser { id: number; email: string; username?: string }
 interface UserItemsResponse { items: InvoiceUser[] }
 interface InvoiceFilters { keyword: string; startDate: string; endDate: string; status: '' | InvoiceStatus; userId: number | null }
 type InvoiceFilterOverrides = Partial<Pick<InvoiceFilters, 'startDate' | 'endDate' | 'status' | 'userId'>>
+type InvoicePageItem = number | 'ellipsis'
 const statuses: Array<{ value: '' | InvoiceStatus; label: string }> = [{ value: '', label: '全部状态' }, { value: 'PENDING', label: '待处理' }, { value: 'PROCESSING', label: '开票中' }, { value: 'ISSUED', label: '已开具' }, { value: 'REJECTED', label: '已驳回' }]
 const PAGE_SIZE = 20
 
@@ -46,6 +48,7 @@ export default function InvoiceManagementPage() {
   const [selected, setSelected] = useState<InvoiceRequest | null>(null)
   const [manualOpen, setManualOpen] = useState(false)
   const requestSequence = useRef(0)
+  const pageItems = buildInvoicePageItems(page, totalPages)
 
   const load = useCallback(async (nextPage: number, isRefresh = false) => {
     const sequence = ++requestSequence.current
@@ -126,7 +129,7 @@ export default function InvoiceManagementPage() {
     {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">{error}</div>}
     <InvoiceFiltersForm keyword={keyword} startDate={startDate} endDate={endDate} status={status} userSearch={userSearch} userOptions={userOptions} selectedUser={selectedUser} onKeywordChange={setKeyword} onStartDateChange={setStartDate} onEndDateChange={setEndDate} onStatusChange={(value) => { setStatus(value); applyDraftFilters({ status: value }) }} onUserSearchChange={(value) => { setUserSearch(value); setSelectedUser(null) }} onUserSelect={(user) => { setSelectedUser(user); setUserSearch(user.email); setUserOptions([]); applyDraftFilters({ userId: user.id }) }} onClearUser={() => { setSelectedUser(null); setUserSearch(''); setUserOptions([]); applyDraftFilters({ userId: null }) }} onApplyFilters={applyDraftFilters} onSubmit={submitFilters} />
     <section className="overflow-hidden rounded-xl border bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950"><div className="border-b p-5 dark:border-gray-800"><h2 className="font-semibold">开票申请</h2><p className="mt-1 text-sm text-gray-500">共 {total} 条当前筛选结果</p></div>{loading ? <div className="flex min-h-64 items-center justify-center text-sm text-gray-500"><Loader2 className="mr-2 h-5 w-5 animate-spin" />正在加载申请…</div> : items.length === 0 ? <div className="min-h-64 p-10 text-center text-sm text-gray-500">暂时没有符合条件的开票申请。</div> : <div className="overflow-x-auto"><table className="w-full min-w-[980px] text-left text-sm"><thead className="bg-gray-50 text-xs text-gray-500 dark:bg-gray-900/60 dark:text-gray-400"><tr><th className="px-5 py-3">申请 / 用户</th><th className="px-4 py-3">开票资料</th><th className="px-4 py-3">订单 / 金额</th><th className="px-4 py-3">状态</th><th className="px-4 py-3">申请时间</th><th className="px-5 py-3 text-right">操作</th></tr></thead><tbody className="divide-y dark:divide-gray-800">{items.map((request) => <tr key={request.id} className="align-top hover:bg-gray-50/80 dark:hover:bg-gray-900/45"><td className="px-5 py-4"><p className="font-medium">#{request.id} {request.user_name || '—'}</p><p className="mt-1 text-xs text-gray-500">{request.user_email}</p></td><td className="px-4 py-4"><p className="font-medium">{request.invoice_title}</p><p className="mt-1 font-mono text-xs text-gray-500">{request.taxpayer_id}</p></td><td className="px-4 py-4"><p className="font-medium">{formatMoney(request.amount)}</p><p className="mt-1 text-xs text-gray-500">{request.orders.length ? `${request.orders.length} 笔充值订单` : '线下转账，无订单'}</p></td><td className="px-4 py-4"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${invoiceStatusClass(request.status)}`}>{invoiceStatusLabel(request.status)}</span>{request.document_available && <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">已上传：{request.document_name}</p>}</td><td className="px-4 py-4 text-xs text-gray-500">{formatDate(request.created_at)}</td><td className="px-5 py-4 text-right"><Button size="sm" variant="outline" onClick={() => setSelected(request)}>处理</Button></td></tr>)}</tbody></table></div>}</section>
-    <div className="flex items-center justify-between rounded-xl border bg-white px-5 py-3 text-xs text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-950"><span>共 {total} 条 · 第 {page} / {Math.max(1, totalPages)} 页</span><div className="flex items-center gap-2"><Button type="button" size="sm" variant="outline" aria-label="上一页" disabled={page <= 1 || loading} onClick={() => void load(page - 1)}><ChevronLeft className="h-4 w-4" /></Button><Button type="button" size="sm" variant="outline" aria-label="下一页" disabled={totalPages === 0 || page >= totalPages || loading} onClick={() => void load(page + 1)}><ChevronRight className="h-4 w-4" /></Button></div></div>
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-white px-5 py-3 text-xs text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-950"><span>共 {total} 条 · 第 {page} / {Math.max(1, totalPages)} 页</span>{totalPages > 0 && <Pagination className="mx-0 w-auto justify-end"><PaginationContent><PaginationItem><PaginationPrevious href="#" aria-disabled={page <= 1 || loading} className={page <= 1 || loading ? 'pointer-events-none opacity-50' : undefined} onClick={(event) => { event.preventDefault(); if (page > 1 && !loading) void load(page - 1) }} /></PaginationItem>{pageItems.map((item, index) => item === 'ellipsis' ? <PaginationItem key={`ellipsis-${index}`}><PaginationEllipsis /></PaginationItem> : <PaginationItem key={item}><PaginationLink href="#" size="icon" isActive={item === page} aria-label={`第 ${item} 页`} onClick={(event) => { event.preventDefault(); if (item !== page && !loading) void load(item) }}>{item}</PaginationLink></PaginationItem>)}<PaginationItem><PaginationNext href="#" aria-disabled={page >= totalPages || loading} className={page >= totalPages || loading ? 'pointer-events-none opacity-50' : undefined} onClick={(event) => { event.preventDefault(); if (page < totalPages && !loading) void load(page + 1) }} /></PaginationItem></PaginationContent></Pagination>}</div>
     {selected && <InvoiceDetail request={selected} onClose={() => setSelected(null)} onChanged={(updated) => { setSelected(updated); setItems((current) => current.map((item) => item.id === updated.id ? updated : item)) }} />}
     <ManualInvoiceDialog open={manualOpen} onOpenChange={setManualOpen} onCreated={() => { setManualOpen(false); toast.success('线下开票记录已创建'); void load(page, true) }} />
   </div>
@@ -232,6 +235,14 @@ function InvoiceUserCombobox({ selectedUser, searchValue, userOptions, onSearchC
       </PopoverContent>
     </Popover>
   </Command>
+}
+
+function buildInvoicePageItems(current: number, total: number): InvoicePageItem[] {
+  if (total <= 0) return []
+  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1)
+  if (current <= 4) return [1, 2, 3, 4, 5, 'ellipsis', total]
+  if (current >= total - 3) return [1, 'ellipsis', total - 4, total - 3, total - 2, total - 1, total]
+  return [1, 'ellipsis', current - 1, current, current + 1, 'ellipsis', total]
 }
 
 function localDateString(value: Date): string {

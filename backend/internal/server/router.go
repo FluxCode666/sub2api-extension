@@ -147,6 +147,7 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 	var logService *service.LogService
 	var invoiceUserHandler *handler.InvoiceUserHandler
 	var invoiceAdminHandler *adminhandler.InvoiceAdminHandler
+	var notificationAdminHandler *adminhandler.NotificationAdminHandler
 	for _, optionalHandler := range optionalHandlers {
 		switch typed := optionalHandler.(type) {
 		case *adminhandler.HomepageConfigHandler:
@@ -163,6 +164,8 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			invoiceUserHandler = typed
 		case *adminhandler.InvoiceAdminHandler:
 			invoiceAdminHandler = typed
+		case *adminhandler.NotificationAdminHandler:
+			notificationAdminHandler = typed
 		}
 	}
 	if homepageHandler == nil {
@@ -281,6 +284,25 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 				guarded.PUT("/invoices/:id/status", invoiceAdminHandler.UpdateStatus)
 				guarded.POST("/invoices/:id/document", invoiceAdminHandler.UploadDocument)
 				guarded.GET("/invoices/:id/document", invoiceAdminHandler.Download)
+			}
+			if notificationAdminHandler != nil {
+				guarded.GET("/notifications/channels", notificationAdminHandler.ListChannels)
+				guarded.POST("/notifications/channels", notificationAdminHandler.CreateChannel)
+				guarded.POST("/notifications/channels/:id/test", notificationAdminHandler.TestChannel)
+				guarded.PUT("/notifications/channels/:id", notificationAdminHandler.UpdateChannel)
+				guarded.DELETE("/notifications/channels/:id", notificationAdminHandler.DeleteChannel)
+				// Explicit resource aliases keep API clients from having to know the
+				// UI grouping name; both paths share the same guarded handlers.
+				guarded.GET("/notification-channels", notificationAdminHandler.ListChannels)
+				guarded.POST("/notification-channels", notificationAdminHandler.CreateChannel)
+				guarded.POST("/notification-channels/:id/test", notificationAdminHandler.TestChannel)
+				guarded.PUT("/notification-channels/:id", notificationAdminHandler.UpdateChannel)
+				guarded.DELETE("/notification-channels/:id", notificationAdminHandler.DeleteChannel)
+				guarded.GET("/notifications/events/:event", notificationAdminHandler.GetEventConfig)
+				guarded.PUT("/notifications/events/:event", notificationAdminHandler.SetEventConfig)
+				guarded.GET("/notifications/deliveries", notificationAdminHandler.ListDeliveries)
+				guarded.GET("/notifications/records", notificationAdminHandler.ListDeliveries)
+				guarded.GET("/notifications/logs", notificationAdminHandler.ListDeliveries)
 			}
 
 			// 管理端 API 请求示例: 无数据库或 sub2api 依赖。

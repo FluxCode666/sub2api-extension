@@ -164,6 +164,68 @@ var (
 			},
 		},
 	}
+	// NotificationChannelsColumns holds the columns for the "notification_channels" table.
+	NotificationChannelsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "name", Type: field.TypeString, Size: 120},
+		{Name: "type", Type: field.TypeString, Size: 24},
+		{Name: "config", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// NotificationChannelsTable holds the schema information for the "notification_channels" table.
+	NotificationChannelsTable = &schema.Table{
+		Name:       "notification_channels",
+		Columns:    NotificationChannelsColumns,
+		PrimaryKey: []*schema.Column{NotificationChannelsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "notificationchannel_type",
+				Unique:  false,
+				Columns: []*schema.Column{NotificationChannelsColumns[2]},
+			},
+			{
+				Name:    "notificationchannel_enabled",
+				Unique:  false,
+				Columns: []*schema.Column{NotificationChannelsColumns[4]},
+			},
+		},
+	}
+	// NotificationDeliveriesColumns holds the columns for the "notification_deliveries" table.
+	NotificationDeliveriesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "channel_id", Type: field.TypeInt, Nullable: true},
+		{Name: "channel_name", Type: field.TypeString, Size: 120, Default: ""},
+		{Name: "channel_type", Type: field.TypeString, Size: 24, Default: ""},
+		{Name: "event", Type: field.TypeString, Size: 100},
+		{Name: "status", Type: field.TypeString, Size: 16},
+		{Name: "recipient", Type: field.TypeString, Size: 1000, Default: ""},
+		{Name: "subject", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "payload", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "error_message", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "attempts", Type: field.TypeInt, Default: 1},
+		{Name: "sent_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// NotificationDeliveriesTable holds the schema information for the "notification_deliveries" table.
+	NotificationDeliveriesTable = &schema.Table{
+		Name:       "notification_deliveries",
+		Columns:    NotificationDeliveriesColumns,
+		PrimaryKey: []*schema.Column{NotificationDeliveriesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "notificationdelivery_event_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{NotificationDeliveriesColumns[4], NotificationDeliveriesColumns[12]},
+			},
+			{
+				Name:    "notificationdelivery_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{NotificationDeliveriesColumns[5], NotificationDeliveriesColumns[12]},
+			},
+		},
+	}
 	// OperationLogsColumns holds the columns for the "operation_logs" table.
 	OperationLogsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -325,6 +387,8 @@ var (
 		InvoiceOrdersTable,
 		InvoiceProfilesTable,
 		InvoiceRequestsTable,
+		NotificationChannelsTable,
+		NotificationDeliveriesTable,
 		OperationLogsTable,
 		PagesTable,
 		PageViewsTable,
@@ -348,6 +412,12 @@ func init() {
 	}
 	InvoiceRequestsTable.Annotation = &entsql.Annotation{
 		Table: "invoice_requests",
+	}
+	NotificationChannelsTable.Annotation = &entsql.Annotation{
+		Table: "notification_channels",
+	}
+	NotificationDeliveriesTable.Annotation = &entsql.Annotation{
+		Table: "notification_deliveries",
 	}
 	OperationLogsTable.Annotation = &entsql.Annotation{
 		Table: "operation_logs",

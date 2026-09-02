@@ -18,6 +18,7 @@ import PageManagementPage from '@/pages/admin/PageManagementPage'
 import ImageAssetsPage from '@/pages/admin/ImageAssetsPage'
 import TTFTFlamegraphPage from '@/pages/admin/TTFTFlamegraphPage'
 import InvoiceManagementPage from '@/pages/admin/InvoiceManagementPage'
+import NotificationManagementPage from '@/pages/admin/NotificationManagementPage'
 import SystemLogsPage from '@/pages/admin/SystemLogsPage'
 import OperationLogsPage from '@/pages/admin/OperationLogsPage'
 import InvoicePortalPage from '@/pages/InvoicePortalPage'
@@ -92,6 +93,7 @@ export default function App() {
         <Route path="assets" element={<ImageAssetsPage />} />
         <Route path="ops/ttft" element={<TTFTFlamegraphPage />} />
         <Route path="invoices" element={<InvoiceManagementPage />} />
+        <Route path="notifications" element={<NotificationManagementPage />} />
         <Route path="logs/system" element={<SystemLogsPage />} />
         <Route path="logs/operation" element={<OperationLogsPage />} />
         <Route path="logs/operations" element={<OperationLogsPage />} />

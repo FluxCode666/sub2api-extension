@@ -21,6 +21,12 @@ type InvoiceProfile func(*sql.Selector)
 // InvoiceRequest is the predicate function for invoicerequest builders.
 type InvoiceRequest func(*sql.Selector)
 
+// NotificationChannel is the predicate function for notificationchannel builders.
+type NotificationChannel func(*sql.Selector)
+
+// NotificationDelivery is the predicate function for notificationdelivery builders.
+type NotificationDelivery func(*sql.Selector)
+
 // OperationLog is the predicate function for operationlog builders.
 type OperationLog func(*sql.Selector)
 
