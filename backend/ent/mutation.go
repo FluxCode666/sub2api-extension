@@ -3,15 +3,16 @@
 package ent
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"sub2api-extension/ent/accountcostconfig"
 	"sub2api-extension/ent/featureclick"
 	"sub2api-extension/ent/imageasset"
 	"sub2api-extension/ent/page"
 	"sub2api-extension/ent/pageview"
 	"sub2api-extension/ent/predicate"
 	"sub2api-extension/ent/systemmeta"
-	"context"
-	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -28,12 +29,1134 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeFeatureClick = "FeatureClick"
-	TypeImageAsset   = "ImageAsset"
-	TypePage         = "Page"
-	TypePageView     = "PageView"
-	TypeSystemMeta   = "SystemMeta"
+	TypeAccountCostConfig = "AccountCostConfig"
+	TypeFeatureClick      = "FeatureClick"
+	TypeImageAsset        = "ImageAsset"
+	TypePage              = "Page"
+	TypePageView          = "PageView"
+	TypeSystemMeta        = "SystemMeta"
 )
+
+// AccountCostConfigMutation represents an operation that mutates the AccountCostConfig nodes in the graph.
+type AccountCostConfigMutation struct {
+	config
+	op                         Op
+	typ                        string
+	id                         *int
+	account_id                 *int64
+	addaccount_id              *int64
+	account_type               *string
+	name                       *string
+	platform                   *string
+	oauth_account_cost         *float64
+	addoauth_account_cost      *float64
+	api_multiplier_override    *float64
+	addapi_multiplier_override *float64
+	synced_api_multiplier      *float64
+	addsynced_api_multiplier   *float64
+	api_multiplier_mode        *string
+	last_synced_at             *time.Time
+	created_at                 *time.Time
+	updated_at                 *time.Time
+	clearedFields              map[string]struct{}
+	done                       bool
+	oldValue                   func(context.Context) (*AccountCostConfig, error)
+	predicates                 []predicate.AccountCostConfig
+}
+
+var _ ent.Mutation = (*AccountCostConfigMutation)(nil)
+
+// accountcostconfigOption allows management of the mutation configuration using functional options.
+type accountcostconfigOption func(*AccountCostConfigMutation)
+
+// newAccountCostConfigMutation creates new mutation for the AccountCostConfig entity.
+func newAccountCostConfigMutation(c config, op Op, opts ...accountcostconfigOption) *AccountCostConfigMutation {
+	m := &AccountCostConfigMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeAccountCostConfig,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withAccountCostConfigID sets the ID field of the mutation.
+func withAccountCostConfigID(id int) accountcostconfigOption {
+	return func(m *AccountCostConfigMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *AccountCostConfig
+		)
+		m.oldValue = func(ctx context.Context) (*AccountCostConfig, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().AccountCostConfig.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withAccountCostConfig sets the old AccountCostConfig of the mutation.
+func withAccountCostConfig(node *AccountCostConfig) accountcostconfigOption {
+	return func(m *AccountCostConfigMutation) {
+		m.oldValue = func(context.Context) (*AccountCostConfig, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m AccountCostConfigMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m AccountCostConfigMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *AccountCostConfigMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *AccountCostConfigMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().AccountCostConfig.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetAccountID sets the "account_id" field.
+func (m *AccountCostConfigMutation) SetAccountID(i int64) {
+	m.account_id = &i
+	m.addaccount_id = nil
+}
+
+// AccountID returns the value of the "account_id" field in the mutation.
+func (m *AccountCostConfigMutation) AccountID() (r int64, exists bool) {
+	v := m.account_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountID returns the old "account_id" field's value of the AccountCostConfig entity.
+// If the AccountCostConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountCostConfigMutation) OldAccountID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountID: %w", err)
+	}
+	return oldValue.AccountID, nil
+}
+
+// AddAccountID adds i to the "account_id" field.
+func (m *AccountCostConfigMutation) AddAccountID(i int64) {
+	if m.addaccount_id != nil {
+		*m.addaccount_id += i
+	} else {
+		m.addaccount_id = &i
+	}
+}
+
+// AddedAccountID returns the value that was added to the "account_id" field in this mutation.
+func (m *AccountCostConfigMutation) AddedAccountID() (r int64, exists bool) {
+	v := m.addaccount_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAccountID resets all changes to the "account_id" field.
+func (m *AccountCostConfigMutation) ResetAccountID() {
+	m.account_id = nil
+	m.addaccount_id = nil
+}
+
+// SetAccountType sets the "account_type" field.
+func (m *AccountCostConfigMutation) SetAccountType(s string) {
+	m.account_type = &s
+}
+
+// AccountType returns the value of the "account_type" field in the mutation.
+func (m *AccountCostConfigMutation) AccountType() (r string, exists bool) {
+	v := m.account_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountType returns the old "account_type" field's value of the AccountCostConfig entity.
+// If the AccountCostConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountCostConfigMutation) OldAccountType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountType: %w", err)
+	}
+	return oldValue.AccountType, nil
+}
+
+// ResetAccountType resets all changes to the "account_type" field.
+func (m *AccountCostConfigMutation) ResetAccountType() {
+	m.account_type = nil
+}
+
+// SetName sets the "name" field.
+func (m *AccountCostConfigMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *AccountCostConfigMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the AccountCostConfig entity.
+// If the AccountCostConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountCostConfigMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ClearName clears the value of the "name" field.
+func (m *AccountCostConfigMutation) ClearName() {
+	m.name = nil
+	m.clearedFields[accountcostconfig.FieldName] = struct{}{}
+}
+
+// NameCleared returns if the "name" field was cleared in this mutation.
+func (m *AccountCostConfigMutation) NameCleared() bool {
+	_, ok := m.clearedFields[accountcostconfig.FieldName]
+	return ok
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *AccountCostConfigMutation) ResetName() {
+	m.name = nil
+	delete(m.clearedFields, accountcostconfig.FieldName)
+}
+
+// SetPlatform sets the "platform" field.
+func (m *AccountCostConfigMutation) SetPlatform(s string) {
+	m.platform = &s
+}
+
+// Platform returns the value of the "platform" field in the mutation.
+func (m *AccountCostConfigMutation) Platform() (r string, exists bool) {
+	v := m.platform
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPlatform returns the old "platform" field's value of the AccountCostConfig entity.
+// If the AccountCostConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountCostConfigMutation) OldPlatform(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPlatform is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPlatform requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPlatform: %w", err)
+	}
+	return oldValue.Platform, nil
+}
+
+// ClearPlatform clears the value of the "platform" field.
+func (m *AccountCostConfigMutation) ClearPlatform() {
+	m.platform = nil
+	m.clearedFields[accountcostconfig.FieldPlatform] = struct{}{}
+}
+
+// PlatformCleared returns if the "platform" field was cleared in this mutation.
+func (m *AccountCostConfigMutation) PlatformCleared() bool {
+	_, ok := m.clearedFields[accountcostconfig.FieldPlatform]
+	return ok
+}
+
+// ResetPlatform resets all changes to the "platform" field.
+func (m *AccountCostConfigMutation) ResetPlatform() {
+	m.platform = nil
+	delete(m.clearedFields, accountcostconfig.FieldPlatform)
+}
+
+// SetOauthAccountCost sets the "oauth_account_cost" field.
+func (m *AccountCostConfigMutation) SetOauthAccountCost(f float64) {
+	m.oauth_account_cost = &f
+	m.addoauth_account_cost = nil
+}
+
+// OauthAccountCost returns the value of the "oauth_account_cost" field in the mutation.
+func (m *AccountCostConfigMutation) OauthAccountCost() (r float64, exists bool) {
+	v := m.oauth_account_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOauthAccountCost returns the old "oauth_account_cost" field's value of the AccountCostConfig entity.
+// If the AccountCostConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountCostConfigMutation) OldOauthAccountCost(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOauthAccountCost is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOauthAccountCost requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOauthAccountCost: %w", err)
+	}
+	return oldValue.OauthAccountCost, nil
+}
+
+// AddOauthAccountCost adds f to the "oauth_account_cost" field.
+func (m *AccountCostConfigMutation) AddOauthAccountCost(f float64) {
+	if m.addoauth_account_cost != nil {
+		*m.addoauth_account_cost += f
+	} else {
+		m.addoauth_account_cost = &f
+	}
+}
+
+// AddedOauthAccountCost returns the value that was added to the "oauth_account_cost" field in this mutation.
+func (m *AccountCostConfigMutation) AddedOauthAccountCost() (r float64, exists bool) {
+	v := m.addoauth_account_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearOauthAccountCost clears the value of the "oauth_account_cost" field.
+func (m *AccountCostConfigMutation) ClearOauthAccountCost() {
+	m.oauth_account_cost = nil
+	m.addoauth_account_cost = nil
+	m.clearedFields[accountcostconfig.FieldOauthAccountCost] = struct{}{}
+}
+
+// OauthAccountCostCleared returns if the "oauth_account_cost" field was cleared in this mutation.
+func (m *AccountCostConfigMutation) OauthAccountCostCleared() bool {
+	_, ok := m.clearedFields[accountcostconfig.FieldOauthAccountCost]
+	return ok
+}
+
+// ResetOauthAccountCost resets all changes to the "oauth_account_cost" field.
+func (m *AccountCostConfigMutation) ResetOauthAccountCost() {
+	m.oauth_account_cost = nil
+	m.addoauth_account_cost = nil
+	delete(m.clearedFields, accountcostconfig.FieldOauthAccountCost)
+}
+
+// SetAPIMultiplierOverride sets the "api_multiplier_override" field.
+func (m *AccountCostConfigMutation) SetAPIMultiplierOverride(f float64) {
+	m.api_multiplier_override = &f
+	m.addapi_multiplier_override = nil
+}
+
+// APIMultiplierOverride returns the value of the "api_multiplier_override" field in the mutation.
+func (m *AccountCostConfigMutation) APIMultiplierOverride() (r float64, exists bool) {
+	v := m.api_multiplier_override
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAPIMultiplierOverride returns the old "api_multiplier_override" field's value of the AccountCostConfig entity.
+// If the AccountCostConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountCostConfigMutation) OldAPIMultiplierOverride(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAPIMultiplierOverride is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAPIMultiplierOverride requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAPIMultiplierOverride: %w", err)
+	}
+	return oldValue.APIMultiplierOverride, nil
+}
+
+// AddAPIMultiplierOverride adds f to the "api_multiplier_override" field.
+func (m *AccountCostConfigMutation) AddAPIMultiplierOverride(f float64) {
+	if m.addapi_multiplier_override != nil {
+		*m.addapi_multiplier_override += f
+	} else {
+		m.addapi_multiplier_override = &f
+	}
+}
+
+// AddedAPIMultiplierOverride returns the value that was added to the "api_multiplier_override" field in this mutation.
+func (m *AccountCostConfigMutation) AddedAPIMultiplierOverride() (r float64, exists bool) {
+	v := m.addapi_multiplier_override
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAPIMultiplierOverride clears the value of the "api_multiplier_override" field.
+func (m *AccountCostConfigMutation) ClearAPIMultiplierOverride() {
+	m.api_multiplier_override = nil
+	m.addapi_multiplier_override = nil
+	m.clearedFields[accountcostconfig.FieldAPIMultiplierOverride] = struct{}{}
+}
+
+// APIMultiplierOverrideCleared returns if the "api_multiplier_override" field was cleared in this mutation.
+func (m *AccountCostConfigMutation) APIMultiplierOverrideCleared() bool {
+	_, ok := m.clearedFields[accountcostconfig.FieldAPIMultiplierOverride]
+	return ok
+}
+
+// ResetAPIMultiplierOverride resets all changes to the "api_multiplier_override" field.
+func (m *AccountCostConfigMutation) ResetAPIMultiplierOverride() {
+	m.api_multiplier_override = nil
+	m.addapi_multiplier_override = nil
+	delete(m.clearedFields, accountcostconfig.FieldAPIMultiplierOverride)
+}
+
+// SetSyncedAPIMultiplier sets the "synced_api_multiplier" field.
+func (m *AccountCostConfigMutation) SetSyncedAPIMultiplier(f float64) {
+	m.synced_api_multiplier = &f
+	m.addsynced_api_multiplier = nil
+}
+
+// SyncedAPIMultiplier returns the value of the "synced_api_multiplier" field in the mutation.
+func (m *AccountCostConfigMutation) SyncedAPIMultiplier() (r float64, exists bool) {
+	v := m.synced_api_multiplier
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSyncedAPIMultiplier returns the old "synced_api_multiplier" field's value of the AccountCostConfig entity.
+// If the AccountCostConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountCostConfigMutation) OldSyncedAPIMultiplier(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSyncedAPIMultiplier is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSyncedAPIMultiplier requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSyncedAPIMultiplier: %w", err)
+	}
+	return oldValue.SyncedAPIMultiplier, nil
+}
+
+// AddSyncedAPIMultiplier adds f to the "synced_api_multiplier" field.
+func (m *AccountCostConfigMutation) AddSyncedAPIMultiplier(f float64) {
+	if m.addsynced_api_multiplier != nil {
+		*m.addsynced_api_multiplier += f
+	} else {
+		m.addsynced_api_multiplier = &f
+	}
+}
+
+// AddedSyncedAPIMultiplier returns the value that was added to the "synced_api_multiplier" field in this mutation.
+func (m *AccountCostConfigMutation) AddedSyncedAPIMultiplier() (r float64, exists bool) {
+	v := m.addsynced_api_multiplier
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearSyncedAPIMultiplier clears the value of the "synced_api_multiplier" field.
+func (m *AccountCostConfigMutation) ClearSyncedAPIMultiplier() {
+	m.synced_api_multiplier = nil
+	m.addsynced_api_multiplier = nil
+	m.clearedFields[accountcostconfig.FieldSyncedAPIMultiplier] = struct{}{}
+}
+
+// SyncedAPIMultiplierCleared returns if the "synced_api_multiplier" field was cleared in this mutation.
+func (m *AccountCostConfigMutation) SyncedAPIMultiplierCleared() bool {
+	_, ok := m.clearedFields[accountcostconfig.FieldSyncedAPIMultiplier]
+	return ok
+}
+
+// ResetSyncedAPIMultiplier resets all changes to the "synced_api_multiplier" field.
+func (m *AccountCostConfigMutation) ResetSyncedAPIMultiplier() {
+	m.synced_api_multiplier = nil
+	m.addsynced_api_multiplier = nil
+	delete(m.clearedFields, accountcostconfig.FieldSyncedAPIMultiplier)
+}
+
+// SetAPIMultiplierMode sets the "api_multiplier_mode" field.
+func (m *AccountCostConfigMutation) SetAPIMultiplierMode(s string) {
+	m.api_multiplier_mode = &s
+}
+
+// APIMultiplierMode returns the value of the "api_multiplier_mode" field in the mutation.
+func (m *AccountCostConfigMutation) APIMultiplierMode() (r string, exists bool) {
+	v := m.api_multiplier_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAPIMultiplierMode returns the old "api_multiplier_mode" field's value of the AccountCostConfig entity.
+// If the AccountCostConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountCostConfigMutation) OldAPIMultiplierMode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAPIMultiplierMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAPIMultiplierMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAPIMultiplierMode: %w", err)
+	}
+	return oldValue.APIMultiplierMode, nil
+}
+
+// ResetAPIMultiplierMode resets all changes to the "api_multiplier_mode" field.
+func (m *AccountCostConfigMutation) ResetAPIMultiplierMode() {
+	m.api_multiplier_mode = nil
+}
+
+// SetLastSyncedAt sets the "last_synced_at" field.
+func (m *AccountCostConfigMutation) SetLastSyncedAt(t time.Time) {
+	m.last_synced_at = &t
+}
+
+// LastSyncedAt returns the value of the "last_synced_at" field in the mutation.
+func (m *AccountCostConfigMutation) LastSyncedAt() (r time.Time, exists bool) {
+	v := m.last_synced_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastSyncedAt returns the old "last_synced_at" field's value of the AccountCostConfig entity.
+// If the AccountCostConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountCostConfigMutation) OldLastSyncedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastSyncedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastSyncedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastSyncedAt: %w", err)
+	}
+	return oldValue.LastSyncedAt, nil
+}
+
+// ClearLastSyncedAt clears the value of the "last_synced_at" field.
+func (m *AccountCostConfigMutation) ClearLastSyncedAt() {
+	m.last_synced_at = nil
+	m.clearedFields[accountcostconfig.FieldLastSyncedAt] = struct{}{}
+}
+
+// LastSyncedAtCleared returns if the "last_synced_at" field was cleared in this mutation.
+func (m *AccountCostConfigMutation) LastSyncedAtCleared() bool {
+	_, ok := m.clearedFields[accountcostconfig.FieldLastSyncedAt]
+	return ok
+}
+
+// ResetLastSyncedAt resets all changes to the "last_synced_at" field.
+func (m *AccountCostConfigMutation) ResetLastSyncedAt() {
+	m.last_synced_at = nil
+	delete(m.clearedFields, accountcostconfig.FieldLastSyncedAt)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *AccountCostConfigMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *AccountCostConfigMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the AccountCostConfig entity.
+// If the AccountCostConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountCostConfigMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *AccountCostConfigMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *AccountCostConfigMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *AccountCostConfigMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the AccountCostConfig entity.
+// If the AccountCostConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountCostConfigMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *AccountCostConfigMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the AccountCostConfigMutation builder.
+func (m *AccountCostConfigMutation) Where(ps ...predicate.AccountCostConfig) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the AccountCostConfigMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *AccountCostConfigMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.AccountCostConfig, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *AccountCostConfigMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *AccountCostConfigMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (AccountCostConfig).
+func (m *AccountCostConfigMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *AccountCostConfigMutation) Fields() []string {
+	fields := make([]string, 0, 11)
+	if m.account_id != nil {
+		fields = append(fields, accountcostconfig.FieldAccountID)
+	}
+	if m.account_type != nil {
+		fields = append(fields, accountcostconfig.FieldAccountType)
+	}
+	if m.name != nil {
+		fields = append(fields, accountcostconfig.FieldName)
+	}
+	if m.platform != nil {
+		fields = append(fields, accountcostconfig.FieldPlatform)
+	}
+	if m.oauth_account_cost != nil {
+		fields = append(fields, accountcostconfig.FieldOauthAccountCost)
+	}
+	if m.api_multiplier_override != nil {
+		fields = append(fields, accountcostconfig.FieldAPIMultiplierOverride)
+	}
+	if m.synced_api_multiplier != nil {
+		fields = append(fields, accountcostconfig.FieldSyncedAPIMultiplier)
+	}
+	if m.api_multiplier_mode != nil {
+		fields = append(fields, accountcostconfig.FieldAPIMultiplierMode)
+	}
+	if m.last_synced_at != nil {
+		fields = append(fields, accountcostconfig.FieldLastSyncedAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, accountcostconfig.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, accountcostconfig.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *AccountCostConfigMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case accountcostconfig.FieldAccountID:
+		return m.AccountID()
+	case accountcostconfig.FieldAccountType:
+		return m.AccountType()
+	case accountcostconfig.FieldName:
+		return m.Name()
+	case accountcostconfig.FieldPlatform:
+		return m.Platform()
+	case accountcostconfig.FieldOauthAccountCost:
+		return m.OauthAccountCost()
+	case accountcostconfig.FieldAPIMultiplierOverride:
+		return m.APIMultiplierOverride()
+	case accountcostconfig.FieldSyncedAPIMultiplier:
+		return m.SyncedAPIMultiplier()
+	case accountcostconfig.FieldAPIMultiplierMode:
+		return m.APIMultiplierMode()
+	case accountcostconfig.FieldLastSyncedAt:
+		return m.LastSyncedAt()
+	case accountcostconfig.FieldCreatedAt:
+		return m.CreatedAt()
+	case accountcostconfig.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *AccountCostConfigMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case accountcostconfig.FieldAccountID:
+		return m.OldAccountID(ctx)
+	case accountcostconfig.FieldAccountType:
+		return m.OldAccountType(ctx)
+	case accountcostconfig.FieldName:
+		return m.OldName(ctx)
+	case accountcostconfig.FieldPlatform:
+		return m.OldPlatform(ctx)
+	case accountcostconfig.FieldOauthAccountCost:
+		return m.OldOauthAccountCost(ctx)
+	case accountcostconfig.FieldAPIMultiplierOverride:
+		return m.OldAPIMultiplierOverride(ctx)
+	case accountcostconfig.FieldSyncedAPIMultiplier:
+		return m.OldSyncedAPIMultiplier(ctx)
+	case accountcostconfig.FieldAPIMultiplierMode:
+		return m.OldAPIMultiplierMode(ctx)
+	case accountcostconfig.FieldLastSyncedAt:
+		return m.OldLastSyncedAt(ctx)
+	case accountcostconfig.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case accountcostconfig.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown AccountCostConfig field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AccountCostConfigMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case accountcostconfig.FieldAccountID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountID(v)
+		return nil
+	case accountcostconfig.FieldAccountType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountType(v)
+		return nil
+	case accountcostconfig.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case accountcostconfig.FieldPlatform:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPlatform(v)
+		return nil
+	case accountcostconfig.FieldOauthAccountCost:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOauthAccountCost(v)
+		return nil
+	case accountcostconfig.FieldAPIMultiplierOverride:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAPIMultiplierOverride(v)
+		return nil
+	case accountcostconfig.FieldSyncedAPIMultiplier:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSyncedAPIMultiplier(v)
+		return nil
+	case accountcostconfig.FieldAPIMultiplierMode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAPIMultiplierMode(v)
+		return nil
+	case accountcostconfig.FieldLastSyncedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastSyncedAt(v)
+		return nil
+	case accountcostconfig.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case accountcostconfig.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown AccountCostConfig field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *AccountCostConfigMutation) AddedFields() []string {
+	var fields []string
+	if m.addaccount_id != nil {
+		fields = append(fields, accountcostconfig.FieldAccountID)
+	}
+	if m.addoauth_account_cost != nil {
+		fields = append(fields, accountcostconfig.FieldOauthAccountCost)
+	}
+	if m.addapi_multiplier_override != nil {
+		fields = append(fields, accountcostconfig.FieldAPIMultiplierOverride)
+	}
+	if m.addsynced_api_multiplier != nil {
+		fields = append(fields, accountcostconfig.FieldSyncedAPIMultiplier)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *AccountCostConfigMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case accountcostconfig.FieldAccountID:
+		return m.AddedAccountID()
+	case accountcostconfig.FieldOauthAccountCost:
+		return m.AddedOauthAccountCost()
+	case accountcostconfig.FieldAPIMultiplierOverride:
+		return m.AddedAPIMultiplierOverride()
+	case accountcostconfig.FieldSyncedAPIMultiplier:
+		return m.AddedSyncedAPIMultiplier()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AccountCostConfigMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case accountcostconfig.FieldAccountID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAccountID(v)
+		return nil
+	case accountcostconfig.FieldOauthAccountCost:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOauthAccountCost(v)
+		return nil
+	case accountcostconfig.FieldAPIMultiplierOverride:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAPIMultiplierOverride(v)
+		return nil
+	case accountcostconfig.FieldSyncedAPIMultiplier:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSyncedAPIMultiplier(v)
+		return nil
+	}
+	return fmt.Errorf("unknown AccountCostConfig numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *AccountCostConfigMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(accountcostconfig.FieldName) {
+		fields = append(fields, accountcostconfig.FieldName)
+	}
+	if m.FieldCleared(accountcostconfig.FieldPlatform) {
+		fields = append(fields, accountcostconfig.FieldPlatform)
+	}
+	if m.FieldCleared(accountcostconfig.FieldOauthAccountCost) {
+		fields = append(fields, accountcostconfig.FieldOauthAccountCost)
+	}
+	if m.FieldCleared(accountcostconfig.FieldAPIMultiplierOverride) {
+		fields = append(fields, accountcostconfig.FieldAPIMultiplierOverride)
+	}
+	if m.FieldCleared(accountcostconfig.FieldSyncedAPIMultiplier) {
+		fields = append(fields, accountcostconfig.FieldSyncedAPIMultiplier)
+	}
+	if m.FieldCleared(accountcostconfig.FieldLastSyncedAt) {
+		fields = append(fields, accountcostconfig.FieldLastSyncedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *AccountCostConfigMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *AccountCostConfigMutation) ClearField(name string) error {
+	switch name {
+	case accountcostconfig.FieldName:
+		m.ClearName()
+		return nil
+	case accountcostconfig.FieldPlatform:
+		m.ClearPlatform()
+		return nil
+	case accountcostconfig.FieldOauthAccountCost:
+		m.ClearOauthAccountCost()
+		return nil
+	case accountcostconfig.FieldAPIMultiplierOverride:
+		m.ClearAPIMultiplierOverride()
+		return nil
+	case accountcostconfig.FieldSyncedAPIMultiplier:
+		m.ClearSyncedAPIMultiplier()
+		return nil
+	case accountcostconfig.FieldLastSyncedAt:
+		m.ClearLastSyncedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown AccountCostConfig nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *AccountCostConfigMutation) ResetField(name string) error {
+	switch name {
+	case accountcostconfig.FieldAccountID:
+		m.ResetAccountID()
+		return nil
+	case accountcostconfig.FieldAccountType:
+		m.ResetAccountType()
+		return nil
+	case accountcostconfig.FieldName:
+		m.ResetName()
+		return nil
+	case accountcostconfig.FieldPlatform:
+		m.ResetPlatform()
+		return nil
+	case accountcostconfig.FieldOauthAccountCost:
+		m.ResetOauthAccountCost()
+		return nil
+	case accountcostconfig.FieldAPIMultiplierOverride:
+		m.ResetAPIMultiplierOverride()
+		return nil
+	case accountcostconfig.FieldSyncedAPIMultiplier:
+		m.ResetSyncedAPIMultiplier()
+		return nil
+	case accountcostconfig.FieldAPIMultiplierMode:
+		m.ResetAPIMultiplierMode()
+		return nil
+	case accountcostconfig.FieldLastSyncedAt:
+		m.ResetLastSyncedAt()
+		return nil
+	case accountcostconfig.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case accountcostconfig.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown AccountCostConfig field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *AccountCostConfigMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *AccountCostConfigMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *AccountCostConfigMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *AccountCostConfigMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *AccountCostConfigMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *AccountCostConfigMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *AccountCostConfigMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown AccountCostConfig unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *AccountCostConfigMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown AccountCostConfig edge %s", name)
+}
 
 // FeatureClickMutation represents an operation that mutates the FeatureClick nodes in the graph.
 type FeatureClickMutation struct {

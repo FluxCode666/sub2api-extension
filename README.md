@@ -14,6 +14,7 @@
 - **动态页面编写** —— 管理员可以创建、编辑、启停和删除数据库页面，不需要改动前端源码。
 - **页面分析与埋点** —— 统计当前页面的访问量和功能点击，在分析仪表盘中查看使用情况。
 - **首字延迟火焰图** —— 运维看板直接读取 Sub2API PostgreSQL 的 `usage_logs.first_token_ms`，支持日期、时间段、分组、账号筛选，以及分钟/小时/天三种时间粒度。
+- **运营中心** —— 消费核算按天展示收入、API 成本、OAuth 账号采购成本、毛利/税前利润、税额、税后利润与利润率，支持日期范围筛选；成本配置页支持动态配置税点、每个 OAuth 账号独立采购成本、每个 API 账号独立倍率，以及从 Sub2API 定时同步账号倍率。税点按收入计提：税后利润 = 收入 − 总成本 − 收入 × 税点。
 - **身份转发验证** —— 管理端接收 sub2api iframe token，换取附属系统自己的管理员会话。
 
 | 入口 | 说明 |
@@ -322,6 +323,7 @@ pnpm build           # tsc -b && vite build
 | `SUB2API_DATABASE_PORT` | Sub2API PostgreSQL 端口 | `5432` |
 | `SUB2API_DATABASE_USER` / `SUB2API_DATABASE_PASSWORD` | Sub2API PostgreSQL 凭据（密码不提交） | — |
 | `SUB2API_DATABASE_DBNAME` | Sub2API 数据库名 | `sub2api` |
+| `SUB2API_EXTENSION_COST_SYNC_INTERVAL_SECONDS` | API 账号倍率同步间隔（秒） | `300` |
 | `SUB2API_EXTENSION_JWT_SECRET` | 会话签名密钥（**必需**） | — |
 | `SUB2API_EXTENSION_JWT_EXPIRE_HOUR` | 会话有效期（小时） | `24` |
 | `SERVER_MODE` | `release` / `debug` | `release` |

@@ -3,9 +3,9 @@
 package ent
 
 import (
+	"context"
 	"sub2api-extension/ent/predicate"
 	"sub2api-extension/ent/systemmeta"
-	"context"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"

@@ -20,7 +20,7 @@ sub2api 控制台
       -> AdminGuard 验证或换取 aux 会话
 ```
 
-sub2api-extension 使用自己的 PostgreSQL 保存页面访问和功能点击数据。管理员身份通过 sub2api iframe token 或独立账号密码登录验证。页面上架功能会额外使用具备读写权限的连接访问 sub2api PostgreSQL 的 `settings` 表，同步 `custom_menu_items`；运维首字延迟看板则使用同一连接只读 `usage_logs`、`groups` 和 `accounts` 表，不会把 sub2api 的业务表映射到扩展 Ent schema。
+sub2api-extension 使用自己的 PostgreSQL 保存页面访问、功能点击和运营成本配置数据。管理员身份通过 sub2api iframe token 或独立账号密码登录验证。页面上架功能会额外使用具备读写权限的连接访问 sub2api PostgreSQL 的 `settings` 表，同步 `custom_menu_items`；运维首字延迟看板与运营中心则使用同一连接只读 `usage_logs`、`groups` 和 `accounts` 表，不会把 sub2api 的业务表映射到扩展 Ent schema。
 
 ## 1. 部署 sub2api-extension
 
@@ -165,6 +165,8 @@ Dashboard 的规范路径是：
 /admin/dashboard
 ```
 
+运营中心路径为 `/admin/ops/consumption` 与 `/admin/ops/cost-config`。消费核算按天聚合收入、请求量、Token、API 成本、OAuth 账号成本、毛利/税前利润、税额、税后利润和利润率，日期范围最多 93 天；全局默认配置、税点和每个账号的独立成本配置写入扩展自有数据库，不会修改 Sub2API 数据库。税点以百分比配置，例如 `6` 表示 `6%`，并按收入计提：`税额 = 收入 × 税点`，`税前利润 = 收入 − 总成本`，`税后利润 = 税前利润 − 税额`。OAuth 账号按账号 ID 配置采购单价，并在筛选范围内按独立账号计入、归集到首次使用日；API 账号按账号 ID 配置倍率，支持手工覆盖或定时同步 Sub2API `accounts.rate_multiplier`。历史 usage log 优先使用 `account_rate_multiplier` 快照，因此上游倍率后续变化不会改写已经发生的成本。
+
 Dashboard 列出当前注册页面，标题和路径都可点击：
 
 | 页面 | 路径 |
@@ -242,6 +244,11 @@ sub2api 会从 `custom_menu_items[].url` 提取 origin，并自动加入 `Conten
 - [ ] 管理员点击「内容分析」后 iframe 能显示 Dashboard。
 - [ ] 管理员点击「首字延迟」后，运维看板能从 Sub2API PostgreSQL 读取 `usage_logs.first_token_ms`。
 - [ ] 首字延迟看板的日期、时间段、分组、账号和分钟/小时/天粒度筛选能正常刷新火焰图。
+- [ ] 管理员点击「消费核算」后，运营中心能按日期范围展示收入、API 成本、OAuth 成本、毛利/税前利润、税额、税后利润与利润率。
+- [ ] 管理员在「成本配置」修改税点并保存后，刷新页面仍能读取，消费核算按新税点重新计算税额与税后利润。
+- [ ] 管理员在「成本配置」按账号保存 OAuth 单号成本或 API 手工倍率。
+- [ ] 「成本配置」可以立即同步 Sub2API 账号倍率，并显示最近同步时间；定时同步间隔由 `SUB2API_EXTENSION_COST_SYNC_INTERVAL_SECONDS` 配置（默认 300 秒）。
+- [ ] 上游倍率变化后，历史记录仍按 `usage_logs.account_rate_multiplier` 快照核算，未带快照的新记录才使用当前账号配置。
 - [ ] 页面管理保存 `home` 后，刷新公开首页可读取最新 HTML。
 - [ ] Dashboard 中当前注册页面链接均可打开。
 - [ ] 交互示例的操作会进入 Dashboard 功能使用度。

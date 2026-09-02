@@ -17,6 +17,8 @@ import DashboardPage from '@/pages/admin/DashboardPage'
 import PageManagementPage from '@/pages/admin/PageManagementPage'
 import ImageAssetsPage from '@/pages/admin/ImageAssetsPage'
 import TTFTFlamegraphPage from '@/pages/admin/TTFTFlamegraphPage'
+import ConsumptionPage from '@/pages/admin/ConsumptionPage'
+import CostConfigPage from '@/pages/admin/CostConfigPage'
 import AdminDynamicPage from '@/pages/admin/AdminDynamicPage'
 import DynamicPage from '@/pages/DynamicPage'
 import ContentExamplePage from '@/pages/examples/ContentExamplePage'
@@ -84,6 +86,8 @@ export default function App() {
         <Route path="pages" element={<PageManagementPage />} />
         <Route path="assets" element={<ImageAssetsPage />} />
         <Route path="ops/ttft" element={<TTFTFlamegraphPage />} />
+        <Route path="ops/consumption" element={<ConsumptionPage />} />
+        <Route path="ops/cost-config" element={<CostConfigPage />} />
         {/* 动态页面(admin): /admin/p/:slug, 经 AdminGuard, on-demand fetch */}
         <Route path="p/:slug" element={<AdminDynamicPage />} />
         <Route path="examples/content" element={<ContentExamplePage />} />

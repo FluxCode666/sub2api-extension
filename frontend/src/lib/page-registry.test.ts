@@ -27,6 +27,18 @@ const expectedPages = [
     path: '/admin/ops/ttft',
     visibility: 'admin',
   },
+  {
+    id: 'ops-consumption',
+    title: '消费核算',
+    path: '/admin/ops/consumption',
+    visibility: 'admin',
+  },
+  {
+    id: 'ops-cost-config',
+    title: '成本配置',
+    path: '/admin/ops/cost-config',
+    visibility: 'admin',
+  },
 ]
 
 describe('page-registry', () => {

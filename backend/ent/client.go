@@ -11,6 +11,7 @@ import (
 
 	"sub2api-extension/ent/migrate"
 
+	"sub2api-extension/ent/accountcostconfig"
 	"sub2api-extension/ent/featureclick"
 	"sub2api-extension/ent/imageasset"
 	"sub2api-extension/ent/page"
@@ -27,6 +28,8 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
+	// AccountCostConfig is the client for interacting with the AccountCostConfig builders.
+	AccountCostConfig *AccountCostConfigClient
 	// FeatureClick is the client for interacting with the FeatureClick builders.
 	FeatureClick *FeatureClickClient
 	// ImageAsset is the client for interacting with the ImageAsset builders.
@@ -48,6 +51,7 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
+	c.AccountCostConfig = NewAccountCostConfigClient(c.config)
 	c.FeatureClick = NewFeatureClickClient(c.config)
 	c.ImageAsset = NewImageAssetClient(c.config)
 	c.Page = NewPageClient(c.config)
@@ -143,13 +147,14 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:          ctx,
-		config:       cfg,
-		FeatureClick: NewFeatureClickClient(cfg),
-		ImageAsset:   NewImageAssetClient(cfg),
-		Page:         NewPageClient(cfg),
-		PageView:     NewPageViewClient(cfg),
-		SystemMeta:   NewSystemMetaClient(cfg),
+		ctx:               ctx,
+		config:            cfg,
+		AccountCostConfig: NewAccountCostConfigClient(cfg),
+		FeatureClick:      NewFeatureClickClient(cfg),
+		ImageAsset:        NewImageAssetClient(cfg),
+		Page:              NewPageClient(cfg),
+		PageView:          NewPageViewClient(cfg),
+		SystemMeta:        NewSystemMetaClient(cfg),
 	}, nil
 }
 
@@ -167,20 +172,21 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:          ctx,
-		config:       cfg,
-		FeatureClick: NewFeatureClickClient(cfg),
-		ImageAsset:   NewImageAssetClient(cfg),
-		Page:         NewPageClient(cfg),
-		PageView:     NewPageViewClient(cfg),
-		SystemMeta:   NewSystemMetaClient(cfg),
+		ctx:               ctx,
+		config:            cfg,
+		AccountCostConfig: NewAccountCostConfigClient(cfg),
+		FeatureClick:      NewFeatureClickClient(cfg),
+		ImageAsset:        NewImageAssetClient(cfg),
+		Page:              NewPageClient(cfg),
+		PageView:          NewPageViewClient(cfg),
+		SystemMeta:        NewSystemMetaClient(cfg),
 	}, nil
 }
 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		FeatureClick.
+//		AccountCostConfig.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -202,26 +208,30 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
-	c.FeatureClick.Use(hooks...)
-	c.ImageAsset.Use(hooks...)
-	c.Page.Use(hooks...)
-	c.PageView.Use(hooks...)
-	c.SystemMeta.Use(hooks...)
+	for _, n := range []interface{ Use(...Hook) }{
+		c.AccountCostConfig, c.FeatureClick, c.ImageAsset, c.Page, c.PageView,
+		c.SystemMeta,
+	} {
+		n.Use(hooks...)
+	}
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
-	c.FeatureClick.Intercept(interceptors...)
-	c.ImageAsset.Intercept(interceptors...)
-	c.Page.Intercept(interceptors...)
-	c.PageView.Intercept(interceptors...)
-	c.SystemMeta.Intercept(interceptors...)
+	for _, n := range []interface{ Intercept(...Interceptor) }{
+		c.AccountCostConfig, c.FeatureClick, c.ImageAsset, c.Page, c.PageView,
+		c.SystemMeta,
+	} {
+		n.Intercept(interceptors...)
+	}
 }
 
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
+	case *AccountCostConfigMutation:
+		return c.AccountCostConfig.mutate(ctx, m)
 	case *FeatureClickMutation:
 		return c.FeatureClick.mutate(ctx, m)
 	case *ImageAssetMutation:
@@ -234,6 +244,139 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.SystemMeta.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
+	}
+}
+
+// AccountCostConfigClient is a client for the AccountCostConfig schema.
+type AccountCostConfigClient struct {
+	config
+}
+
+// NewAccountCostConfigClient returns a client for the AccountCostConfig from the given config.
+func NewAccountCostConfigClient(c config) *AccountCostConfigClient {
+	return &AccountCostConfigClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `accountcostconfig.Hooks(f(g(h())))`.
+func (c *AccountCostConfigClient) Use(hooks ...Hook) {
+	c.hooks.AccountCostConfig = append(c.hooks.AccountCostConfig, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `accountcostconfig.Intercept(f(g(h())))`.
+func (c *AccountCostConfigClient) Intercept(interceptors ...Interceptor) {
+	c.inters.AccountCostConfig = append(c.inters.AccountCostConfig, interceptors...)
+}
+
+// Create returns a builder for creating a AccountCostConfig entity.
+func (c *AccountCostConfigClient) Create() *AccountCostConfigCreate {
+	mutation := newAccountCostConfigMutation(c.config, OpCreate)
+	return &AccountCostConfigCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of AccountCostConfig entities.
+func (c *AccountCostConfigClient) CreateBulk(builders ...*AccountCostConfigCreate) *AccountCostConfigCreateBulk {
+	return &AccountCostConfigCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *AccountCostConfigClient) MapCreateBulk(slice any, setFunc func(*AccountCostConfigCreate, int)) *AccountCostConfigCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &AccountCostConfigCreateBulk{err: fmt.Errorf("calling to AccountCostConfigClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*AccountCostConfigCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &AccountCostConfigCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for AccountCostConfig.
+func (c *AccountCostConfigClient) Update() *AccountCostConfigUpdate {
+	mutation := newAccountCostConfigMutation(c.config, OpUpdate)
+	return &AccountCostConfigUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *AccountCostConfigClient) UpdateOne(_m *AccountCostConfig) *AccountCostConfigUpdateOne {
+	mutation := newAccountCostConfigMutation(c.config, OpUpdateOne, withAccountCostConfig(_m))
+	return &AccountCostConfigUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *AccountCostConfigClient) UpdateOneID(id int) *AccountCostConfigUpdateOne {
+	mutation := newAccountCostConfigMutation(c.config, OpUpdateOne, withAccountCostConfigID(id))
+	return &AccountCostConfigUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for AccountCostConfig.
+func (c *AccountCostConfigClient) Delete() *AccountCostConfigDelete {
+	mutation := newAccountCostConfigMutation(c.config, OpDelete)
+	return &AccountCostConfigDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *AccountCostConfigClient) DeleteOne(_m *AccountCostConfig) *AccountCostConfigDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *AccountCostConfigClient) DeleteOneID(id int) *AccountCostConfigDeleteOne {
+	builder := c.Delete().Where(accountcostconfig.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &AccountCostConfigDeleteOne{builder}
+}
+
+// Query returns a query builder for AccountCostConfig.
+func (c *AccountCostConfigClient) Query() *AccountCostConfigQuery {
+	return &AccountCostConfigQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAccountCostConfig},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a AccountCostConfig entity by its id.
+func (c *AccountCostConfigClient) Get(ctx context.Context, id int) (*AccountCostConfig, error) {
+	return c.Query().Where(accountcostconfig.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *AccountCostConfigClient) GetX(ctx context.Context, id int) *AccountCostConfig {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *AccountCostConfigClient) Hooks() []Hook {
+	return c.hooks.AccountCostConfig
+}
+
+// Interceptors returns the client interceptors.
+func (c *AccountCostConfigClient) Interceptors() []Interceptor {
+	return c.inters.AccountCostConfig
+}
+
+func (c *AccountCostConfigClient) mutate(ctx context.Context, m *AccountCostConfigMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&AccountCostConfigCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&AccountCostConfigUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&AccountCostConfigUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&AccountCostConfigDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown AccountCostConfig mutation op: %q", m.Op())
 	}
 }
 
@@ -905,9 +1048,11 @@ func (c *SystemMetaClient) mutate(ctx context.Context, m *SystemMetaMutation) (V
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		FeatureClick, ImageAsset, Page, PageView, SystemMeta []ent.Hook
+		AccountCostConfig, FeatureClick, ImageAsset, Page, PageView,
+		SystemMeta []ent.Hook
 	}
 	inters struct {
-		FeatureClick, ImageAsset, Page, PageView, SystemMeta []ent.Interceptor
+		AccountCostConfig, FeatureClick, ImageAsset, Page, PageView,
+		SystemMeta []ent.Interceptor
 	}
 )

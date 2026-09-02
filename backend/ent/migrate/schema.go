@@ -9,6 +9,27 @@ import (
 )
 
 var (
+	// AccountCostConfigsColumns holds the columns for the "account_cost_configs" table.
+	AccountCostConfigsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "account_id", Type: field.TypeInt64, Unique: true},
+		{Name: "account_type", Type: field.TypeString, Size: 32, Default: "api"},
+		{Name: "name", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "platform", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "oauth_account_cost", Type: field.TypeFloat64, Nullable: true},
+		{Name: "api_multiplier_override", Type: field.TypeFloat64, Nullable: true},
+		{Name: "synced_api_multiplier", Type: field.TypeFloat64, Nullable: true},
+		{Name: "api_multiplier_mode", Type: field.TypeString, Size: 16, Default: "sync"},
+		{Name: "last_synced_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// AccountCostConfigsTable holds the schema information for the "account_cost_configs" table.
+	AccountCostConfigsTable = &schema.Table{
+		Name:       "account_cost_configs",
+		Columns:    AccountCostConfigsColumns,
+		PrimaryKey: []*schema.Column{AccountCostConfigsColumns[0]},
+	}
 	// FeatureClicksColumns holds the columns for the "feature_clicks" table.
 	FeatureClicksColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -165,6 +186,7 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		AccountCostConfigsTable,
 		FeatureClicksTable,
 		ImageAssetsTable,
 		PagesTable,

@@ -6,6 +6,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// AccountCostConfig is the predicate function for accountcostconfig builders.
+type AccountCostConfig func(*sql.Selector)
+
 // FeatureClick is the predicate function for featureclick builders.
 type FeatureClick func(*sql.Selector)
 
