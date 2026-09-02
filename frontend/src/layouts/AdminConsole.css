@@ -45,6 +45,26 @@ html.dark .aux-admin-shell {
   padding: 20px 16px 18px;
 }
 
+/* Keep the brand mark centered and fully visible in the icon-only rail. The
+ * expanded header has enough room for the inner horizontal padding, but that
+ * same padding leaves less than the mark's width when the rail is 3rem wide.
+ */
+.aux-admin-shell [data-collapsible="icon"] [data-sidebar="header"] {
+  padding: 18px 8px;
+}
+
+.aux-admin-shell [data-collapsible="icon"] [data-sidebar="header"] > div {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.aux-admin-shell [data-collapsible="icon"] [data-sidebar="header"] > div > div:first-child {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+}
+
 .aux-admin-shell [data-sidebar="header"] > div > div:first-child {
   width: 36px;
   height: 36px;
