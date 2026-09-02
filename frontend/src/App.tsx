@@ -41,8 +41,8 @@ function NotFound() {
       <div className="max-w-md text-center">
         <p className="aux-not-found-code">404</p>
         <h1>页面不存在</h1>
-        <p>当前地址没有对应内容，可以返回 TERALEMO 官网继续浏览。</p>
-        <Link to="/p/home" className="aux-surface-button">返回官网首页</Link>
+        <p>当前地址没有对应内容，可以返回管理控制台继续操作。</p>
+        <Link to="/admin/dashboard" className="aux-surface-button">返回管理控制台</Link>
       </div>
     </main>
   )
