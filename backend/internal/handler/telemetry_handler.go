@@ -10,6 +10,7 @@ package handler
 
 import (
 	"errors"
+	"log"
 
 	"sub2api-extension/internal/pkg/response"
 	"sub2api-extension/internal/service"
@@ -62,11 +63,13 @@ type TelemetryResponse struct {
 func (h *TelemetryHandler) RecordPageView(c *gin.Context) {
 	var req PageViewRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("[TelemetryHandler.RecordPageView] invalid request body: %v", err)
 		response.BadRequest(c, "page_id and visitor_id are required")
 		return
 	}
 
 	if err := h.telemetryService.RecordPageView(c.Request.Context(), req.PageID, req.VisitorID, req.IsAdmin); err != nil {
+		log.Printf("[TelemetryHandler.RecordPageView] record failed page_id=%q: %v", req.PageID, err)
 		if errors.Is(err, service.ErrEmptyPageID) || errors.Is(err, service.ErrEmptyVisitorID) || errors.Is(err, service.ErrTooLongField) {
 			response.BadRequest(c, err.Error())
 			return
@@ -84,11 +87,13 @@ func (h *TelemetryHandler) RecordPageView(c *gin.Context) {
 func (h *TelemetryHandler) RecordFeatureClick(c *gin.Context) {
 	var req FeatureClickRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("[TelemetryHandler.RecordFeatureClick] invalid request body: %v", err)
 		response.BadRequest(c, "page_id, feature_id and visitor_id are required")
 		return
 	}
 
 	if err := h.telemetryService.RecordFeatureClick(c.Request.Context(), req.PageID, req.FeatureID, req.VisitorID, req.IsAdmin); err != nil {
+		log.Printf("[TelemetryHandler.RecordFeatureClick] record failed page_id=%q feature_id=%q: %v", req.PageID, req.FeatureID, err)
 		if errors.Is(err, service.ErrEmptyPageID) || errors.Is(err, service.ErrEmptyFeatureID) || errors.Is(err, service.ErrEmptyVisitorID) || errors.Is(err, service.ErrTooLongField) {
 			response.BadRequest(c, err.Error())
 			return

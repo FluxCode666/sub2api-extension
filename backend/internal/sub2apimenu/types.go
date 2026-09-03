@@ -10,6 +10,7 @@ type PagePublication struct {
 	Slug       string
 	Label      string
 	URL        string
+	PageSlug   string
 	Visibility string
 }
 
@@ -18,4 +19,13 @@ type Publisher interface {
 	List(ctx context.Context) (map[string]PagePublication, error)
 	Publish(ctx context.Context, publication PagePublication) error
 	Unpublish(ctx context.Context, menuID string) error
+}
+
+// PublicationMatcher optionally verifies that a menu item still matches the
+// publication desired by the extension. It is intentionally separate from
+// Publisher so existing test fakes and alternative publishers remain source
+// compatible; the service falls back to comparing the portable fields when it
+// is not implemented.
+type PublicationMatcher interface {
+	PublicationMatches(expected, actual PagePublication) (bool, string)
 }

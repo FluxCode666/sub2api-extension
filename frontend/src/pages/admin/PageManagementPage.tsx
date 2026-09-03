@@ -1,7 +1,7 @@
 /**
  * 页面管理页 —— 管理员动态页面 CRUD。
  *
- * /admin/pages: 列出所有动态页面(标题/slug/路由/可见性/状态/操作)。
+ * /admin/pages: 列出所有动态页面(标题/slug/路由/可见性/创建时间/状态/sub2api 权限/操作)。
  * 创建/编辑: Dialog 表单(Monaco 编辑器编辑 HTML, slug 实时校验, 可见性/内容类型选择)。
  * 删除: 确认对话框(提示埋点历史保留)。
  * 启停: Switch 切换 enabled；支持按选择导出和 JSON 导入。
@@ -10,7 +10,7 @@
  */
 import { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
-import { apiClient, type AuxEnvelope } from '@/lib/api-client'
+import { apiClient, AuxApiError, type AuxEnvelope } from '@/lib/api-client'
 import { refreshDynamicPages } from '@/lib/dynamic-pages'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -58,6 +58,7 @@ interface PageListItem {
   route: string
   page_id: string
   menu_icon?: string
+  created_at: string
   updated_at: string
   sub2api_published: boolean
   sub2api_visibility?: 'user' | 'admin'
@@ -147,6 +148,18 @@ const MAX_CONTENT_BYTES = 256 * 1024
 
 function pageRouteFor(slug: string, visibility: 'public' | 'admin'): string {
   return visibility === 'admin' ? `/admin/p/${slug}` : `/p/${slug}`
+}
+
+function formatDateTime(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value || '—'
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -259,7 +272,8 @@ export default function PageManagementPage() {
       setPages(nextPages)
       setSelectedIds((current) => new Set([...current].filter((id) => nextPages.some((page) => page.id === id))))
       return true
-    } catch {
+    } catch (error) {
+      console.error('[PageManagementPage] failed to load pages', error)
       setError('加载页面列表失败,请检查会话或网络')
       return false
     } finally {
@@ -352,6 +366,7 @@ export default function PageManagementPage() {
       URL.revokeObjectURL(href)
       toast.success(`已导出 ${details.length} 个页面`)
     } catch (error) {
+      console.error('[PageManagementPage] page export failed', error)
       toast.error(error instanceof Error ? error.message : '导出页面失败')
     } finally {
       setExporting(false)
@@ -400,6 +415,7 @@ export default function PageManagementPage() {
       await refreshDynamicPages({ includeAdmin: true })
       toast.success(`导入完成：新增 ${created} 个，幂等更新 ${updated} 个`)
     } catch (error) {
+      console.error('[PageManagementPage] page import failed', error)
       toast.error(error instanceof Error ? error.message : '导入页面失败')
     } finally {
       setImporting(false)
@@ -484,7 +500,8 @@ export default function PageManagementPage() {
         })
         setMetadataEntries(editableMetadataEntries)
       }
-    } catch {
+    } catch (error) {
+      console.error('[PageManagementPage] failed to load page detail', error)
       const message = '加载页面详情失败'
       setFormError(message)
       toast.error(message)
@@ -525,6 +542,7 @@ export default function PageManagementPage() {
       return
     }
     setSaving(true)
+    let saveResponse: AuxEnvelope<PageDetail> | undefined
     try {
       const metadata = { ...form.metadata }
       if (form.visibility === 'admin') {
@@ -547,20 +565,47 @@ export default function PageManagementPage() {
         sub2api_menu_name: form.sub2api_menu_name,
       }
       if (editingId !== null) {
-        await apiClient.put(`/admin/pages/${editingId}`, body)
+        saveResponse = await apiClient.put<AuxEnvelope<PageDetail>>(`/admin/pages/${editingId}`, body)
       } else {
-        await apiClient.post('/admin/pages', body)
+        saveResponse = await apiClient.post<AuxEnvelope<PageDetail>>('/admin/pages', body)
       }
-      setDialogOpen(false)
-      toast.success(editingId !== null ? '页面保存成功' : '页面创建成功')
-      await loadPages()
-      await refreshDynamicPages({ includeAdmin: true })
-    } catch {
-      const message = '保存失败,可能 slug 冲突或会话过期'
+    } catch (error) {
+      console.error('[PageManagementPage] page save failed', error)
+      let message = '保存失败，请检查网络或服务端日志'
+      if (error instanceof AuxApiError) {
+        if (error.status === 409 || /slug already exists/i.test(error.message)) {
+          message = '保存失败：slug 已存在，请更换后重试'
+        } else if (error.status === 401) {
+          message = '保存失败：会话已过期，请重新登录'
+        } else if (error.message) {
+          message = `保存失败：${error.message}`
+        }
+      } else if (error instanceof Error && error.message) {
+        message = `保存失败：${error.message}`
+      }
       setFormError(message)
       toast.error(message)
     } finally {
       setSaving(false)
+    }
+    if (!saveResponse) return
+    setDialogOpen(false)
+    if (saveResponse.reason) {
+      toast.warning(saveResponse.reason)
+    } else {
+      toast.success(editingId !== null ? '页面保存成功' : '页面创建成功')
+    }
+    // 主页面保存与列表刷新解耦：刷新/侧边栏缓存失败不应把已成功的保存显示成失败。
+    try {
+      const refreshed = await loadPages()
+      await refreshDynamicPages({ includeAdmin: true })
+      if (!refreshed) {
+        toast.warning('页面已保存，但列表刷新失败，请手动刷新')
+      }
+    } catch (error) {
+      // loadPages 自身会设置列表错误；这里仅提示刷新失败，不回写“保存失败”。
+      console.error('[PageManagementPage] page saved but refresh failed', error)
+      toast.warning('页面已保存，但列表刷新失败，请手动刷新')
     }
   }
 
@@ -578,7 +623,7 @@ export default function PageManagementPage() {
         return
       }
       // 发送完整数据，只更新 enabled 字段
-      await apiClient.put(`/admin/pages/${page.id}`, {
+      const saveResponse = await apiClient.put<AuxEnvelope<PageDetail>>(`/admin/pages/${page.id}`, {
         slug: detail.slug,
         title: detail.title,
         visibility: detail.visibility,
@@ -591,10 +636,15 @@ export default function PageManagementPage() {
         sub2api_visibility: detail.sub2api_visibility ?? (detail.visibility === 'admin' ? 'admin' : 'user'),
         sub2api_menu_name: detail.sub2api_menu_name ?? detail.title,
       })
-      toast.success(`${page.title}已${page.enabled ? '停用' : '启用'}`)
+      if (saveResponse.reason) {
+        toast.warning(saveResponse.reason)
+      } else {
+        toast.success(`${page.title}已${page.enabled ? '停用' : '启用'}`)
+      }
       await loadPages()
       await refreshDynamicPages({ includeAdmin: true })
-    } catch {
+    } catch (error) {
+      console.error('[PageManagementPage] failed to toggle page enabled state', error)
       const message = '切换状态失败'
       setError(message)
       toast.error(message)
@@ -612,7 +662,7 @@ export default function PageManagementPage() {
       if (!detail) {
         throw new Error('获取页面详情失败')
       }
-      await apiClient.put(`/admin/pages/${page.id}`, {
+      const saveResponse = await apiClient.put<AuxEnvelope<PageDetail>>(`/admin/pages/${page.id}`, {
         slug: detail.slug,
         title: detail.title,
         visibility: detail.visibility,
@@ -625,11 +675,23 @@ export default function PageManagementPage() {
         sub2api_visibility: detail.sub2api_visibility ?? (detail.visibility === 'admin' ? 'admin' : 'user'),
         sub2api_menu_name: detail.sub2api_menu_name ?? detail.title,
       })
-      toast.success(`${page.title}已${page.sub2api_published ? '下架' : '上架'}到 sub2api`)
+      if (saveResponse.reason) {
+        toast.warning(saveResponse.reason)
+      } else {
+        toast.success(`${page.title}已${page.sub2api_published ? '下架' : '上架'}到 sub2api`)
+      }
       await loadPages()
       await refreshDynamicPages({ includeAdmin: true })
-    } catch {
-      const message = '同步 sub2api 菜单失败，请检查 sub2api 数据库连接与公网地址配置'
+    } catch (error) {
+      console.error('[PageManagementPage] failed to toggle sub2api publication', error)
+      let message = '同步 sub2api 菜单失败，请检查 sub2api 数据库连接与公网地址配置'
+      if (error instanceof AuxApiError) {
+        if (error.status === 401) {
+          message = '同步失败：会话已过期，请重新登录'
+        } else if (error.message) {
+          message = `同步失败：${error.message}`
+        }
+      }
       setError(message)
       toast.error(message)
     } finally {
@@ -646,7 +708,8 @@ export default function PageManagementPage() {
       toast.success('页面删除成功')
       await loadPages()
       await refreshDynamicPages({ includeAdmin: true })
-    } catch {
+    } catch (error) {
+      console.error('[PageManagementPage] page delete failed', error)
       const message = '删除失败'
       setError(message)
       toast.error(message)
@@ -723,21 +786,23 @@ export default function PageManagementPage() {
               <TableHead>Slug</TableHead>
               <TableHead>路由</TableHead>
               <TableHead>可见性</TableHead>
+              <TableHead>创建时间</TableHead>
               <TableHead>状态</TableHead>
               <TableHead>sub2api</TableHead>
+              <TableHead>sub2api 可见角色</TableHead>
               <TableHead className="text-right">操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center text-sm text-gray-400">
+                <TableCell colSpan={10} className="h-24 text-center text-sm text-gray-400">
                   加载中…
                 </TableCell>
               </TableRow>
             ) : pages.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center text-sm text-gray-400">
+                <TableCell colSpan={10} className="h-24 text-center text-sm text-gray-400">
                   暂无动态页面,点击"新建页面"创建。
                 </TableCell>
               </TableRow>
@@ -776,6 +841,9 @@ export default function PageManagementPage() {
                       {page.visibility === 'admin' ? '管理员' : '公开'}
                     </span>
                   </TableCell>
+                  <TableCell className="whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                    {formatDateTime(page.created_at)}
+                  </TableCell>
                   <TableCell>
                     <div className="aux-page-status-control">
                       <Switch
@@ -802,6 +870,15 @@ export default function PageManagementPage() {
                         {page.sub2api_published ? '已上架' : '未上架'}
                       </span>
                     </div>
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${
+                      page.sub2api_visibility === 'admin'
+                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                        : 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300'
+                    }`}>
+                      {page.sub2api_visibility === 'admin' ? '管理员' : '普通用户'}
+                    </span>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">

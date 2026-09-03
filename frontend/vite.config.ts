@@ -6,13 +6,14 @@ import { resolve } from 'path'
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, resolve(__dirname), '')
-  // Docker development uses the host port from deploy/.env.dev (8788 in the
-  // checked-in local setup). Set VITE_AUX_BACKEND_URL when using the standalone
-  // backend Makefile target (8004) or another local backend port.
-  const deployEnv = loadEnv('dev', resolve(__dirname, '../deploy'), '')
+  // The standalone `cd backend && make dev` target listens on 8004. Use
+  // localhost so the OS can select the available loopback family (on macOS
+  // this avoids a stale IPv4 service shadowing the IPv6 development backend).
+  // Docker
+  // development uses 8788, so set VITE_AUX_BACKEND_URL explicitly when the
+  // backend is running via `make dev-up` (or on another local port).
   const configuredTarget = env.VITE_AUX_BACKEND_URL || env.AUX_BACKEND_URL
-  const deployPort = deployEnv.SUB2API_EXTENSION_SERVER_PORT
-  const backendTarget = configuredTarget || (deployPort ? `http://127.0.0.1:${deployPort}` : 'http://127.0.0.1:8004')
+  const backendTarget = configuredTarget || 'http://localhost:8004'
 
   return {
     plugins: [react()],

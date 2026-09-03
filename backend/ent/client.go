@@ -14,8 +14,15 @@ import (
 	"sub2api-extension/ent/accountcostconfig"
 	"sub2api-extension/ent/featureclick"
 	"sub2api-extension/ent/imageasset"
+	"sub2api-extension/ent/invoiceorder"
+	"sub2api-extension/ent/invoiceprofile"
+	"sub2api-extension/ent/invoicerequest"
+	"sub2api-extension/ent/notificationchannel"
+	"sub2api-extension/ent/notificationdelivery"
+	"sub2api-extension/ent/operationlog"
 	"sub2api-extension/ent/page"
 	"sub2api-extension/ent/pageview"
+	"sub2api-extension/ent/systemlog"
 	"sub2api-extension/ent/systemmeta"
 
 	"entgo.io/ent"
@@ -34,10 +41,24 @@ type Client struct {
 	FeatureClick *FeatureClickClient
 	// ImageAsset is the client for interacting with the ImageAsset builders.
 	ImageAsset *ImageAssetClient
+	// InvoiceOrder is the client for interacting with the InvoiceOrder builders.
+	InvoiceOrder *InvoiceOrderClient
+	// InvoiceProfile is the client for interacting with the InvoiceProfile builders.
+	InvoiceProfile *InvoiceProfileClient
+	// InvoiceRequest is the client for interacting with the InvoiceRequest builders.
+	InvoiceRequest *InvoiceRequestClient
+	// NotificationChannel is the client for interacting with the NotificationChannel builders.
+	NotificationChannel *NotificationChannelClient
+	// NotificationDelivery is the client for interacting with the NotificationDelivery builders.
+	NotificationDelivery *NotificationDeliveryClient
+	// OperationLog is the client for interacting with the OperationLog builders.
+	OperationLog *OperationLogClient
 	// Page is the client for interacting with the Page builders.
 	Page *PageClient
 	// PageView is the client for interacting with the PageView builders.
 	PageView *PageViewClient
+	// SystemLog is the client for interacting with the SystemLog builders.
+	SystemLog *SystemLogClient
 	// SystemMeta is the client for interacting with the SystemMeta builders.
 	SystemMeta *SystemMetaClient
 }
@@ -54,8 +75,15 @@ func (c *Client) init() {
 	c.AccountCostConfig = NewAccountCostConfigClient(c.config)
 	c.FeatureClick = NewFeatureClickClient(c.config)
 	c.ImageAsset = NewImageAssetClient(c.config)
+	c.InvoiceOrder = NewInvoiceOrderClient(c.config)
+	c.InvoiceProfile = NewInvoiceProfileClient(c.config)
+	c.InvoiceRequest = NewInvoiceRequestClient(c.config)
+	c.NotificationChannel = NewNotificationChannelClient(c.config)
+	c.NotificationDelivery = NewNotificationDeliveryClient(c.config)
+	c.OperationLog = NewOperationLogClient(c.config)
 	c.Page = NewPageClient(c.config)
 	c.PageView = NewPageViewClient(c.config)
+	c.SystemLog = NewSystemLogClient(c.config)
 	c.SystemMeta = NewSystemMetaClient(c.config)
 }
 
@@ -147,14 +175,21 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:               ctx,
-		config:            cfg,
-		AccountCostConfig: NewAccountCostConfigClient(cfg),
-		FeatureClick:      NewFeatureClickClient(cfg),
-		ImageAsset:        NewImageAssetClient(cfg),
-		Page:              NewPageClient(cfg),
-		PageView:          NewPageViewClient(cfg),
-		SystemMeta:        NewSystemMetaClient(cfg),
+		ctx:                  ctx,
+		config:               cfg,
+		AccountCostConfig:    NewAccountCostConfigClient(cfg),
+		FeatureClick:         NewFeatureClickClient(cfg),
+		ImageAsset:           NewImageAssetClient(cfg),
+		InvoiceOrder:         NewInvoiceOrderClient(cfg),
+		InvoiceProfile:       NewInvoiceProfileClient(cfg),
+		InvoiceRequest:       NewInvoiceRequestClient(cfg),
+		NotificationChannel:  NewNotificationChannelClient(cfg),
+		NotificationDelivery: NewNotificationDeliveryClient(cfg),
+		OperationLog:         NewOperationLogClient(cfg),
+		Page:                 NewPageClient(cfg),
+		PageView:             NewPageViewClient(cfg),
+		SystemLog:            NewSystemLogClient(cfg),
+		SystemMeta:           NewSystemMetaClient(cfg),
 	}, nil
 }
 
@@ -172,14 +207,21 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:               ctx,
-		config:            cfg,
-		AccountCostConfig: NewAccountCostConfigClient(cfg),
-		FeatureClick:      NewFeatureClickClient(cfg),
-		ImageAsset:        NewImageAssetClient(cfg),
-		Page:              NewPageClient(cfg),
-		PageView:          NewPageViewClient(cfg),
-		SystemMeta:        NewSystemMetaClient(cfg),
+		ctx:                  ctx,
+		config:               cfg,
+		AccountCostConfig:    NewAccountCostConfigClient(cfg),
+		FeatureClick:         NewFeatureClickClient(cfg),
+		ImageAsset:           NewImageAssetClient(cfg),
+		InvoiceOrder:         NewInvoiceOrderClient(cfg),
+		InvoiceProfile:       NewInvoiceProfileClient(cfg),
+		InvoiceRequest:       NewInvoiceRequestClient(cfg),
+		NotificationChannel:  NewNotificationChannelClient(cfg),
+		NotificationDelivery: NewNotificationDeliveryClient(cfg),
+		OperationLog:         NewOperationLogClient(cfg),
+		Page:                 NewPageClient(cfg),
+		PageView:             NewPageViewClient(cfg),
+		SystemLog:            NewSystemLogClient(cfg),
+		SystemMeta:           NewSystemMetaClient(cfg),
 	}, nil
 }
 
@@ -209,7 +251,9 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.AccountCostConfig, c.FeatureClick, c.ImageAsset, c.Page, c.PageView,
+		c.AccountCostConfig, c.FeatureClick, c.ImageAsset, c.InvoiceOrder,
+		c.InvoiceProfile, c.InvoiceRequest, c.NotificationChannel,
+		c.NotificationDelivery, c.OperationLog, c.Page, c.PageView, c.SystemLog,
 		c.SystemMeta,
 	} {
 		n.Use(hooks...)
@@ -220,7 +264,9 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.AccountCostConfig, c.FeatureClick, c.ImageAsset, c.Page, c.PageView,
+		c.AccountCostConfig, c.FeatureClick, c.ImageAsset, c.InvoiceOrder,
+		c.InvoiceProfile, c.InvoiceRequest, c.NotificationChannel,
+		c.NotificationDelivery, c.OperationLog, c.Page, c.PageView, c.SystemLog,
 		c.SystemMeta,
 	} {
 		n.Intercept(interceptors...)
@@ -236,10 +282,24 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.FeatureClick.mutate(ctx, m)
 	case *ImageAssetMutation:
 		return c.ImageAsset.mutate(ctx, m)
+	case *InvoiceOrderMutation:
+		return c.InvoiceOrder.mutate(ctx, m)
+	case *InvoiceProfileMutation:
+		return c.InvoiceProfile.mutate(ctx, m)
+	case *InvoiceRequestMutation:
+		return c.InvoiceRequest.mutate(ctx, m)
+	case *NotificationChannelMutation:
+		return c.NotificationChannel.mutate(ctx, m)
+	case *NotificationDeliveryMutation:
+		return c.NotificationDelivery.mutate(ctx, m)
+	case *OperationLogMutation:
+		return c.OperationLog.mutate(ctx, m)
 	case *PageMutation:
 		return c.Page.mutate(ctx, m)
 	case *PageViewMutation:
 		return c.PageView.mutate(ctx, m)
+	case *SystemLogMutation:
+		return c.SystemLog.mutate(ctx, m)
 	case *SystemMetaMutation:
 		return c.SystemMeta.mutate(ctx, m)
 	default:
@@ -646,6 +706,804 @@ func (c *ImageAssetClient) mutate(ctx context.Context, m *ImageAssetMutation) (V
 	}
 }
 
+// InvoiceOrderClient is a client for the InvoiceOrder schema.
+type InvoiceOrderClient struct {
+	config
+}
+
+// NewInvoiceOrderClient returns a client for the InvoiceOrder from the given config.
+func NewInvoiceOrderClient(c config) *InvoiceOrderClient {
+	return &InvoiceOrderClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `invoiceorder.Hooks(f(g(h())))`.
+func (c *InvoiceOrderClient) Use(hooks ...Hook) {
+	c.hooks.InvoiceOrder = append(c.hooks.InvoiceOrder, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `invoiceorder.Intercept(f(g(h())))`.
+func (c *InvoiceOrderClient) Intercept(interceptors ...Interceptor) {
+	c.inters.InvoiceOrder = append(c.inters.InvoiceOrder, interceptors...)
+}
+
+// Create returns a builder for creating a InvoiceOrder entity.
+func (c *InvoiceOrderClient) Create() *InvoiceOrderCreate {
+	mutation := newInvoiceOrderMutation(c.config, OpCreate)
+	return &InvoiceOrderCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of InvoiceOrder entities.
+func (c *InvoiceOrderClient) CreateBulk(builders ...*InvoiceOrderCreate) *InvoiceOrderCreateBulk {
+	return &InvoiceOrderCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *InvoiceOrderClient) MapCreateBulk(slice any, setFunc func(*InvoiceOrderCreate, int)) *InvoiceOrderCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &InvoiceOrderCreateBulk{err: fmt.Errorf("calling to InvoiceOrderClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*InvoiceOrderCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &InvoiceOrderCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for InvoiceOrder.
+func (c *InvoiceOrderClient) Update() *InvoiceOrderUpdate {
+	mutation := newInvoiceOrderMutation(c.config, OpUpdate)
+	return &InvoiceOrderUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *InvoiceOrderClient) UpdateOne(_m *InvoiceOrder) *InvoiceOrderUpdateOne {
+	mutation := newInvoiceOrderMutation(c.config, OpUpdateOne, withInvoiceOrder(_m))
+	return &InvoiceOrderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *InvoiceOrderClient) UpdateOneID(id int) *InvoiceOrderUpdateOne {
+	mutation := newInvoiceOrderMutation(c.config, OpUpdateOne, withInvoiceOrderID(id))
+	return &InvoiceOrderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for InvoiceOrder.
+func (c *InvoiceOrderClient) Delete() *InvoiceOrderDelete {
+	mutation := newInvoiceOrderMutation(c.config, OpDelete)
+	return &InvoiceOrderDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *InvoiceOrderClient) DeleteOne(_m *InvoiceOrder) *InvoiceOrderDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *InvoiceOrderClient) DeleteOneID(id int) *InvoiceOrderDeleteOne {
+	builder := c.Delete().Where(invoiceorder.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &InvoiceOrderDeleteOne{builder}
+}
+
+// Query returns a query builder for InvoiceOrder.
+func (c *InvoiceOrderClient) Query() *InvoiceOrderQuery {
+	return &InvoiceOrderQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeInvoiceOrder},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a InvoiceOrder entity by its id.
+func (c *InvoiceOrderClient) Get(ctx context.Context, id int) (*InvoiceOrder, error) {
+	return c.Query().Where(invoiceorder.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *InvoiceOrderClient) GetX(ctx context.Context, id int) *InvoiceOrder {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *InvoiceOrderClient) Hooks() []Hook {
+	return c.hooks.InvoiceOrder
+}
+
+// Interceptors returns the client interceptors.
+func (c *InvoiceOrderClient) Interceptors() []Interceptor {
+	return c.inters.InvoiceOrder
+}
+
+func (c *InvoiceOrderClient) mutate(ctx context.Context, m *InvoiceOrderMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&InvoiceOrderCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&InvoiceOrderUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&InvoiceOrderUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&InvoiceOrderDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown InvoiceOrder mutation op: %q", m.Op())
+	}
+}
+
+// InvoiceProfileClient is a client for the InvoiceProfile schema.
+type InvoiceProfileClient struct {
+	config
+}
+
+// NewInvoiceProfileClient returns a client for the InvoiceProfile from the given config.
+func NewInvoiceProfileClient(c config) *InvoiceProfileClient {
+	return &InvoiceProfileClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `invoiceprofile.Hooks(f(g(h())))`.
+func (c *InvoiceProfileClient) Use(hooks ...Hook) {
+	c.hooks.InvoiceProfile = append(c.hooks.InvoiceProfile, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `invoiceprofile.Intercept(f(g(h())))`.
+func (c *InvoiceProfileClient) Intercept(interceptors ...Interceptor) {
+	c.inters.InvoiceProfile = append(c.inters.InvoiceProfile, interceptors...)
+}
+
+// Create returns a builder for creating a InvoiceProfile entity.
+func (c *InvoiceProfileClient) Create() *InvoiceProfileCreate {
+	mutation := newInvoiceProfileMutation(c.config, OpCreate)
+	return &InvoiceProfileCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of InvoiceProfile entities.
+func (c *InvoiceProfileClient) CreateBulk(builders ...*InvoiceProfileCreate) *InvoiceProfileCreateBulk {
+	return &InvoiceProfileCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *InvoiceProfileClient) MapCreateBulk(slice any, setFunc func(*InvoiceProfileCreate, int)) *InvoiceProfileCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &InvoiceProfileCreateBulk{err: fmt.Errorf("calling to InvoiceProfileClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*InvoiceProfileCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &InvoiceProfileCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for InvoiceProfile.
+func (c *InvoiceProfileClient) Update() *InvoiceProfileUpdate {
+	mutation := newInvoiceProfileMutation(c.config, OpUpdate)
+	return &InvoiceProfileUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *InvoiceProfileClient) UpdateOne(_m *InvoiceProfile) *InvoiceProfileUpdateOne {
+	mutation := newInvoiceProfileMutation(c.config, OpUpdateOne, withInvoiceProfile(_m))
+	return &InvoiceProfileUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *InvoiceProfileClient) UpdateOneID(id int) *InvoiceProfileUpdateOne {
+	mutation := newInvoiceProfileMutation(c.config, OpUpdateOne, withInvoiceProfileID(id))
+	return &InvoiceProfileUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for InvoiceProfile.
+func (c *InvoiceProfileClient) Delete() *InvoiceProfileDelete {
+	mutation := newInvoiceProfileMutation(c.config, OpDelete)
+	return &InvoiceProfileDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *InvoiceProfileClient) DeleteOne(_m *InvoiceProfile) *InvoiceProfileDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *InvoiceProfileClient) DeleteOneID(id int) *InvoiceProfileDeleteOne {
+	builder := c.Delete().Where(invoiceprofile.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &InvoiceProfileDeleteOne{builder}
+}
+
+// Query returns a query builder for InvoiceProfile.
+func (c *InvoiceProfileClient) Query() *InvoiceProfileQuery {
+	return &InvoiceProfileQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeInvoiceProfile},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a InvoiceProfile entity by its id.
+func (c *InvoiceProfileClient) Get(ctx context.Context, id int) (*InvoiceProfile, error) {
+	return c.Query().Where(invoiceprofile.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *InvoiceProfileClient) GetX(ctx context.Context, id int) *InvoiceProfile {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *InvoiceProfileClient) Hooks() []Hook {
+	return c.hooks.InvoiceProfile
+}
+
+// Interceptors returns the client interceptors.
+func (c *InvoiceProfileClient) Interceptors() []Interceptor {
+	return c.inters.InvoiceProfile
+}
+
+func (c *InvoiceProfileClient) mutate(ctx context.Context, m *InvoiceProfileMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&InvoiceProfileCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&InvoiceProfileUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&InvoiceProfileUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&InvoiceProfileDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown InvoiceProfile mutation op: %q", m.Op())
+	}
+}
+
+// InvoiceRequestClient is a client for the InvoiceRequest schema.
+type InvoiceRequestClient struct {
+	config
+}
+
+// NewInvoiceRequestClient returns a client for the InvoiceRequest from the given config.
+func NewInvoiceRequestClient(c config) *InvoiceRequestClient {
+	return &InvoiceRequestClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `invoicerequest.Hooks(f(g(h())))`.
+func (c *InvoiceRequestClient) Use(hooks ...Hook) {
+	c.hooks.InvoiceRequest = append(c.hooks.InvoiceRequest, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `invoicerequest.Intercept(f(g(h())))`.
+func (c *InvoiceRequestClient) Intercept(interceptors ...Interceptor) {
+	c.inters.InvoiceRequest = append(c.inters.InvoiceRequest, interceptors...)
+}
+
+// Create returns a builder for creating a InvoiceRequest entity.
+func (c *InvoiceRequestClient) Create() *InvoiceRequestCreate {
+	mutation := newInvoiceRequestMutation(c.config, OpCreate)
+	return &InvoiceRequestCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of InvoiceRequest entities.
+func (c *InvoiceRequestClient) CreateBulk(builders ...*InvoiceRequestCreate) *InvoiceRequestCreateBulk {
+	return &InvoiceRequestCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *InvoiceRequestClient) MapCreateBulk(slice any, setFunc func(*InvoiceRequestCreate, int)) *InvoiceRequestCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &InvoiceRequestCreateBulk{err: fmt.Errorf("calling to InvoiceRequestClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*InvoiceRequestCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &InvoiceRequestCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for InvoiceRequest.
+func (c *InvoiceRequestClient) Update() *InvoiceRequestUpdate {
+	mutation := newInvoiceRequestMutation(c.config, OpUpdate)
+	return &InvoiceRequestUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *InvoiceRequestClient) UpdateOne(_m *InvoiceRequest) *InvoiceRequestUpdateOne {
+	mutation := newInvoiceRequestMutation(c.config, OpUpdateOne, withInvoiceRequest(_m))
+	return &InvoiceRequestUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *InvoiceRequestClient) UpdateOneID(id int) *InvoiceRequestUpdateOne {
+	mutation := newInvoiceRequestMutation(c.config, OpUpdateOne, withInvoiceRequestID(id))
+	return &InvoiceRequestUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for InvoiceRequest.
+func (c *InvoiceRequestClient) Delete() *InvoiceRequestDelete {
+	mutation := newInvoiceRequestMutation(c.config, OpDelete)
+	return &InvoiceRequestDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *InvoiceRequestClient) DeleteOne(_m *InvoiceRequest) *InvoiceRequestDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *InvoiceRequestClient) DeleteOneID(id int) *InvoiceRequestDeleteOne {
+	builder := c.Delete().Where(invoicerequest.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &InvoiceRequestDeleteOne{builder}
+}
+
+// Query returns a query builder for InvoiceRequest.
+func (c *InvoiceRequestClient) Query() *InvoiceRequestQuery {
+	return &InvoiceRequestQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeInvoiceRequest},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a InvoiceRequest entity by its id.
+func (c *InvoiceRequestClient) Get(ctx context.Context, id int) (*InvoiceRequest, error) {
+	return c.Query().Where(invoicerequest.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *InvoiceRequestClient) GetX(ctx context.Context, id int) *InvoiceRequest {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *InvoiceRequestClient) Hooks() []Hook {
+	return c.hooks.InvoiceRequest
+}
+
+// Interceptors returns the client interceptors.
+func (c *InvoiceRequestClient) Interceptors() []Interceptor {
+	return c.inters.InvoiceRequest
+}
+
+func (c *InvoiceRequestClient) mutate(ctx context.Context, m *InvoiceRequestMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&InvoiceRequestCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&InvoiceRequestUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&InvoiceRequestUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&InvoiceRequestDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown InvoiceRequest mutation op: %q", m.Op())
+	}
+}
+
+// NotificationChannelClient is a client for the NotificationChannel schema.
+type NotificationChannelClient struct {
+	config
+}
+
+// NewNotificationChannelClient returns a client for the NotificationChannel from the given config.
+func NewNotificationChannelClient(c config) *NotificationChannelClient {
+	return &NotificationChannelClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `notificationchannel.Hooks(f(g(h())))`.
+func (c *NotificationChannelClient) Use(hooks ...Hook) {
+	c.hooks.NotificationChannel = append(c.hooks.NotificationChannel, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `notificationchannel.Intercept(f(g(h())))`.
+func (c *NotificationChannelClient) Intercept(interceptors ...Interceptor) {
+	c.inters.NotificationChannel = append(c.inters.NotificationChannel, interceptors...)
+}
+
+// Create returns a builder for creating a NotificationChannel entity.
+func (c *NotificationChannelClient) Create() *NotificationChannelCreate {
+	mutation := newNotificationChannelMutation(c.config, OpCreate)
+	return &NotificationChannelCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of NotificationChannel entities.
+func (c *NotificationChannelClient) CreateBulk(builders ...*NotificationChannelCreate) *NotificationChannelCreateBulk {
+	return &NotificationChannelCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *NotificationChannelClient) MapCreateBulk(slice any, setFunc func(*NotificationChannelCreate, int)) *NotificationChannelCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &NotificationChannelCreateBulk{err: fmt.Errorf("calling to NotificationChannelClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*NotificationChannelCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &NotificationChannelCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for NotificationChannel.
+func (c *NotificationChannelClient) Update() *NotificationChannelUpdate {
+	mutation := newNotificationChannelMutation(c.config, OpUpdate)
+	return &NotificationChannelUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *NotificationChannelClient) UpdateOne(_m *NotificationChannel) *NotificationChannelUpdateOne {
+	mutation := newNotificationChannelMutation(c.config, OpUpdateOne, withNotificationChannel(_m))
+	return &NotificationChannelUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *NotificationChannelClient) UpdateOneID(id int) *NotificationChannelUpdateOne {
+	mutation := newNotificationChannelMutation(c.config, OpUpdateOne, withNotificationChannelID(id))
+	return &NotificationChannelUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for NotificationChannel.
+func (c *NotificationChannelClient) Delete() *NotificationChannelDelete {
+	mutation := newNotificationChannelMutation(c.config, OpDelete)
+	return &NotificationChannelDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *NotificationChannelClient) DeleteOne(_m *NotificationChannel) *NotificationChannelDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *NotificationChannelClient) DeleteOneID(id int) *NotificationChannelDeleteOne {
+	builder := c.Delete().Where(notificationchannel.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &NotificationChannelDeleteOne{builder}
+}
+
+// Query returns a query builder for NotificationChannel.
+func (c *NotificationChannelClient) Query() *NotificationChannelQuery {
+	return &NotificationChannelQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeNotificationChannel},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a NotificationChannel entity by its id.
+func (c *NotificationChannelClient) Get(ctx context.Context, id int) (*NotificationChannel, error) {
+	return c.Query().Where(notificationchannel.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *NotificationChannelClient) GetX(ctx context.Context, id int) *NotificationChannel {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *NotificationChannelClient) Hooks() []Hook {
+	return c.hooks.NotificationChannel
+}
+
+// Interceptors returns the client interceptors.
+func (c *NotificationChannelClient) Interceptors() []Interceptor {
+	return c.inters.NotificationChannel
+}
+
+func (c *NotificationChannelClient) mutate(ctx context.Context, m *NotificationChannelMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&NotificationChannelCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&NotificationChannelUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&NotificationChannelUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&NotificationChannelDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown NotificationChannel mutation op: %q", m.Op())
+	}
+}
+
+// NotificationDeliveryClient is a client for the NotificationDelivery schema.
+type NotificationDeliveryClient struct {
+	config
+}
+
+// NewNotificationDeliveryClient returns a client for the NotificationDelivery from the given config.
+func NewNotificationDeliveryClient(c config) *NotificationDeliveryClient {
+	return &NotificationDeliveryClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `notificationdelivery.Hooks(f(g(h())))`.
+func (c *NotificationDeliveryClient) Use(hooks ...Hook) {
+	c.hooks.NotificationDelivery = append(c.hooks.NotificationDelivery, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `notificationdelivery.Intercept(f(g(h())))`.
+func (c *NotificationDeliveryClient) Intercept(interceptors ...Interceptor) {
+	c.inters.NotificationDelivery = append(c.inters.NotificationDelivery, interceptors...)
+}
+
+// Create returns a builder for creating a NotificationDelivery entity.
+func (c *NotificationDeliveryClient) Create() *NotificationDeliveryCreate {
+	mutation := newNotificationDeliveryMutation(c.config, OpCreate)
+	return &NotificationDeliveryCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of NotificationDelivery entities.
+func (c *NotificationDeliveryClient) CreateBulk(builders ...*NotificationDeliveryCreate) *NotificationDeliveryCreateBulk {
+	return &NotificationDeliveryCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *NotificationDeliveryClient) MapCreateBulk(slice any, setFunc func(*NotificationDeliveryCreate, int)) *NotificationDeliveryCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &NotificationDeliveryCreateBulk{err: fmt.Errorf("calling to NotificationDeliveryClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*NotificationDeliveryCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &NotificationDeliveryCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for NotificationDelivery.
+func (c *NotificationDeliveryClient) Update() *NotificationDeliveryUpdate {
+	mutation := newNotificationDeliveryMutation(c.config, OpUpdate)
+	return &NotificationDeliveryUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *NotificationDeliveryClient) UpdateOne(_m *NotificationDelivery) *NotificationDeliveryUpdateOne {
+	mutation := newNotificationDeliveryMutation(c.config, OpUpdateOne, withNotificationDelivery(_m))
+	return &NotificationDeliveryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *NotificationDeliveryClient) UpdateOneID(id int) *NotificationDeliveryUpdateOne {
+	mutation := newNotificationDeliveryMutation(c.config, OpUpdateOne, withNotificationDeliveryID(id))
+	return &NotificationDeliveryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for NotificationDelivery.
+func (c *NotificationDeliveryClient) Delete() *NotificationDeliveryDelete {
+	mutation := newNotificationDeliveryMutation(c.config, OpDelete)
+	return &NotificationDeliveryDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *NotificationDeliveryClient) DeleteOne(_m *NotificationDelivery) *NotificationDeliveryDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *NotificationDeliveryClient) DeleteOneID(id int) *NotificationDeliveryDeleteOne {
+	builder := c.Delete().Where(notificationdelivery.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &NotificationDeliveryDeleteOne{builder}
+}
+
+// Query returns a query builder for NotificationDelivery.
+func (c *NotificationDeliveryClient) Query() *NotificationDeliveryQuery {
+	return &NotificationDeliveryQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeNotificationDelivery},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a NotificationDelivery entity by its id.
+func (c *NotificationDeliveryClient) Get(ctx context.Context, id int) (*NotificationDelivery, error) {
+	return c.Query().Where(notificationdelivery.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *NotificationDeliveryClient) GetX(ctx context.Context, id int) *NotificationDelivery {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *NotificationDeliveryClient) Hooks() []Hook {
+	return c.hooks.NotificationDelivery
+}
+
+// Interceptors returns the client interceptors.
+func (c *NotificationDeliveryClient) Interceptors() []Interceptor {
+	return c.inters.NotificationDelivery
+}
+
+func (c *NotificationDeliveryClient) mutate(ctx context.Context, m *NotificationDeliveryMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&NotificationDeliveryCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&NotificationDeliveryUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&NotificationDeliveryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&NotificationDeliveryDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown NotificationDelivery mutation op: %q", m.Op())
+	}
+}
+
+// OperationLogClient is a client for the OperationLog schema.
+type OperationLogClient struct {
+	config
+}
+
+// NewOperationLogClient returns a client for the OperationLog from the given config.
+func NewOperationLogClient(c config) *OperationLogClient {
+	return &OperationLogClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `operationlog.Hooks(f(g(h())))`.
+func (c *OperationLogClient) Use(hooks ...Hook) {
+	c.hooks.OperationLog = append(c.hooks.OperationLog, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `operationlog.Intercept(f(g(h())))`.
+func (c *OperationLogClient) Intercept(interceptors ...Interceptor) {
+	c.inters.OperationLog = append(c.inters.OperationLog, interceptors...)
+}
+
+// Create returns a builder for creating a OperationLog entity.
+func (c *OperationLogClient) Create() *OperationLogCreate {
+	mutation := newOperationLogMutation(c.config, OpCreate)
+	return &OperationLogCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of OperationLog entities.
+func (c *OperationLogClient) CreateBulk(builders ...*OperationLogCreate) *OperationLogCreateBulk {
+	return &OperationLogCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *OperationLogClient) MapCreateBulk(slice any, setFunc func(*OperationLogCreate, int)) *OperationLogCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &OperationLogCreateBulk{err: fmt.Errorf("calling to OperationLogClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*OperationLogCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &OperationLogCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for OperationLog.
+func (c *OperationLogClient) Update() *OperationLogUpdate {
+	mutation := newOperationLogMutation(c.config, OpUpdate)
+	return &OperationLogUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *OperationLogClient) UpdateOne(_m *OperationLog) *OperationLogUpdateOne {
+	mutation := newOperationLogMutation(c.config, OpUpdateOne, withOperationLog(_m))
+	return &OperationLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *OperationLogClient) UpdateOneID(id int) *OperationLogUpdateOne {
+	mutation := newOperationLogMutation(c.config, OpUpdateOne, withOperationLogID(id))
+	return &OperationLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for OperationLog.
+func (c *OperationLogClient) Delete() *OperationLogDelete {
+	mutation := newOperationLogMutation(c.config, OpDelete)
+	return &OperationLogDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *OperationLogClient) DeleteOne(_m *OperationLog) *OperationLogDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *OperationLogClient) DeleteOneID(id int) *OperationLogDeleteOne {
+	builder := c.Delete().Where(operationlog.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &OperationLogDeleteOne{builder}
+}
+
+// Query returns a query builder for OperationLog.
+func (c *OperationLogClient) Query() *OperationLogQuery {
+	return &OperationLogQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeOperationLog},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a OperationLog entity by its id.
+func (c *OperationLogClient) Get(ctx context.Context, id int) (*OperationLog, error) {
+	return c.Query().Where(operationlog.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *OperationLogClient) GetX(ctx context.Context, id int) *OperationLog {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *OperationLogClient) Hooks() []Hook {
+	return c.hooks.OperationLog
+}
+
+// Interceptors returns the client interceptors.
+func (c *OperationLogClient) Interceptors() []Interceptor {
+	return c.inters.OperationLog
+}
+
+func (c *OperationLogClient) mutate(ctx context.Context, m *OperationLogMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&OperationLogCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&OperationLogUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&OperationLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&OperationLogDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown OperationLog mutation op: %q", m.Op())
+	}
+}
+
 // PageClient is a client for the Page schema.
 type PageClient struct {
 	config
@@ -912,6 +1770,139 @@ func (c *PageViewClient) mutate(ctx context.Context, m *PageViewMutation) (Value
 	}
 }
 
+// SystemLogClient is a client for the SystemLog schema.
+type SystemLogClient struct {
+	config
+}
+
+// NewSystemLogClient returns a client for the SystemLog from the given config.
+func NewSystemLogClient(c config) *SystemLogClient {
+	return &SystemLogClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `systemlog.Hooks(f(g(h())))`.
+func (c *SystemLogClient) Use(hooks ...Hook) {
+	c.hooks.SystemLog = append(c.hooks.SystemLog, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `systemlog.Intercept(f(g(h())))`.
+func (c *SystemLogClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SystemLog = append(c.inters.SystemLog, interceptors...)
+}
+
+// Create returns a builder for creating a SystemLog entity.
+func (c *SystemLogClient) Create() *SystemLogCreate {
+	mutation := newSystemLogMutation(c.config, OpCreate)
+	return &SystemLogCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SystemLog entities.
+func (c *SystemLogClient) CreateBulk(builders ...*SystemLogCreate) *SystemLogCreateBulk {
+	return &SystemLogCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SystemLogClient) MapCreateBulk(slice any, setFunc func(*SystemLogCreate, int)) *SystemLogCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SystemLogCreateBulk{err: fmt.Errorf("calling to SystemLogClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SystemLogCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SystemLogCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SystemLog.
+func (c *SystemLogClient) Update() *SystemLogUpdate {
+	mutation := newSystemLogMutation(c.config, OpUpdate)
+	return &SystemLogUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SystemLogClient) UpdateOne(_m *SystemLog) *SystemLogUpdateOne {
+	mutation := newSystemLogMutation(c.config, OpUpdateOne, withSystemLog(_m))
+	return &SystemLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SystemLogClient) UpdateOneID(id int) *SystemLogUpdateOne {
+	mutation := newSystemLogMutation(c.config, OpUpdateOne, withSystemLogID(id))
+	return &SystemLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SystemLog.
+func (c *SystemLogClient) Delete() *SystemLogDelete {
+	mutation := newSystemLogMutation(c.config, OpDelete)
+	return &SystemLogDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SystemLogClient) DeleteOne(_m *SystemLog) *SystemLogDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SystemLogClient) DeleteOneID(id int) *SystemLogDeleteOne {
+	builder := c.Delete().Where(systemlog.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SystemLogDeleteOne{builder}
+}
+
+// Query returns a query builder for SystemLog.
+func (c *SystemLogClient) Query() *SystemLogQuery {
+	return &SystemLogQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSystemLog},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SystemLog entity by its id.
+func (c *SystemLogClient) Get(ctx context.Context, id int) (*SystemLog, error) {
+	return c.Query().Where(systemlog.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SystemLogClient) GetX(ctx context.Context, id int) *SystemLog {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *SystemLogClient) Hooks() []Hook {
+	return c.hooks.SystemLog
+}
+
+// Interceptors returns the client interceptors.
+func (c *SystemLogClient) Interceptors() []Interceptor {
+	return c.inters.SystemLog
+}
+
+func (c *SystemLogClient) mutate(ctx context.Context, m *SystemLogMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SystemLogCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SystemLogUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SystemLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SystemLogDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SystemLog mutation op: %q", m.Op())
+	}
+}
+
 // SystemMetaClient is a client for the SystemMeta schema.
 type SystemMetaClient struct {
 	config
@@ -1048,11 +2039,13 @@ func (c *SystemMetaClient) mutate(ctx context.Context, m *SystemMetaMutation) (V
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		AccountCostConfig, FeatureClick, ImageAsset, Page, PageView,
-		SystemMeta []ent.Hook
+		AccountCostConfig, FeatureClick, ImageAsset, InvoiceOrder, InvoiceProfile,
+		InvoiceRequest, NotificationChannel, NotificationDelivery, OperationLog, Page,
+		PageView, SystemLog, SystemMeta []ent.Hook
 	}
 	inters struct {
-		AccountCostConfig, FeatureClick, ImageAsset, Page, PageView,
-		SystemMeta []ent.Interceptor
+		AccountCostConfig, FeatureClick, ImageAsset, InvoiceOrder, InvoiceProfile,
+		InvoiceRequest, NotificationChannel, NotificationDelivery, OperationLog, Page,
+		PageView, SystemLog, SystemMeta []ent.Interceptor
 	}
 )

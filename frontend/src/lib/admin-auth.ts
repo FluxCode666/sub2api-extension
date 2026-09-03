@@ -94,8 +94,9 @@ export async function exchangeSession(): Promise<SessionResult> {
       body: JSON.stringify({ token: sub2apiToken }),
       signal: controller.signal,
     })
-  } catch {
-    // 网络错误与超时(abort)均降级为 unreachable
+  } catch (error) {
+    // 网络错误与超时(abort)均降级为 unreachable，但留下诊断日志。
+    console.error('[admin-auth] session exchange request failed', error)
     return { ok: false, error: 'unreachable' }
   } finally {
     clearTimeout(timeoutId)
@@ -119,8 +120,9 @@ export async function exchangeSession(): Promise<SessionResult> {
   // 错误响应: 按 HTTP 状态码映射错误类型
   try {
     await resp.json()
-  } catch {
-    // 非 JSON 错误体, 忽略(按状态码判定即可)
+  } catch (error) {
+    // 非 JSON 错误体仍按状态码判定，但不能静默吞掉解析异常。
+    console.error('[admin-auth] session exchange error response was not JSON', error)
   }
 
   switch (resp.status) {
@@ -181,8 +183,9 @@ export async function loginWithCredentials(
       body: JSON.stringify({ email, password }),
       signal: controller.signal,
     })
-  } catch {
-    // 网络错误与超时(abort)均降级为 unreachable
+  } catch (error) {
+    // 网络错误与超时(abort)均降级为 unreachable，但留下诊断日志。
+    console.error('[admin-auth] credential login request failed', error)
     return { ok: false, error: 'unreachable' }
   } finally {
     clearTimeout(timeoutId)
@@ -199,8 +202,9 @@ export async function loginWithCredentials(
         if (!saveSession(session)) return { ok: false, error: 'unknown' }
         return { ok: true, session }
       }
-    } catch {
+    } catch (error) {
       // 成功状态码但响应体不合法时,降级为可恢复的未知错误。
+      console.error('[admin-auth] login success response was invalid', error)
     }
     return { ok: false, error: 'unknown' }
   }
@@ -210,8 +214,9 @@ export async function loginWithCredentials(
   try {
     const errEnv = await resp.json()
     reason = typeof errEnv.reason === 'string' ? errEnv.reason : ''
-  } catch {
-    // 非 JSON 错误体, 忽略(按状态码判定即可)
+  } catch (error) {
+    // 非 JSON 错误体仍按状态码判定，但不能静默吞掉解析异常。
+    console.error('[admin-auth] login error response was not JSON', error)
   }
 
   switch (resp.status) {
@@ -242,8 +247,9 @@ function saveSession(session: AdminSession): boolean {
   cachedSession = session
   try {
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session))
-  } catch {
-    // localStorage 不可用时仅存内存
+  } catch (error) {
+    // localStorage 不可用时仅存内存，但保留诊断日志。
+    console.error('[admin-auth] failed to persist session in localStorage', error)
   }
   return true
 }
@@ -277,7 +283,8 @@ function decodeJWTExpiry(token: string): number | null {
 
     const expiry = (payload as { exp?: unknown }).exp
     return typeof expiry === 'number' && Number.isFinite(expiry) ? expiry : null
-  } catch {
+  } catch (error) {
+    console.error('[admin-auth] failed to decode session token', error)
     return null
   }
 }
@@ -322,7 +329,8 @@ export function getAdminSession(): AdminSession | null {
       }
       clearAdminSession()
     }
-  } catch {
+  } catch (error) {
+    console.error('[admin-auth] failed to read stored session', error)
     clearAdminSession()
   }
   return null
@@ -335,8 +343,9 @@ export function clearAdminSession(): void {
   cachedSession = null
   try {
     localStorage.removeItem(SESSION_STORAGE_KEY)
-  } catch {
-    // localStorage 不可用
+  } catch (error) {
+    // localStorage 不可用，但不能静默吞掉清理失败。
+    console.error('[admin-auth] failed to clear stored session', error)
   }
 }
 

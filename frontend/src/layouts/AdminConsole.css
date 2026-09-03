@@ -45,6 +45,26 @@ html.dark .aux-admin-shell {
   padding: 20px 16px 18px;
 }
 
+/* Keep the brand mark centered and fully visible in the icon-only rail. The
+ * expanded header has enough room for the inner horizontal padding, but that
+ * same padding leaves less than the mark's width when the rail is 3rem wide.
+ */
+.aux-admin-shell [data-collapsible="icon"] [data-sidebar="header"] {
+  padding: 18px 8px;
+}
+
+.aux-admin-shell [data-collapsible="icon"] [data-sidebar="header"] > div {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.aux-admin-shell [data-collapsible="icon"] [data-sidebar="header"] > div > div:first-child {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+}
+
 .aux-admin-shell [data-sidebar="header"] > div > div:first-child {
   width: 36px;
   height: 36px;
@@ -1364,6 +1384,40 @@ html.dark .aux-admin-shell {
 .aux-shadcn-calendar-range-end .aux-shadcn-calendar-day-button { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
 .aux-shadcn-calendar-range-middle .aux-shadcn-calendar-day-button { color: hsl(var(--foreground)); }
 .aux-shadcn-calendar-hidden { visibility: hidden; }
+.invoice-date-range-popover.invoice-date-range-popover {
+  width: min(360px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 0;
+  border-color: hsl(var(--border));
+  border-radius: 14px;
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  box-shadow: 0 18px 44px rgba(15, 23, 42, .18);
+}
+.invoice-date-range-calendar { width: 100%; padding: 14px 16px 10px; }
+.invoice-date-range-calendar .aux-shadcn-calendar-months { grid-template-columns: minmax(0, 1fr); }
+.invoice-date-range-footer {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  border-top: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+}
+.invoice-date-range-footer > span {
+  min-width: 0;
+  overflow: hidden;
+  color: hsl(var(--muted-foreground));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.invoice-date-range-footer > span svg { vertical-align: -3px; color: hsl(var(--primary)); }
+.invoice-date-range-footer button { flex: 0 0 auto; color: hsl(var(--muted-foreground)); }
+.invoice-date-range-footer button:hover { color: hsl(var(--foreground)); }
 .aux-ttft-filter-actions { display: flex; align-items: center; gap: 8px; }
 .aux-ttft-button { display: inline-flex; width: auto; height: auto; min-height: 43px; align-items: center; justify-content: center; gap: 8px; padding: 0 14px; border: 1px solid transparent; border-radius: 999px; cursor: pointer; font-size: 11px; font-weight: 670; white-space: nowrap; transition: transform 220ms ease, background-color 220ms ease, border-color 220ms ease, color 220ms ease; }
 .aux-ttft-button:hover:not(:disabled) { transform: translateY(-2px); }

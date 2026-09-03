@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -56,13 +57,19 @@ func (h *ImageAssetHandler) Upload(c *gin.Context) {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, service.MaxImageAssetBytes+1024*1024)
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
+		log.Printf("[ImageAssetHandler.Upload] invalid multipart upload: %v", err)
 		response.BadRequest(c, "image file is required and must not exceed 10MB")
 		return
 	}
-	defer func() { _ = file.Close() }()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			log.Printf("[ImageAssetHandler.Upload] failed to close upload: %v", closeErr)
+		}
+	}()
 
 	asset, err := h.provider.Upload(c.Request.Context(), header.Filename, file)
 	if err != nil {
+		log.Printf("[ImageAssetHandler.Upload] upload failed filename=%q: %v", header.Filename, err)
 		handleImageAssetError(c, err)
 		return
 	}
@@ -77,6 +84,7 @@ func (h *ImageAssetHandler) List(c *gin.Context) {
 	}
 	assets, err := h.provider.List(c.Request.Context())
 	if err != nil {
+		log.Printf("[ImageAssetHandler.List] query failed: %v", err)
 		response.InternalError(c, "failed to list image assets")
 		return
 	}
@@ -100,10 +108,15 @@ func (h *ImageAssetHandler) ServePublic(c *gin.Context) {
 	}
 	asset, file, err := h.provider.OpenByID(c.Request.Context(), id)
 	if err != nil {
+		log.Printf("[ImageAssetHandler.ServePublic] open failed id=%d: %v", id, err)
 		handlePublicImageAssetError(c, err)
 		return
 	}
-	defer func() { _ = file.Close() }()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			log.Printf("[ImageAssetHandler.ServePublic] failed to close asset: %v", closeErr)
+		}
+	}()
 	c.Header("Content-Type", asset.MimeType)
 	c.Header("Cache-Control", "public, max-age=31536000, immutable")
 	c.Header("X-Content-Type-Options", "nosniff")

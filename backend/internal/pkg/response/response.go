@@ -30,11 +30,32 @@ func Success(c *gin.Context, data any) {
 	})
 }
 
+// SuccessWithReason 返回业务操作已完成、但附带非阻断告警的成功响应。
+// code 保持为 0，调用方不应把这类响应当作失败；reason 仅用于提示和排查。
+func SuccessWithReason(c *gin.Context, data any, message, reason string) {
+	c.JSON(http.StatusOK, Response{
+		Code:    0,
+		Message: message,
+		Reason:  reason,
+		Data:    data,
+	})
+}
+
 // Created 返回创建成功响应 (HTTP 201)。
 func Created(c *gin.Context, data any) {
 	c.JSON(http.StatusCreated, Response{
 		Code:    0,
 		Message: "success",
+		Data:    data,
+	})
+}
+
+// CreatedWithReason 返回创建已完成、但附带非阻断告警的响应。
+func CreatedWithReason(c *gin.Context, data any, message, reason string) {
+	c.JSON(http.StatusCreated, Response{
+		Code:    0,
+		Message: message,
+		Reason:  reason,
 		Data:    data,
 	})
 }

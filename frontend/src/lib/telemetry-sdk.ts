@@ -4,13 +4,13 @@
  * 职责:
  *   - initTelemetry(): 监听 SPA 路由切换, 自动上报 page_view(用合并注册表解析 page id)。
  *   - trackFeatureClick(pageId, featureId): 手动上报功能点击。
- *   - 上报失败静默丢弃(fire-and-forget), 绝不抛错到页面(KTD4)。
+ *   - 上报失败不阻塞页面(fire-and-forget)，但写入浏览器诊断日志(KTD4)。
  *
  * 设计要点:
  *   1. page id 来自合并注册表(KTD7): 路由切换时优先用 getMergedPageByPath(pathname)
  *      解析动态页，静态核心页用 page-registry 作为 fallback；路径不在 registry → 不上报。
  *   2. 埋点端点匿名可写(R8/R11): 上报走 /api/aux/telemetry/*, 不需要会话 token。
- *   3. 上报失败不阻塞页面(KTD4): 用 fetch + catch, 所有错误静默丢弃。
+ *   3. 上报失败不阻塞页面(KTD4): 用 fetch + catch，错误写入诊断日志。
  *   4. 访客 id 区分匿名/管理员: getVisitorId() 取持久 id, isCurrentUserAdmin() 判断管理员。
  *   5. 访问量按访问计: 每次路由切换都上报一条(非去重)。
  *
@@ -32,9 +32,9 @@ let unsubscribeHistory: (() => void) | null = null
 let lastRouteKey: string | null = null
 
 /**
- * 发送埋点请求(fire-and-forget, 静默丢弃错误)。
+ * 发送埋点请求(fire-and-forget, 不阻塞页面但记录错误)。
  *
- * 用 fetch + catch: 任何网络错误/非 2xx 响应都被 catch, 不抛错。
+ * 用 fetch + catch: 任何网络错误/非 2xx 响应都被 catch, 不抛错但记录日志。
  * 这保证上报失败绝不阻塞页面(KTD4)。
  */
 function sendTelemetry(endpoint: string, payload: Record<string, unknown>): void {
@@ -49,11 +49,13 @@ function sendTelemetry(endpoint: string, payload: Record<string, unknown>): void
       body,
       // keepalive: 页面卸载时也能发出去(类似 sendBeacon 的效果)
       keepalive: true,
-    }).catch(() => {
-      // 静默丢弃: 上报失败不影响页面
+    }).catch((error: unknown) => {
+      // 埋点失败不阻塞页面，但必须留下可诊断的错误日志。
+      console.error('[telemetry] async upload failed', { endpoint, error })
     })
-  } catch {
-    // 同步异常也静默(如 fetch 不可用)
+  } catch (error) {
+    // 同步异常同样不阻塞页面，但不能无声丢弃。
+    console.error('[telemetry] upload failed before request', { endpoint, error })
   }
 }
 

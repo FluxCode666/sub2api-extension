@@ -31,7 +31,8 @@ services:
   # Database schema migration (one-shot)
   # ===========================================================================
   # 后端启动不会自动迁移。该服务在 aux-backend 启动前创建/补齐本系统所需
-  # 的 pages、page_views、feature_clicks、system_meta、image_assets 表。
+  # 的 pages、page_views、feature_clicks、system_meta、image_assets、
+  # notification_channels、notification_deliveries 表。
   # 它只操作本系统使用的表，不会修改 sub2api 自有表。
   aux-migrate:
     image: ${SUB2API_EXTENSION_IMAGE:?SUB2API_EXTENSION_IMAGE is required}:${SUB2API_EXTENSION_IMAGE_TAG:?SUB2API_EXTENSION_IMAGE_TAG is required}

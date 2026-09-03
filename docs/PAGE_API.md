@@ -63,6 +63,17 @@ JSON
 
 字段约束：`slug` 只能使用小写字母、数字和连字符；`visibility` 是 `public` 或 `admin`；`content_type` 是 `html` 或 `react`；单页 HTML/React 内容上限 256 KiB；`metadata.logo` 如果存在必须是 `http://` 或 `https://` 地址。公开页面访问路径为 `/p/<slug>`，管理员页面访问路径为 `/admin/p/<slug>`。管理员页面可在 `metadata.menu_icon` 中设置侧边栏图标名（如 `file-text`、`activity`、`bar-chart-3`），仅 `visibility=admin` 且 `enabled=true` 的页面会进入扩展控制台动态菜单。`sub2api_published` 开启时会直接同步 sub2api PostgreSQL 的 `settings.custom_menu_items`；`sub2api_visibility` 只能是 `user` 或 `admin`，`sub2api_menu_name` 最多 50 个字符。需要同时设置 `SUB2API_DATABASE_*` 与 `SUB2API_EXTENSION_PUBLIC_URL`。
 
+## 日志查询
+
+管理员控制台的「系统日志」和「操作日志」分别读取：
+
+- `GET /api/aux/admin/logs/system`
+- `GET /api/aux/admin/logs/operations`（`/logs/operation` 页面也可用）
+
+两个接口都支持 `page`、`page_size`、`search`、`from`、`to`；系统日志额外支持
+`level`，操作日志额外支持 `status`。响应数据为 `{items,total,page,page_size}`，
+日志只追加保存，系统请求和管理员写操作会自动记录。
+
 官网首页 `/p/home` 支持通过元数据覆盖以下入口链接（值可以是相对路径，也可以是完整的 `http://` / `https://` 地址；也支持 `mailto:` 和 `tel:`）：
 
 | 元数据键 | 官网入口 |

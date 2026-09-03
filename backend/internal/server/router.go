@@ -30,7 +30,9 @@ import (
 // authHandler 为 nil 时跳过管理员会话路由(用于健康检查等最小启动场景)。
 // telemetryHandler 为 nil 时跳过埋点上报路由(U5 端点)。
 // analyticsHandler 为 nil 时跳过分析仪表盘路由(U6 端点)。
-// optionalHandlers 中传入 TTFTHandler/CostHandler 时注册运维看板路由。
+// optionalHandlers 中传入 TTFTHandler 时注册 Sub2API 数据库首字延迟看板路由。
+// optionalHandlers 中传入 LogService 与 LogHandler 时启用请求/操作审计和日志查询路由。
+// optionalHandlers 中传入 CostHandler 时注册运营中心成本核算路由。
 // pagePublicHandler 为 nil 时跳过公开页面获取端点。
 // pageAdminHandler 为 nil 时跳过管理端页面 CRUD 端点。
 // optionalHandlers 可传 HomepageConfigHandler、ImageAssetHandler、TTFTHandler 与 CostHandler，保留可选形式以兼容
@@ -42,6 +44,15 @@ func SetupRouter(cfg *config.Config, healthHandler *web.HealthHandler, authHandl
 
 	r := gin.New()
 	r.Use(gin.Logger())
+	// 可选的持久化请求日志；最小启动/路由测试场景传 nil 时仍保留 Gin access log。
+	var logService *service.LogService
+	for _, optionalHandler := range optionalHandlers {
+		if typed, ok := optionalHandler.(*service.LogService); ok {
+			logService = typed
+		}
+	}
+	r.Use(middleware.RequestLogger(logService))
+	// Recovery 放在请求日志内层，使请求日志能记录 panic 恢复后的 500。
 	r.Use(gin.Recovery())
 
 	// 重置前端 fallback: 每次 SetupRouter 从干净状态开始, 避免包级变量跨测试残留。
@@ -134,6 +145,11 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 	var imageAssetHandler *adminhandler.ImageAssetHandler
 	var ttftHandler *adminhandler.TTFTHandler
 	var costHandler *adminhandler.CostHandler
+	var logHandler *adminhandler.LogHandler
+	var logService *service.LogService
+	var invoiceUserHandler *handler.InvoiceUserHandler
+	var invoiceAdminHandler *adminhandler.InvoiceAdminHandler
+	var notificationAdminHandler *adminhandler.NotificationAdminHandler
 	for _, optionalHandler := range optionalHandlers {
 		switch typed := optionalHandler.(type) {
 		case *adminhandler.HomepageConfigHandler:
@@ -144,6 +160,16 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			ttftHandler = typed
 		case *adminhandler.CostHandler:
 			costHandler = typed
+		case *adminhandler.LogHandler:
+			logHandler = typed
+		case *service.LogService:
+			logService = typed
+		case *handler.InvoiceUserHandler:
+			invoiceUserHandler = typed
+		case *adminhandler.InvoiceAdminHandler:
+			invoiceAdminHandler = typed
+		case *adminhandler.NotificationAdminHandler:
+			notificationAdminHandler = typed
 		}
 	}
 	if homepageHandler == nil {
@@ -165,6 +191,17 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 		if pagePublicHandler != nil {
 			aux.GET("/pages", pagePublicHandler.List)
 			aux.GET("/pages/:slug", pagePublicHandler.GetBySlug)
+		}
+		if invoiceUserHandler != nil {
+			aux.GET("/invoices/config", invoiceUserHandler.Config)
+			invoices := aux.Group("/invoices")
+			invoices.Use(invoiceUserHandler.Guard())
+			invoices.GET("/profile", invoiceUserHandler.GetProfile)
+			invoices.PUT("/profile", invoiceUserHandler.SaveProfile)
+			invoices.GET("/eligible-orders", invoiceUserHandler.ListEligibleOrders)
+			invoices.GET("/requests", invoiceUserHandler.ListRequests)
+			invoices.POST("/requests", invoiceUserHandler.Create)
+			invoices.GET("/requests/:id/document", invoiceUserHandler.Download)
 		}
 
 		// U5: 埋点上报端点(匿名可写,不经 AdminGuard)。
@@ -195,6 +232,9 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 	if authService != nil {
 		guarded := admin.Group("")
 		guarded.Use(middleware.AdminGuard(authService))
+		if logService != nil {
+			guarded.Use(middleware.OperationLogger(logService))
+		}
 		{
 			// 占位: 确认守卫生效。U4+ 替换为具体路由。
 			guarded.GET("", func(c *gin.Context) {
@@ -237,6 +277,43 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 				guarded.PUT("/ops/cost-config", costHandler.UpdateConfig)
 				guarded.POST("/ops/cost-config/sync", costHandler.SyncAccounts)
 				guarded.PUT("/ops/cost-config/accounts/:id", costHandler.UpdateAccountConfig)
+			}
+			if logHandler != nil {
+				guarded.GET("/logs/system", logHandler.ListSystem)
+				guarded.GET("/logs/operations", logHandler.ListOperation)
+				// Singular/explicit aliases keep bookmarked integrations compatible.
+				guarded.GET("/logs/operation", logHandler.ListOperation)
+				guarded.GET("/system-logs", logHandler.ListSystem)
+				guarded.GET("/operation-logs", logHandler.ListOperation)
+			}
+			if invoiceAdminHandler != nil {
+				guarded.GET("/invoices/config", invoiceAdminHandler.GetFeature)
+				guarded.PUT("/invoices/config", invoiceAdminHandler.SetFeature)
+				guarded.GET("/invoices", invoiceAdminHandler.List)
+				guarded.GET("/invoices/users", invoiceAdminHandler.ListUsers)
+				guarded.POST("/invoices/manual", invoiceAdminHandler.CreateManual)
+				guarded.PUT("/invoices/:id/status", invoiceAdminHandler.UpdateStatus)
+				guarded.POST("/invoices/:id/document", invoiceAdminHandler.UploadDocument)
+				guarded.GET("/invoices/:id/document", invoiceAdminHandler.Download)
+			}
+			if notificationAdminHandler != nil {
+				guarded.GET("/notifications/channels", notificationAdminHandler.ListChannels)
+				guarded.POST("/notifications/channels", notificationAdminHandler.CreateChannel)
+				guarded.POST("/notifications/channels/:id/test", notificationAdminHandler.TestChannel)
+				guarded.PUT("/notifications/channels/:id", notificationAdminHandler.UpdateChannel)
+				guarded.DELETE("/notifications/channels/:id", notificationAdminHandler.DeleteChannel)
+				// Explicit resource aliases keep API clients from having to know the
+				// UI grouping name; both paths share the same guarded handlers.
+				guarded.GET("/notification-channels", notificationAdminHandler.ListChannels)
+				guarded.POST("/notification-channels", notificationAdminHandler.CreateChannel)
+				guarded.POST("/notification-channels/:id/test", notificationAdminHandler.TestChannel)
+				guarded.PUT("/notification-channels/:id", notificationAdminHandler.UpdateChannel)
+				guarded.DELETE("/notification-channels/:id", notificationAdminHandler.DeleteChannel)
+				guarded.GET("/notifications/events/:event", notificationAdminHandler.GetEventConfig)
+				guarded.PUT("/notifications/events/:event", notificationAdminHandler.SetEventConfig)
+				guarded.GET("/notifications/deliveries", notificationAdminHandler.ListDeliveries)
+				guarded.GET("/notifications/records", notificationAdminHandler.ListDeliveries)
+				guarded.GET("/notifications/logs", notificationAdminHandler.ListDeliveries)
 			}
 
 			// 管理端 API 请求示例: 无数据库或 sub2api 依赖。

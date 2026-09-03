@@ -3,6 +3,7 @@ package admin
 
 import (
 	"context"
+	"log"
 
 	"sub2api-extension/internal/pkg/response"
 	"sub2api-extension/internal/service"
@@ -39,6 +40,7 @@ func (h *HomepageConfigHandler) get(c *gin.Context, fallbackToDefaults bool) {
 	}
 	config, err := h.provider.Get(c.Request.Context())
 	if err != nil {
+		log.Printf("[HomepageConfigHandler] failed to read config fallback=%t: %v", fallbackToDefaults, err)
 		// 公开首页在配置库暂时不可用时仍然可用默认文案；管理员读取则提示错误。
 		if fallbackToDefaults {
 			response.Success(c, service.DefaultHomepageConfig())
@@ -57,11 +59,13 @@ func (h *HomepageConfigHandler) UpdateConfig(c *gin.Context) {
 	}
 	var config service.HomepageConfig
 	if err := c.ShouldBindJSON(&config); err != nil {
+		log.Printf("[HomepageConfigHandler.UpdateConfig] invalid request body: %v", err)
 		response.BadRequest(c, "invalid homepage config")
 		return
 	}
 	saved, err := h.provider.Save(c.Request.Context(), config)
 	if err != nil {
+		log.Printf("[HomepageConfigHandler.UpdateConfig] save failed: %v", err)
 		response.InternalError(c, "failed to save homepage config")
 		return
 	}

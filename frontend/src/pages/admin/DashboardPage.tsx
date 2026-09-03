@@ -103,6 +103,7 @@ export default function DashboardPage() {
       })
       .catch((err: unknown) => {
         if (cancelled) return
+        console.error('[DashboardPage] failed to load analytics overview', err)
         const msg = err instanceof Error ? err.message : '未知错误'
         setState({ status: 'error', message: msg })
       })

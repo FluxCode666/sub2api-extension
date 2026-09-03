@@ -52,7 +52,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("打开数据库失败: %v", err)
 	}
-	defer func() { _ = client.Close() }()
+	defer func() {
+		if closeErr := client.Close(); closeErr != nil {
+			log.Printf("关闭数据库失败: %v", closeErr)
+		}
+	}()
 
 	ctx := context.Background()
 	const slug = "sub2api-home"
@@ -316,14 +320,14 @@ func sub2APIHomeHTML() string {
   var toggle = document.querySelector('[data-theme-toggle]');
   if (!page || !toggle) return;
   var saved = '';
-  try { saved = window.localStorage.getItem('theme') || ''; } catch (_) {}
+  try { saved = window.localStorage.getItem('theme') || ''; } catch (error) { console.error('[sub2api-home] failed to read theme', error); }
   if (saved === 'dark' || (!saved && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
     page.setAttribute('data-theme', 'dark');
   }
   toggle.addEventListener('click', function () {
     var next = page.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
     page.setAttribute('data-theme', next);
-    try { window.localStorage.setItem('theme', next); } catch (_) {}
+    try { window.localStorage.setItem('theme', next); } catch (error) { console.error('[sub2api-home] failed to save theme', error); }
   });
 }());
 </script>`

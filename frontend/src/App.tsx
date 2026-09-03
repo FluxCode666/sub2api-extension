@@ -19,6 +19,11 @@ import ImageAssetsPage from '@/pages/admin/ImageAssetsPage'
 import TTFTFlamegraphPage from '@/pages/admin/TTFTFlamegraphPage'
 import ConsumptionPage from '@/pages/admin/ConsumptionPage'
 import CostConfigPage from '@/pages/admin/CostConfigPage'
+import InvoiceManagementPage from '@/pages/admin/InvoiceManagementPage'
+import NotificationManagementPage from '@/pages/admin/NotificationManagementPage'
+import SystemLogsPage from '@/pages/admin/SystemLogsPage'
+import OperationLogsPage from '@/pages/admin/OperationLogsPage'
+import InvoicePortalPage from '@/pages/InvoicePortalPage'
 import AdminDynamicPage from '@/pages/admin/AdminDynamicPage'
 import DynamicPage from '@/pages/DynamicPage'
 import ContentExamplePage from '@/pages/examples/ContentExamplePage'
@@ -28,8 +33,8 @@ import { fetchDynamicPages } from '@/lib/dynamic-pages'
 
 // bootstrap: 获取动态页清单, 与静态注册表合并(KTD7)。
 // 失败时降级为仅静态页, 不阻塞前端。
-fetchDynamicPages().catch(() => {
-  /* 降级: 仅静态页可用 */
+fetchDynamicPages().catch((error: unknown) => {
+  console.error('[App] failed to bootstrap dynamic pages; using static registry', error)
 })
 
 function NotFound() {
@@ -38,8 +43,8 @@ function NotFound() {
       <div className="max-w-md text-center">
         <p className="aux-not-found-code">404</p>
         <h1>页面不存在</h1>
-        <p>当前地址没有对应内容，可以返回 TERALEMO 官网继续浏览。</p>
-        <Link to="/p/home" className="aux-surface-button">返回官网首页</Link>
+        <p>当前地址没有对应内容，可以返回管理控制台继续操作。</p>
+        <Link to="/admin/dashboard" className="aux-surface-button">返回管理控制台</Link>
       </div>
     </main>
   )
@@ -78,6 +83,9 @@ export default function App() {
       </Route>
       {/* 动态页面(public): /p/:slug, on-demand fetch 内容, 硬刷新可工作 */}
       <Route path="/p/:slug" element={<DynamicPage />} />
+      {/* 用户端发票中心：由 Sub2API custom_menu_items 以 iframe 打开并注入 token。 */}
+      <Route path="/invoice" element={<InvoicePortalPage />} />
+      <Route path="/invoices" element={<InvoicePortalPage />} />
       {/* 管理端: 需管理员会话 (对应 sub2api custom_menu_items, 传 token) */}
       <Route path="/admin" element={<AdminGuard><AdminLayout /></AdminGuard>}>
         {/* U6: 仪表盘为管理端首页 (R10) */}
@@ -88,6 +96,11 @@ export default function App() {
         <Route path="ops/ttft" element={<TTFTFlamegraphPage />} />
         <Route path="ops/consumption" element={<ConsumptionPage />} />
         <Route path="ops/cost-config" element={<CostConfigPage />} />
+        <Route path="invoices" element={<InvoiceManagementPage />} />
+        <Route path="notifications" element={<NotificationManagementPage />} />
+        <Route path="logs/system" element={<SystemLogsPage />} />
+        <Route path="logs/operation" element={<OperationLogsPage />} />
+        <Route path="logs/operations" element={<OperationLogsPage />} />
         {/* 动态页面(admin): /admin/p/:slug, 经 AdminGuard, on-demand fetch */}
         <Route path="p/:slug" element={<AdminDynamicPage />} />
         <Route path="examples/content" element={<ContentExamplePage />} />

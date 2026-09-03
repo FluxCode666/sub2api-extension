@@ -40,7 +40,8 @@ export default function ImageAssetsPage() {
         url: new URL(item.url, window.location.origin).href,
       })))
       return true
-    } catch {
+    } catch (error) {
+      console.error('[ImageAssetsPage] failed to load assets', error)
       setError('图片资源加载失败，请检查管理会话或后端服务。')
       return false
     } finally {
@@ -86,7 +87,8 @@ export default function ImageAssetsPage() {
       await apiClient.upload<AuxEnvelope<ImageAsset>>('/admin/assets', formData, { timeout: 60_000 })
       toast.success('图片上传成功')
       await loadAssets()
-    } catch {
+    } catch (error) {
+      console.error('[ImageAssetsPage] failed to upload asset', error)
       const message = '上传失败。请确认文件格式正确、大小不超过 10MB，并已执行数据库迁移。'
       setError(message)
       toast.error(message)
@@ -107,7 +109,8 @@ export default function ImageAssetsPage() {
       setCopiedId(asset.id)
       toast.success('图片 URL 已复制')
       window.setTimeout(() => setCopiedId((current) => current === asset.id ? null : current), 1600)
-    } catch {
+    } catch (error) {
+      console.error('[ImageAssetsPage] failed to copy asset URL', error)
       const message = '复制失败，请手动选择 URL 复制。'
       setError(message)
       toast.error(message)
@@ -203,8 +206,10 @@ async function writeClipboardText(value: string): Promise<void> {
     try {
       await navigator.clipboard.writeText(value)
       return
-    } catch {
-      // 非安全上下文或浏览器策略禁用 Clipboard API 时，继续使用兼容回退。
+    } catch (error) {
+      // 非安全上下文或浏览器策略禁用 Clipboard API 时，继续使用兼容回退，
+      // 同时保留诊断日志。
+      console.error('[ImageAssetsPage] Clipboard API unavailable; using fallback', error)
     }
   }
 

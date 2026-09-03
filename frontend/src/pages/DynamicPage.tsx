@@ -65,7 +65,8 @@ export default function DynamicPage() {
           setState('error')
         }
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        console.error('[DynamicPage] failed to load page', { slug, error })
         if (cancelled) return
         setErrorMsg('页面不存在或暂时不可用')
         setState('error')
@@ -94,6 +95,7 @@ export default function DynamicPage() {
             if (!cancelled) setReactComponent(() => Component as DynamicComponent)
           })
           .catch((err) => {
+            console.error('[DynamicPage] failed to compile React page', err)
             if (!cancelled) setComponentError(`组件编译失败: ${getErrorMessage(err)}`)
           })
       } else {
@@ -107,6 +109,7 @@ export default function DynamicPage() {
               if (!cancelled) setReactComponent(() => module.default)
             })
             .catch((err) => {
+              console.error('[DynamicPage] failed to load React module', { componentPath, error: err })
               if (!cancelled) setComponentError(`组件加载失败: ${getErrorMessage(err)}`)
             })
         } else {

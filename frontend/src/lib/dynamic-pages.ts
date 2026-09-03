@@ -92,8 +92,13 @@ export function fetchDynamicPages(options: FetchDynamicPagesOptions = {}): Promi
       notifyDynamicPagesListeners()
       return dynamicPagesCache
     })
-    .catch(() => {
-      // 后端不可达时降级: 仅静态页可用, 不阻塞前端
+    .catch((error) => {
+      // 后端不可达时降级: 仅静态页可用, 不阻塞前端；但错误不能静默吞掉，
+      // 否则页面管理中的保存/同步故障无法从浏览器日志关联到具体请求。
+      console.error('[dynamic-pages] failed to load dynamic pages', {
+        includeAdmin,
+        error,
+      })
       dynamicPagesCache = []
       dynamicPagesStatus = 'error'
       notifyDynamicPagesListeners()

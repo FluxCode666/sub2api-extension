@@ -99,6 +99,190 @@ var (
 			},
 		},
 	}
+	// InvoiceOrdersColumns holds the columns for the "invoice_orders" table.
+	InvoiceOrdersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "invoice_request_id", Type: field.TypeInt},
+		{Name: "payment_order_id", Type: field.TypeInt64, Unique: true},
+		{Name: "out_trade_no", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "amount", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,2)"}},
+		{Name: "paid_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// InvoiceOrdersTable holds the schema information for the "invoice_orders" table.
+	InvoiceOrdersTable = &schema.Table{
+		Name:       "invoice_orders",
+		Columns:    InvoiceOrdersColumns,
+		PrimaryKey: []*schema.Column{InvoiceOrdersColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "invoiceorder_invoice_request_id",
+				Unique:  false,
+				Columns: []*schema.Column{InvoiceOrdersColumns[1]},
+			},
+		},
+	}
+	// InvoiceProfilesColumns holds the columns for the "invoice_profiles" table.
+	InvoiceProfilesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "user_id", Type: field.TypeInt64, Unique: true},
+		{Name: "invoice_title", Type: field.TypeString, Size: 200},
+		{Name: "taxpayer_id", Type: field.TypeString, Size: 64},
+		{Name: "contact_email", Type: field.TypeString, Size: 255},
+		{Name: "contact_phone", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "registered_address", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "bank_name", Type: field.TypeString, Size: 200, Default: ""},
+		{Name: "bank_account", Type: field.TypeString, Size: 128, Default: ""},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// InvoiceProfilesTable holds the schema information for the "invoice_profiles" table.
+	InvoiceProfilesTable = &schema.Table{
+		Name:       "invoice_profiles",
+		Columns:    InvoiceProfilesColumns,
+		PrimaryKey: []*schema.Column{InvoiceProfilesColumns[0]},
+	}
+	// InvoiceRequestsColumns holds the columns for the "invoice_requests" table.
+	InvoiceRequestsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "user_id", Type: field.TypeInt64},
+		{Name: "user_email", Type: field.TypeString, Size: 255},
+		{Name: "user_name", Type: field.TypeString, Size: 100, Default: ""},
+		{Name: "invoice_title", Type: field.TypeString, Size: 200},
+		{Name: "taxpayer_id", Type: field.TypeString, Size: 64},
+		{Name: "contact_email", Type: field.TypeString, Size: 255},
+		{Name: "contact_phone", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "registered_address", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "bank_name", Type: field.TypeString, Size: 200, Default: ""},
+		{Name: "bank_account", Type: field.TypeString, Size: 128, Default: ""},
+		{Name: "remark", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "amount", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,2)"}},
+		{Name: "status", Type: field.TypeString, Size: 24, Default: "PENDING"},
+		{Name: "admin_note", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "invoice_file_name", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "invoice_file_path", Type: field.TypeString, Size: 512, Default: ""},
+		{Name: "invoice_file_mime_type", Type: field.TypeString, Size: 128, Default: ""},
+		{Name: "invoice_file_size", Type: field.TypeInt64, Default: 0},
+		{Name: "issued_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// InvoiceRequestsTable holds the schema information for the "invoice_requests" table.
+	InvoiceRequestsTable = &schema.Table{
+		Name:       "invoice_requests",
+		Columns:    InvoiceRequestsColumns,
+		PrimaryKey: []*schema.Column{InvoiceRequestsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "invoicerequest_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{InvoiceRequestsColumns[1], InvoiceRequestsColumns[20]},
+			},
+			{
+				Name:    "invoicerequest_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{InvoiceRequestsColumns[13], InvoiceRequestsColumns[20]},
+			},
+		},
+	}
+	// NotificationChannelsColumns holds the columns for the "notification_channels" table.
+	NotificationChannelsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "name", Type: field.TypeString, Size: 120},
+		{Name: "type", Type: field.TypeString, Size: 24},
+		{Name: "config", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// NotificationChannelsTable holds the schema information for the "notification_channels" table.
+	NotificationChannelsTable = &schema.Table{
+		Name:       "notification_channels",
+		Columns:    NotificationChannelsColumns,
+		PrimaryKey: []*schema.Column{NotificationChannelsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "notificationchannel_type",
+				Unique:  false,
+				Columns: []*schema.Column{NotificationChannelsColumns[2]},
+			},
+			{
+				Name:    "notificationchannel_enabled",
+				Unique:  false,
+				Columns: []*schema.Column{NotificationChannelsColumns[4]},
+			},
+		},
+	}
+	// NotificationDeliveriesColumns holds the columns for the "notification_deliveries" table.
+	NotificationDeliveriesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "channel_id", Type: field.TypeInt, Nullable: true},
+		{Name: "channel_name", Type: field.TypeString, Size: 120, Default: ""},
+		{Name: "channel_type", Type: field.TypeString, Size: 24, Default: ""},
+		{Name: "event", Type: field.TypeString, Size: 100},
+		{Name: "status", Type: field.TypeString, Size: 16},
+		{Name: "recipient", Type: field.TypeString, Size: 1000, Default: ""},
+		{Name: "subject", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "payload", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "error_message", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "attempts", Type: field.TypeInt, Default: 1},
+		{Name: "sent_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// NotificationDeliveriesTable holds the schema information for the "notification_deliveries" table.
+	NotificationDeliveriesTable = &schema.Table{
+		Name:       "notification_deliveries",
+		Columns:    NotificationDeliveriesColumns,
+		PrimaryKey: []*schema.Column{NotificationDeliveriesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "notificationdelivery_event_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{NotificationDeliveriesColumns[4], NotificationDeliveriesColumns[12]},
+			},
+			{
+				Name:    "notificationdelivery_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{NotificationDeliveriesColumns[5], NotificationDeliveriesColumns[12]},
+			},
+		},
+	}
+	// OperationLogsColumns holds the columns for the "operation_logs" table.
+	OperationLogsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "user_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "username", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "action", Type: field.TypeString, Size: 128},
+		{Name: "resource", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "resource_id", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "status", Type: field.TypeString, Size: 16, Default: "success"},
+		{Name: "details", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "ip_address", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// OperationLogsTable holds the schema information for the "operation_logs" table.
+	OperationLogsTable = &schema.Table{
+		Name:       "operation_logs",
+		Columns:    OperationLogsColumns,
+		PrimaryKey: []*schema.Column{OperationLogsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "operationlog_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{OperationLogsColumns[1], OperationLogsColumns[9]},
+			},
+			{
+				Name:    "operationlog_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{OperationLogsColumns[6], OperationLogsColumns[9]},
+			},
+			{
+				Name:    "operationlog_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{OperationLogsColumns[9]},
+			},
+		},
+	}
 	// PagesColumns holds the columns for the "pages" table.
 	PagesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -172,6 +356,39 @@ var (
 			},
 		},
 	}
+	// SystemLogsColumns holds the columns for the "system_logs" table.
+	SystemLogsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "level", Type: field.TypeString, Size: 16, Default: "INFO"},
+		{Name: "source", Type: field.TypeString, Size: 128, Default: "system"},
+		{Name: "message", Type: field.TypeString, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "details", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "request_id", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// SystemLogsTable holds the schema information for the "system_logs" table.
+	SystemLogsTable = &schema.Table{
+		Name:       "system_logs",
+		Columns:    SystemLogsColumns,
+		PrimaryKey: []*schema.Column{SystemLogsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "systemlog_level_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{SystemLogsColumns[1], SystemLogsColumns[6]},
+			},
+			{
+				Name:    "systemlog_source_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{SystemLogsColumns[2], SystemLogsColumns[6]},
+			},
+			{
+				Name:    "systemlog_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{SystemLogsColumns[6]},
+			},
+		},
+	}
 	// SystemMetaColumns holds the columns for the "system_meta" table.
 	SystemMetaColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -189,8 +406,15 @@ var (
 		AccountCostConfigsTable,
 		FeatureClicksTable,
 		ImageAssetsTable,
+		InvoiceOrdersTable,
+		InvoiceProfilesTable,
+		InvoiceRequestsTable,
+		NotificationChannelsTable,
+		NotificationDeliveriesTable,
+		OperationLogsTable,
 		PagesTable,
 		PageViewsTable,
+		SystemLogsTable,
 		SystemMetaTable,
 	}
 )
@@ -202,11 +426,32 @@ func init() {
 	ImageAssetsTable.Annotation = &entsql.Annotation{
 		Table: "image_assets",
 	}
+	InvoiceOrdersTable.Annotation = &entsql.Annotation{
+		Table: "invoice_orders",
+	}
+	InvoiceProfilesTable.Annotation = &entsql.Annotation{
+		Table: "invoice_profiles",
+	}
+	InvoiceRequestsTable.Annotation = &entsql.Annotation{
+		Table: "invoice_requests",
+	}
+	NotificationChannelsTable.Annotation = &entsql.Annotation{
+		Table: "notification_channels",
+	}
+	NotificationDeliveriesTable.Annotation = &entsql.Annotation{
+		Table: "notification_deliveries",
+	}
+	OperationLogsTable.Annotation = &entsql.Annotation{
+		Table: "operation_logs",
+	}
 	PagesTable.Annotation = &entsql.Annotation{
 		Table: "pages",
 	}
 	PageViewsTable.Annotation = &entsql.Annotation{
 		Table: "page_views",
+	}
+	SystemLogsTable.Annotation = &entsql.Annotation{
+		Table: "system_logs",
 	}
 	SystemMetaTable.Annotation = &entsql.Annotation{
 		Table: "system_meta",

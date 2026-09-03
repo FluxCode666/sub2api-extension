@@ -44,6 +44,78 @@ func (f ImageAssetFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ImageAssetMutation", m)
 }
 
+// The InvoiceOrderFunc type is an adapter to allow the use of ordinary
+// function as InvoiceOrder mutator.
+type InvoiceOrderFunc func(context.Context, *ent.InvoiceOrderMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f InvoiceOrderFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.InvoiceOrderMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.InvoiceOrderMutation", m)
+}
+
+// The InvoiceProfileFunc type is an adapter to allow the use of ordinary
+// function as InvoiceProfile mutator.
+type InvoiceProfileFunc func(context.Context, *ent.InvoiceProfileMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f InvoiceProfileFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.InvoiceProfileMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.InvoiceProfileMutation", m)
+}
+
+// The InvoiceRequestFunc type is an adapter to allow the use of ordinary
+// function as InvoiceRequest mutator.
+type InvoiceRequestFunc func(context.Context, *ent.InvoiceRequestMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f InvoiceRequestFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.InvoiceRequestMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.InvoiceRequestMutation", m)
+}
+
+// The NotificationChannelFunc type is an adapter to allow the use of ordinary
+// function as NotificationChannel mutator.
+type NotificationChannelFunc func(context.Context, *ent.NotificationChannelMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f NotificationChannelFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.NotificationChannelMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NotificationChannelMutation", m)
+}
+
+// The NotificationDeliveryFunc type is an adapter to allow the use of ordinary
+// function as NotificationDelivery mutator.
+type NotificationDeliveryFunc func(context.Context, *ent.NotificationDeliveryMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f NotificationDeliveryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.NotificationDeliveryMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NotificationDeliveryMutation", m)
+}
+
+// The OperationLogFunc type is an adapter to allow the use of ordinary
+// function as OperationLog mutator.
+type OperationLogFunc func(context.Context, *ent.OperationLogMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f OperationLogFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.OperationLogMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.OperationLogMutation", m)
+}
+
 // The PageFunc type is an adapter to allow the use of ordinary
 // function as Page mutator.
 type PageFunc func(context.Context, *ent.PageMutation) (ent.Value, error)
@@ -66,6 +138,18 @@ func (f PageViewFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PageViewMutation", m)
+}
+
+// The SystemLogFunc type is an adapter to allow the use of ordinary
+// function as SystemLog mutator.
+type SystemLogFunc func(context.Context, *ent.SystemLogMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SystemLogFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SystemLogMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SystemLogMutation", m)
 }
 
 // The SystemMetaFunc type is an adapter to allow the use of ordinary

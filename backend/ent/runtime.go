@@ -6,9 +6,16 @@ import (
 	"sub2api-extension/ent/accountcostconfig"
 	"sub2api-extension/ent/featureclick"
 	"sub2api-extension/ent/imageasset"
+	"sub2api-extension/ent/invoiceorder"
+	"sub2api-extension/ent/invoiceprofile"
+	"sub2api-extension/ent/invoicerequest"
+	"sub2api-extension/ent/notificationchannel"
+	"sub2api-extension/ent/notificationdelivery"
+	"sub2api-extension/ent/operationlog"
 	"sub2api-extension/ent/page"
 	"sub2api-extension/ent/pageview"
 	"sub2api-extension/ent/schema"
+	"sub2api-extension/ent/systemlog"
 	"sub2api-extension/ent/systemmeta"
 	"time"
 )
@@ -131,6 +138,280 @@ func init() {
 	imageassetDescCreatedAt := imageassetFields[4].Descriptor()
 	// imageasset.DefaultCreatedAt holds the default value on creation for the created_at field.
 	imageasset.DefaultCreatedAt = imageassetDescCreatedAt.Default.(func() time.Time)
+	invoiceorderFields := schema.InvoiceOrder{}.Fields()
+	_ = invoiceorderFields
+	// invoiceorderDescOutTradeNo is the schema descriptor for out_trade_no field.
+	invoiceorderDescOutTradeNo := invoiceorderFields[2].Descriptor()
+	// invoiceorder.DefaultOutTradeNo holds the default value on creation for the out_trade_no field.
+	invoiceorder.DefaultOutTradeNo = invoiceorderDescOutTradeNo.Default.(string)
+	// invoiceorder.OutTradeNoValidator is a validator for the "out_trade_no" field. It is called by the builders before save.
+	invoiceorder.OutTradeNoValidator = invoiceorderDescOutTradeNo.Validators[0].(func(string) error)
+	// invoiceorderDescCreatedAt is the schema descriptor for created_at field.
+	invoiceorderDescCreatedAt := invoiceorderFields[5].Descriptor()
+	// invoiceorder.DefaultCreatedAt holds the default value on creation for the created_at field.
+	invoiceorder.DefaultCreatedAt = invoiceorderDescCreatedAt.Default.(func() time.Time)
+	invoiceprofileFields := schema.InvoiceProfile{}.Fields()
+	_ = invoiceprofileFields
+	// invoiceprofileDescInvoiceTitle is the schema descriptor for invoice_title field.
+	invoiceprofileDescInvoiceTitle := invoiceprofileFields[1].Descriptor()
+	// invoiceprofile.InvoiceTitleValidator is a validator for the "invoice_title" field. It is called by the builders before save.
+	invoiceprofile.InvoiceTitleValidator = invoiceprofileDescInvoiceTitle.Validators[0].(func(string) error)
+	// invoiceprofileDescTaxpayerID is the schema descriptor for taxpayer_id field.
+	invoiceprofileDescTaxpayerID := invoiceprofileFields[2].Descriptor()
+	// invoiceprofile.TaxpayerIDValidator is a validator for the "taxpayer_id" field. It is called by the builders before save.
+	invoiceprofile.TaxpayerIDValidator = invoiceprofileDescTaxpayerID.Validators[0].(func(string) error)
+	// invoiceprofileDescContactEmail is the schema descriptor for contact_email field.
+	invoiceprofileDescContactEmail := invoiceprofileFields[3].Descriptor()
+	// invoiceprofile.ContactEmailValidator is a validator for the "contact_email" field. It is called by the builders before save.
+	invoiceprofile.ContactEmailValidator = invoiceprofileDescContactEmail.Validators[0].(func(string) error)
+	// invoiceprofileDescContactPhone is the schema descriptor for contact_phone field.
+	invoiceprofileDescContactPhone := invoiceprofileFields[4].Descriptor()
+	// invoiceprofile.DefaultContactPhone holds the default value on creation for the contact_phone field.
+	invoiceprofile.DefaultContactPhone = invoiceprofileDescContactPhone.Default.(string)
+	// invoiceprofile.ContactPhoneValidator is a validator for the "contact_phone" field. It is called by the builders before save.
+	invoiceprofile.ContactPhoneValidator = invoiceprofileDescContactPhone.Validators[0].(func(string) error)
+	// invoiceprofileDescBankName is the schema descriptor for bank_name field.
+	invoiceprofileDescBankName := invoiceprofileFields[6].Descriptor()
+	// invoiceprofile.DefaultBankName holds the default value on creation for the bank_name field.
+	invoiceprofile.DefaultBankName = invoiceprofileDescBankName.Default.(string)
+	// invoiceprofile.BankNameValidator is a validator for the "bank_name" field. It is called by the builders before save.
+	invoiceprofile.BankNameValidator = invoiceprofileDescBankName.Validators[0].(func(string) error)
+	// invoiceprofileDescBankAccount is the schema descriptor for bank_account field.
+	invoiceprofileDescBankAccount := invoiceprofileFields[7].Descriptor()
+	// invoiceprofile.DefaultBankAccount holds the default value on creation for the bank_account field.
+	invoiceprofile.DefaultBankAccount = invoiceprofileDescBankAccount.Default.(string)
+	// invoiceprofile.BankAccountValidator is a validator for the "bank_account" field. It is called by the builders before save.
+	invoiceprofile.BankAccountValidator = invoiceprofileDescBankAccount.Validators[0].(func(string) error)
+	// invoiceprofileDescCreatedAt is the schema descriptor for created_at field.
+	invoiceprofileDescCreatedAt := invoiceprofileFields[8].Descriptor()
+	// invoiceprofile.DefaultCreatedAt holds the default value on creation for the created_at field.
+	invoiceprofile.DefaultCreatedAt = invoiceprofileDescCreatedAt.Default.(func() time.Time)
+	// invoiceprofileDescUpdatedAt is the schema descriptor for updated_at field.
+	invoiceprofileDescUpdatedAt := invoiceprofileFields[9].Descriptor()
+	// invoiceprofile.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	invoiceprofile.DefaultUpdatedAt = invoiceprofileDescUpdatedAt.Default.(func() time.Time)
+	// invoiceprofile.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	invoiceprofile.UpdateDefaultUpdatedAt = invoiceprofileDescUpdatedAt.UpdateDefault.(func() time.Time)
+	invoicerequestFields := schema.InvoiceRequest{}.Fields()
+	_ = invoicerequestFields
+	// invoicerequestDescUserEmail is the schema descriptor for user_email field.
+	invoicerequestDescUserEmail := invoicerequestFields[1].Descriptor()
+	// invoicerequest.UserEmailValidator is a validator for the "user_email" field. It is called by the builders before save.
+	invoicerequest.UserEmailValidator = invoicerequestDescUserEmail.Validators[0].(func(string) error)
+	// invoicerequestDescUserName is the schema descriptor for user_name field.
+	invoicerequestDescUserName := invoicerequestFields[2].Descriptor()
+	// invoicerequest.DefaultUserName holds the default value on creation for the user_name field.
+	invoicerequest.DefaultUserName = invoicerequestDescUserName.Default.(string)
+	// invoicerequest.UserNameValidator is a validator for the "user_name" field. It is called by the builders before save.
+	invoicerequest.UserNameValidator = invoicerequestDescUserName.Validators[0].(func(string) error)
+	// invoicerequestDescInvoiceTitle is the schema descriptor for invoice_title field.
+	invoicerequestDescInvoiceTitle := invoicerequestFields[3].Descriptor()
+	// invoicerequest.InvoiceTitleValidator is a validator for the "invoice_title" field. It is called by the builders before save.
+	invoicerequest.InvoiceTitleValidator = invoicerequestDescInvoiceTitle.Validators[0].(func(string) error)
+	// invoicerequestDescTaxpayerID is the schema descriptor for taxpayer_id field.
+	invoicerequestDescTaxpayerID := invoicerequestFields[4].Descriptor()
+	// invoicerequest.TaxpayerIDValidator is a validator for the "taxpayer_id" field. It is called by the builders before save.
+	invoicerequest.TaxpayerIDValidator = invoicerequestDescTaxpayerID.Validators[0].(func(string) error)
+	// invoicerequestDescContactEmail is the schema descriptor for contact_email field.
+	invoicerequestDescContactEmail := invoicerequestFields[5].Descriptor()
+	// invoicerequest.ContactEmailValidator is a validator for the "contact_email" field. It is called by the builders before save.
+	invoicerequest.ContactEmailValidator = invoicerequestDescContactEmail.Validators[0].(func(string) error)
+	// invoicerequestDescContactPhone is the schema descriptor for contact_phone field.
+	invoicerequestDescContactPhone := invoicerequestFields[6].Descriptor()
+	// invoicerequest.DefaultContactPhone holds the default value on creation for the contact_phone field.
+	invoicerequest.DefaultContactPhone = invoicerequestDescContactPhone.Default.(string)
+	// invoicerequest.ContactPhoneValidator is a validator for the "contact_phone" field. It is called by the builders before save.
+	invoicerequest.ContactPhoneValidator = invoicerequestDescContactPhone.Validators[0].(func(string) error)
+	// invoicerequestDescBankName is the schema descriptor for bank_name field.
+	invoicerequestDescBankName := invoicerequestFields[8].Descriptor()
+	// invoicerequest.DefaultBankName holds the default value on creation for the bank_name field.
+	invoicerequest.DefaultBankName = invoicerequestDescBankName.Default.(string)
+	// invoicerequest.BankNameValidator is a validator for the "bank_name" field. It is called by the builders before save.
+	invoicerequest.BankNameValidator = invoicerequestDescBankName.Validators[0].(func(string) error)
+	// invoicerequestDescBankAccount is the schema descriptor for bank_account field.
+	invoicerequestDescBankAccount := invoicerequestFields[9].Descriptor()
+	// invoicerequest.DefaultBankAccount holds the default value on creation for the bank_account field.
+	invoicerequest.DefaultBankAccount = invoicerequestDescBankAccount.Default.(string)
+	// invoicerequest.BankAccountValidator is a validator for the "bank_account" field. It is called by the builders before save.
+	invoicerequest.BankAccountValidator = invoicerequestDescBankAccount.Validators[0].(func(string) error)
+	// invoicerequestDescStatus is the schema descriptor for status field.
+	invoicerequestDescStatus := invoicerequestFields[12].Descriptor()
+	// invoicerequest.DefaultStatus holds the default value on creation for the status field.
+	invoicerequest.DefaultStatus = invoicerequestDescStatus.Default.(string)
+	// invoicerequest.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	invoicerequest.StatusValidator = invoicerequestDescStatus.Validators[0].(func(string) error)
+	// invoicerequestDescInvoiceFileName is the schema descriptor for invoice_file_name field.
+	invoicerequestDescInvoiceFileName := invoicerequestFields[14].Descriptor()
+	// invoicerequest.DefaultInvoiceFileName holds the default value on creation for the invoice_file_name field.
+	invoicerequest.DefaultInvoiceFileName = invoicerequestDescInvoiceFileName.Default.(string)
+	// invoicerequest.InvoiceFileNameValidator is a validator for the "invoice_file_name" field. It is called by the builders before save.
+	invoicerequest.InvoiceFileNameValidator = invoicerequestDescInvoiceFileName.Validators[0].(func(string) error)
+	// invoicerequestDescInvoiceFilePath is the schema descriptor for invoice_file_path field.
+	invoicerequestDescInvoiceFilePath := invoicerequestFields[15].Descriptor()
+	// invoicerequest.DefaultInvoiceFilePath holds the default value on creation for the invoice_file_path field.
+	invoicerequest.DefaultInvoiceFilePath = invoicerequestDescInvoiceFilePath.Default.(string)
+	// invoicerequest.InvoiceFilePathValidator is a validator for the "invoice_file_path" field. It is called by the builders before save.
+	invoicerequest.InvoiceFilePathValidator = invoicerequestDescInvoiceFilePath.Validators[0].(func(string) error)
+	// invoicerequestDescInvoiceFileMimeType is the schema descriptor for invoice_file_mime_type field.
+	invoicerequestDescInvoiceFileMimeType := invoicerequestFields[16].Descriptor()
+	// invoicerequest.DefaultInvoiceFileMimeType holds the default value on creation for the invoice_file_mime_type field.
+	invoicerequest.DefaultInvoiceFileMimeType = invoicerequestDescInvoiceFileMimeType.Default.(string)
+	// invoicerequest.InvoiceFileMimeTypeValidator is a validator for the "invoice_file_mime_type" field. It is called by the builders before save.
+	invoicerequest.InvoiceFileMimeTypeValidator = invoicerequestDescInvoiceFileMimeType.Validators[0].(func(string) error)
+	// invoicerequestDescInvoiceFileSize is the schema descriptor for invoice_file_size field.
+	invoicerequestDescInvoiceFileSize := invoicerequestFields[17].Descriptor()
+	// invoicerequest.DefaultInvoiceFileSize holds the default value on creation for the invoice_file_size field.
+	invoicerequest.DefaultInvoiceFileSize = invoicerequestDescInvoiceFileSize.Default.(int64)
+	// invoicerequestDescCreatedAt is the schema descriptor for created_at field.
+	invoicerequestDescCreatedAt := invoicerequestFields[19].Descriptor()
+	// invoicerequest.DefaultCreatedAt holds the default value on creation for the created_at field.
+	invoicerequest.DefaultCreatedAt = invoicerequestDescCreatedAt.Default.(func() time.Time)
+	// invoicerequestDescUpdatedAt is the schema descriptor for updated_at field.
+	invoicerequestDescUpdatedAt := invoicerequestFields[20].Descriptor()
+	// invoicerequest.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	invoicerequest.DefaultUpdatedAt = invoicerequestDescUpdatedAt.Default.(func() time.Time)
+	// invoicerequest.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	invoicerequest.UpdateDefaultUpdatedAt = invoicerequestDescUpdatedAt.UpdateDefault.(func() time.Time)
+	notificationchannelFields := schema.NotificationChannel{}.Fields()
+	_ = notificationchannelFields
+	// notificationchannelDescName is the schema descriptor for name field.
+	notificationchannelDescName := notificationchannelFields[0].Descriptor()
+	// notificationchannel.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	notificationchannel.NameValidator = func() func(string) error {
+		validators := notificationchannelDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// notificationchannelDescType is the schema descriptor for type field.
+	notificationchannelDescType := notificationchannelFields[1].Descriptor()
+	// notificationchannel.TypeValidator is a validator for the "type" field. It is called by the builders before save.
+	notificationchannel.TypeValidator = func() func(string) error {
+		validators := notificationchannelDescType.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(_type string) error {
+			for _, fn := range fns {
+				if err := fn(_type); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// notificationchannelDescEnabled is the schema descriptor for enabled field.
+	notificationchannelDescEnabled := notificationchannelFields[3].Descriptor()
+	// notificationchannel.DefaultEnabled holds the default value on creation for the enabled field.
+	notificationchannel.DefaultEnabled = notificationchannelDescEnabled.Default.(bool)
+	// notificationchannelDescCreatedAt is the schema descriptor for created_at field.
+	notificationchannelDescCreatedAt := notificationchannelFields[4].Descriptor()
+	// notificationchannel.DefaultCreatedAt holds the default value on creation for the created_at field.
+	notificationchannel.DefaultCreatedAt = notificationchannelDescCreatedAt.Default.(func() time.Time)
+	// notificationchannelDescUpdatedAt is the schema descriptor for updated_at field.
+	notificationchannelDescUpdatedAt := notificationchannelFields[5].Descriptor()
+	// notificationchannel.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	notificationchannel.DefaultUpdatedAt = notificationchannelDescUpdatedAt.Default.(func() time.Time)
+	// notificationchannel.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	notificationchannel.UpdateDefaultUpdatedAt = notificationchannelDescUpdatedAt.UpdateDefault.(func() time.Time)
+	notificationdeliveryFields := schema.NotificationDelivery{}.Fields()
+	_ = notificationdeliveryFields
+	// notificationdeliveryDescChannelName is the schema descriptor for channel_name field.
+	notificationdeliveryDescChannelName := notificationdeliveryFields[1].Descriptor()
+	// notificationdelivery.DefaultChannelName holds the default value on creation for the channel_name field.
+	notificationdelivery.DefaultChannelName = notificationdeliveryDescChannelName.Default.(string)
+	// notificationdelivery.ChannelNameValidator is a validator for the "channel_name" field. It is called by the builders before save.
+	notificationdelivery.ChannelNameValidator = notificationdeliveryDescChannelName.Validators[0].(func(string) error)
+	// notificationdeliveryDescChannelType is the schema descriptor for channel_type field.
+	notificationdeliveryDescChannelType := notificationdeliveryFields[2].Descriptor()
+	// notificationdelivery.DefaultChannelType holds the default value on creation for the channel_type field.
+	notificationdelivery.DefaultChannelType = notificationdeliveryDescChannelType.Default.(string)
+	// notificationdelivery.ChannelTypeValidator is a validator for the "channel_type" field. It is called by the builders before save.
+	notificationdelivery.ChannelTypeValidator = notificationdeliveryDescChannelType.Validators[0].(func(string) error)
+	// notificationdeliveryDescEvent is the schema descriptor for event field.
+	notificationdeliveryDescEvent := notificationdeliveryFields[3].Descriptor()
+	// notificationdelivery.EventValidator is a validator for the "event" field. It is called by the builders before save.
+	notificationdelivery.EventValidator = notificationdeliveryDescEvent.Validators[0].(func(string) error)
+	// notificationdeliveryDescStatus is the schema descriptor for status field.
+	notificationdeliveryDescStatus := notificationdeliveryFields[4].Descriptor()
+	// notificationdelivery.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	notificationdelivery.StatusValidator = notificationdeliveryDescStatus.Validators[0].(func(string) error)
+	// notificationdeliveryDescRecipient is the schema descriptor for recipient field.
+	notificationdeliveryDescRecipient := notificationdeliveryFields[5].Descriptor()
+	// notificationdelivery.DefaultRecipient holds the default value on creation for the recipient field.
+	notificationdelivery.DefaultRecipient = notificationdeliveryDescRecipient.Default.(string)
+	// notificationdelivery.RecipientValidator is a validator for the "recipient" field. It is called by the builders before save.
+	notificationdelivery.RecipientValidator = notificationdeliveryDescRecipient.Validators[0].(func(string) error)
+	// notificationdeliveryDescSubject is the schema descriptor for subject field.
+	notificationdeliveryDescSubject := notificationdeliveryFields[6].Descriptor()
+	// notificationdelivery.DefaultSubject holds the default value on creation for the subject field.
+	notificationdelivery.DefaultSubject = notificationdeliveryDescSubject.Default.(string)
+	// notificationdelivery.SubjectValidator is a validator for the "subject" field. It is called by the builders before save.
+	notificationdelivery.SubjectValidator = notificationdeliveryDescSubject.Validators[0].(func(string) error)
+	// notificationdeliveryDescAttempts is the schema descriptor for attempts field.
+	notificationdeliveryDescAttempts := notificationdeliveryFields[9].Descriptor()
+	// notificationdelivery.DefaultAttempts holds the default value on creation for the attempts field.
+	notificationdelivery.DefaultAttempts = notificationdeliveryDescAttempts.Default.(int)
+	// notificationdeliveryDescCreatedAt is the schema descriptor for created_at field.
+	notificationdeliveryDescCreatedAt := notificationdeliveryFields[11].Descriptor()
+	// notificationdelivery.DefaultCreatedAt holds the default value on creation for the created_at field.
+	notificationdelivery.DefaultCreatedAt = notificationdeliveryDescCreatedAt.Default.(func() time.Time)
+	operationlogFields := schema.OperationLog{}.Fields()
+	_ = operationlogFields
+	// operationlogDescUsername is the schema descriptor for username field.
+	operationlogDescUsername := operationlogFields[1].Descriptor()
+	// operationlog.UsernameValidator is a validator for the "username" field. It is called by the builders before save.
+	operationlog.UsernameValidator = operationlogDescUsername.Validators[0].(func(string) error)
+	// operationlogDescAction is the schema descriptor for action field.
+	operationlogDescAction := operationlogFields[2].Descriptor()
+	// operationlog.ActionValidator is a validator for the "action" field. It is called by the builders before save.
+	operationlog.ActionValidator = func() func(string) error {
+		validators := operationlogDescAction.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(action string) error {
+			for _, fn := range fns {
+				if err := fn(action); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// operationlogDescResource is the schema descriptor for resource field.
+	operationlogDescResource := operationlogFields[3].Descriptor()
+	// operationlog.ResourceValidator is a validator for the "resource" field. It is called by the builders before save.
+	operationlog.ResourceValidator = operationlogDescResource.Validators[0].(func(string) error)
+	// operationlogDescResourceID is the schema descriptor for resource_id field.
+	operationlogDescResourceID := operationlogFields[4].Descriptor()
+	// operationlog.ResourceIDValidator is a validator for the "resource_id" field. It is called by the builders before save.
+	operationlog.ResourceIDValidator = operationlogDescResourceID.Validators[0].(func(string) error)
+	// operationlogDescStatus is the schema descriptor for status field.
+	operationlogDescStatus := operationlogFields[5].Descriptor()
+	// operationlog.DefaultStatus holds the default value on creation for the status field.
+	operationlog.DefaultStatus = operationlogDescStatus.Default.(string)
+	// operationlog.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	operationlog.StatusValidator = operationlogDescStatus.Validators[0].(func(string) error)
+	// operationlogDescIPAddress is the schema descriptor for ip_address field.
+	operationlogDescIPAddress := operationlogFields[7].Descriptor()
+	// operationlog.IPAddressValidator is a validator for the "ip_address" field. It is called by the builders before save.
+	operationlog.IPAddressValidator = operationlogDescIPAddress.Validators[0].(func(string) error)
+	// operationlogDescCreatedAt is the schema descriptor for created_at field.
+	operationlogDescCreatedAt := operationlogFields[8].Descriptor()
+	// operationlog.DefaultCreatedAt holds the default value on creation for the created_at field.
+	operationlog.DefaultCreatedAt = operationlogDescCreatedAt.Default.(func() time.Time)
 	pageFields := schema.Page{}.Fields()
 	_ = pageFields
 	// pageDescSlug is the schema descriptor for slug field.
@@ -241,6 +522,32 @@ func init() {
 	pageviewDescCreatedAt := pageviewFields[3].Descriptor()
 	// pageview.DefaultCreatedAt holds the default value on creation for the created_at field.
 	pageview.DefaultCreatedAt = pageviewDescCreatedAt.Default.(func() time.Time)
+	systemlogFields := schema.SystemLog{}.Fields()
+	_ = systemlogFields
+	// systemlogDescLevel is the schema descriptor for level field.
+	systemlogDescLevel := systemlogFields[0].Descriptor()
+	// systemlog.DefaultLevel holds the default value on creation for the level field.
+	systemlog.DefaultLevel = systemlogDescLevel.Default.(string)
+	// systemlog.LevelValidator is a validator for the "level" field. It is called by the builders before save.
+	systemlog.LevelValidator = systemlogDescLevel.Validators[0].(func(string) error)
+	// systemlogDescSource is the schema descriptor for source field.
+	systemlogDescSource := systemlogFields[1].Descriptor()
+	// systemlog.DefaultSource holds the default value on creation for the source field.
+	systemlog.DefaultSource = systemlogDescSource.Default.(string)
+	// systemlog.SourceValidator is a validator for the "source" field. It is called by the builders before save.
+	systemlog.SourceValidator = systemlogDescSource.Validators[0].(func(string) error)
+	// systemlogDescMessage is the schema descriptor for message field.
+	systemlogDescMessage := systemlogFields[2].Descriptor()
+	// systemlog.MessageValidator is a validator for the "message" field. It is called by the builders before save.
+	systemlog.MessageValidator = systemlogDescMessage.Validators[0].(func(string) error)
+	// systemlogDescRequestID is the schema descriptor for request_id field.
+	systemlogDescRequestID := systemlogFields[4].Descriptor()
+	// systemlog.RequestIDValidator is a validator for the "request_id" field. It is called by the builders before save.
+	systemlog.RequestIDValidator = systemlogDescRequestID.Validators[0].(func(string) error)
+	// systemlogDescCreatedAt is the schema descriptor for created_at field.
+	systemlogDescCreatedAt := systemlogFields[5].Descriptor()
+	// systemlog.DefaultCreatedAt holds the default value on creation for the created_at field.
+	systemlog.DefaultCreatedAt = systemlogDescCreatedAt.Default.(func() time.Time)
 	systemmetaFields := schema.SystemMeta{}.Fields()
 	_ = systemmetaFields
 	// systemmetaDescKey is the schema descriptor for key field.

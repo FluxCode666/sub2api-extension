@@ -114,6 +114,20 @@ describe('App routing', () => {
     expect(screen.getByRole('heading', { name: '页面不存在' })).toBeInTheDocument()
   })
 
+  it('keeps unknown routes on the 404 page instead of sending them to the public home page', () => {
+    render(
+      <MemoryRouter initialEntries={['/some-removed-route']}>
+        <App />
+        <LocationProbe />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('heading', { name: '页面不存在' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '返回管理控制台' })).toHaveAttribute('href', '/admin/dashboard')
+    expect(screen.getByTestId('location')).toHaveTextContent('/some-removed-route')
+    expect(screen.getByTestId('location')).not.toHaveTextContent('/p/home')
+  })
+
   it.each([
     ['/admin/assets', 'image-assets-page'],
     ['/admin/ops/consumption', 'consumption-page'],

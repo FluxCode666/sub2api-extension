@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -81,14 +82,37 @@ func main() {
 	// 页面上架需要直接修改 sub2api 的 settings.custom_menu_items。
 	// 未配置 SUB2API_DATABASE_HOST 时保持兼容：页面 CRUD 可用，但上架功能不可用。
 	var sub2apiMenuPublisher service.PagePublisher
+	var invoiceMenuPublisher interface {
+		SetInvoiceMenu(context.Context, bool) error
+	}
 	var sub2apiDB *sql.DB
 	if cfg.Sub2API.Database.Host != "" {
+		if strings.TrimSpace(cfg.Sub2API.PublicURL) == "" {
+			// The database connection is still useful for reads (for example the
+			// operations dashboard), but publishing a page needs a browser-reachable
+			// origin to build the custom_menu_items URL. Keep startup successful and
+			// make the missing setting explicit instead of hiding it until a toggle is
+			// clicked in the admin UI.
+			log.Printf("[main] sub2api menu publication configured without public URL; set SUB2API_EXTENSION_PUBLIC_URL (for local Vite: http://localhost:3100, Docker: the mapped extension origin)")
+		} else {
+			// Do not print the URL itself: deployments may include credentials or
+			// other sensitive query material even though a plain origin is expected.
+			log.Printf("[main] sub2api menu publication public URL configured=true")
+		}
 		sub2apiDB, err = initSub2APIDatabase(cfg)
 		if err != nil {
 			log.Fatalf("Failed to initialize sub2api database: %v", err)
 		}
-		defer func() { _ = sub2apiDB.Close() }()
-		sub2apiMenuPublisher = integration.NewSub2APIMenuStore(sub2apiDB, cfg.Sub2API.PublicURL)
+		defer func() {
+			if closeErr := sub2apiDB.Close(); closeErr != nil {
+				log.Printf("[main] failed to close sub2api database: %v", closeErr)
+			}
+		}()
+		menuStore := integration.NewSub2APIMenuStore(sub2apiDB, cfg.Sub2API.PublicURL)
+		sub2apiMenuPublisher = menuStore
+		invoiceMenuPublisher = menuStore
+	} else {
+		log.Printf("[main] sub2api database integration disabled: SUB2API_DATABASE_HOST is empty; publication and TTFT data access will be unavailable")
 	}
 
 	// 装配路由
@@ -126,6 +150,38 @@ func main() {
 	imageAssetService := service.NewImageAssetService(imageAssetStore, cfg.Assets.Dir)
 	imageAssetHandler := adminhandler.NewImageAssetHandler(imageAssetService)
 
+	// 日志链：Ent 持久化 + stdout 输出；系统日志和操作日志页面共用此服务。
+	logStore := service.NewEntLogStore(entClient)
+	logService := service.NewLogService(logStore)
+	logHandler := adminhandler.NewLogHandler(logService)
+	if err := logService.RecordSystem(context.Background(), service.SystemLogRecord{
+		Level: service.LogLevelInfo, Source: "startup", Message: "aux service initialized",
+		Details: fmt.Sprintf("version=%s mode=%s", Version, cfg.Server.Mode),
+	}); err != nil {
+		log.Printf("[main] failed to persist startup log: %v", err)
+	}
+
+	// 发票模块只读 Sub2API 的已完成余额充值订单；申请、资料和开票文件
+	// 始终保存在扩展自己的数据库/私有文件目录中。
+	invoiceOrderStore := integration.NewSub2APIPaymentOrderStore(sub2apiDB)
+	invoiceService := service.NewInvoiceService(entClient, invoiceOrderStore, cfg.Assets.Dir)
+	if invoiceMenuPublisher != nil {
+		syncCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		enabled, readErr := invoiceService.FeatureEnabled(syncCtx)
+		if readErr != nil {
+			log.Printf("[main] failed to read invoice feature state for menu sync: %v", readErr)
+		} else if enabled {
+			if syncErr := invoiceMenuPublisher.SetInvoiceMenu(syncCtx, true); syncErr != nil {
+				log.Printf("[main] failed to sync enabled invoice menu: %v", syncErr)
+			}
+		}
+		cancel()
+	}
+	invoiceUserHandler := handler.NewInvoiceUserHandler(invoiceService, sub2apiClient)
+	invoiceAdminHandler := adminhandler.NewInvoiceAdminHandler(invoiceService, invoiceMenuPublisher)
+	notificationService := service.NewNotificationService(entClient)
+	notificationAdminHandler := adminhandler.NewNotificationAdminHandler(notificationService)
+
 	// 运维首字延迟看板直接读取 sub2api PostgreSQL 的 usage_logs/groups/accounts。
 	// 未配置数据库时仍注册 handler，由接口返回清晰的 503，而不是让前端遇到无意义的 404。
 	ttftStore := integration.NewSub2APITTFTStore(sub2apiDB)
@@ -146,7 +202,7 @@ func main() {
 		log.Printf("cost account sync failed: %v", syncErr)
 	})
 
-	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, imageAssetHandler, ttftHandler, costHandler)
+	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, imageAssetHandler, ttftHandler, costHandler, invoiceUserHandler, invoiceAdminHandler, notificationAdminHandler, logService, logHandler)
 
 	// 启动 HTTP 服务器
 	addr := cfg.Server.Address()
@@ -182,51 +238,67 @@ func main() {
 	}
 
 	log.Println("Server exited")
+	if err := logService.RecordSystem(context.Background(), service.SystemLogRecord{Level: service.LogLevelInfo, Source: "shutdown", Message: "aux service stopped"}); err != nil {
+		log.Printf("[main] failed to persist shutdown log: %v", err)
+	}
 }
 
 func initSub2APIDatabase(cfg *config.Config) (*sql.DB, error) {
 	dsn := cfg.Sub2API.Database.DSN()
-	log.Printf("Connecting to sub2api PostgreSQL at %s:%d/%s", cfg.Sub2API.Database.Host, cfg.Sub2API.Database.Port, cfg.Sub2API.Database.DBName)
+	log.Printf("[initSub2APIDatabase] connecting host=%s port=%d db=%s user=%s sslmode=%s public_url_configured=%t", cfg.Sub2API.Database.Host, cfg.Sub2API.Database.Port, cfg.Sub2API.Database.DBName, cfg.Sub2API.Database.User, cfg.Sub2API.Database.SSLMode, strings.TrimSpace(cfg.Sub2API.PublicURL) != "")
+	started := time.Now()
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
+		log.Printf("[initSub2APIDatabase] sql.Open failed elapsed=%s: %v", time.Since(started), err)
 		return nil, fmt.Errorf("opening sub2api database/sql: %w", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := db.PingContext(ctx); err != nil {
-		_ = db.Close()
+		log.Printf("[initSub2APIDatabase] ping failed elapsed=%s: %v", time.Since(started), err)
+		if closeErr := db.Close(); closeErr != nil {
+			log.Printf("[initSub2APIDatabase] failed to close probe database: %v", closeErr)
+		}
 		return nil, fmt.Errorf("pinging sub2api database: %w", err)
 	}
-	log.Println("sub2api database connected successfully")
+	log.Printf("[initSub2APIDatabase] connected successfully elapsed=%s", time.Since(started))
 	return db, nil
 }
 
 // initEnt 初始化 Ent 客户端并连接 PostgreSQL，执行一次 ping 确认可达性。
 func initEnt(cfg *config.Config) (*ent.Client, error) {
 	dsn := cfg.Database.DSN()
-	log.Printf("Connecting to PostgreSQL at %s:%d/%s", cfg.Database.Host, cfg.Database.Port, cfg.Database.DBName)
+	log.Printf("[initEnt] connecting host=%s port=%d db=%s user=%s sslmode=%s", cfg.Database.Host, cfg.Database.Port, cfg.Database.DBName, cfg.Database.User, cfg.Database.SSLMode)
+	started := time.Now()
 
 	// 可达性检查: 用同一 DSN 开一个临时连接池 ping, 确认可达后丢弃, 再开 ent client。
 	// ent client 的底层 driver 未导出, 无法直接复用其连接池 ping。
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
+		log.Printf("[initEnt] sql.Open failed elapsed=%s: %v", time.Since(started), err)
 		return nil, fmt.Errorf("opening database/sql: %w", err)
 	}
-	defer func() { _ = db.Close() }()
+	defer func() {
+		if closeErr := db.Close(); closeErr != nil {
+			log.Printf("[initEnt] failed to close probe database: %v", closeErr)
+		}
+	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := db.PingContext(ctx); err != nil {
+		log.Printf("[initEnt] ping failed elapsed=%s: %v", time.Since(started), err)
 		return nil, fmt.Errorf("pinging database: %w", err)
 	}
 
 	// 开启 ent client
 	client, err := ent.Open("postgres", dsn)
 	if err != nil {
+		log.Printf("[initEnt] ent.Open failed elapsed=%s: %v", time.Since(started), err)
 		return nil, fmt.Errorf("opening ent client: %w", err)
 	}
 
-	log.Println("Ent client connected to PostgreSQL successfully")
+	log.Printf("[initEnt] connected successfully elapsed=%s", time.Since(started))
 	return client, nil
 }
 
@@ -242,7 +314,11 @@ func runMigration(cfg *config.Config) error {
 	if err != nil {
 		return fmt.Errorf("opening database/sql: %w", err)
 	}
-	defer func() { _ = db.Close() }()
+	defer func() {
+		if closeErr := db.Close(); closeErr != nil {
+			log.Printf("[runMigration] failed to close database: %v", closeErr)
+		}
+	}()
 
 	drv := entsql.OpenDB("postgres", db)
 	if err := migrate.NewSchema(drv).Create(context.Background()); err != nil {

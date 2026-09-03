@@ -43,7 +43,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("打开数据库失败: %v", err)
 	}
-	defer func() { _ = client.Close() }()
+	defer func() {
+		if closeErr := client.Close(); closeErr != nil {
+			log.Printf("关闭数据库失败: %v", closeErr)
+		}
+	}()
 
 	ctx := context.Background()
 	home, err := client.Page.Query().Where(page.SlugEQ("home")).Only(ctx)

@@ -15,6 +15,7 @@
 - **页面分析与埋点** —— 统计当前页面的访问量和功能点击，在分析仪表盘中查看使用情况。
 - **首字延迟火焰图** —— 运维看板直接读取 Sub2API PostgreSQL 的 `usage_logs.first_token_ms`，支持日期、时间段、分组、账号筛选，以及分钟/小时/天三种时间粒度。
 - **运营中心** —— 消费核算按天展示收入、API 成本、OAuth 账号采购成本、毛利/税前利润、税额、税后利润与利润率，支持日期范围筛选；成本配置页支持动态配置税点、每个 OAuth 账号独立采购成本、每个 API 账号独立倍率，以及从 Sub2API 定时同步账号倍率。税点按收入计提：税后利润 = 收入 − 总成本 − 收入 × 税点。
+- **系统日志与操作审计** —— 请求、运行错误和管理员变更分别持久化到日志页，支持级别/结果筛选、搜索和分页；错误同时输出到服务端日志。
 - **身份转发验证** —— 管理端接收 sub2api iframe token，换取附属系统自己的管理员会话。
 
 | 入口 | 说明 |
@@ -24,6 +25,8 @@
 | `/admin/pages` | 动态页面管理，管理员编写和维护页面 |
 | `/admin/assets` | 图片资源管理 |
 | `/admin/ops/ttft` | 运维看板：首字延迟火焰图（直读 Sub2API 数据库） |
+| `/admin/logs/system` | 系统日志：请求、运行状态和错误事件 |
+| `/admin/logs/operation` | 操作日志：管理员变更审计 |
 | `/admin/p/:slug` | 需要管理员会话的动态页面 |
 | `/p/:slug` | 公开动态页面；仅当数据库中存在并启用对应页面时可访问 |
 | `/login` | 独立管理员登录入口 |
@@ -47,7 +50,8 @@
 │                                          │                            │
 │                                          ▼                            │
 │                                   自有 PostgreSQL                     │
-│                            (system_meta / page_view / feature_click)  │
+│                    (system_meta / page_views / feature_clicks)      │
+│                       (system_logs / operation_logs)                │
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -126,7 +130,9 @@ sub2api-extension/
 │   └── CICD.md                  # ← CI/CD 完整文档（流水线/Secrets/部署/回滚）
 ├── .agents/skills/              # 页面编写、sub2api 集成和部署运维 skills
 ├── docs/
-│   └── INTEGRATION.md           # ← sub2api 侧集成配置指南（必读）
+│   ├── INTEGRATION.md           # ← sub2api 侧集成配置指南（必读）
+│   ├── PAGE_API.md               # ← 动态页面 API 文档
+│   └── WEBHOOK.md                # ← 通用 Webhook 接入协议
 ├── Dockerfile                   # 多阶段构建（前端 + 后端 → 单镜像）
 └── .dockerignore
 ```
@@ -203,16 +209,13 @@ docker compose -f docker-compose.yml --env-file .env up -d
 
 开发环境用命令直接启动后端和前端，不依赖 Docker 部署。**数据库与中间件需自行用本地 docker 启动**（本仓库不负责拉起 PostgreSQL）。
 
-### 前置：启动 PostgreSQL 并建库
+### 前置：启动 sub2api PostgreSQL
 
-后端连接 PostgreSQL（默认 `127.0.0.1:15433`，库名 `auxdb`，用户 `aux`）。自行用 docker 起一个：
-
-```bash
-export AUX_DEV_POSTGRES_PASSWORD='<本地开发密码>'
-docker run -d --name aux-pg -e POSTGRES_USER=aux \
-  -e POSTGRES_PASSWORD="$AUX_DEV_POSTGRES_PASSWORD" \
-  -e POSTGRES_DB=auxdb -p 127.0.0.1:15433:5432 postgres:18-alpine
-```
+直接运行 `cd backend && make dev` 时，扩展和 sub2api 共用本地 sub2api PostgreSQL。
+默认连接 `127.0.0.1:15432`，凭据为 `POSTGRES_USER=sub2api`、
+`POSTGRES_PASSWORD=123456`、`POSTGRES_DB=sub2api`。请先启动 sub2api 的
+Compose 服务（其 PostgreSQL 应映射到宿主机 `15432`），或按实际值覆盖下面的
+`DEV_*` 变量。
 
 ### 后端
 
@@ -227,7 +230,17 @@ make migrate
 make dev
 ```
 
-`make migrate` 也会创建 `image_assets` 表；图片文件本身写入 `SUB2API_EXTENSION_ASSET_DIR`，数据库只保存相对路径。
+`make migrate` 也会创建 `image_assets`、`invoice_profiles`、`invoice_requests`、
+`invoice_orders`、`notification_channels`、`notification_deliveries`、`system_logs`
+和 `operation_logs` 表；
+图片文件本身写入 `SUB2API_EXTENSION_ASSET_DIR`，数据库只保存相对路径。
+
+通知渠道管理位于管理端 `/admin/notifications`。邮箱 SMTP 和 Resend 渠道只保存发件人、连接信息和凭据；收件人需要在具体业务事件（当前为发票申请通知）中填写，可填写多个邮箱地址，支持逗号、分号或空格分隔。
+消息通知日志支持开始/结束日期时间查询及分页浏览。
+
+通知渠道列表中可直接选择 Webhook、飞书应用、飞书机器人、企业微信机器人或钉钉机器人。Webhook 发送系统统一 JSON，并支持 `Authorization`、`X-Webhook-Secret`；企业微信使用机器人 URL 中的 `key`，飞书机器人可填写安全设置中的签名密钥，钉钉使用 URL 中的 `access_token` 并可填写加签密钥，签名参数均由服务端自动生成。
+
+通用 Webhook 的完整接入协议、请求体示例、接收端代码和故障排查见 [docs/WEBHOOK.md](docs/WEBHOOK.md)。
 
 `make dev` 通过环境变量注入开发配置：
 
@@ -237,15 +250,16 @@ make dev
 |------|------|------|
 | `DEV_SERVER_PORT` | `8004` | 后端监听端口（与前端 vite 代理一致） |
 | `DEV_DATABASE_HOST` | `127.0.0.1` | PG 地址（与 Docker 的 IPv4 绑定一致） |
-| `DEV_DATABASE_PORT` | `15433` | 独立 aux PostgreSQL 的宿主机端口 |
-| `DEV_DATABASE_USER` | `aux` | PG 用户 |
-| `DEV_DATABASE_PASSWORD` | `deploy/.env.dev` | 本地 `aux-pg` 密码；默认读取 `SUB2API_EXTENSION_POSTGRES_PASSWORD` |
-| `DEV_DATABASE_DBNAME` | `auxdb` | PG 库名 |
+| `DEV_DATABASE_PORT` | `15432` | sub2api PostgreSQL 的宿主机端口 |
+| `DEV_DATABASE_USER` | `sub2api` | PG 用户；默认读取 `POSTGRES_USER` |
+| `DEV_DATABASE_PASSWORD` | `123456` | PG 密码；默认读取 `POSTGRES_PASSWORD` |
+| `DEV_DATABASE_DBNAME` | `sub2api` | PG 库名；默认读取 `POSTGRES_DB` |
 | `DEV_SUB2API_DATABASE_HOST` | `127.0.0.1` | Sub2API PostgreSQL 地址 |
 | `DEV_SUB2API_DATABASE_PORT` | `15432` | Sub2API PostgreSQL 宿主机端口 |
 | `DEV_SUB2API_DATABASE_USER` | `sub2api` | Sub2API PostgreSQL 用户 |
-| `DEV_SUB2API_DATABASE_PASSWORD` | `deploy/.env.dev` | 默认读取 `SUB2API_DATABASE_PASSWORD`；首字延迟看板必需 |
+| `DEV_SUB2API_DATABASE_PASSWORD` | `123456` | 默认与 `DEV_DATABASE_PASSWORD` 相同；首字延迟看板必需 |
 | `DEV_SUB2API_DATABASE_DBNAME` | `sub2api` | Sub2API 数据库名 |
+| `DEV_SUB2API_EXTENSION_PUBLIC_URL` | `http://localhost:3100` | 浏览器可访问的扩展 origin；上架菜单必需 |
 | `JWT_SECRET` | `dev-secret-not-for-production` | 开发用签名密钥 |
 
 > 本地 `SUB2API_BASE_URL` 默认是 `http://127.0.0.1:8003`，可通过环境变量覆盖；它用于账号密码登录和 iframe 管理员身份转发验证。
@@ -253,10 +267,24 @@ make dev
 `backend/Makefile` 会自动读取 `deploy/.env.dev`。需要临时覆盖时，可直接导出环境变量：
 
 ```bash
-export DEV_DATABASE_PASSWORD='<auxdb 密码>'
-export DEV_SUB2API_DATABASE_PASSWORD='<Sub2API PostgreSQL 密码>'
+# 也可直接复用 sub2api 的 POSTGRES_* 命名：
+POSTGRES_USER=sub2api POSTGRES_PASSWORD=123456 POSTGRES_DB=sub2api make dev
+
+# 或使用扩展 Makefile 的显式覆盖变量：
+# 如 sub2api 使用了不同的本地凭据，可直接覆盖：
+export DEV_DATABASE_HOST=127.0.0.1
+export DEV_DATABASE_PORT=15432
+export DEV_DATABASE_USER=sub2api
+export DEV_DATABASE_PASSWORD=123456
+export DEV_DATABASE_DBNAME=sub2api
+# 页面上架 URL（前端 Vite 默认端口 3100）
+export DEV_SUB2API_EXTENSION_PUBLIC_URL=http://localhost:3100
 make dev
 ```
+
+如果直接运行 `go run ./cmd/server`（不经过 Makefile），也必须显式传入
+`SUB2API_EXTENSION_PUBLIC_URL=http://localhost:3100`；否则页面数据仍会保存，
+但同步 `custom_menu_items` 时会提示 `sub2api public URL is required to publish a page`。
 
 ### 前端
 
@@ -266,7 +294,10 @@ pnpm install
 pnpm dev        # 开发服务器 http://localhost:3100
 ```
 
-前端 dev server 监听 `3100`。`/api` 代理优先使用 `VITE_AUX_BACKEND_URL`；未设置时会读取本地 `deploy/.env.dev` 的 `SUB2API_EXTENSION_SERVER_PORT`（当前 Docker 开发环境为 `8788`）。如果启动 `backend/make dev`（`8004`），请使用 `VITE_AUX_BACKEND_URL=http://127.0.0.1:8004 pnpm dev`。浏览器访问 `http://localhost:3100/` 会重定向到分析仪表盘；系统不会在根路径展示官网首页。
+前端 dev server 监听 `3100`，独立后端 `cd backend && make dev` 默认监听 `8004`，前端会自动代理到该端口。
+如果使用 Docker 开发部署（宿主机端口通常为 `8788`），请使用
+`VITE_AUX_BACKEND_URL=http://127.0.0.1:8788 pnpm dev` 覆盖代理地址。浏览器访问
+`http://localhost:3100/` 会重定向到分析仪表盘；系统不会在根路径展示官网首页。
 
 ### 管理端登录
 
@@ -342,5 +373,6 @@ pnpm build           # tsc -b && vite build
 - **[CHANGELOG.md](CHANGELOG.md)** —— 版本变更记录
 - **[docs/INTEGRATION.md](docs/INTEGRATION.md)** —— sub2api 侧 `custom_menu_items` 集成配置指南（架构、部署、CSP、验收清单、故障排查）
 - **[docs/PAGE_API.md](docs/PAGE_API.md)** —— 动态页面管理员 API、鉴权、字段约束与调用示例
+- **[docs/WEBHOOK.md](docs/WEBHOOK.md)** —— 通用 Webhook 配置、协议、请求体示例、接收端代码与故障排查
 - **[tools/page-admin.py](tools/page-admin.py)** —— 无第三方依赖的管理员页面 API 命令行工具
 - **[.github/CICD.md](.github/CICD.md)** —— CI/CD 完整文档（测试/生产环境、Secrets、首次部署、发布、回滚与故障排查）

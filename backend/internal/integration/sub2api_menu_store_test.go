@@ -27,6 +27,50 @@ func TestSub2APIMenuStoreAbsoluteURLRequiresPublicOrigin(t *testing.T) {
 	require.ErrorContains(t, err, "public URL is required")
 }
 
+func TestSub2APIMenuStoreManagedMenuID(t *testing.T) {
+	require.True(t, isManagedMenuID("aux-page-1"))
+	require.True(t, isManagedMenuID("aux-page-42"))
+	require.False(t, isManagedMenuID("custom-menu"))
+	require.False(t, isManagedMenuID("aux-page-dashboard"))
+	require.False(t, isManagedMenuID("aux-page-"))
+}
+
+func TestSub2APIMenuStorePublicationMatchesManagedFields(t *testing.T) {
+	store := NewSub2APIMenuStore(nil, "https://aux.example.com")
+	expected := sub2apimenu.PagePublication{
+		MenuID:     "aux-page-7",
+		Label:      "Docs",
+		URL:        "/p/docs",
+		Visibility: "user",
+	}
+	actual := expected
+	actual.URL = "https://aux.example.com/p/docs"
+
+	matched, reason := store.PublicationMatches(expected, actual)
+	require.True(t, matched, reason)
+
+	tests := []struct {
+		name   string
+		mutate func(*sub2apimenu.PagePublication)
+	}{
+		{name: "label", mutate: func(p *sub2apimenu.PagePublication) { p.Label = "Renamed" }},
+		{name: "label whitespace", mutate: func(p *sub2apimenu.PagePublication) { p.Label = " Docs" }},
+		{name: "url path", mutate: func(p *sub2apimenu.PagePublication) { p.URL = "https://aux.example.com/p/other" }},
+		{name: "url origin", mutate: func(p *sub2apimenu.PagePublication) { p.URL = "https://other.example.com/p/docs" }},
+		{name: "visibility", mutate: func(p *sub2apimenu.PagePublication) { p.Visibility = "admin" }},
+		{name: "page slug", mutate: func(p *sub2apimenu.PagePublication) { p.PageSlug = "docs" }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			changed := actual
+			tt.mutate(&changed)
+			matched, reason := store.PublicationMatches(expected, changed)
+			require.False(t, matched)
+			require.NotEmpty(t, reason)
+		})
+	}
+}
+
 func TestDecodeItems(t *testing.T) {
 	items, err := decodeItems(`[{"id":"other","label":"Other","url":"https://example.com","visibility":"user","sort_order":2,"future_flag":true}]`)
 	require.NoError(t, err)
@@ -52,4 +96,17 @@ func TestSub2APIMenuStorePublishClearsPageSlugForIframeMode(t *testing.T) {
 	require.NotContains(t, string(raw), "page_slug")
 	require.Equal(t, 4, updated.SortOrder)
 	require.Equal(t, "<svg />", updated.IconSVG)
+}
+
+func TestSub2APIMenuStoreInvoiceMenuProvidesDefaultIcon(t *testing.T) {
+	updated := mergeInvoiceMenuItem(customMenuItem{SortOrder: 7}, "https://aux.example.com/invoice")
+	require.Equal(t, "aux-invoice", updated.ID)
+	require.Equal(t, "发票管理", updated.Label)
+	require.Equal(t, "user", updated.Visibility)
+	require.Equal(t, 7, updated.SortOrder)
+	require.Contains(t, updated.IconSVG, "<svg")
+	require.Contains(t, updated.IconSVG, "currentColor")
+
+	stale := mergeInvoiceMenuItem(customMenuItem{IconSVG: "<svg data-old=\"true\"></svg>", SortOrder: 2}, "https://aux.example.com/invoice")
+	require.Equal(t, invoiceMenuIconSVG, stale.IconSVG)
 }

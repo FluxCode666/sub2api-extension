@@ -44,7 +44,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to open ent client: %v", err)
 	}
-	defer func() { _ = client.Close() }()
+	defer func() {
+		if closeErr := client.Close(); closeErr != nil {
+			log.Printf("Failed to close ent client: %v", closeErr)
+		}
+	}()
 
 	ctx := context.Background()
 
@@ -977,18 +981,18 @@ func getHomePageHTML() string {
     var nav = document.querySelector('.teralemo-nav');
     var themeButton = document.querySelector('[data-theme-toggle]');
     var storedTheme = null;
-    try { storedTheme = localStorage.getItem('teralemo-theme'); } catch (_) {}
+    try { storedTheme = localStorage.getItem('teralemo-theme'); } catch (error) { console.error('[homepage] failed to read theme', error); }
     var systemTheme = 'light';
     try {
       if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) systemTheme = 'dark';
-    } catch (_) {}
+    } catch (error) { console.error('[homepage] failed to read system theme', error); }
     var hasStoredTheme = storedTheme === 'light' || storedTheme === 'dark';
     var theme = hasStoredTheme ? storedTheme : systemTheme;
     function setTheme(next) {
       theme = next === 'light' ? 'light' : 'dark';
       if (page) page.setAttribute('data-theme', theme);
       document.documentElement.setAttribute('data-teralemo-theme', theme);
-      try { localStorage.setItem('teralemo-theme', theme); } catch (_) {}
+      try { localStorage.setItem('teralemo-theme', theme); } catch (error) { console.error('[homepage] failed to save theme', error); }
       if (themeButton) themeButton.setAttribute('aria-label', theme === 'dark' ? '切换到亮色主题' : '切换到暗色主题');
     }
     setTheme(theme);
@@ -999,7 +1003,7 @@ func getHomePageHTML() string {
         var handleSystemThemeChange = function (event) { setTheme(event.matches ? 'dark' : 'light'); };
         if (systemThemeQuery.addEventListener) systemThemeQuery.addEventListener('change', handleSystemThemeChange);
         else if (systemThemeQuery.addListener) systemThemeQuery.addListener(handleSystemThemeChange);
-      } catch (_) {}
+      } catch (error) { console.error('[homepage] failed to sync system theme', error); }
     }
 
     function updateNavigation(offset) {
@@ -1075,7 +1079,7 @@ func getHomePageHTML() string {
       var raw = (window.__AUX_METADATA__ || {}).trusted_partners;
       if (!raw) return null;
       if (typeof raw === 'string') {
-        try { raw = JSON.parse(raw); } catch (_) { return null; }
+        try { raw = JSON.parse(raw); } catch (error) { console.error('[homepage] failed to parse metadata JSON', error); return null; }
       }
       if (!raw || raw.enabled === false || !Array.isArray(raw.items)) return null;
       var items = raw.items.filter(function (item) {

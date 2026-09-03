@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -44,11 +45,13 @@ func (h *TTFTHandler) GetTTFT(c *gin.Context) {
 	}
 	query, err := parseTTFTQuery(c)
 	if err != nil {
+		log.Printf("[TTFTHandler.GetTTFT] invalid query: %v", err)
 		response.BadRequest(c, err.Error())
 		return
 	}
 	data, err := h.provider.Query(c.Request.Context(), query)
 	if err != nil {
+		log.Printf("[TTFTHandler.GetTTFT] query failed: %v", err)
 		if errors.Is(err, service.ErrSub2APIDatabaseUnavailable) {
 			response.Error(c, http.StatusServiceUnavailable, "sub2api database is unavailable")
 			return
