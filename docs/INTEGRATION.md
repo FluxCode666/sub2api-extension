@@ -197,7 +197,7 @@ https://aux.example.com/admin/dashboard
 宿主机 NGINX 终止 TLS 并反代到该端口。配置模板位于 `deploy/nginx/`；请将其中的
 `aux.example.com` 替换为实际域名，并将对应证书放到 `/etc/nginx/certs/<域名>/`。
 
-图片资源页返回的相对路径会按浏览器当前 origin 补全。因此通过 NGINX 域名访问并复制
+文件管理页中的图片资源 URL 会按浏览器当前 origin 补全。因此通过 NGINX 域名访问并复制
 图片 URL 时，应得到类似以下地址，并将它写入页面 `metadata.logo`：
 
 ```text

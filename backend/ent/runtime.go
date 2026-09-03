@@ -93,16 +93,22 @@ func init() {
 	imageassetDescOriginalName := imageassetFields[0].Descriptor()
 	// imageasset.OriginalNameValidator is a validator for the "original_name" field. It is called by the builders before save.
 	imageasset.OriginalNameValidator = imageassetDescOriginalName.Validators[0].(func(string) error)
+	// imageassetDescNote is the schema descriptor for note field.
+	imageassetDescNote := imageassetFields[1].Descriptor()
+	// imageasset.DefaultNote holds the default value on creation for the note field.
+	imageasset.DefaultNote = imageassetDescNote.Default.(string)
+	// imageasset.NoteValidator is a validator for the "note" field. It is called by the builders before save.
+	imageasset.NoteValidator = imageassetDescNote.Validators[0].(func(string) error)
 	// imageassetDescPath is the schema descriptor for path field.
-	imageassetDescPath := imageassetFields[1].Descriptor()
+	imageassetDescPath := imageassetFields[2].Descriptor()
 	// imageasset.PathValidator is a validator for the "path" field. It is called by the builders before save.
 	imageasset.PathValidator = imageassetDescPath.Validators[0].(func(string) error)
 	// imageassetDescMimeType is the schema descriptor for mime_type field.
-	imageassetDescMimeType := imageassetFields[2].Descriptor()
+	imageassetDescMimeType := imageassetFields[3].Descriptor()
 	// imageasset.MimeTypeValidator is a validator for the "mime_type" field. It is called by the builders before save.
 	imageasset.MimeTypeValidator = imageassetDescMimeType.Validators[0].(func(string) error)
 	// imageassetDescCreatedAt is the schema descriptor for created_at field.
-	imageassetDescCreatedAt := imageassetFields[4].Descriptor()
+	imageassetDescCreatedAt := imageassetFields[5].Descriptor()
 	// imageasset.DefaultCreatedAt holds the default value on creation for the created_at field.
 	imageasset.DefaultCreatedAt = imageassetDescCreatedAt.Default.(func() time.Time)
 	invoiceorderFields := schema.InvoiceOrder{}.Fields()
@@ -229,12 +235,18 @@ func init() {
 	invoicerequestDescInvoiceFileSize := invoicerequestFields[17].Descriptor()
 	// invoicerequest.DefaultInvoiceFileSize holds the default value on creation for the invoice_file_size field.
 	invoicerequest.DefaultInvoiceFileSize = invoicerequestDescInvoiceFileSize.Default.(int64)
+	// invoicerequestDescInvoiceFileNote is the schema descriptor for invoice_file_note field.
+	invoicerequestDescInvoiceFileNote := invoicerequestFields[18].Descriptor()
+	// invoicerequest.DefaultInvoiceFileNote holds the default value on creation for the invoice_file_note field.
+	invoicerequest.DefaultInvoiceFileNote = invoicerequestDescInvoiceFileNote.Default.(string)
+	// invoicerequest.InvoiceFileNoteValidator is a validator for the "invoice_file_note" field. It is called by the builders before save.
+	invoicerequest.InvoiceFileNoteValidator = invoicerequestDescInvoiceFileNote.Validators[0].(func(string) error)
 	// invoicerequestDescCreatedAt is the schema descriptor for created_at field.
-	invoicerequestDescCreatedAt := invoicerequestFields[19].Descriptor()
+	invoicerequestDescCreatedAt := invoicerequestFields[20].Descriptor()
 	// invoicerequest.DefaultCreatedAt holds the default value on creation for the created_at field.
 	invoicerequest.DefaultCreatedAt = invoicerequestDescCreatedAt.Default.(func() time.Time)
 	// invoicerequestDescUpdatedAt is the schema descriptor for updated_at field.
-	invoicerequestDescUpdatedAt := invoicerequestFields[20].Descriptor()
+	invoicerequestDescUpdatedAt := invoicerequestFields[21].Descriptor()
 	// invoicerequest.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	invoicerequest.DefaultUpdatedAt = invoicerequestDescUpdatedAt.Default.(func() time.Time)
 	// invoicerequest.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

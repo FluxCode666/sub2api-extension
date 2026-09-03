@@ -29,6 +29,10 @@ func (ImageAsset) Fields() []ent.Field {
 		field.String("original_name").
 			MaxLen(255).
 			Comment("上传时的原始文件名，仅用于管理端展示"),
+		field.String("note").
+			MaxLen(2000).
+			Default("").
+			Comment("管理员对文件记录的备注"),
 		field.String("path").
 			MaxLen(512).
 			Unique().

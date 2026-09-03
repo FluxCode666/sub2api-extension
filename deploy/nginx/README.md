@@ -53,7 +53,7 @@ https://<你的域名>/p/home
 https://<你的域名>/admin/dashboard
 ```
 
-图片资源接口返回相对路径 `/api/aux/assets/:id`，管理端会基于当前浏览器的
+文件管理页中的图片资源接口返回相对路径 `/api/aux/assets/:id`，管理端会基于当前浏览器的
 `window.location.origin` 补全域名。因此通过 NGINX 域名访问资源页并复制 URL 时，
 数据库元数据里应填写 `https://<你的域名>/api/aux/assets/:id`，不要填写容器名或 localhost。
 

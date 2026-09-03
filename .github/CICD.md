@@ -239,7 +239,7 @@ SUB2API_BASE_URL=<生产 sub2api 地址>
 SUB2API_EXTENSION_JWT_SECRET=<生产专用随机密钥>
 ```
 
-上传图片保存在 Compose 命名卷的 `/app/data/assets`，数据库只记录资源路径。发布容器不会删除该卷。测试 project 和生产 project 会创建不同的 `sub2api-extension-data` 命名卷。
+上传图片保存在 Compose 命名卷的 `/app/data/assets/photos`，发票文件保存在 `/app/data/assets/invoices`，数据库只记录文件元数据。发布容器不会删除该卷。测试 project 和生产 project 会创建不同的 `sub2api-extension-data` 命名卷。
 
 首次可手工校验配置：
 

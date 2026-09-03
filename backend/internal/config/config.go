@@ -161,8 +161,8 @@ func setDefaults() {
 	viper.SetDefault("jwt.secret", "")
 	viper.SetDefault("jwt.expire_hour", 24)
 
-	// 本地开发默认落在 backend/data/assets；Docker Compose 会覆写为
-	// /app/data/assets，并将 /app/data 挂进持久卷。
+	// 资源根目录本地默认是 backend/data/assets，图片和发票分别写入 photos/、invoices/。
+	// Docker Compose 会覆写为 /app/data/assets，并将 /app/data 挂进持久卷。
 	viper.SetDefault("assets.dir", "data/assets")
 }
 

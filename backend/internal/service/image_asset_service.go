@@ -27,6 +27,7 @@ const MaxImageAssetBytes int64 = 10 * 1024 * 1024
 type ImageAsset struct {
 	ID           int       `json:"id"`
 	OriginalName string    `json:"original_name"`
+	Note         string    `json:"note"`
 	Path         string    `json:"path"`
 	MimeType     string    `json:"mime_type"`
 	Size         int64     `json:"size"`
@@ -210,6 +211,7 @@ func NewEntImageAssetStore(client *ent.Client) ImageAssetStore {
 func (s *entImageAssetStore) Create(ctx context.Context, asset ImageAsset) (*ImageAsset, error) {
 	created, err := s.client.ImageAsset.Create().
 		SetOriginalName(asset.OriginalName).
+		SetNote(asset.Note).
 		SetPath(asset.Path).
 		SetMimeType(asset.MimeType).
 		SetSize(asset.Size).
@@ -244,6 +246,7 @@ func entImageAssetToImageAsset(asset *ent.ImageAsset) *ImageAsset {
 	return &ImageAsset{
 		ID:           asset.ID,
 		OriginalName: asset.OriginalName,
+		Note:         asset.Note,
 		Path:         asset.Path,
 		MimeType:     asset.MimeType,
 		Size:         asset.Size,

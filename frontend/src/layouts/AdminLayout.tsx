@@ -16,7 +16,7 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
-import { LayoutDashboard, FileText, FilePlus2, ExternalLink, Images, Flame, ReceiptText, Terminal, ClipboardList, Bell } from 'lucide-react'
+import { LayoutDashboard, FileText, FilePlus2, ExternalLink, Files, Flame, ReceiptText, Terminal, ClipboardList, Bell } from 'lucide-react'
 import { fetchDynamicPages, getMergedRegistry, subscribeDynamicPages } from '@/lib/dynamic-pages'
 import { getMenuIcon } from '@/lib/menu-icons'
 import { Toaster } from '@/components/ui/sonner'
@@ -55,14 +55,14 @@ export default function AdminLayout() {
   const adminPages = registry.filter((p) => p.visibility === 'admin')
   // 动态页单独分组(来自 DB)
   const dynamicAdminPages = adminPages.filter((p) => p.id.startsWith('page:'))
-  const staticAdminPages = adminPages.filter((p) => !p.id.startsWith('page:') && p.id !== 'image-assets')
+  const staticAdminPages = adminPages.filter((p) => !p.id.startsWith('page:') && p.id !== 'file-management')
   const opsAdminPages = staticAdminPages.filter((page) => page.id.startsWith('ops-'))
   const coreAdminPages = staticAdminPages.filter((page) => !page.id.startsWith('ops-'))
 
   // 静态核心管理页的图标映射
   const staticIcons: Record<string, React.ElementType> = {
     dashboard: LayoutDashboard,
-    'image-assets': Images,
+    'file-management': Files,
     'ops-ttft': Flame,
   }
 
@@ -131,7 +131,7 @@ export default function AdminLayout() {
             </SidebarGroup>
           )}
 
-          {/* 页面与图片资源管理入口 */}
+          {/* 页面与文件管理入口 */}
           <SidebarGroup>
             <SidebarGroupLabel>管理</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -146,9 +146,9 @@ export default function AdminLayout() {
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <NavLink to="/admin/assets" end>
-                      <Images className="h-4 w-4" />
-                      <span>图片资源</span>
+                    <NavLink to="/admin/files" end>
+                      <Files className="h-4 w-4" />
+                      <span>文件管理</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

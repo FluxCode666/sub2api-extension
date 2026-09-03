@@ -42,7 +42,7 @@ const (
 // maxContentBytes 单页内容大小上限(256KB), 防止无界内容拖慢渲染/API。
 const maxContentBytes = 256 * 1024
 
-// logo 元数据只保存图片 URL；图片文件通过图片资源页上传，不内联写入页面 JSON。
+// logo 元数据只保存图片 URL；图片文件通过文件管理页上传，不内联写入页面 JSON。
 const maxLogoURLBytes = 4096
 
 // slugPattern slug 允许的字符: 小写字母/数字/连字符, 1-128 字符。

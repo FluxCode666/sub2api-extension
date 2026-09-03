@@ -69,6 +69,6 @@ jwt:
   expire_hour: 24
 
 # ---- 上传资源文件存储 ----
-# 图片二进制写入此目录，image_assets 表只保存相对路径。
+# 上传资源根目录。图片写入 photos/，发票写入 invoices/；数据库只保存文件元数据。
 assets:
   dir: "data/assets"

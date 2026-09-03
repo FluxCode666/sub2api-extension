@@ -49,6 +49,8 @@ const (
 	FieldInvoiceFileMimeType = "invoice_file_mime_type"
 	// FieldInvoiceFileSize holds the string denoting the invoice_file_size field in the database.
 	FieldInvoiceFileSize = "invoice_file_size"
+	// FieldInvoiceFileNote holds the string denoting the invoice_file_note field in the database.
+	FieldInvoiceFileNote = "invoice_file_note"
 	// FieldIssuedAt holds the string denoting the issued_at field in the database.
 	FieldIssuedAt = "issued_at"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -80,6 +82,7 @@ var Columns = []string{
 	FieldInvoiceFilePath,
 	FieldInvoiceFileMimeType,
 	FieldInvoiceFileSize,
+	FieldInvoiceFileNote,
 	FieldIssuedAt,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -138,6 +141,10 @@ var (
 	InvoiceFileMimeTypeValidator func(string) error
 	// DefaultInvoiceFileSize holds the default value on creation for the "invoice_file_size" field.
 	DefaultInvoiceFileSize int64
+	// DefaultInvoiceFileNote holds the default value on creation for the "invoice_file_note" field.
+	DefaultInvoiceFileNote string
+	// InvoiceFileNoteValidator is a validator for the "invoice_file_note" field. It is called by the builders before save.
+	InvoiceFileNoteValidator func(string) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -242,6 +249,11 @@ func ByInvoiceFileMimeType(opts ...sql.OrderTermOption) OrderOption {
 // ByInvoiceFileSize orders the results by the invoice_file_size field.
 func ByInvoiceFileSize(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldInvoiceFileSize, opts...).ToFunc()
+}
+
+// ByInvoiceFileNote orders the results by the invoice_file_note field.
+func ByInvoiceFileNote(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInvoiceFileNote, opts...).ToFunc()
 }
 
 // ByIssuedAt orders the results by the issued_at field.

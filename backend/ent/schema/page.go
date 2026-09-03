@@ -4,7 +4,7 @@
 //
 // 与 PageView/FeatureClick(只追加埋点)不同, Page 是可变实体:
 // 管理员可创建/编辑/删除/启停。page_id 在埋点表里为 "page:<slug>"(命名空间隔离),
-// 避免与静态核心页 id(dashboard/assets)冲突。
+// 避免与静态核心页 id(dashboard/files)冲突。
 package schema
 
 import (

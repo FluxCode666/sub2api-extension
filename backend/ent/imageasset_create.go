@@ -26,6 +26,20 @@ func (_c *ImageAssetCreate) SetOriginalName(v string) *ImageAssetCreate {
 	return _c
 }
 
+// SetNote sets the "note" field.
+func (_c *ImageAssetCreate) SetNote(v string) *ImageAssetCreate {
+	_c.mutation.SetNote(v)
+	return _c
+}
+
+// SetNillableNote sets the "note" field if the given value is not nil.
+func (_c *ImageAssetCreate) SetNillableNote(v *string) *ImageAssetCreate {
+	if v != nil {
+		_c.SetNote(*v)
+	}
+	return _c
+}
+
 // SetPath sets the "path" field.
 func (_c *ImageAssetCreate) SetPath(v string) *ImageAssetCreate {
 	_c.mutation.SetPath(v)
@@ -93,6 +107,10 @@ func (_c *ImageAssetCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *ImageAssetCreate) defaults() {
+	if _, ok := _c.mutation.Note(); !ok {
+		v := imageasset.DefaultNote
+		_c.mutation.SetNote(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := imageasset.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -107,6 +125,14 @@ func (_c *ImageAssetCreate) check() error {
 	if v, ok := _c.mutation.OriginalName(); ok {
 		if err := imageasset.OriginalNameValidator(v); err != nil {
 			return &ValidationError{Name: "original_name", err: fmt.Errorf(`ent: validator failed for field "ImageAsset.original_name": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Note(); !ok {
+		return &ValidationError{Name: "note", err: errors.New(`ent: missing required field "ImageAsset.note"`)}
+	}
+	if v, ok := _c.mutation.Note(); ok {
+		if err := imageasset.NoteValidator(v); err != nil {
+			return &ValidationError{Name: "note", err: fmt.Errorf(`ent: validator failed for field "ImageAsset.note": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Path(); !ok {
@@ -160,6 +186,10 @@ func (_c *ImageAssetCreate) createSpec() (*ImageAsset, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.OriginalName(); ok {
 		_spec.SetField(imageasset.FieldOriginalName, field.TypeString, value)
 		_node.OriginalName = value
+	}
+	if value, ok := _c.mutation.Note(); ok {
+		_spec.SetField(imageasset.FieldNote, field.TypeString, value)
+		_node.Note = value
 	}
 	if value, ok := _c.mutation.Path(); ok {
 		_spec.SetField(imageasset.FieldPath, field.TypeString, value)

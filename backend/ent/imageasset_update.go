@@ -41,6 +41,20 @@ func (_u *ImageAssetUpdate) SetNillableOriginalName(v *string) *ImageAssetUpdate
 	return _u
 }
 
+// SetNote sets the "note" field.
+func (_u *ImageAssetUpdate) SetNote(v string) *ImageAssetUpdate {
+	_u.mutation.SetNote(v)
+	return _u
+}
+
+// SetNillableNote sets the "note" field if the given value is not nil.
+func (_u *ImageAssetUpdate) SetNillableNote(v *string) *ImageAssetUpdate {
+	if v != nil {
+		_u.SetNote(*v)
+	}
+	return _u
+}
+
 // SetPath sets the "path" field.
 func (_u *ImageAssetUpdate) SetPath(v string) *ImageAssetUpdate {
 	_u.mutation.SetPath(v)
@@ -129,6 +143,11 @@ func (_u *ImageAssetUpdate) check() error {
 			return &ValidationError{Name: "original_name", err: fmt.Errorf(`ent: validator failed for field "ImageAsset.original_name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Note(); ok {
+		if err := imageasset.NoteValidator(v); err != nil {
+			return &ValidationError{Name: "note", err: fmt.Errorf(`ent: validator failed for field "ImageAsset.note": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Path(); ok {
 		if err := imageasset.PathValidator(v); err != nil {
 			return &ValidationError{Name: "path", err: fmt.Errorf(`ent: validator failed for field "ImageAsset.path": %w`, err)}
@@ -156,6 +175,9 @@ func (_u *ImageAssetUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	}
 	if value, ok := _u.mutation.OriginalName(); ok {
 		_spec.SetField(imageasset.FieldOriginalName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Note(); ok {
+		_spec.SetField(imageasset.FieldNote, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Path(); ok {
 		_spec.SetField(imageasset.FieldPath, field.TypeString, value)
@@ -199,6 +221,20 @@ func (_u *ImageAssetUpdateOne) SetOriginalName(v string) *ImageAssetUpdateOne {
 func (_u *ImageAssetUpdateOne) SetNillableOriginalName(v *string) *ImageAssetUpdateOne {
 	if v != nil {
 		_u.SetOriginalName(*v)
+	}
+	return _u
+}
+
+// SetNote sets the "note" field.
+func (_u *ImageAssetUpdateOne) SetNote(v string) *ImageAssetUpdateOne {
+	_u.mutation.SetNote(v)
+	return _u
+}
+
+// SetNillableNote sets the "note" field if the given value is not nil.
+func (_u *ImageAssetUpdateOne) SetNillableNote(v *string) *ImageAssetUpdateOne {
+	if v != nil {
+		_u.SetNote(*v)
 	}
 	return _u
 }
@@ -304,6 +340,11 @@ func (_u *ImageAssetUpdateOne) check() error {
 			return &ValidationError{Name: "original_name", err: fmt.Errorf(`ent: validator failed for field "ImageAsset.original_name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Note(); ok {
+		if err := imageasset.NoteValidator(v); err != nil {
+			return &ValidationError{Name: "note", err: fmt.Errorf(`ent: validator failed for field "ImageAsset.note": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Path(); ok {
 		if err := imageasset.PathValidator(v); err != nil {
 			return &ValidationError{Name: "path", err: fmt.Errorf(`ent: validator failed for field "ImageAsset.path": %w`, err)}
@@ -348,6 +389,9 @@ func (_u *ImageAssetUpdateOne) sqlSave(ctx context.Context) (_node *ImageAsset, 
 	}
 	if value, ok := _u.mutation.OriginalName(); ok {
 		_spec.SetField(imageasset.FieldOriginalName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Note(); ok {
+		_spec.SetField(imageasset.FieldNote, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Path(); ok {
 		_spec.SetField(imageasset.FieldPath, field.TypeString, value)

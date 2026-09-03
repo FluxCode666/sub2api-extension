@@ -54,15 +54,15 @@ Environment Secrets（测试环境使用 `TEST_` 区分，生产环境由 Enviro
 
 开发 Compose `deploy/docker-compose.dev.yml` 含独立 `aux-postgres`，只用于本地开发。不要把开发 PostgreSQL、默认密码和 `SUB2API_BASE_URL` 带进生产模板。
 
-## 图片资源持久化
+## 文件资源持久化
 
-- 容器内资源目录：`/app/data/assets`。
+- 容器内资源根目录：`/app/data/assets`；图片位于 `photos/`，发票位于 `invoices/`。
 - Compose 将 `/app/data` 挂载为持久卷；数据库 `image_assets.path` 只记录安全相对文件名。
 - 上传接口：`POST /api/aux/admin/assets`，管理列表：`GET /api/aux/admin/assets`，公开读取：`GET /api/aux/assets/:id`。
 - 上传限制：PNG、JPEG、GIF、WebP，单文件最大 10MB。
 - 不能把图片二进制写入 PostgreSQL，也不能在页面元数据中写宿主机绝对路径。
-- 页面元数据中的 logo/trusted partner icon 使用浏览器可访问的完整 HTTP(S) URL；URL 应从 `/admin/assets` 列表复制。
-- 迁移或更换 Compose project 前先备份 `/app/data/assets`；只备份数据库不能恢复图片文件。
+- 页面元数据中的 logo/trusted partner icon 使用浏览器可访问的完整 HTTP(S) URL；URL 应从 `/admin/files` 列表复制。
+- 迁移或更换 Compose project 前先备份 `/app/data/assets`；只备份数据库不能恢复上传文件。
 
 ## NGINX 与 HTTPS
 

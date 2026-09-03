@@ -21,7 +21,7 @@ sub2api-extension 是 sub2api 的独立附属内容承载系统(Go + Ent 后端 
 
 - 根路径 `/` 跳转 `/admin/dashboard`；TERALEMO 官网是数据库动态页 `/p/home`，Sub2API 官网是 `/p/sub2api-home`。
 - 静态页面注册表以 `frontend/src/lib/page-registry.ts` 为准；当前没有 `home` 或 `homepage-config` 静态项。
-- `/admin/pages` 与 `/admin/assets` 是管理操作入口；页面内容、metadata 和图片索引由数据库/持久化卷驱动。seed 和 Ent migration 都是显式运维动作，用户访问不会执行 seed，服务启动也不会自动迁移。
+- `/admin/pages` 与 `/admin/files` 是管理操作入口；页面内容、metadata 和文件索引由数据库/持久化卷驱动。seed 和 Ent migration 都是显式运维动作，用户访问不会执行 seed，服务启动也不会自动迁移。
 - 公开 `/api/aux/pages` 只返回已启用的 public 页面；AdminLayout 在会话建立后通过受守卫的 `/api/aux/admin/pages` 获取 admin 页面元数据。下方 GSD 生成的架构/规划段落可能保留历史命名；处理页面、嵌入或部署任务时，以本节和 `.agents/skills/` 下的项目 skill 及实时源码为准。
 
 <!-- GSD:project-end -->
@@ -314,7 +314,7 @@ sub2api-extension 是 sub2api 的独立附属内容承载系统(Go + Ent 后端 
 
 - **Public read (no guard):** `frontend/src/pages/DynamicPage.tsx` → `GET /api/aux/pages/:slug` → `PagePublicHandler.GetBySlug` → `PageService.GetPublicBySlug` → `pages` 表；HTML 交给 `SandboxRenderer`，React 代码交给动态编译器。
 - **Admin read/write (AdminGuard):** `PageManagementPage.tsx` → `GET/POST/PUT/DELETE /api/aux/admin/pages/*` → `PageHandler`/`PageService` → `pages` 表。官网 `/p/home` 和 Sub2API 官网 `/p/sub2api-home` 都通过 seed 或该管理页维护。
-- **Image flow:** `ImageAssetsPage.tsx` → `/api/aux/admin/assets` 上传/列表，文件写入 `SUB2API_EXTENSION_ASSET_DIR`，数据库 `image_assets.path` 只保存安全相对路径，公开 URL 为 `/api/aux/assets/:id`。
+- **File flow:** `FileManagementPage.tsx` → `GET /api/aux/admin/files` 读取图片与发票文件；图片通过 `POST /api/aux/admin/assets` 上传到 `SUB2API_EXTENSION_ASSET_DIR/photos`，发票写入 `SUB2API_EXTENSION_ASSET_DIR/invoices`。数据库只保存文件元数据，图片公开 URL 为 `/api/aux/assets/:id`。
 
 ### SPA Static Hosting
 

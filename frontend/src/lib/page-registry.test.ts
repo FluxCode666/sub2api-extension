@@ -16,9 +16,9 @@ const expectedPages = [
     visibility: 'admin',
   },
   {
-    id: 'image-assets',
-    title: '图片资源',
-    path: '/admin/assets',
+    id: 'file-management',
+    title: '文件管理',
+    path: '/admin/files',
     visibility: 'admin',
   },
   {

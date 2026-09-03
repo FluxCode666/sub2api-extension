@@ -20,6 +20,10 @@ vi.mock('@/pages/admin/ImageAssetsPage', () => ({
   default: () => <h1>image-assets-page</h1>,
 }))
 
+vi.mock('@/pages/admin/FileManagementPage', () => ({
+  default: () => <h1>file-management-page</h1>,
+}))
+
 vi.mock('@/pages/examples/ContentExamplePage', () => ({
   default: () => <h1>content-example-page</h1>,
 }))
@@ -121,6 +125,7 @@ describe('App routing', () => {
   })
 
   it.each([
+    ['/admin/files', 'file-management-page'],
     ['/admin/assets', 'image-assets-page'],
     ['/admin/examples/content', 'content-example-page'],
     ['/admin/examples/interaction', 'interaction-example-page'],

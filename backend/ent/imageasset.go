@@ -19,6 +19,8 @@ type ImageAsset struct {
 	ID int `json:"id,omitempty"`
 	// 上传时的原始文件名，仅用于管理端展示
 	OriginalName string `json:"original_name,omitempty"`
+	// 管理员对文件记录的备注
+	Note string `json:"note,omitempty"`
 	// 相对上传目录的文件路径，数据库不保存图片二进制
 	Path string `json:"path,omitempty"`
 	// 由文件内容嗅探得到的图片 MIME 类型
@@ -37,7 +39,7 @@ func (*ImageAsset) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case imageasset.FieldID, imageasset.FieldSize:
 			values[i] = new(sql.NullInt64)
-		case imageasset.FieldOriginalName, imageasset.FieldPath, imageasset.FieldMimeType:
+		case imageasset.FieldOriginalName, imageasset.FieldNote, imageasset.FieldPath, imageasset.FieldMimeType:
 			values[i] = new(sql.NullString)
 		case imageasset.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -67,6 +69,12 @@ func (_m *ImageAsset) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field original_name", values[i])
 			} else if value.Valid {
 				_m.OriginalName = value.String
+			}
+		case imageasset.FieldNote:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field note", values[i])
+			} else if value.Valid {
+				_m.Note = value.String
 			}
 		case imageasset.FieldPath:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -130,6 +138,9 @@ func (_m *ImageAsset) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("original_name=")
 	builder.WriteString(_m.OriginalName)
+	builder.WriteString(", ")
+	builder.WriteString("note=")
+	builder.WriteString(_m.Note)
 	builder.WriteString(", ")
 	builder.WriteString("path=")
 	builder.WriteString(_m.Path)

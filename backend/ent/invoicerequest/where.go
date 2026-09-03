@@ -144,6 +144,11 @@ func InvoiceFileSize(v int64) predicate.InvoiceRequest {
 	return predicate.InvoiceRequest(sql.FieldEQ(FieldInvoiceFileSize, v))
 }
 
+// InvoiceFileNote applies equality check predicate on the "invoice_file_note" field. It's identical to InvoiceFileNoteEQ.
+func InvoiceFileNote(v string) predicate.InvoiceRequest {
+	return predicate.InvoiceRequest(sql.FieldEQ(FieldInvoiceFileNote, v))
+}
+
 // IssuedAt applies equality check predicate on the "issued_at" field. It's identical to IssuedAtEQ.
 func IssuedAt(v time.Time) predicate.InvoiceRequest {
 	return predicate.InvoiceRequest(sql.FieldEQ(FieldIssuedAt, v))
@@ -1282,6 +1287,71 @@ func InvoiceFileSizeLT(v int64) predicate.InvoiceRequest {
 // InvoiceFileSizeLTE applies the LTE predicate on the "invoice_file_size" field.
 func InvoiceFileSizeLTE(v int64) predicate.InvoiceRequest {
 	return predicate.InvoiceRequest(sql.FieldLTE(FieldInvoiceFileSize, v))
+}
+
+// InvoiceFileNoteEQ applies the EQ predicate on the "invoice_file_note" field.
+func InvoiceFileNoteEQ(v string) predicate.InvoiceRequest {
+	return predicate.InvoiceRequest(sql.FieldEQ(FieldInvoiceFileNote, v))
+}
+
+// InvoiceFileNoteNEQ applies the NEQ predicate on the "invoice_file_note" field.
+func InvoiceFileNoteNEQ(v string) predicate.InvoiceRequest {
+	return predicate.InvoiceRequest(sql.FieldNEQ(FieldInvoiceFileNote, v))
+}
+
+// InvoiceFileNoteIn applies the In predicate on the "invoice_file_note" field.
+func InvoiceFileNoteIn(vs ...string) predicate.InvoiceRequest {
+	return predicate.InvoiceRequest(sql.FieldIn(FieldInvoiceFileNote, vs...))
+}
+
+// InvoiceFileNoteNotIn applies the NotIn predicate on the "invoice_file_note" field.
+func InvoiceFileNoteNotIn(vs ...string) predicate.InvoiceRequest {
+	return predicate.InvoiceRequest(sql.FieldNotIn(FieldInvoiceFileNote, vs...))
+}
+
+// InvoiceFileNoteGT applies the GT predicate on the "invoice_file_note" field.
+func InvoiceFileNoteGT(v string) predicate.InvoiceRequest {
+	return predicate.InvoiceRequest(sql.FieldGT(FieldInvoiceFileNote, v))
+}
+
+// InvoiceFileNoteGTE applies the GTE predicate on the "invoice_file_note" field.
+func InvoiceFileNoteGTE(v string) predicate.InvoiceRequest {
+	return predicate.InvoiceRequest(sql.FieldGTE(FieldInvoiceFileNote, v))
+}
+
+// InvoiceFileNoteLT applies the LT predicate on the "invoice_file_note" field.
+func InvoiceFileNoteLT(v string) predicate.InvoiceRequest {
+	return predicate.InvoiceRequest(sql.FieldLT(FieldInvoiceFileNote, v))
+}
+
+// InvoiceFileNoteLTE applies the LTE predicate on the "invoice_file_note" field.
+func InvoiceFileNoteLTE(v string) predicate.InvoiceRequest {
+	return predicate.InvoiceRequest(sql.FieldLTE(FieldInvoiceFileNote, v))
+}
+
+// InvoiceFileNoteContains applies the Contains predicate on the "invoice_file_note" field.
+func InvoiceFileNoteContains(v string) predicate.InvoiceRequest {
+	return predicate.InvoiceRequest(sql.FieldContains(FieldInvoiceFileNote, v))
+}
+
+// InvoiceFileNoteHasPrefix applies the HasPrefix predicate on the "invoice_file_note" field.
+func InvoiceFileNoteHasPrefix(v string) predicate.InvoiceRequest {
+	return predicate.InvoiceRequest(sql.FieldHasPrefix(FieldInvoiceFileNote, v))
+}
+
+// InvoiceFileNoteHasSuffix applies the HasSuffix predicate on the "invoice_file_note" field.
+func InvoiceFileNoteHasSuffix(v string) predicate.InvoiceRequest {
+	return predicate.InvoiceRequest(sql.FieldHasSuffix(FieldInvoiceFileNote, v))
+}
+
+// InvoiceFileNoteEqualFold applies the EqualFold predicate on the "invoice_file_note" field.
+func InvoiceFileNoteEqualFold(v string) predicate.InvoiceRequest {
+	return predicate.InvoiceRequest(sql.FieldEqualFold(FieldInvoiceFileNote, v))
+}
+
+// InvoiceFileNoteContainsFold applies the ContainsFold predicate on the "invoice_file_note" field.
+func InvoiceFileNoteContainsFold(v string) predicate.InvoiceRequest {
+	return predicate.InvoiceRequest(sql.FieldContainsFold(FieldInvoiceFileNote, v))
 }
 
 // IssuedAtEQ applies the EQ predicate on the "issued_at" field.

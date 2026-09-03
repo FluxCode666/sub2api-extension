@@ -15,6 +15,8 @@ const (
 	FieldID = "id"
 	// FieldOriginalName holds the string denoting the original_name field in the database.
 	FieldOriginalName = "original_name"
+	// FieldNote holds the string denoting the note field in the database.
+	FieldNote = "note"
 	// FieldPath holds the string denoting the path field in the database.
 	FieldPath = "path"
 	// FieldMimeType holds the string denoting the mime_type field in the database.
@@ -31,6 +33,7 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldOriginalName,
+	FieldNote,
 	FieldPath,
 	FieldMimeType,
 	FieldSize,
@@ -50,6 +53,10 @@ func ValidColumn(column string) bool {
 var (
 	// OriginalNameValidator is a validator for the "original_name" field. It is called by the builders before save.
 	OriginalNameValidator func(string) error
+	// DefaultNote holds the default value on creation for the "note" field.
+	DefaultNote string
+	// NoteValidator is a validator for the "note" field. It is called by the builders before save.
+	NoteValidator func(string) error
 	// PathValidator is a validator for the "path" field. It is called by the builders before save.
 	PathValidator func(string) error
 	// MimeTypeValidator is a validator for the "mime_type" field. It is called by the builders before save.
@@ -69,6 +76,11 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByOriginalName orders the results by the original_name field.
 func ByOriginalName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldOriginalName, opts...).ToFunc()
+}
+
+// ByNote orders the results by the note field.
+func ByNote(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNote, opts...).ToFunc()
 }
 
 // ByPath orders the results by the path field.

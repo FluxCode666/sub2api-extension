@@ -24,7 +24,7 @@ sub2api-extension 是 sub2api 的独立内容承载与页面管理项目。页�
 
 ```ts
 { id: 'dashboard', title: '分析仪表盘', path: '/admin/dashboard', visibility: 'admin' }
-{ id: 'image-assets', title: '图片资源', path: '/admin/assets', visibility: 'admin' }
+{ id: 'file-management', title: '文件管理', path: '/admin/files', visibility: 'admin' }
 { id: 'example-content', title: '静态内容示例', path: '/admin/examples/content', visibility: 'admin' }
 { id: 'example-interaction', title: '交互与埋点示例', path: '/admin/examples/interaction', visibility: 'admin' }
 { id: 'example-api', title: 'API 请求示例', path: '/admin/examples/api', visibility: 'admin' }
@@ -134,7 +134,7 @@ React 动态页面已经实现，不再是“尚未实现”的占位能力：`f
 
 `items` 为空或 `enabled=false` 时隐藏板块；icon 为空时不渲染图标；超过 5 项才启用循环滚动。
 
-图片必须先在 `/admin/assets` 上传或登记。上传文件写入 `SUB2API_EXTENSION_ASSET_DIR`（生产容器内为 `/app/data/assets`），数据库 `image_assets.path` 只保存安全相对文件名；复制当前站点生成的完整 HTTP(S) URL 后再填入 `metadata.logo`。不要把相对路径、图片二进制或本机绝对路径写进页面 JSON。
+图片必须先在 `/admin/files` 上传或登记。上传文件写入 `SUB2API_EXTENSION_ASSET_DIR/photos`（生产容器内为 `/app/data/assets/photos`），数据库 `image_assets.path` 只保存安全相对文件名；复制当前站点生成的完整 HTTP(S) URL 后再填入 `metadata.logo`。不要把相对路径、图片二进制或本机绝对路径写进页面 JSON。
 
 ## AdminGuard、嵌入与会话
 
@@ -183,7 +183,7 @@ React 动态页面已经实现，不再是“尚未实现”的占位能力：`f
 | `frontend/src/components/SandboxRenderer.tsx` | 动态 HTML iframe 沙箱 |
 | `frontend/src/lib/dynamic-react-compiler.ts` | 动态 React 编译与执行（高风险） |
 | `frontend/src/pages/admin/PageManagementPage.tsx` | 动态页面 CRUD |
-| `frontend/src/pages/admin/ImageAssetsPage.tsx` | 图片上传与 URL 复制 |
+| `frontend/src/pages/admin/FileManagementPage.tsx` | 图片上传、文件列表、备注与 URL 复制 |
 | `backend/internal/service/page_service.go` | 页面校验和持久化 |
 | `backend/internal/service/image_asset_service.go` | 图片文件落盘和索引 |
 | `backend/scripts/seed_homepage.go` | TERALEMO 官网首次/幂等 seed |

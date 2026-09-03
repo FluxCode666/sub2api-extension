@@ -22,7 +22,7 @@
 | `/` | 重定向到 `/admin/dashboard`，不是官网首页 |
 | `/admin/dashboard` | 分析仪表盘，展示页面访问和功能使用度 |
 | `/admin/pages` | 动态页面管理，管理员编写和维护页面 |
-| `/admin/assets` | 图片资源管理 |
+| `/admin/files` | 文件管理（图片与发票文件） |
 | `/admin/ops/ttft` | 运维看板：首字延迟火焰图（直读 Sub2API 数据库） |
 | `/admin/logs/system` | 系统日志：请求、运行状态和错误事件 |
 | `/admin/logs/operation` | 操作日志：管理员变更审计 |
@@ -198,6 +198,12 @@ cp .env.example .env
 docker compose -f docker-compose.yml --env-file .env up -d
 ```
 
+上传文件不会写入 PostgreSQL：生产 Compose 将命名卷 `sub2api-extension-data` 挂载到容器
+`/app/data`，图片文件保存在 `/app/data/assets/photos`，发票文件保存在
+`/app/data/assets/invoices`。文件的原始名称和备注作为元数据分别保存到
+`image_assets.original_name` / `image_assets.note` 与
+`invoice_requests.invoice_file_name` / `invoice_requests.invoice_file_note`。
+
 生产环境建议由宿主机 NGINX 对外提供 HTTPS，Compose 中的 aux-backend 默认只绑定
 `127.0.0.1:8787`，避免公网绕过 TLS 直接访问应用端口。NGINX 配置和安装步骤见
 [deploy/nginx/README.md](deploy/nginx/README.md)。
@@ -232,7 +238,9 @@ make dev
 `make migrate` 也会创建 `image_assets`、`invoice_profiles`、`invoice_requests`、
 `invoice_orders`、`notification_channels`、`notification_deliveries`、`system_logs`
 和 `operation_logs` 表；
-图片文件本身写入 `SUB2API_EXTENSION_ASSET_DIR`，数据库只保存相对路径。
+`SUB2API_EXTENSION_ASSET_DIR` 是上传资源根目录；图片写入其 `photos` 子目录，
+数据库只保存相对路径、原始文件名和备注。
+Docker 生产环境默认先运行 `aux-migrate`，为新增的文件元数据字段执行幂等迁移。
 
 通知渠道管理位于管理端 `/admin/notifications`。邮箱 SMTP 和 Resend 渠道只保存发件人、连接信息和凭据；收件人需要在具体业务事件（当前为发票申请通知）中填写，可填写多个邮箱地址，支持逗号、分号或空格分隔。
 消息通知日志支持开始/结束日期时间查询及分页浏览。

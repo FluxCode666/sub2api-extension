@@ -59,6 +59,11 @@ func OriginalName(v string) predicate.ImageAsset {
 	return predicate.ImageAsset(sql.FieldEQ(FieldOriginalName, v))
 }
 
+// Note applies equality check predicate on the "note" field. It's identical to NoteEQ.
+func Note(v string) predicate.ImageAsset {
+	return predicate.ImageAsset(sql.FieldEQ(FieldNote, v))
+}
+
 // Path applies equality check predicate on the "path" field. It's identical to PathEQ.
 func Path(v string) predicate.ImageAsset {
 	return predicate.ImageAsset(sql.FieldEQ(FieldPath, v))
@@ -142,6 +147,71 @@ func OriginalNameEqualFold(v string) predicate.ImageAsset {
 // OriginalNameContainsFold applies the ContainsFold predicate on the "original_name" field.
 func OriginalNameContainsFold(v string) predicate.ImageAsset {
 	return predicate.ImageAsset(sql.FieldContainsFold(FieldOriginalName, v))
+}
+
+// NoteEQ applies the EQ predicate on the "note" field.
+func NoteEQ(v string) predicate.ImageAsset {
+	return predicate.ImageAsset(sql.FieldEQ(FieldNote, v))
+}
+
+// NoteNEQ applies the NEQ predicate on the "note" field.
+func NoteNEQ(v string) predicate.ImageAsset {
+	return predicate.ImageAsset(sql.FieldNEQ(FieldNote, v))
+}
+
+// NoteIn applies the In predicate on the "note" field.
+func NoteIn(vs ...string) predicate.ImageAsset {
+	return predicate.ImageAsset(sql.FieldIn(FieldNote, vs...))
+}
+
+// NoteNotIn applies the NotIn predicate on the "note" field.
+func NoteNotIn(vs ...string) predicate.ImageAsset {
+	return predicate.ImageAsset(sql.FieldNotIn(FieldNote, vs...))
+}
+
+// NoteGT applies the GT predicate on the "note" field.
+func NoteGT(v string) predicate.ImageAsset {
+	return predicate.ImageAsset(sql.FieldGT(FieldNote, v))
+}
+
+// NoteGTE applies the GTE predicate on the "note" field.
+func NoteGTE(v string) predicate.ImageAsset {
+	return predicate.ImageAsset(sql.FieldGTE(FieldNote, v))
+}
+
+// NoteLT applies the LT predicate on the "note" field.
+func NoteLT(v string) predicate.ImageAsset {
+	return predicate.ImageAsset(sql.FieldLT(FieldNote, v))
+}
+
+// NoteLTE applies the LTE predicate on the "note" field.
+func NoteLTE(v string) predicate.ImageAsset {
+	return predicate.ImageAsset(sql.FieldLTE(FieldNote, v))
+}
+
+// NoteContains applies the Contains predicate on the "note" field.
+func NoteContains(v string) predicate.ImageAsset {
+	return predicate.ImageAsset(sql.FieldContains(FieldNote, v))
+}
+
+// NoteHasPrefix applies the HasPrefix predicate on the "note" field.
+func NoteHasPrefix(v string) predicate.ImageAsset {
+	return predicate.ImageAsset(sql.FieldHasPrefix(FieldNote, v))
+}
+
+// NoteHasSuffix applies the HasSuffix predicate on the "note" field.
+func NoteHasSuffix(v string) predicate.ImageAsset {
+	return predicate.ImageAsset(sql.FieldHasSuffix(FieldNote, v))
+}
+
+// NoteEqualFold applies the EqualFold predicate on the "note" field.
+func NoteEqualFold(v string) predicate.ImageAsset {
+	return predicate.ImageAsset(sql.FieldEqualFold(FieldNote, v))
+}
+
+// NoteContainsFold applies the ContainsFold predicate on the "note" field.
+func NoteContainsFold(v string) predicate.ImageAsset {
+	return predicate.ImageAsset(sql.FieldContainsFold(FieldNote, v))
 }
 
 // PathEQ applies the EQ predicate on the "path" field.
