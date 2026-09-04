@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"sub2api-extension/ent/accountcostconfig"
 	"sub2api-extension/ent/featureclick"
 	"sub2api-extension/ent/imageasset"
 	"sub2api-extension/ent/invoiceorder"
@@ -23,6 +24,38 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	accountcostconfigFields := schema.AccountCostConfig{}.Fields()
+	_ = accountcostconfigFields
+	// accountcostconfigDescAccountType is the schema descriptor for account_type field.
+	accountcostconfigDescAccountType := accountcostconfigFields[1].Descriptor()
+	// accountcostconfig.DefaultAccountType holds the default value on creation for the account_type field.
+	accountcostconfig.DefaultAccountType = accountcostconfigDescAccountType.Default.(string)
+	// accountcostconfig.AccountTypeValidator is a validator for the "account_type" field. It is called by the builders before save.
+	accountcostconfig.AccountTypeValidator = accountcostconfigDescAccountType.Validators[0].(func(string) error)
+	// accountcostconfigDescName is the schema descriptor for name field.
+	accountcostconfigDescName := accountcostconfigFields[2].Descriptor()
+	// accountcostconfig.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	accountcostconfig.NameValidator = accountcostconfigDescName.Validators[0].(func(string) error)
+	// accountcostconfigDescPlatform is the schema descriptor for platform field.
+	accountcostconfigDescPlatform := accountcostconfigFields[3].Descriptor()
+	// accountcostconfig.PlatformValidator is a validator for the "platform" field. It is called by the builders before save.
+	accountcostconfig.PlatformValidator = accountcostconfigDescPlatform.Validators[0].(func(string) error)
+	// accountcostconfigDescAPIMultiplierMode is the schema descriptor for api_multiplier_mode field.
+	accountcostconfigDescAPIMultiplierMode := accountcostconfigFields[7].Descriptor()
+	// accountcostconfig.DefaultAPIMultiplierMode holds the default value on creation for the api_multiplier_mode field.
+	accountcostconfig.DefaultAPIMultiplierMode = accountcostconfigDescAPIMultiplierMode.Default.(string)
+	// accountcostconfig.APIMultiplierModeValidator is a validator for the "api_multiplier_mode" field. It is called by the builders before save.
+	accountcostconfig.APIMultiplierModeValidator = accountcostconfigDescAPIMultiplierMode.Validators[0].(func(string) error)
+	// accountcostconfigDescCreatedAt is the schema descriptor for created_at field.
+	accountcostconfigDescCreatedAt := accountcostconfigFields[9].Descriptor()
+	// accountcostconfig.DefaultCreatedAt holds the default value on creation for the created_at field.
+	accountcostconfig.DefaultCreatedAt = accountcostconfigDescCreatedAt.Default.(func() time.Time)
+	// accountcostconfigDescUpdatedAt is the schema descriptor for updated_at field.
+	accountcostconfigDescUpdatedAt := accountcostconfigFields[10].Descriptor()
+	// accountcostconfig.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	accountcostconfig.DefaultUpdatedAt = accountcostconfigDescUpdatedAt.Default.(func() time.Time)
+	// accountcostconfig.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	accountcostconfig.UpdateDefaultUpdatedAt = accountcostconfigDescUpdatedAt.UpdateDefault.(func() time.Time)
 	featureclickFields := schema.FeatureClick{}.Fields()
 	_ = featureclickFields
 	// featureclickDescPageID is the schema descriptor for page_id field.

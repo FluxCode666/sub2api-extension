@@ -187,8 +187,22 @@ func main() {
 	ttftStore := integration.NewSub2APITTFTStore(sub2apiDB)
 	ttftService := service.NewTTFTService(ttftStore)
 	ttftHandler := adminhandler.NewTTFTHandler(ttftService)
+	// 成本核算链：Sub2API usage_logs 聚合 + 扩展 system_meta 成本配置。
+	costQueryStore := integration.NewSub2APICostStore(sub2apiDB)
+	costConfigStore := service.NewEntCostConfigStore(entClient)
+	var costAccountSource service.CostAccountSource
+	if sub2apiDB != nil {
+		costAccountSource = costQueryStore
+	}
+	costService := service.NewCostService(costQueryStore, costConfigStore, costAccountSource)
+	costHandler := adminhandler.NewCostHandler(costService)
+	syncCtx, syncCancel := context.WithCancel(context.Background())
+	defer syncCancel()
+	costService.StartPeriodicSync(syncCtx, time.Duration(cfg.Sub2API.CostSyncIntervalSeconds)*time.Second, func(syncErr error) {
+		log.Printf("cost account sync failed: %v", syncErr)
+	})
 
-	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, imageAssetHandler, ttftHandler, invoiceUserHandler, invoiceAdminHandler, notificationAdminHandler, logService, logHandler)
+	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, imageAssetHandler, ttftHandler, costHandler, invoiceUserHandler, invoiceAdminHandler, notificationAdminHandler, logService, logHandler)
 
 	// 启动 HTTP 服务器
 	addr := cfg.Server.Address()
@@ -214,6 +228,7 @@ func main() {
 	<-quit
 
 	log.Println("Shutting down server...")
+	syncCancel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

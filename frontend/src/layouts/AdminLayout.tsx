@@ -16,7 +16,7 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
-import { LayoutDashboard, FileText, FilePlus2, ExternalLink, Images, Flame, ReceiptText, Terminal, ClipboardList, Bell } from 'lucide-react'
+import { LayoutDashboard, FileText, FilePlus2, ExternalLink, Images, Flame, Calculator, SlidersHorizontal, ReceiptText, Terminal, ClipboardList, Bell } from 'lucide-react'
 import { fetchDynamicPages, getMergedRegistry, subscribeDynamicPages } from '@/lib/dynamic-pages'
 import { getMenuIcon } from '@/lib/menu-icons'
 import { Toaster } from '@/components/ui/sonner'
@@ -56,7 +56,8 @@ export default function AdminLayout() {
   // 动态页单独分组(来自 DB)
   const dynamicAdminPages = adminPages.filter((p) => p.id.startsWith('page:'))
   const staticAdminPages = adminPages.filter((p) => !p.id.startsWith('page:') && p.id !== 'image-assets')
-  const opsAdminPages = staticAdminPages.filter((page) => page.id.startsWith('ops-'))
+  const opsAdminPages = staticAdminPages.filter((page) => page.id === 'ops-ttft')
+  const operationsAdminPages = staticAdminPages.filter((page) => page.id === 'ops-consumption' || page.id === 'ops-cost-config')
   const coreAdminPages = staticAdminPages.filter((page) => !page.id.startsWith('ops-'))
 
   // 静态核心管理页的图标映射
@@ -64,6 +65,8 @@ export default function AdminLayout() {
     dashboard: LayoutDashboard,
     'image-assets': Images,
     'ops-ttft': Flame,
+    'ops-consumption': Calculator,
+    'ops-cost-config': SlidersHorizontal,
   }
 
   return (
@@ -115,6 +118,29 @@ export default function AdminLayout() {
                 <SidebarMenu>
                   {opsAdminPages.map((page) => {
                     const Icon = staticIcons[page.id] ?? Flame
+                    return (
+                      <SidebarMenuItem key={page.id}>
+                        <SidebarMenuButton asChild>
+                          <NavLink to={page.path} end>
+                            <Icon className="h-4 w-4" />
+                            <span>{page.title}</span>
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )}
+
+          {operationsAdminPages.length > 0 && (
+            <SidebarGroup>
+              <SidebarGroupLabel>运营中心</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {operationsAdminPages.map((page) => {
+                    const Icon = staticIcons[page.id] ?? Calculator
                     return (
                       <SidebarMenuItem key={page.id}>
                         <SidebarMenuButton asChild>

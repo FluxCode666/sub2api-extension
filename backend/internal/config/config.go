@@ -66,9 +66,10 @@ func (d *DatabaseConfig) DSN() string {
 
 // Sub2APIConfig sub2api 对接配置（供管理员身份验证使用）。
 type Sub2APIConfig struct {
-	BaseURL   string         `mapstructure:"base_url"`   // sub2api 后端基础 URL
-	PublicURL string         `mapstructure:"public_url"` // 浏览器可访问的扩展公网 URL
-	Database  DatabaseConfig `mapstructure:"database"`   // sub2api PostgreSQL（用于同步 custom_menu_items）
+	BaseURL                 string         `mapstructure:"base_url"`                   // sub2api 后端基础 URL
+	PublicURL               string         `mapstructure:"public_url"`                 // 浏览器可访问的扩展公网 URL
+	CostSyncIntervalSeconds int            `mapstructure:"cost_sync_interval_seconds"` // per-account cost sync interval
+	Database                DatabaseConfig `mapstructure:"database"`                   // sub2api PostgreSQL（用于同步 custom_menu_items）
 }
 
 // JWTConfig JWT 签名配置（供 U3 管理员鉴权）。
@@ -101,6 +102,9 @@ func Load() (*Config, error) {
 	}
 	if err := viper.BindEnv("assets.dir", "SUB2API_EXTENSION_ASSET_DIR"); err != nil {
 		return nil, fmt.Errorf("bind asset directory environment variable: %w", err)
+	}
+	if err := viper.BindEnv("sub2api.cost_sync_interval_seconds", "SUB2API_EXTENSION_COST_SYNC_INTERVAL_SECONDS"); err != nil {
+		return nil, fmt.Errorf("bind cost sync interval environment variable: %w", err)
 	}
 
 	setDefaults()
@@ -151,6 +155,7 @@ func setDefaults() {
 
 	viper.SetDefault("sub2api.base_url", "")
 	viper.SetDefault("sub2api.public_url", "")
+	viper.SetDefault("sub2api.cost_sync_interval_seconds", 300)
 	viper.SetDefault("sub2api.database.host", "")
 	viper.SetDefault("sub2api.database.port", 5432)
 	viper.SetDefault("sub2api.database.user", "")
@@ -179,6 +184,9 @@ func normalize(cfg *Config) {
 	cfg.Database.Password = strings.TrimSpace(cfg.Database.Password)
 	cfg.Sub2API.BaseURL = strings.TrimSpace(cfg.Sub2API.BaseURL)
 	cfg.Sub2API.PublicURL = strings.TrimRight(strings.TrimSpace(cfg.Sub2API.PublicURL), "/")
+	if cfg.Sub2API.CostSyncIntervalSeconds < 60 {
+		cfg.Sub2API.CostSyncIntervalSeconds = 300
+	}
 	cfg.Sub2API.Database.Host = strings.TrimSpace(cfg.Sub2API.Database.Host)
 	cfg.Sub2API.Database.User = strings.TrimSpace(cfg.Sub2API.Database.User)
 	cfg.Sub2API.Database.DBName = strings.TrimSpace(cfg.Sub2API.Database.DBName)
@@ -238,8 +246,9 @@ func LoadFromEnv() (*Config, error) {
 			SSLMode:  getEnv("DATABASE_SSLMODE", "disable"),
 		},
 		Sub2API: Sub2APIConfig{
-			BaseURL:   getEnv("SUB2API_BASE_URL", ""),
-			PublicURL: getEnv("SUB2API_EXTENSION_PUBLIC_URL", ""),
+			BaseURL:                 getEnv("SUB2API_BASE_URL", ""),
+			PublicURL:               getEnv("SUB2API_EXTENSION_PUBLIC_URL", ""),
+			CostSyncIntervalSeconds: getEnvInt("SUB2API_EXTENSION_COST_SYNC_INTERVAL_SECONDS", 300),
 			Database: DatabaseConfig{
 				Host:     getEnv("SUB2API_DATABASE_HOST", ""),
 				Port:     getEnvInt("SUB2API_DATABASE_PORT", 5432),

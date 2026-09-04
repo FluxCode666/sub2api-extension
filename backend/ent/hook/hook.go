@@ -8,6 +8,18 @@ import (
 	"sub2api-extension/ent"
 )
 
+// The AccountCostConfigFunc type is an adapter to allow the use of ordinary
+// function as AccountCostConfig mutator.
+type AccountCostConfigFunc func(context.Context, *ent.AccountCostConfigMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AccountCostConfigFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AccountCostConfigMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AccountCostConfigMutation", m)
+}
+
 // The FeatureClickFunc type is an adapter to allow the use of ordinary
 // function as FeatureClick mutator.
 type FeatureClickFunc func(context.Context, *ent.FeatureClickMutation) (ent.Value, error)

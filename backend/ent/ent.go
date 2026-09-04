@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sub2api-extension/ent/accountcostconfig"
 	"sub2api-extension/ent/featureclick"
 	"sub2api-extension/ent/imageasset"
 	"sub2api-extension/ent/invoiceorder"
@@ -84,6 +85,7 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
+			accountcostconfig.Table:    accountcostconfig.ValidColumn,
 			featureclick.Table:         featureclick.ValidColumn,
 			imageasset.Table:           imageasset.ValidColumn,
 			invoiceorder.Table:         invoiceorder.ValidColumn,

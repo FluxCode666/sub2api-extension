@@ -32,9 +32,10 @@ import (
 // analyticsHandler 为 nil 时跳过分析仪表盘路由(U6 端点)。
 // optionalHandlers 中传入 TTFTHandler 时注册 Sub2API 数据库首字延迟看板路由。
 // optionalHandlers 中传入 LogService 与 LogHandler 时启用请求/操作审计和日志查询路由。
+// optionalHandlers 中传入 CostHandler 时注册运营中心成本核算路由。
 // pagePublicHandler 为 nil 时跳过公开页面获取端点。
 // pageAdminHandler 为 nil 时跳过管理端页面 CRUD 端点。
-// optionalHandlers 可传 HomepageConfigHandler、ImageAssetHandler 与 TTFTHandler，保留可选形式以兼容
+// optionalHandlers 可传 HomepageConfigHandler、ImageAssetHandler、TTFTHandler 与 CostHandler，保留可选形式以兼容
 // 最小启动场景和既有路由测试。
 func SetupRouter(cfg *config.Config, healthHandler *web.HealthHandler, authHandler *handler.AuthHandler, authService *service.AuthService, telemetryHandler *handler.TelemetryHandler, analyticsHandler *adminhandler.AnalyticsHandler, pagePublicHandler *handler.PagePublicHandler, pageAdminHandler *adminhandler.PageHandler, optionalHandlers ...any) *gin.Engine {
 	if cfg.Server.Mode == "release" {
@@ -143,6 +144,7 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 	var homepageHandler *adminhandler.HomepageConfigHandler
 	var imageAssetHandler *adminhandler.ImageAssetHandler
 	var ttftHandler *adminhandler.TTFTHandler
+	var costHandler *adminhandler.CostHandler
 	var logHandler *adminhandler.LogHandler
 	var logService *service.LogService
 	var invoiceUserHandler *handler.InvoiceUserHandler
@@ -156,6 +158,8 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			imageAssetHandler = typed
 		case *adminhandler.TTFTHandler:
 			ttftHandler = typed
+		case *adminhandler.CostHandler:
+			costHandler = typed
 		case *adminhandler.LogHandler:
 			logHandler = typed
 		case *service.LogService:
@@ -266,6 +270,13 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			// Sub2API PostgreSQL，不调用 Sub2API HTTP API。
 			if ttftHandler != nil {
 				guarded.GET("/ops/ttft", ttftHandler.GetTTFT)
+			}
+			if costHandler != nil {
+				guarded.GET("/ops/consumption", costHandler.GetConsumption)
+				guarded.GET("/ops/cost-config", costHandler.GetConfig)
+				guarded.PUT("/ops/cost-config", costHandler.UpdateConfig)
+				guarded.POST("/ops/cost-config/sync", costHandler.SyncAccounts)
+				guarded.PUT("/ops/cost-config/accounts/:id", costHandler.UpdateAccountConfig)
 			}
 			if logHandler != nil {
 				guarded.GET("/logs/system", logHandler.ListSystem)
