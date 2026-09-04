@@ -5,7 +5,7 @@
  *   - buildHeaders: 存在会话 token 时附加 X-Aux-Session;
  *     存在嵌入 token 时附加 X-Aux-Token; 两者可并存; 无则都不附加。
  *   - apiRequest: POST 含 Content-Type 与序列化 body; 非 ok 抛含状态码 Error。
- *   - apiClient.get/post 正确委托。
+ *   - apiClient.get/post/patch 正确委托。
  *
  * 这些是前端↔后端认证头契约(X-Aux-Session)的关键测试: 若头名漂移,
  * 所有受守卫 admin 请求静默 401。历史 bug 接缝, 必须有回归保护。
@@ -189,6 +189,16 @@ describe('api-client', () => {
       const [, init] = fetchMock.mock.calls[0]
       expect(init.method).toBe('POST')
       expect(JSON.parse(init.body)).toEqual({ page_id: 'home' })
+    })
+
+    it('patch delegates with PATCH method and body', async () => {
+      fetchMock.mockResolvedValueOnce(mockResponse(200, { code: 0, message: 'ok' }))
+
+      await apiClient.patch('/admin/files/image/7', { note: '用途说明' })
+
+      const [, init] = fetchMock.mock.calls[0]
+      expect(init.method).toBe('PATCH')
+      expect(JSON.parse(init.body)).toEqual({ note: '用途说明' })
     })
   })
 

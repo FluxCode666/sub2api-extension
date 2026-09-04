@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -145,10 +146,12 @@ func main() {
 	pagePublicHandler := handler.NewPagePublicHandler(pageService)
 	pageAdminHandler := adminhandler.NewPageHandler(pageService)
 
-	// 图片资源链：文件落在 cfg.Assets.Dir，PostgreSQL 只保存相对路径和索引元数据。
+	// 文件资源链：图片落在资源根目录的 photos 子目录，PostgreSQL 只保存相对路径和索引元数据。
 	imageAssetStore := service.NewEntImageAssetStore(entClient)
-	imageAssetService := service.NewImageAssetService(imageAssetStore, cfg.Assets.Dir)
+	imageAssetService := service.NewImageAssetService(imageAssetStore, filepath.Join(cfg.Assets.Dir, "photos"))
 	imageAssetHandler := adminhandler.NewImageAssetHandler(imageAssetService)
+	fileAssetService := service.NewFileAssetService(entClient)
+	fileAssetHandler := adminhandler.NewFileAssetHandler(fileAssetService)
 
 	// 日志链：Ent 持久化 + stdout 输出；系统日志和操作日志页面共用此服务。
 	logStore := service.NewEntLogStore(entClient)
@@ -202,7 +205,7 @@ func main() {
 		log.Printf("cost account sync failed: %v", syncErr)
 	})
 
-	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, imageAssetHandler, ttftHandler, costHandler, invoiceUserHandler, invoiceAdminHandler, notificationAdminHandler, logService, logHandler)
+	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, imageAssetHandler, fileAssetHandler, ttftHandler, costHandler, invoiceUserHandler, invoiceAdminHandler, notificationAdminHandler, logService, logHandler)
 
 	// 启动 HTTP 服务器
 	addr := cfg.Server.Address()

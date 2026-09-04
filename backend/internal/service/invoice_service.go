@@ -730,7 +730,7 @@ func (s *InvoiceService) AttachDocument(ctx context.Context, id int, originalNam
 	}
 	updated, err := s.store.client.InvoiceRequest.UpdateOne(request).
 		SetInvoiceFileName(cleanName).SetInvoiceFilePath(filepath.Base(path)).SetInvoiceFileMimeType(mimeType).
-		SetInvoiceFileSize(written).SetStatus(string(InvoiceStatusIssued)).SetIssuedAt(time.Now()).Save(ctx)
+		SetInvoiceFileSize(written).SetInvoiceFileNote("").SetStatus(string(InvoiceStatusIssued)).SetIssuedAt(time.Now()).Save(ctx)
 	if err != nil {
 		if removeErr := os.Remove(path); removeErr != nil {
 			log.Printf("[InvoiceService.AttachDocument] failed to remove orphan file path=%q: %v", path, removeErr)

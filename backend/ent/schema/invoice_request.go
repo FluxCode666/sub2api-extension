@@ -43,6 +43,7 @@ func (InvoiceRequest) Fields() []ent.Field {
 		field.String("invoice_file_path").MaxLen(512).Default(""),
 		field.String("invoice_file_mime_type").MaxLen(128).Default(""),
 		field.Int64("invoice_file_size").Default(0),
+		field.String("invoice_file_note").MaxLen(2000).Default("").Comment("管理员对发票文件记录的备注"),
 		field.Time("issued_at").Optional().Nillable().SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
 		field.Time("created_at").Default(time.Now).Immutable().SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now).SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),

@@ -1,4 +1,4 @@
-// Package admin 提供管理员图片上传、列表和公开读取端点。
+// Package admin 提供管理员图片上传、兼容列表和公开读取端点。
 package admin
 
 import (
@@ -24,7 +24,7 @@ type imageAssetProvider interface {
 	OpenByID(ctx context.Context, id int) (*service.ImageAsset, *os.File, error)
 }
 
-// ImageAssetHandler 处理图片资源。上传/列表受管理员守卫保护，读取 URL 公开可访问，
+// ImageAssetHandler 处理图片资源兼容端点。上传/列表受管理员守卫保护，读取 URL 公开可访问，
 // 这样复制后的 HTTP URL 可直接被官网动态页的 metadata.logo 使用。
 type ImageAssetHandler struct {
 	provider imageAssetProvider
@@ -37,6 +37,7 @@ func NewImageAssetHandler(svc *service.ImageAssetService) *ImageAssetHandler {
 type imageAssetResponse struct {
 	ID           int    `json:"id"`
 	OriginalName string `json:"original_name"`
+	Note         string `json:"note"`
 	MimeType     string `json:"mime_type"`
 	Size         int64  `json:"size"`
 	CreatedAt    string `json:"created_at"`
@@ -127,6 +128,7 @@ func toImageAssetResponse(c *gin.Context, asset service.ImageAsset) imageAssetRe
 	return imageAssetResponse{
 		ID:           asset.ID,
 		OriginalName: asset.OriginalName,
+		Note:         asset.Note,
 		MimeType:     asset.MimeType,
 		Size:         asset.Size,
 		CreatedAt:    asset.CreatedAt.UTC().Format(timeFormat),

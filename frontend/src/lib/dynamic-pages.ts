@@ -1,7 +1,7 @@
 /**
  * 动态页面注册表合并 —— KTD7 命名空间隔离的核心。
  *
- * 静态核心页(dashboard/assets)保留在 page-registry.ts 的
+ * 静态核心页(dashboard/files)保留在 page-registry.ts 的
  * PAGE_REGISTRY 数组里(代码登记, 不可变)。公开动态页来自 /api/aux/pages；
  * admin 动态页仅在管理会话建立后从 /api/aux/admin/pages 获取。
  *

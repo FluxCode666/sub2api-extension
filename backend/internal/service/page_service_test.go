@@ -185,7 +185,7 @@ func TestPageService_Create_Validation(t *testing.T) {
 		t.Error("Create: expected err for content exceeding size limit")
 	}
 
-	// Logo 元数据只接受 HTTP(S) 地址；图片内容由图片资源页以文件形式管理。
+	// Logo 元数据只接受 HTTP(S) 地址；图片内容由文件管理页以文件形式管理。
 	if _, err := svc.Create(ctx, PageInput{Slug: "logo-url", Title: "Logo URL", Metadata: map[string]interface{}{"logo": "https://example.com/logo.svg"}}); err != nil {
 		t.Fatalf("Create: valid logo URL returned err %v", err)
 	}

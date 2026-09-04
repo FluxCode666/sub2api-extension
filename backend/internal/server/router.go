@@ -35,7 +35,7 @@ import (
 // optionalHandlers 中传入 CostHandler 时注册运营中心成本核算路由。
 // pagePublicHandler 为 nil 时跳过公开页面获取端点。
 // pageAdminHandler 为 nil 时跳过管理端页面 CRUD 端点。
-// optionalHandlers 可传 HomepageConfigHandler、ImageAssetHandler、TTFTHandler 与 CostHandler，保留可选形式以兼容
+// optionalHandlers 可传 HomepageConfigHandler、ImageAssetHandler、FileAssetHandler、TTFTHandler 与 CostHandler，保留可选形式以兼容
 // 最小启动场景和既有路由测试。
 func SetupRouter(cfg *config.Config, healthHandler *web.HealthHandler, authHandler *handler.AuthHandler, authService *service.AuthService, telemetryHandler *handler.TelemetryHandler, analyticsHandler *adminhandler.AnalyticsHandler, pagePublicHandler *handler.PagePublicHandler, pageAdminHandler *adminhandler.PageHandler, optionalHandlers ...any) *gin.Engine {
 	if cfg.Server.Mode == "release" {
@@ -143,6 +143,7 @@ func SetPageHandlers(public *handler.PagePublicHandler, admin *adminhandler.Page
 func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authService *service.AuthService, telemetryHandler *handler.TelemetryHandler, analyticsHandler *adminhandler.AnalyticsHandler, pagePublicHandler *handler.PagePublicHandler, pageAdminHandler *adminhandler.PageHandler, optionalHandlers ...any) {
 	var homepageHandler *adminhandler.HomepageConfigHandler
 	var imageAssetHandler *adminhandler.ImageAssetHandler
+	var fileAssetHandler *adminhandler.FileAssetHandler
 	var ttftHandler *adminhandler.TTFTHandler
 	var costHandler *adminhandler.CostHandler
 	var logHandler *adminhandler.LogHandler
@@ -156,6 +157,8 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			homepageHandler = typed
 		case *adminhandler.ImageAssetHandler:
 			imageAssetHandler = typed
+		case *adminhandler.FileAssetHandler:
+			fileAssetHandler = typed
 		case *adminhandler.TTFTHandler:
 			ttftHandler = typed
 		case *adminhandler.CostHandler:
@@ -264,6 +267,10 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			if imageAssetHandler != nil {
 				guarded.GET("/assets", imageAssetHandler.List)
 				guarded.POST("/assets", imageAssetHandler.Upload)
+			}
+			if fileAssetHandler != nil {
+				guarded.GET("/files", fileAssetHandler.List)
+				guarded.PATCH("/files/:source/:id", fileAssetHandler.UpdateNote)
 			}
 
 			// 运维首字延迟看板：handler 内部通过 database/sql 直读

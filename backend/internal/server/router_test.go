@@ -146,6 +146,50 @@ func TestSetupRouter_AuxAdminGuardedWithoutSession(t *testing.T) {
 	require.Equal(t, http.StatusUnauthorized, w.Code)
 }
 
+func TestSetupRouter_AdminFilesRouteIsRegistered(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cfg := newTestConfig()
+	healthHandler := web.NewHealthHandler()
+	authHandler, authService := newTestAuthDeps()
+	fileHandler := adminhandler.NewFileAssetHandler(&mockFileAssetProviderForRouter{})
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler(), nil, nil, fileHandler)
+
+	// The endpoint is guarded, so a registered route must reach AdminGuard and
+	// return 401 without a session; an omitted route would return the global 404.
+	req := httptest.NewRequest(http.MethodGet, "/api/aux/admin/files", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestSetupRouter_AdminFileNoteRouteIsRegistered(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cfg := newTestConfig()
+	healthHandler := web.NewHealthHandler()
+	authHandler, authService := newTestAuthDeps()
+	fileHandler := adminhandler.NewFileAssetHandler(&mockFileAssetProviderForRouter{})
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler(), nil, nil, fileHandler)
+
+	// The PATCH endpoint is guarded just like the list endpoint.
+	req := httptest.NewRequest(http.MethodPatch, "/api/aux/admin/files/image/1", strings.NewReader(`{"note":"hello"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+type mockFileAssetProviderForRouter struct{}
+
+func (m *mockFileAssetProviderForRouter) List(context.Context) ([]service.FileAsset, error) {
+	return nil, nil
+}
+
+func (m *mockFileAssetProviderForRouter) UpdateNote(context.Context, string, int, string) (*service.FileAsset, error) {
+	return nil, nil
+}
+
 func TestSetupRouter_AdminSessionEndpointOutsideGuard(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cfg := newTestConfig()

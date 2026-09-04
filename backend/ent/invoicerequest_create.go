@@ -224,6 +224,20 @@ func (_c *InvoiceRequestCreate) SetNillableInvoiceFileSize(v *int64) *InvoiceReq
 	return _c
 }
 
+// SetInvoiceFileNote sets the "invoice_file_note" field.
+func (_c *InvoiceRequestCreate) SetInvoiceFileNote(v string) *InvoiceRequestCreate {
+	_c.mutation.SetInvoiceFileNote(v)
+	return _c
+}
+
+// SetNillableInvoiceFileNote sets the "invoice_file_note" field if the given value is not nil.
+func (_c *InvoiceRequestCreate) SetNillableInvoiceFileNote(v *string) *InvoiceRequestCreate {
+	if v != nil {
+		_c.SetInvoiceFileNote(*v)
+	}
+	return _c
+}
+
 // SetIssuedAt sets the "issued_at" field.
 func (_c *InvoiceRequestCreate) SetIssuedAt(v time.Time) *InvoiceRequestCreate {
 	_c.mutation.SetIssuedAt(v)
@@ -336,6 +350,10 @@ func (_c *InvoiceRequestCreate) defaults() {
 	if _, ok := _c.mutation.InvoiceFileSize(); !ok {
 		v := invoicerequest.DefaultInvoiceFileSize
 		_c.mutation.SetInvoiceFileSize(v)
+	}
+	if _, ok := _c.mutation.InvoiceFileNote(); !ok {
+		v := invoicerequest.DefaultInvoiceFileNote
+		_c.mutation.SetInvoiceFileNote(v)
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := invoicerequest.DefaultCreatedAt()
@@ -454,6 +472,14 @@ func (_c *InvoiceRequestCreate) check() error {
 	if _, ok := _c.mutation.InvoiceFileSize(); !ok {
 		return &ValidationError{Name: "invoice_file_size", err: errors.New(`ent: missing required field "InvoiceRequest.invoice_file_size"`)}
 	}
+	if _, ok := _c.mutation.InvoiceFileNote(); !ok {
+		return &ValidationError{Name: "invoice_file_note", err: errors.New(`ent: missing required field "InvoiceRequest.invoice_file_note"`)}
+	}
+	if v, ok := _c.mutation.InvoiceFileNote(); ok {
+		if err := invoicerequest.InvoiceFileNoteValidator(v); err != nil {
+			return &ValidationError{Name: "invoice_file_note", err: fmt.Errorf(`ent: validator failed for field "InvoiceRequest.invoice_file_note": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "InvoiceRequest.created_at"`)}
 	}
@@ -557,6 +583,10 @@ func (_c *InvoiceRequestCreate) createSpec() (*InvoiceRequest, *sqlgraph.CreateS
 	if value, ok := _c.mutation.InvoiceFileSize(); ok {
 		_spec.SetField(invoicerequest.FieldInvoiceFileSize, field.TypeInt64, value)
 		_node.InvoiceFileSize = value
+	}
+	if value, ok := _c.mutation.InvoiceFileNote(); ok {
+		_spec.SetField(invoicerequest.FieldInvoiceFileNote, field.TypeString, value)
+		_node.InvoiceFileNote = value
 	}
 	if value, ok := _c.mutation.IssuedAt(); ok {
 		_spec.SetField(invoicerequest.FieldIssuedAt, field.TypeTime, value)

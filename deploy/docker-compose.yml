@@ -32,7 +32,7 @@ services:
   # ===========================================================================
   # 后端启动不会自动迁移。该服务在 aux-backend 启动前创建/补齐本系统所需
   # 的 pages、page_views、feature_clicks、system_meta、image_assets、
-  # notification_channels、notification_deliveries 表。
+  # invoice_requests、notification_channels、notification_deliveries 表及其新增字段。
   # 它只操作本系统使用的表，不会修改 sub2api 自有表。
   aux-migrate:
     image: ${SUB2API_EXTENSION_IMAGE:?SUB2API_EXTENSION_IMAGE is required}:${SUB2API_EXTENSION_IMAGE_TAG:?SUB2API_EXTENSION_IMAGE_TAG is required}
@@ -110,7 +110,7 @@ services:
       # ---- 前端静态托管（Dockerfile 已默认设置，这里显式声明）----
       - SUB2API_EXTENSION_FRONTEND_DIST=${SUB2API_EXTENSION_FRONTEND_DIST:-/app/frontend/dist}
 
-      # ---- 上传资源持久化：图片与系统数据共用同一卷 ----
+      # ---- 上传资源根目录：图片在 photos/，发票在 invoices/ ----
       - SUB2API_EXTENSION_ASSET_DIR=${SUB2API_EXTENSION_ASSET_DIR:-/app/data/assets}
 
       # ---- 时区 ----
@@ -156,7 +156,7 @@ networks:
     external: true
     name: sub2api_sub2api-network
 
-# 与系统数据共用的持久卷；图片文件位于 /app/data/assets。
+# 与系统数据共用的持久卷；图片位于 /app/data/assets/photos，发票位于 /app/data/assets/invoices。
 volumes:
   sub2api-extension-data:
     driver: local

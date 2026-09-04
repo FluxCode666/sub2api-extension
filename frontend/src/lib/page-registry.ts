@@ -1,7 +1,7 @@
 /**
  * 页面清单注册表 —— 页面身份的单一真相源 (KTD7)。
  *
- * 静态核心页(dashboard/assets/ops-*)在此声明(代码登记, 不可变)。
+ * 静态核心页(dashboard/files/ops-*)在此声明(代码登记, 不可变)。
  * 动态页(管理员创建)来自后端 /api/aux/pages, 在 lib/dynamic-pages.ts 与静态注册表合并。
  *
  * - App.tsx 路由与 registry 共享同一 id 命名空间
@@ -53,9 +53,9 @@ export const STATIC_PAGE_REGISTRY: readonly PageEntry[] = [
     visibility: 'admin',
   },
   {
-    id: 'image-assets',
-    title: '图片资源',
-    path: '/admin/assets',
+    id: 'file-management',
+    title: '文件管理',
+    path: '/admin/files',
     visibility: 'admin',
   },
   {

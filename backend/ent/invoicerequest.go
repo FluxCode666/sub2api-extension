@@ -53,6 +53,8 @@ type InvoiceRequest struct {
 	InvoiceFileMimeType string `json:"invoice_file_mime_type,omitempty"`
 	// InvoiceFileSize holds the value of the "invoice_file_size" field.
 	InvoiceFileSize int64 `json:"invoice_file_size,omitempty"`
+	// 管理员对发票文件记录的备注
+	InvoiceFileNote string `json:"invoice_file_note,omitempty"`
 	// IssuedAt holds the value of the "issued_at" field.
 	IssuedAt *time.Time `json:"issued_at,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -71,7 +73,7 @@ func (*InvoiceRequest) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case invoicerequest.FieldID, invoicerequest.FieldUserID, invoicerequest.FieldInvoiceFileSize:
 			values[i] = new(sql.NullInt64)
-		case invoicerequest.FieldUserEmail, invoicerequest.FieldUserName, invoicerequest.FieldInvoiceTitle, invoicerequest.FieldTaxpayerID, invoicerequest.FieldContactEmail, invoicerequest.FieldContactPhone, invoicerequest.FieldRegisteredAddress, invoicerequest.FieldBankName, invoicerequest.FieldBankAccount, invoicerequest.FieldRemark, invoicerequest.FieldStatus, invoicerequest.FieldAdminNote, invoicerequest.FieldInvoiceFileName, invoicerequest.FieldInvoiceFilePath, invoicerequest.FieldInvoiceFileMimeType:
+		case invoicerequest.FieldUserEmail, invoicerequest.FieldUserName, invoicerequest.FieldInvoiceTitle, invoicerequest.FieldTaxpayerID, invoicerequest.FieldContactEmail, invoicerequest.FieldContactPhone, invoicerequest.FieldRegisteredAddress, invoicerequest.FieldBankName, invoicerequest.FieldBankAccount, invoicerequest.FieldRemark, invoicerequest.FieldStatus, invoicerequest.FieldAdminNote, invoicerequest.FieldInvoiceFileName, invoicerequest.FieldInvoiceFilePath, invoicerequest.FieldInvoiceFileMimeType, invoicerequest.FieldInvoiceFileNote:
 			values[i] = new(sql.NullString)
 		case invoicerequest.FieldIssuedAt, invoicerequest.FieldCreatedAt, invoicerequest.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -204,6 +206,12 @@ func (_m *InvoiceRequest) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.InvoiceFileSize = value.Int64
 			}
+		case invoicerequest.FieldInvoiceFileNote:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field invoice_file_note", values[i])
+			} else if value.Valid {
+				_m.InvoiceFileNote = value.String
+			}
 		case invoicerequest.FieldIssuedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field issued_at", values[i])
@@ -312,6 +320,9 @@ func (_m *InvoiceRequest) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("invoice_file_size=")
 	builder.WriteString(fmt.Sprintf("%v", _m.InvoiceFileSize))
+	builder.WriteString(", ")
+	builder.WriteString("invoice_file_note=")
+	builder.WriteString(_m.InvoiceFileNote)
 	builder.WriteString(", ")
 	if v := _m.IssuedAt; v != nil {
 		builder.WriteString("issued_at=")

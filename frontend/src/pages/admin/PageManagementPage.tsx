@@ -536,7 +536,7 @@ export default function PageManagementPage() {
     }
     const logo = (form.metadata.logo ?? '').trim()
     if (logo && !/^https?:\/\//i.test(logo)) {
-      const message = 'Logo 必须是图片资源页复制的 HTTP URL，或其他 HTTP/HTTPS 图片地址'
+      const message = 'Logo 必须是文件管理页复制的 HTTP URL，或其他 HTTP/HTTPS 图片地址'
       setFormError(message)
       toast.error(message)
       return
@@ -1057,7 +1057,7 @@ export default function PageManagementPage() {
             <div className="space-y-2">
               <Label>页面元数据（键值对）</Label>
               <p className="text-xs text-gray-500">
-                Logo 等配置统一保存在这里；图片请先在“图片资源”页上传，再将 HTTP URL 填入 logo 的值。
+                Logo 等配置统一保存在这里；图片请先在“文件管理”页上传，再将 HTTP URL 填入 logo 的值。
               </p>
               <p className="text-xs text-gray-500">
                 官网 home 页可用 <code>console_href</code>、<code>api_docs_href</code>、<code>usage_guide_href</code>、<code>contact_sales_href</code>、<code>terms_href</code> 配置入口；值支持相对路径或完整 HTTP/HTTPS 地址。

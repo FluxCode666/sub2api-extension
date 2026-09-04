@@ -115,8 +115,8 @@ COPY --from=backend-builder --chown=aux:aux /app/aux-server /app/aux-server
 # 复制前端构建产物（后端同源托管）
 COPY --from=frontend-builder --chown=aux:aux /app/frontend/dist /app/frontend/dist
 
-# 创建数据目录（数据库只存资源相对路径，图片文件落在 /app/data/assets）
-RUN mkdir -p /app/data/assets && chown -R aux:aux /app/data
+# 创建图片数据目录（数据库只存资源相对路径）
+RUN mkdir -p /app/data/assets/photos && chown -R aux:aux /app/data
 
 # 暴露端口（默认 8787，与 config 默认一致）
 EXPOSE 8787

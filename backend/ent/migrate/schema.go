@@ -81,6 +81,7 @@ var (
 	ImageAssetsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "original_name", Type: field.TypeString, Size: 255},
+		{Name: "note", Type: field.TypeString, Size: 2000, Default: ""},
 		{Name: "path", Type: field.TypeString, Unique: true, Size: 512},
 		{Name: "mime_type", Type: field.TypeString, Size: 128},
 		{Name: "size", Type: field.TypeInt64},
@@ -95,7 +96,7 @@ var (
 			{
 				Name:    "imageasset_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{ImageAssetsColumns[5]},
+				Columns: []*schema.Column{ImageAssetsColumns[6]},
 			},
 		},
 	}
@@ -163,6 +164,7 @@ var (
 		{Name: "invoice_file_path", Type: field.TypeString, Size: 512, Default: ""},
 		{Name: "invoice_file_mime_type", Type: field.TypeString, Size: 128, Default: ""},
 		{Name: "invoice_file_size", Type: field.TypeInt64, Default: 0},
+		{Name: "invoice_file_note", Type: field.TypeString, Size: 2000, Default: ""},
 		{Name: "issued_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
@@ -176,12 +178,12 @@ var (
 			{
 				Name:    "invoicerequest_user_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{InvoiceRequestsColumns[1], InvoiceRequestsColumns[20]},
+				Columns: []*schema.Column{InvoiceRequestsColumns[1], InvoiceRequestsColumns[21]},
 			},
 			{
 				Name:    "invoicerequest_status_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{InvoiceRequestsColumns[13], InvoiceRequestsColumns[20]},
+				Columns: []*schema.Column{InvoiceRequestsColumns[13], InvoiceRequestsColumns[21]},
 			},
 		},
 	}

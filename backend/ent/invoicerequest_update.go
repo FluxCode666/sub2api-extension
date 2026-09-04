@@ -319,6 +319,20 @@ func (_u *InvoiceRequestUpdate) AddInvoiceFileSize(v int64) *InvoiceRequestUpdat
 	return _u
 }
 
+// SetInvoiceFileNote sets the "invoice_file_note" field.
+func (_u *InvoiceRequestUpdate) SetInvoiceFileNote(v string) *InvoiceRequestUpdate {
+	_u.mutation.SetInvoiceFileNote(v)
+	return _u
+}
+
+// SetNillableInvoiceFileNote sets the "invoice_file_note" field if the given value is not nil.
+func (_u *InvoiceRequestUpdate) SetNillableInvoiceFileNote(v *string) *InvoiceRequestUpdate {
+	if v != nil {
+		_u.SetInvoiceFileNote(*v)
+	}
+	return _u
+}
+
 // SetIssuedAt sets the "issued_at" field.
 func (_u *InvoiceRequestUpdate) SetIssuedAt(v time.Time) *InvoiceRequestUpdate {
 	_u.mutation.SetIssuedAt(v)
@@ -448,6 +462,11 @@ func (_u *InvoiceRequestUpdate) check() error {
 			return &ValidationError{Name: "invoice_file_mime_type", err: fmt.Errorf(`ent: validator failed for field "InvoiceRequest.invoice_file_mime_type": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.InvoiceFileNote(); ok {
+		if err := invoicerequest.InvoiceFileNoteValidator(v); err != nil {
+			return &ValidationError{Name: "invoice_file_note", err: fmt.Errorf(`ent: validator failed for field "InvoiceRequest.invoice_file_note": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -534,6 +553,9 @@ func (_u *InvoiceRequestUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if value, ok := _u.mutation.AddedInvoiceFileSize(); ok {
 		_spec.AddField(invoicerequest.FieldInvoiceFileSize, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.InvoiceFileNote(); ok {
+		_spec.SetField(invoicerequest.FieldInvoiceFileNote, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.IssuedAt(); ok {
 		_spec.SetField(invoicerequest.FieldIssuedAt, field.TypeTime, value)
@@ -855,6 +877,20 @@ func (_u *InvoiceRequestUpdateOne) AddInvoiceFileSize(v int64) *InvoiceRequestUp
 	return _u
 }
 
+// SetInvoiceFileNote sets the "invoice_file_note" field.
+func (_u *InvoiceRequestUpdateOne) SetInvoiceFileNote(v string) *InvoiceRequestUpdateOne {
+	_u.mutation.SetInvoiceFileNote(v)
+	return _u
+}
+
+// SetNillableInvoiceFileNote sets the "invoice_file_note" field if the given value is not nil.
+func (_u *InvoiceRequestUpdateOne) SetNillableInvoiceFileNote(v *string) *InvoiceRequestUpdateOne {
+	if v != nil {
+		_u.SetInvoiceFileNote(*v)
+	}
+	return _u
+}
+
 // SetIssuedAt sets the "issued_at" field.
 func (_u *InvoiceRequestUpdateOne) SetIssuedAt(v time.Time) *InvoiceRequestUpdateOne {
 	_u.mutation.SetIssuedAt(v)
@@ -997,6 +1033,11 @@ func (_u *InvoiceRequestUpdateOne) check() error {
 			return &ValidationError{Name: "invoice_file_mime_type", err: fmt.Errorf(`ent: validator failed for field "InvoiceRequest.invoice_file_mime_type": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.InvoiceFileNote(); ok {
+		if err := invoicerequest.InvoiceFileNoteValidator(v); err != nil {
+			return &ValidationError{Name: "invoice_file_note", err: fmt.Errorf(`ent: validator failed for field "InvoiceRequest.invoice_file_note": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -1100,6 +1141,9 @@ func (_u *InvoiceRequestUpdateOne) sqlSave(ctx context.Context) (_node *InvoiceR
 	}
 	if value, ok := _u.mutation.AddedInvoiceFileSize(); ok {
 		_spec.AddField(invoicerequest.FieldInvoiceFileSize, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.InvoiceFileNote(); ok {
+		_spec.SetField(invoicerequest.FieldInvoiceFileNote, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.IssuedAt(); ok {
 		_spec.SetField(invoicerequest.FieldIssuedAt, field.TypeTime, value)

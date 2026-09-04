@@ -16,6 +16,7 @@ import LoginPage from '@/pages/LoginPage'
 import DashboardPage from '@/pages/admin/DashboardPage'
 import PageManagementPage from '@/pages/admin/PageManagementPage'
 import ImageAssetsPage from '@/pages/admin/ImageAssetsPage'
+import FileManagementPage from '@/pages/admin/FileManagementPage'
 import TTFTFlamegraphPage from '@/pages/admin/TTFTFlamegraphPage'
 import ConsumptionPage from '@/pages/admin/ConsumptionPage'
 import CostConfigPage from '@/pages/admin/CostConfigPage'
@@ -92,6 +93,8 @@ export default function App() {
         <Route index element={<AdminEntryRedirect />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="pages" element={<PageManagementPage />} />
+        <Route path="files" element={<FileManagementPage />} />
+        {/* Legacy bookmark: the former image resource route now points to the same file manager. */}
         <Route path="assets" element={<ImageAssetsPage />} />
         <Route path="ops/ttft" element={<TTFTFlamegraphPage />} />
         <Route path="ops/consumption" element={<ConsumptionPage />} />

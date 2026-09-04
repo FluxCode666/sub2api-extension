@@ -1721,6 +1721,7 @@ type ImageAssetMutation struct {
 	typ           string
 	id            *int
 	original_name *string
+	note          *string
 	_path         *string
 	mime_type     *string
 	size          *int64
@@ -1864,6 +1865,42 @@ func (m *ImageAssetMutation) OldOriginalName(ctx context.Context) (v string, err
 // ResetOriginalName resets all changes to the "original_name" field.
 func (m *ImageAssetMutation) ResetOriginalName() {
 	m.original_name = nil
+}
+
+// SetNote sets the "note" field.
+func (m *ImageAssetMutation) SetNote(s string) {
+	m.note = &s
+}
+
+// Note returns the value of the "note" field in the mutation.
+func (m *ImageAssetMutation) Note() (r string, exists bool) {
+	v := m.note
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNote returns the old "note" field's value of the ImageAsset entity.
+// If the ImageAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ImageAssetMutation) OldNote(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNote is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNote requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNote: %w", err)
+	}
+	return oldValue.Note, nil
+}
+
+// ResetNote resets all changes to the "note" field.
+func (m *ImageAssetMutation) ResetNote() {
+	m.note = nil
 }
 
 // SetPath sets the "path" field.
@@ -2064,9 +2101,12 @@ func (m *ImageAssetMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ImageAssetMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+	fields := make([]string, 0, 6)
 	if m.original_name != nil {
 		fields = append(fields, imageasset.FieldOriginalName)
+	}
+	if m.note != nil {
+		fields = append(fields, imageasset.FieldNote)
 	}
 	if m._path != nil {
 		fields = append(fields, imageasset.FieldPath)
@@ -2090,6 +2130,8 @@ func (m *ImageAssetMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case imageasset.FieldOriginalName:
 		return m.OriginalName()
+	case imageasset.FieldNote:
+		return m.Note()
 	case imageasset.FieldPath:
 		return m.Path()
 	case imageasset.FieldMimeType:
@@ -2109,6 +2151,8 @@ func (m *ImageAssetMutation) OldField(ctx context.Context, name string) (ent.Val
 	switch name {
 	case imageasset.FieldOriginalName:
 		return m.OldOriginalName(ctx)
+	case imageasset.FieldNote:
+		return m.OldNote(ctx)
 	case imageasset.FieldPath:
 		return m.OldPath(ctx)
 	case imageasset.FieldMimeType:
@@ -2132,6 +2176,13 @@ func (m *ImageAssetMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetOriginalName(v)
+		return nil
+	case imageasset.FieldNote:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNote(v)
 		return nil
 	case imageasset.FieldPath:
 		v, ok := value.(string)
@@ -2227,6 +2278,9 @@ func (m *ImageAssetMutation) ResetField(name string) error {
 	switch name {
 	case imageasset.FieldOriginalName:
 		m.ResetOriginalName()
+		return nil
+	case imageasset.FieldNote:
+		m.ResetNote()
 		return nil
 	case imageasset.FieldPath:
 		m.ResetPath()
@@ -3909,6 +3963,7 @@ type InvoiceRequestMutation struct {
 	invoice_file_mime_type *string
 	invoice_file_size      *int64
 	addinvoice_file_size   *int64
+	invoice_file_note      *string
 	issued_at              *time.Time
 	created_at             *time.Time
 	updated_at             *time.Time
@@ -4763,6 +4818,42 @@ func (m *InvoiceRequestMutation) ResetInvoiceFileSize() {
 	m.addinvoice_file_size = nil
 }
 
+// SetInvoiceFileNote sets the "invoice_file_note" field.
+func (m *InvoiceRequestMutation) SetInvoiceFileNote(s string) {
+	m.invoice_file_note = &s
+}
+
+// InvoiceFileNote returns the value of the "invoice_file_note" field in the mutation.
+func (m *InvoiceRequestMutation) InvoiceFileNote() (r string, exists bool) {
+	v := m.invoice_file_note
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInvoiceFileNote returns the old "invoice_file_note" field's value of the InvoiceRequest entity.
+// If the InvoiceRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *InvoiceRequestMutation) OldInvoiceFileNote(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInvoiceFileNote is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInvoiceFileNote requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInvoiceFileNote: %w", err)
+	}
+	return oldValue.InvoiceFileNote, nil
+}
+
+// ResetInvoiceFileNote resets all changes to the "invoice_file_note" field.
+func (m *InvoiceRequestMutation) ResetInvoiceFileNote() {
+	m.invoice_file_note = nil
+}
+
 // SetIssuedAt sets the "issued_at" field.
 func (m *InvoiceRequestMutation) SetIssuedAt(t time.Time) {
 	m.issued_at = &t
@@ -4918,7 +5009,7 @@ func (m *InvoiceRequestMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *InvoiceRequestMutation) Fields() []string {
-	fields := make([]string, 0, 21)
+	fields := make([]string, 0, 22)
 	if m.user_id != nil {
 		fields = append(fields, invoicerequest.FieldUserID)
 	}
@@ -4973,6 +5064,9 @@ func (m *InvoiceRequestMutation) Fields() []string {
 	if m.invoice_file_size != nil {
 		fields = append(fields, invoicerequest.FieldInvoiceFileSize)
 	}
+	if m.invoice_file_note != nil {
+		fields = append(fields, invoicerequest.FieldInvoiceFileNote)
+	}
 	if m.issued_at != nil {
 		fields = append(fields, invoicerequest.FieldIssuedAt)
 	}
@@ -5026,6 +5120,8 @@ func (m *InvoiceRequestMutation) Field(name string) (ent.Value, bool) {
 		return m.InvoiceFileMimeType()
 	case invoicerequest.FieldInvoiceFileSize:
 		return m.InvoiceFileSize()
+	case invoicerequest.FieldInvoiceFileNote:
+		return m.InvoiceFileNote()
 	case invoicerequest.FieldIssuedAt:
 		return m.IssuedAt()
 	case invoicerequest.FieldCreatedAt:
@@ -5077,6 +5173,8 @@ func (m *InvoiceRequestMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldInvoiceFileMimeType(ctx)
 	case invoicerequest.FieldInvoiceFileSize:
 		return m.OldInvoiceFileSize(ctx)
+	case invoicerequest.FieldInvoiceFileNote:
+		return m.OldInvoiceFileNote(ctx)
 	case invoicerequest.FieldIssuedAt:
 		return m.OldIssuedAt(ctx)
 	case invoicerequest.FieldCreatedAt:
@@ -5217,6 +5315,13 @@ func (m *InvoiceRequestMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetInvoiceFileSize(v)
+		return nil
+	case invoicerequest.FieldInvoiceFileNote:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInvoiceFileNote(v)
 		return nil
 	case invoicerequest.FieldIssuedAt:
 		v, ok := value.(time.Time)
@@ -5407,6 +5512,9 @@ func (m *InvoiceRequestMutation) ResetField(name string) error {
 		return nil
 	case invoicerequest.FieldInvoiceFileSize:
 		m.ResetInvoiceFileSize()
+		return nil
+	case invoicerequest.FieldInvoiceFileNote:
+		m.ResetInvoiceFileNote()
 		return nil
 	case invoicerequest.FieldIssuedAt:
 		m.ResetIssuedAt()
