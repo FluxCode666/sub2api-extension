@@ -37,9 +37,12 @@ interface DailyConsumption {
 
 interface AccountConsumption {
   account_id: number;
+  account_ids?: number[];
   account_type: string;
   name: string;
   platform: string;
+  billing_group?: string;
+  account_created_at?: string | null;
   requests: number;
   revenue: number;
   api_cost: number;
@@ -123,6 +126,20 @@ function formatDay(value: string): string {
     : new Intl.DateTimeFormat("zh-CN", {
         month: "2-digit",
         day: "2-digit",
+      }).format(date);
+}
+
+function formatDateTime(value?: string | null): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : new Intl.DateTimeFormat("zh-CN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
       }).format(date);
 }
 
@@ -566,13 +583,15 @@ export default function ConsumptionPage() {
             <div className="aux-cost-table-scroll">
               <table>
                 <thead>
-                  <tr><th>账号</th><th>类型</th><th>请求数</th><th>收入</th><th>成本</th><th>倍率 / 口径</th><th>毛利 / 税前利润</th><th>税额</th><th>税后利润</th></tr>
+                  <tr><th>账号 / 计费组</th><th>账号创建时间</th><th>类型</th><th>请求数</th><th>收入</th><th>成本</th><th>倍率 / 口径</th><th>毛利 / 税前利润</th><th>税额</th><th>税后利润</th></tr>
                 </thead>
                 <tbody>
-                  {data.accounts.length === 0 ? <tr><td colSpan={9} className="aux-cost-empty-cell">当前区间暂无账号成本明细</td></tr> : data.accounts.map((account) => {
+                  {data.accounts.length === 0 ? <tr><td colSpan={10} className="aux-cost-empty-cell">当前区间暂无账号成本明细</td></tr> : data.accounts.map((account) => {
                     const cost = account.api_cost + account.oauth_cost;
-                    return <tr key={account.account_id}>
-                      <td><strong>{account.name || `账号 ${account.account_id}`}</strong><small>#{account.account_id} · {account.platform || "—"}</small></td>
+                    const accountIDs = account.account_ids?.length ? account.account_ids : [account.account_id];
+                    return <tr key={`${account.account_type}-${account.billing_group || account.account_id}`}>
+                      <td><strong>{account.billing_group || account.name || `账号 ${account.account_id}`}</strong><small>{account.billing_group ? `合并 ${accountIDs.map((id) => `#${id}`).join(", ")}` : `#${account.account_id}`} · {account.platform || "—"}</small></td>
+                      <td><small>{formatDateTime(account.account_created_at)}</small></td>
                       <td>{account.account_type === "oauth" ? "OAuth" : "API"}</td>
                       <td>{account.requests.toLocaleString("zh-CN")}</td>
                       <td>{formatMoney(account.revenue, currency)}</td>

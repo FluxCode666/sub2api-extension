@@ -103,6 +103,20 @@ func (_u *AccountCostConfigUpdate) ClearPlatform() *AccountCostConfigUpdate {
 	return _u
 }
 
+// SetBillingGroup sets the "billing_group" field.
+func (_u *AccountCostConfigUpdate) SetBillingGroup(v string) *AccountCostConfigUpdate {
+	_u.mutation.SetBillingGroup(v)
+	return _u
+}
+
+// SetNillableBillingGroup sets the "billing_group" field if the given value is not nil.
+func (_u *AccountCostConfigUpdate) SetNillableBillingGroup(v *string) *AccountCostConfigUpdate {
+	if v != nil {
+		_u.SetBillingGroup(*v)
+	}
+	return _u
+}
+
 // SetOauthAccountCost sets the "oauth_account_cost" field.
 func (_u *AccountCostConfigUpdate) SetOauthAccountCost(v float64) *AccountCostConfigUpdate {
 	_u.mutation.ResetOauthAccountCost()
@@ -218,6 +232,26 @@ func (_u *AccountCostConfigUpdate) ClearLastSyncedAt() *AccountCostConfigUpdate 
 	return _u
 }
 
+// SetAccountCreatedAt sets the "account_created_at" field.
+func (_u *AccountCostConfigUpdate) SetAccountCreatedAt(v time.Time) *AccountCostConfigUpdate {
+	_u.mutation.SetAccountCreatedAt(v)
+	return _u
+}
+
+// SetNillableAccountCreatedAt sets the "account_created_at" field if the given value is not nil.
+func (_u *AccountCostConfigUpdate) SetNillableAccountCreatedAt(v *time.Time) *AccountCostConfigUpdate {
+	if v != nil {
+		_u.SetAccountCreatedAt(*v)
+	}
+	return _u
+}
+
+// ClearAccountCreatedAt clears the value of the "account_created_at" field.
+func (_u *AccountCostConfigUpdate) ClearAccountCreatedAt() *AccountCostConfigUpdate {
+	_u.mutation.ClearAccountCreatedAt()
+	return _u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_u *AccountCostConfigUpdate) SetCreatedAt(v time.Time) *AccountCostConfigUpdate {
 	_u.mutation.SetCreatedAt(v)
@@ -296,6 +330,11 @@ func (_u *AccountCostConfigUpdate) check() error {
 			return &ValidationError{Name: "platform", err: fmt.Errorf(`ent: validator failed for field "AccountCostConfig.platform": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.BillingGroup(); ok {
+		if err := accountcostconfig.BillingGroupValidator(v); err != nil {
+			return &ValidationError{Name: "billing_group", err: fmt.Errorf(`ent: validator failed for field "AccountCostConfig.billing_group": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.APIMultiplierMode(); ok {
 		if err := accountcostconfig.APIMultiplierModeValidator(v); err != nil {
 			return &ValidationError{Name: "api_multiplier_mode", err: fmt.Errorf(`ent: validator failed for field "AccountCostConfig.api_multiplier_mode": %w`, err)}
@@ -337,6 +376,9 @@ func (_u *AccountCostConfigUpdate) sqlSave(ctx context.Context) (_node int, err 
 	if _u.mutation.PlatformCleared() {
 		_spec.ClearField(accountcostconfig.FieldPlatform, field.TypeString)
 	}
+	if value, ok := _u.mutation.BillingGroup(); ok {
+		_spec.SetField(accountcostconfig.FieldBillingGroup, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.OauthAccountCost(); ok {
 		_spec.SetField(accountcostconfig.FieldOauthAccountCost, field.TypeFloat64, value)
 	}
@@ -372,6 +414,12 @@ func (_u *AccountCostConfigUpdate) sqlSave(ctx context.Context) (_node int, err 
 	}
 	if _u.mutation.LastSyncedAtCleared() {
 		_spec.ClearField(accountcostconfig.FieldLastSyncedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.AccountCreatedAt(); ok {
+		_spec.SetField(accountcostconfig.FieldAccountCreatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.AccountCreatedAtCleared() {
+		_spec.ClearField(accountcostconfig.FieldAccountCreatedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(accountcostconfig.FieldCreatedAt, field.TypeTime, value)
@@ -471,6 +519,20 @@ func (_u *AccountCostConfigUpdateOne) SetNillablePlatform(v *string) *AccountCos
 // ClearPlatform clears the value of the "platform" field.
 func (_u *AccountCostConfigUpdateOne) ClearPlatform() *AccountCostConfigUpdateOne {
 	_u.mutation.ClearPlatform()
+	return _u
+}
+
+// SetBillingGroup sets the "billing_group" field.
+func (_u *AccountCostConfigUpdateOne) SetBillingGroup(v string) *AccountCostConfigUpdateOne {
+	_u.mutation.SetBillingGroup(v)
+	return _u
+}
+
+// SetNillableBillingGroup sets the "billing_group" field if the given value is not nil.
+func (_u *AccountCostConfigUpdateOne) SetNillableBillingGroup(v *string) *AccountCostConfigUpdateOne {
+	if v != nil {
+		_u.SetBillingGroup(*v)
+	}
 	return _u
 }
 
@@ -589,6 +651,26 @@ func (_u *AccountCostConfigUpdateOne) ClearLastSyncedAt() *AccountCostConfigUpda
 	return _u
 }
 
+// SetAccountCreatedAt sets the "account_created_at" field.
+func (_u *AccountCostConfigUpdateOne) SetAccountCreatedAt(v time.Time) *AccountCostConfigUpdateOne {
+	_u.mutation.SetAccountCreatedAt(v)
+	return _u
+}
+
+// SetNillableAccountCreatedAt sets the "account_created_at" field if the given value is not nil.
+func (_u *AccountCostConfigUpdateOne) SetNillableAccountCreatedAt(v *time.Time) *AccountCostConfigUpdateOne {
+	if v != nil {
+		_u.SetAccountCreatedAt(*v)
+	}
+	return _u
+}
+
+// ClearAccountCreatedAt clears the value of the "account_created_at" field.
+func (_u *AccountCostConfigUpdateOne) ClearAccountCreatedAt() *AccountCostConfigUpdateOne {
+	_u.mutation.ClearAccountCreatedAt()
+	return _u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_u *AccountCostConfigUpdateOne) SetCreatedAt(v time.Time) *AccountCostConfigUpdateOne {
 	_u.mutation.SetCreatedAt(v)
@@ -680,6 +762,11 @@ func (_u *AccountCostConfigUpdateOne) check() error {
 			return &ValidationError{Name: "platform", err: fmt.Errorf(`ent: validator failed for field "AccountCostConfig.platform": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.BillingGroup(); ok {
+		if err := accountcostconfig.BillingGroupValidator(v); err != nil {
+			return &ValidationError{Name: "billing_group", err: fmt.Errorf(`ent: validator failed for field "AccountCostConfig.billing_group": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.APIMultiplierMode(); ok {
 		if err := accountcostconfig.APIMultiplierModeValidator(v); err != nil {
 			return &ValidationError{Name: "api_multiplier_mode", err: fmt.Errorf(`ent: validator failed for field "AccountCostConfig.api_multiplier_mode": %w`, err)}
@@ -738,6 +825,9 @@ func (_u *AccountCostConfigUpdateOne) sqlSave(ctx context.Context) (_node *Accou
 	if _u.mutation.PlatformCleared() {
 		_spec.ClearField(accountcostconfig.FieldPlatform, field.TypeString)
 	}
+	if value, ok := _u.mutation.BillingGroup(); ok {
+		_spec.SetField(accountcostconfig.FieldBillingGroup, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.OauthAccountCost(); ok {
 		_spec.SetField(accountcostconfig.FieldOauthAccountCost, field.TypeFloat64, value)
 	}
@@ -773,6 +863,12 @@ func (_u *AccountCostConfigUpdateOne) sqlSave(ctx context.Context) (_node *Accou
 	}
 	if _u.mutation.LastSyncedAtCleared() {
 		_spec.ClearField(accountcostconfig.FieldLastSyncedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.AccountCreatedAt(); ok {
+		_spec.SetField(accountcostconfig.FieldAccountCreatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.AccountCreatedAtCleared() {
+		_spec.ClearField(accountcostconfig.FieldAccountCreatedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(accountcostconfig.FieldCreatedAt, field.TypeTime, value)

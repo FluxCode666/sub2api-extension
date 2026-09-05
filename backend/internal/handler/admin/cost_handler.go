@@ -21,6 +21,7 @@ type costProvider interface {
 	GetConfig(ctx context.Context) (ops.CostConfigResponse, error)
 	SaveConfig(ctx context.Context, config ops.CostConfig) (ops.CostConfig, error)
 	SaveAccountConfig(ctx context.Context, config ops.AccountCostConfig) (ops.AccountCostConfig, error)
+	SaveBillingGroup(ctx context.Context, update ops.BillingGroupUpdate) (ops.CostConfigResponse, error)
 	Sync(ctx context.Context) (ops.CostConfigResponse, error)
 }
 
@@ -103,6 +104,9 @@ func (h *CostHandler) UpdateAccountConfig(c *gin.Context) {
 		return
 	}
 	config.AccountID = accountID
+	// Account creation time is read-only metadata from Sub2API. Never accept
+	// it from the admin form; periodic account sync is the sole writer.
+	config.AccountCreatedAt = nil
 	if config.OAuthAccountCost != nil && *config.OAuthAccountCost < 0 {
 		response.BadRequest(c, "oauth account cost must be non-negative")
 		return
@@ -117,6 +121,28 @@ func (h *CostHandler) UpdateAccountConfig(c *gin.Context) {
 		return
 	}
 	response.Success(c, saved)
+}
+
+func (h *CostHandler) UpdateBillingGroup(c *gin.Context) {
+	if h == nil || h.provider == nil {
+		response.Error(c, http.StatusServiceUnavailable, "cost config is unavailable")
+		return
+	}
+	var update ops.BillingGroupUpdate
+	if err := c.ShouldBindJSON(&update); err != nil {
+		response.BadRequest(c, "invalid billing group update")
+		return
+	}
+	data, err := h.provider.SaveBillingGroup(c.Request.Context(), update)
+	if err != nil {
+		if errors.Is(err, service.ErrInvalidBillingGroupUpdate) {
+			response.BadRequest(c, "select at least two existing accounts of the same type and provide a billing group")
+			return
+		}
+		response.Error(c, http.StatusInternalServerError, "failed to save billing group")
+		return
+	}
+	response.Success(c, data)
 }
 
 func (h *CostHandler) SyncAccounts(c *gin.Context) {

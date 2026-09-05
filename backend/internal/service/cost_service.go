@@ -28,6 +28,7 @@ type CostConfigStore interface {
 	SaveCostConfig(ctx context.Context, config ops.CostConfig) error
 	ListAccountCostConfigs(ctx context.Context) ([]ops.AccountCostConfig, error)
 	SaveAccountCostConfig(ctx context.Context, config ops.AccountCostConfig) (ops.AccountCostConfig, error)
+	SetAccountBillingGroup(ctx context.Context, accountIDs []int64, billingGroup string) error
 	SyncAccounts(ctx context.Context, accounts []ops.Sub2APIAccount) error
 }
 
@@ -92,6 +93,55 @@ func (s *CostService) SaveAccountConfig(ctx context.Context, config ops.AccountC
 		return config, errors.New("cost store is unavailable")
 	}
 	return s.configStore.SaveAccountCostConfig(ctx, config)
+}
+
+var ErrInvalidBillingGroupUpdate = errors.New("billing group requires at least two existing accounts of the same type")
+
+func (s *CostService) SaveBillingGroup(ctx context.Context, update ops.BillingGroupUpdate) (ops.CostConfigResponse, error) {
+	if s == nil || s.configStore == nil {
+		return ops.CostConfigResponse{}, errors.New("cost store is unavailable")
+	}
+	group := strings.TrimSpace(update.BillingGroup)
+	if group == "" || len([]rune(group)) > 128 {
+		return ops.CostConfigResponse{}, ErrInvalidBillingGroupUpdate
+	}
+	for _, id := range update.AccountIDs {
+		if id <= 0 {
+			return ops.CostConfigResponse{}, ErrInvalidBillingGroupUpdate
+		}
+	}
+	ids := uniquePositiveAccountIDs(update.AccountIDs)
+	if len(ids) < 2 {
+		return ops.CostConfigResponse{}, ErrInvalidBillingGroupUpdate
+	}
+	accounts, err := s.configStore.ListAccountCostConfigs(ctx)
+	if err != nil {
+		return ops.CostConfigResponse{}, err
+	}
+	wanted := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		wanted[id] = struct{}{}
+	}
+	accountType := ""
+	found := 0
+	for _, account := range accounts {
+		if _, ok := wanted[account.AccountID]; !ok {
+			continue
+		}
+		if accountType == "" {
+			accountType = account.AccountType
+		} else if account.AccountType != accountType {
+			return ops.CostConfigResponse{}, ErrInvalidBillingGroupUpdate
+		}
+		found++
+	}
+	if found != len(ids) {
+		return ops.CostConfigResponse{}, ErrInvalidBillingGroupUpdate
+	}
+	if err := s.configStore.SetAccountBillingGroup(ctx, ids, group); err != nil {
+		return ops.CostConfigResponse{}, err
+	}
+	return s.GetConfig(ctx)
 }
 
 func (s *CostService) Sync(ctx context.Context) (ops.CostConfigResponse, error) {
@@ -159,6 +209,10 @@ func normalizeAccountCostConfig(config ops.AccountCostConfig) ops.AccountCostCon
 	if config.AccountType != "oauth" {
 		config.AccountType = "api"
 	}
+	config.BillingGroup = strings.TrimSpace(config.BillingGroup)
+	if len([]rune(config.BillingGroup)) > 128 {
+		config.BillingGroup = string([]rune(config.BillingGroup)[:128])
+	}
 	config.APIMultiplierMode = strings.ToLower(strings.TrimSpace(config.APIMultiplierMode))
 	if config.APIMultiplierMode != "manual" && config.APIMultiplierOverride != nil {
 		config.APIMultiplierMode = "manual"
@@ -174,6 +228,22 @@ func normalizeAccountCostConfig(config ops.AccountCostConfig) ops.AccountCostCon
 		config.APIMultiplierMode = "sync"
 	}
 	return config
+}
+
+func uniquePositiveAccountIDs(values []int64) []int64 {
+	result := make([]int64, 0, len(values))
+	seen := make(map[int64]struct{}, len(values))
+	for _, value := range values {
+		if value <= 0 {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	return result
 }
 
 func makeCostConfigResponse(global ops.CostConfig, accounts []ops.AccountCostConfig) ops.CostConfigResponse {
@@ -265,6 +335,7 @@ func (s *EntCostConfigStore) SaveAccountCostConfig(ctx context.Context, config o
 		builder := s.client.AccountCostConfig.Create().
 			SetAccountID(config.AccountID).
 			SetAccountType(config.AccountType).
+			SetBillingGroup(config.BillingGroup).
 			SetAPIMultiplierMode(config.APIMultiplierMode)
 		if config.Name != "" {
 			builder.SetName(config.Name)
@@ -275,14 +346,15 @@ func (s *EntCostConfigStore) SaveAccountCostConfig(ctx context.Context, config o
 		builder.SetNillableOauthAccountCost(config.OAuthAccountCost).
 			SetNillableAPIMultiplierOverride(config.APIMultiplierOverride).
 			SetNillableSyncedAPIMultiplier(config.SyncedAPIMultiplier).
-			SetNillableLastSyncedAt(config.LastSyncedAt)
+			SetNillableLastSyncedAt(config.LastSyncedAt).
+			SetNillableAccountCreatedAt(config.AccountCreatedAt)
 		entity, err = builder.Save(ctx)
 		if err != nil {
 			return config, err
 		}
 		return accountCostConfigFromEntity(entity), nil
 	}
-	update := entity.Update().SetAccountType(config.AccountType).SetAPIMultiplierMode(config.APIMultiplierMode)
+	update := entity.Update().SetAccountType(config.AccountType).SetBillingGroup(config.BillingGroup).SetAPIMultiplierMode(config.APIMultiplierMode)
 	if config.Name != "" {
 		update.SetName(config.Name)
 	}
@@ -305,11 +377,32 @@ func (s *EntCostConfigStore) SaveAccountCostConfig(ctx context.Context, config o
 	if config.LastSyncedAt != nil {
 		update.SetLastSyncedAt(*config.LastSyncedAt)
 	}
+	if config.AccountCreatedAt != nil {
+		update.SetAccountCreatedAt(*config.AccountCreatedAt)
+	}
 	entity, err = update.Save(ctx)
 	if err != nil {
 		return config, err
 	}
 	return accountCostConfigFromEntity(entity), nil
+}
+
+func (s *EntCostConfigStore) SetAccountBillingGroup(ctx context.Context, accountIDs []int64, billingGroup string) error {
+	if s == nil || s.client == nil {
+		return errors.New("cost config store is unavailable")
+	}
+	if len(accountIDs) == 0 {
+		return ErrInvalidBillingGroupUpdate
+	}
+	existing, err := s.client.AccountCostConfig.Query().Where(accountcostconfig.AccountIDIn(accountIDs...)).Count(ctx)
+	if err != nil {
+		return err
+	}
+	if existing != len(accountIDs) {
+		return ErrInvalidBillingGroupUpdate
+	}
+	_, err = s.client.AccountCostConfig.Update().Where(accountcostconfig.AccountIDIn(accountIDs...)).SetBillingGroup(billingGroup).Save(ctx)
+	return err
 }
 
 func (s *EntCostConfigStore) SyncAccounts(ctx context.Context, accounts []ops.Sub2APIAccount) error {
@@ -325,11 +418,16 @@ func (s *EntCostConfigStore) SyncAccounts(ctx context.Context, accounts []ops.Su
 				SetAccountType(account.Type).
 				SetName(account.Name).
 				SetPlatform(account.Platform).
+				SetBillingGroup("").
 				SetSyncedAPIMultiplier(account.RateMultiplier).
 				SetLastSyncedAt(now).
+				SetNillableAccountCreatedAt(account.CreatedAt).
 				Save(ctx)
 		} else if err == nil {
 			update := entity.Update().SetAccountType(account.Type).SetName(account.Name).SetPlatform(account.Platform).SetSyncedAPIMultiplier(account.RateMultiplier).SetLastSyncedAt(now)
+			if account.CreatedAt != nil {
+				update.SetAccountCreatedAt(*account.CreatedAt)
+			}
 			_, err = update.Save(ctx)
 		}
 		if err != nil {
@@ -341,8 +439,8 @@ func (s *EntCostConfigStore) SyncAccounts(ctx context.Context, accounts []ops.Su
 
 func accountCostConfigFromEntity(entity *ent.AccountCostConfig) ops.AccountCostConfig {
 	return ops.AccountCostConfig{
-		AccountID: entity.AccountID, AccountType: entity.AccountType, Name: entity.Name, Platform: entity.Platform,
+		AccountID: entity.AccountID, AccountType: entity.AccountType, Name: entity.Name, Platform: entity.Platform, BillingGroup: entity.BillingGroup,
 		OAuthAccountCost: entity.OauthAccountCost, APIMultiplierOverride: entity.APIMultiplierOverride,
-		SyncedAPIMultiplier: entity.SyncedAPIMultiplier, APIMultiplierMode: entity.APIMultiplierMode, LastSyncedAt: entity.LastSyncedAt,
+		SyncedAPIMultiplier: entity.SyncedAPIMultiplier, APIMultiplierMode: entity.APIMultiplierMode, LastSyncedAt: entity.LastSyncedAt, AccountCreatedAt: entity.AccountCreatedAt,
 	}
 }

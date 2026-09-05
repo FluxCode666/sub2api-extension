@@ -68,6 +68,20 @@ func (_c *AccountCostConfigCreate) SetNillablePlatform(v *string) *AccountCostCo
 	return _c
 }
 
+// SetBillingGroup sets the "billing_group" field.
+func (_c *AccountCostConfigCreate) SetBillingGroup(v string) *AccountCostConfigCreate {
+	_c.mutation.SetBillingGroup(v)
+	return _c
+}
+
+// SetNillableBillingGroup sets the "billing_group" field if the given value is not nil.
+func (_c *AccountCostConfigCreate) SetNillableBillingGroup(v *string) *AccountCostConfigCreate {
+	if v != nil {
+		_c.SetBillingGroup(*v)
+	}
+	return _c
+}
+
 // SetOauthAccountCost sets the "oauth_account_cost" field.
 func (_c *AccountCostConfigCreate) SetOauthAccountCost(v float64) *AccountCostConfigCreate {
 	_c.mutation.SetOauthAccountCost(v)
@@ -134,6 +148,20 @@ func (_c *AccountCostConfigCreate) SetLastSyncedAt(v time.Time) *AccountCostConf
 func (_c *AccountCostConfigCreate) SetNillableLastSyncedAt(v *time.Time) *AccountCostConfigCreate {
 	if v != nil {
 		_c.SetLastSyncedAt(*v)
+	}
+	return _c
+}
+
+// SetAccountCreatedAt sets the "account_created_at" field.
+func (_c *AccountCostConfigCreate) SetAccountCreatedAt(v time.Time) *AccountCostConfigCreate {
+	_c.mutation.SetAccountCreatedAt(v)
+	return _c
+}
+
+// SetNillableAccountCreatedAt sets the "account_created_at" field if the given value is not nil.
+func (_c *AccountCostConfigCreate) SetNillableAccountCreatedAt(v *time.Time) *AccountCostConfigCreate {
+	if v != nil {
+		_c.SetAccountCreatedAt(*v)
 	}
 	return _c
 }
@@ -205,6 +233,10 @@ func (_c *AccountCostConfigCreate) defaults() {
 		v := accountcostconfig.DefaultAccountType
 		_c.mutation.SetAccountType(v)
 	}
+	if _, ok := _c.mutation.BillingGroup(); !ok {
+		v := accountcostconfig.DefaultBillingGroup
+		_c.mutation.SetBillingGroup(v)
+	}
 	if _, ok := _c.mutation.APIMultiplierMode(); !ok {
 		v := accountcostconfig.DefaultAPIMultiplierMode
 		_c.mutation.SetAPIMultiplierMode(v)
@@ -240,6 +272,14 @@ func (_c *AccountCostConfigCreate) check() error {
 	if v, ok := _c.mutation.Platform(); ok {
 		if err := accountcostconfig.PlatformValidator(v); err != nil {
 			return &ValidationError{Name: "platform", err: fmt.Errorf(`ent: validator failed for field "AccountCostConfig.platform": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.BillingGroup(); !ok {
+		return &ValidationError{Name: "billing_group", err: errors.New(`ent: missing required field "AccountCostConfig.billing_group"`)}
+	}
+	if v, ok := _c.mutation.BillingGroup(); ok {
+		if err := accountcostconfig.BillingGroupValidator(v); err != nil {
+			return &ValidationError{Name: "billing_group", err: fmt.Errorf(`ent: validator failed for field "AccountCostConfig.billing_group": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.APIMultiplierMode(); !ok {
@@ -298,6 +338,10 @@ func (_c *AccountCostConfigCreate) createSpec() (*AccountCostConfig, *sqlgraph.C
 		_spec.SetField(accountcostconfig.FieldPlatform, field.TypeString, value)
 		_node.Platform = value
 	}
+	if value, ok := _c.mutation.BillingGroup(); ok {
+		_spec.SetField(accountcostconfig.FieldBillingGroup, field.TypeString, value)
+		_node.BillingGroup = value
+	}
 	if value, ok := _c.mutation.OauthAccountCost(); ok {
 		_spec.SetField(accountcostconfig.FieldOauthAccountCost, field.TypeFloat64, value)
 		_node.OauthAccountCost = &value
@@ -317,6 +361,10 @@ func (_c *AccountCostConfigCreate) createSpec() (*AccountCostConfig, *sqlgraph.C
 	if value, ok := _c.mutation.LastSyncedAt(); ok {
 		_spec.SetField(accountcostconfig.FieldLastSyncedAt, field.TypeTime, value)
 		_node.LastSyncedAt = &value
+	}
+	if value, ok := _c.mutation.AccountCreatedAt(); ok {
+		_spec.SetField(accountcostconfig.FieldAccountCreatedAt, field.TypeTime, value)
+		_node.AccountCreatedAt = &value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(accountcostconfig.FieldCreatedAt, field.TypeTime, value)

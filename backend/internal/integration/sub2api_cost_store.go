@@ -34,14 +34,15 @@ func (s *Sub2APICostStore) ListAccounts(ctx context.Context) ([]ops.Sub2APIAccou
 	platform := textColumnExpression("a", columns, "platform")
 	typeExpr := textColumnExpression("a", columns, "type")
 	rate := numericColumnExpression("a", columns, []string{"rate_multiplier"})
+	created := nullableTimeColumnExpression("a", columns, "created_at")
 	updated := timeColumnExpression("a", columns, "updated_at")
 	// Include soft-deleted accounts as well: they can still own historical
 	// usage_logs and therefore still need a stable name and cost policy for
 	// audit/reconciliation. The UI can distinguish current usage separately.
 	where := "1=1"
 	statement := fmt.Sprintf(`
-		SELECT a."id"::bigint, %s, %s, %s, %s::double precision, %s
-		FROM accounts a WHERE %s ORDER BY a."id" ASC`, name, typeExpr, platform, rate, updated, where)
+		SELECT a."id"::bigint, %s, %s, %s, %s::double precision, %s, %s
+		FROM accounts a WHERE %s ORDER BY a."id" ASC`, name, typeExpr, platform, rate, created, updated, where)
 	rows, err := s.db.QueryContext(ctx, statement)
 	if err != nil {
 		return nil, err
@@ -51,8 +52,12 @@ func (s *Sub2APICostStore) ListAccounts(ctx context.Context) ([]ops.Sub2APIAccou
 	for rows.Next() {
 		var account ops.Sub2APIAccount
 		var rawType string
-		if err := rows.Scan(&account.ID, &account.Name, &rawType, &account.Platform, &account.RateMultiplier, &account.UpdatedAt); err != nil {
+		var createdAt sql.NullTime
+		if err := rows.Scan(&account.ID, &account.Name, &rawType, &account.Platform, &account.RateMultiplier, &createdAt, &account.UpdatedAt); err != nil {
 			return nil, err
+		}
+		if createdAt.Valid {
+			account.CreatedAt = &createdAt.Time
 		}
 		account.Type = classifyAccountType(rawType, account.Platform)
 		if account.RateMultiplier <= 0 {
@@ -136,7 +141,7 @@ func (s *Sub2APICostStore) QueryConsumption(ctx context.Context, query ops.Consu
 	}
 	result := &ops.ConsumptionResponse{StartTime: query.StartTime, EndTime: query.EndTime, Config: config, Days: make([]ops.DailyConsumption, 0), Accounts: make([]ops.AccountConsumption, 0)}
 	dayIndex := make(map[string]int)
-	accountIndex := make(map[int64]int)
+	accountIndex := make(map[string]int)
 	for rows.Next() {
 		var day time.Time
 		var accountIDScan sql.NullInt64
@@ -190,8 +195,17 @@ func (s *Sub2APICostStore) QueryConsumption(ctx context.Context, query ops.Consu
 	if err != nil {
 		return nil, fmt.Errorf("query oauth account costs: %w", err)
 	}
+	oauthGroups := make(map[string]bool)
 	for _, use := range oauthUses {
 		accountConfig := configs[use.AccountID]
+		groupKey := billingGroupKey(accountConfig, use.AccountID, "oauth")
+		if oauthGroups[groupKey] {
+			// Multiple Sub2API rows can represent the same purchased OAuth account
+			// after a re-login. The group is charged once, while usage remains
+			// aggregated into the same account breakdown below.
+			continue
+		}
+		oauthGroups[groupKey] = true
 		cost := accountConfig.EffectiveOAuthCost(config.OAuthAccountCost)
 		key := use.Day.Format("2006-01-02")
 		idx, ok := dayIndex[key]
@@ -241,14 +255,25 @@ func applyProfitMetrics(result *ops.ConsumptionResponse, config ops.CostConfig) 
 	}
 }
 
-func addAccountBreakdown(result *ops.ConsumptionResponse, index map[int64]int, config ops.AccountCostConfig, accountID int64, kind string, revenue, cost float64, requests int64, multiplier float64, source string) {
-	i, ok := index[accountID]
+func addAccountBreakdown(result *ops.ConsumptionResponse, index map[string]int, config ops.AccountCostConfig, accountID int64, kind string, revenue, cost float64, requests int64, multiplier float64, source string) {
+	key := billingGroupKey(config, accountID, kind)
+	i, ok := index[key]
 	if !ok {
 		i = len(result.Accounts)
-		index[accountID] = i
-		result.Accounts = append(result.Accounts, ops.AccountConsumption{AccountID: accountID, AccountType: kind, Name: config.Name, Platform: config.Platform})
+		index[key] = i
+		result.Accounts = append(result.Accounts, ops.AccountConsumption{
+			AccountID: accountID, AccountIDs: []int64{accountID}, AccountType: kind,
+			Name: config.Name, Platform: config.Platform, BillingGroup: strings.TrimSpace(config.BillingGroup),
+			AccountCreatedAt: config.AccountCreatedAt,
+		})
 	}
 	item := &result.Accounts[i]
+	if !containsAccountID(item.AccountIDs, accountID) {
+		item.AccountIDs = append(item.AccountIDs, accountID)
+	}
+	if item.AccountCreatedAt == nil || (config.AccountCreatedAt != nil && config.AccountCreatedAt.Before(*item.AccountCreatedAt)) {
+		item.AccountCreatedAt = config.AccountCreatedAt
+	}
 	item.Requests += requests
 	item.Revenue += revenue
 	if kind == "oauth" {
@@ -262,6 +287,23 @@ func addAccountBreakdown(result *ops.ConsumptionResponse, index map[int64]int, c
 			item.MultiplierSource = source
 		}
 	}
+}
+
+func billingGroupKey(config ops.AccountCostConfig, accountID int64, kind string) string {
+	group := strings.ToLower(strings.TrimSpace(config.BillingGroup))
+	if group == "" {
+		group = fmt.Sprintf("account:%d", accountID)
+	}
+	return kind + ":" + group
+}
+
+func containsAccountID(ids []int64, id int64) bool {
+	for _, value := range ids {
+		if value == id {
+			return true
+		}
+	}
+	return false
 }
 
 func multiplierSource(config ops.AccountCostConfig, historicalCost, unsnapshottedRaw float64) string {
@@ -291,7 +333,7 @@ func (s *Sub2APICostStore) queryOAuthFirstUses(ctx context.Context, usageColumns
 		       MIN(date_trunc('day', u."created_at" AT TIME ZONE 'Asia/Shanghai')::date)
 		FROM usage_logs u%s
 		WHERE u."created_at" >= $1 AND u."created_at" < $2 AND (%s = 'oauth') AND %s IS NOT NULL
-		GROUP BY %s ORDER BY 2 ASC`, accountID, join, kind, accountID, accountID)
+		GROUP BY %s ORDER BY 2 ASC, 1 ASC`, accountID, join, kind, accountID, accountID)
 	rows, err := s.db.QueryContext(ctx, statement, start, end)
 	if err != nil {
 		return nil, err
@@ -381,6 +423,13 @@ func timeColumnExpression(alias string, columns map[string]bool, name string) st
 		return "CURRENT_TIMESTAMP"
 	}
 	return fmt.Sprintf("COALESCE(%s.%s, CURRENT_TIMESTAMP)", alias, identifier(name))
+}
+
+func nullableTimeColumnExpression(alias string, columns map[string]bool, name string) string {
+	if !columns[name] {
+		return "NULL::timestamptz"
+	}
+	return fmt.Sprintf("%s.%s", alias, identifier(name))
 }
 
 func accountKindExpression(columns map[string]bool, joined bool) string {

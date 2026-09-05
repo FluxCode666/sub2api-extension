@@ -21,6 +21,8 @@ const (
 	FieldName = "name"
 	// FieldPlatform holds the string denoting the platform field in the database.
 	FieldPlatform = "platform"
+	// FieldBillingGroup holds the string denoting the billing_group field in the database.
+	FieldBillingGroup = "billing_group"
 	// FieldOauthAccountCost holds the string denoting the oauth_account_cost field in the database.
 	FieldOauthAccountCost = "oauth_account_cost"
 	// FieldAPIMultiplierOverride holds the string denoting the api_multiplier_override field in the database.
@@ -31,6 +33,8 @@ const (
 	FieldAPIMultiplierMode = "api_multiplier_mode"
 	// FieldLastSyncedAt holds the string denoting the last_synced_at field in the database.
 	FieldLastSyncedAt = "last_synced_at"
+	// FieldAccountCreatedAt holds the string denoting the account_created_at field in the database.
+	FieldAccountCreatedAt = "account_created_at"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -46,11 +50,13 @@ var Columns = []string{
 	FieldAccountType,
 	FieldName,
 	FieldPlatform,
+	FieldBillingGroup,
 	FieldOauthAccountCost,
 	FieldAPIMultiplierOverride,
 	FieldSyncedAPIMultiplier,
 	FieldAPIMultiplierMode,
 	FieldLastSyncedAt,
+	FieldAccountCreatedAt,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -74,6 +80,10 @@ var (
 	NameValidator func(string) error
 	// PlatformValidator is a validator for the "platform" field. It is called by the builders before save.
 	PlatformValidator func(string) error
+	// DefaultBillingGroup holds the default value on creation for the "billing_group" field.
+	DefaultBillingGroup string
+	// BillingGroupValidator is a validator for the "billing_group" field. It is called by the builders before save.
+	BillingGroupValidator func(string) error
 	// DefaultAPIMultiplierMode holds the default value on creation for the "api_multiplier_mode" field.
 	DefaultAPIMultiplierMode string
 	// APIMultiplierModeValidator is a validator for the "api_multiplier_mode" field. It is called by the builders before save.
@@ -114,6 +124,11 @@ func ByPlatform(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPlatform, opts...).ToFunc()
 }
 
+// ByBillingGroup orders the results by the billing_group field.
+func ByBillingGroup(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBillingGroup, opts...).ToFunc()
+}
+
 // ByOauthAccountCost orders the results by the oauth_account_cost field.
 func ByOauthAccountCost(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldOauthAccountCost, opts...).ToFunc()
@@ -137,6 +152,11 @@ func ByAPIMultiplierMode(opts ...sql.OrderTermOption) OrderOption {
 // ByLastSyncedAt orders the results by the last_synced_at field.
 func ByLastSyncedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLastSyncedAt, opts...).ToFunc()
+}
+
+// ByAccountCreatedAt orders the results by the account_created_at field.
+func ByAccountCreatedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAccountCreatedAt, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

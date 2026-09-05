@@ -283,6 +283,7 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 				guarded.GET("/ops/cost-config", costHandler.GetConfig)
 				guarded.PUT("/ops/cost-config", costHandler.UpdateConfig)
 				guarded.POST("/ops/cost-config/sync", costHandler.SyncAccounts)
+				guarded.PUT("/ops/cost-config/billing-groups", costHandler.UpdateBillingGroup)
 				guarded.PUT("/ops/cost-config/accounts/:id", costHandler.UpdateAccountConfig)
 			}
 			if logHandler != nil {

@@ -16,11 +16,13 @@ var (
 		{Name: "account_type", Type: field.TypeString, Size: 32, Default: "api"},
 		{Name: "name", Type: field.TypeString, Nullable: true, Size: 255},
 		{Name: "platform", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "billing_group", Type: field.TypeString, Size: 128, Default: ""},
 		{Name: "oauth_account_cost", Type: field.TypeFloat64, Nullable: true},
 		{Name: "api_multiplier_override", Type: field.TypeFloat64, Nullable: true},
 		{Name: "synced_api_multiplier", Type: field.TypeFloat64, Nullable: true},
 		{Name: "api_multiplier_mode", Type: field.TypeString, Size: 16, Default: "sync"},
 		{Name: "last_synced_at", Type: field.TypeTime, Nullable: true},
+		{Name: "account_created_at", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}

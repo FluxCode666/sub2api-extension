@@ -570,10 +570,51 @@ html.dark .aux-admin-shell {
 .aux-config-help { display: flex; gap: 9px; margin-top: 20px; color: var(--console-muted); font-size: 11px; line-height: 1.75; }
 .aux-config-help svg { flex: 0 0 auto; margin-top: 2px; color: var(--console-accent); }
 .aux-account-config-panel { margin-top: 12px; padding: 23px; }
+.aux-account-panel-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 9px; }
 .aux-account-search { display: inline-flex; min-width: min(100%, 280px); min-height: 36px; align-items: center; gap: 8px; padding: 0 11px; border: 1px solid var(--console-line-strong); border-radius: 10px; background: var(--console-surface-strong); color: var(--console-subtle); }
 .aux-account-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--console-ink); font: inherit; font-size: 12px; }
+.aux-account-merge-action { min-height: 36px; gap: 7px; padding-inline: 13px; border-radius: 9px; background: var(--console-ink); color: var(--console-bg); font-size: 11px; }
+.aux-account-merge-action:hover { background: var(--console-accent); color: #fff; }
+.aux-account-merge-action svg { width: 15px; height: 15px; }
+.aux-account-merge-dialog.aux-account-merge-dialog { width: min(560px, calc(100vw - 28px)); max-width: 560px; max-height: min(720px, calc(100dvh - 28px)); gap: 0; overflow: visible; padding: 0; border-color: hsl(var(--border)); border-radius: 12px; background: hsl(var(--background)); color: hsl(var(--foreground)); }
+.aux-account-merge-dialog-header { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 12px; padding: 21px 52px 18px 22px; border-bottom: 1px solid hsl(var(--border)); text-align: left; }
+.aux-account-merge-dialog-header > div { min-width: 0; text-align: left; }
+.aux-account-merge-dialog-header h2 { font-size: 16px; letter-spacing: 0; }
+.aux-account-merge-dialog-header p { margin-top: 6px; line-height: 1.6; }
+.aux-account-merge-dialog-icon { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 8px; background: hsl(var(--accent)); color: hsl(var(--primary)); }
+.aux-account-merge-dialog-icon svg { width: 18px; height: 18px; }
+.aux-account-merge-form { display: grid; gap: 19px; min-height: 0; padding: 20px 22px 18px; overflow-y: auto; }
+.aux-account-merge-field, .aux-account-merge-field-grid { min-width: 0; }
+.aux-account-merge-field { display: grid; gap: 8px; }
+.aux-account-merge-field > label { color: hsl(var(--foreground)); font-size: 12px; font-weight: 650; }
+.aux-account-merge-field-hint { color: hsl(var(--muted-foreground)); font-size: 10px; line-height: 1.5; }
+.aux-account-merge-field-grid { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 13px; }
+.aux-account-merge-trigger.aux-account-merge-trigger, .aux-account-merge-select.aux-account-merge-select, .aux-account-merge-input.aux-account-merge-input { width: 100%; min-height: 40px; border-color: hsl(var(--input)); border-radius: 9px; background: hsl(var(--background)); color: hsl(var(--foreground)); font-size: 11px; }
+.aux-account-merge-trigger.aux-account-merge-trigger { justify-content: space-between; font-weight: 500; }
+.aux-account-merge-trigger > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aux-account-merge-trigger svg { width: 15px; height: 15px; flex: 0 0 auto; color: hsl(var(--muted-foreground)); }
+.aux-account-merge-popover.aux-account-merge-popover { width: var(--radix-popover-trigger-width); min-width: min(430px, calc(100vw - 44px)); max-width: calc(100vw - 28px); padding: 0; overflow: hidden; border-color: hsl(var(--border)); background: hsl(var(--popover)); color: hsl(var(--popover-foreground)); }
+.aux-account-merge-command { background: hsl(var(--popover)); color: hsl(var(--popover-foreground)); }
+.aux-account-merge-command-input { border-color: hsl(var(--border)); }
+.aux-account-merge-command-list { max-height: min(300px, 42dvh); }
+.aux-account-merge-option { min-height: 48px; gap: 9px; padding: 7px 8px; cursor: pointer; }
+.aux-account-merge-option[data-disabled] { cursor: not-allowed; }
+.aux-account-merge-check { display: grid; width: 18px; height: 18px; flex: 0 0 auto; place-items: center; border: 1px solid hsl(var(--border)); border-radius: 5px; color: transparent; }
+.aux-account-merge-check svg { width: 13px; height: 13px; }
+.aux-account-merge-check.is-selected { border-color: hsl(var(--primary)); background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+.aux-account-merge-option-copy { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.aux-account-merge-option-copy strong { overflow: hidden; color: hsl(var(--popover-foreground)); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.aux-account-merge-option-copy small { color: hsl(var(--muted-foreground)); font-size: 9px; }
+.aux-account-merge-alert { padding: 9px 11px; border: 1px solid color-mix(in srgb, #dc2626 30%, hsl(var(--border))); border-radius: 8px; background: color-mix(in srgb, #dc2626 7%, hsl(var(--background))); color: #b91c1c; font-size: 11px; line-height: 1.5; }
+.aux-account-merge-footer { margin: 1px -22px -18px; padding: 15px 22px 16px; border-top: 1px solid hsl(var(--border)); border-radius: 0 0 12px 12px; background: color-mix(in srgb, hsl(var(--muted)) 34%, hsl(var(--background))); }
+.aux-account-merge-footer button { min-width: 98px; min-height: 40px; border-radius: 9px; font-size: 11px; font-weight: 680; }
+.aux-account-merge-cancel.aux-account-merge-cancel { border-color: color-mix(in srgb, hsl(var(--border)) 82%, hsl(var(--foreground))); background: hsl(var(--background)); color: hsl(var(--foreground)); }
+.aux-account-merge-cancel:hover { border-color: hsl(var(--foreground)); background: hsl(var(--accent)); }
+.aux-account-merge-submit.aux-account-merge-submit { background: hsl(var(--foreground)); color: hsl(var(--background)); box-shadow: 0 1px 2px color-mix(in srgb, hsl(var(--foreground)) 18%, transparent); }
+.aux-account-merge-submit:hover:not(:disabled) { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+.aux-account-merge-submit:disabled { cursor: not-allowed; background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); box-shadow: none; opacity: 1; }
 .aux-account-table-scroll { margin-top: 18px; overflow-x: auto; }
-.aux-account-table { width: 100%; min-width: 940px; border-collapse: collapse; color: var(--console-muted); font-size: 12px; }
+.aux-account-table { width: 100%; min-width: 1120px; border-collapse: collapse; color: var(--console-muted); font-size: 12px; }
 .aux-account-table th { padding: 0 12px 12px; border-bottom: 1px solid var(--console-line); color: var(--console-subtle); font-size: 10px; font-weight: 700; text-align: left; }
 .aux-account-table td { padding: 14px 12px; border-bottom: 1px solid var(--console-line); vertical-align: middle; }
 .aux-account-table tr:hover td { background: color-mix(in srgb, var(--console-accent) 4%, transparent); }
@@ -585,6 +626,7 @@ html.dark .aux-admin-shell {
 .aux-account-type--api { color: #4f5bc5; background: rgba(88, 100, 221, .12); }
 .aux-account-number { width: 116px; min-height: 34px; padding: 0 9px; border: 1px solid var(--console-line-strong); border-radius: 8px; background: var(--console-surface-strong); color: var(--console-ink); font: inherit; font-size: 12px; }
 .aux-account-number:disabled { cursor: not-allowed; opacity: .5; }
+.aux-account-group { width: 150px; min-height: 34px; padding: 0 8px; border: 1px solid var(--console-line-strong); border-radius: 8px; background: var(--console-surface-strong); color: var(--console-ink); font: inherit; font-size: 11px; }
 .aux-account-multiplier { display: flex; align-items: center; gap: 6px; }
 .aux-account-mode, .aux-account-save { min-height: 32px; padding: 0 9px; border: 1px solid var(--console-line-strong); border-radius: 8px; background: var(--console-surface); color: var(--console-muted); font: inherit; font-size: 10px; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .aux-account-mode.is-manual { border-color: color-mix(in srgb, var(--console-accent) 50%, var(--console-line-strong)); color: var(--console-accent); }
@@ -613,7 +655,14 @@ html.dark .aux-admin-shell {
   .aux-cost-range-caption { margin-top: -8px; }
   .aux-cost-config-status { align-self: flex-start; }
   .aux-account-config-panel { padding: 17px; }
+  .aux-account-panel-actions { width: 100%; align-items: stretch; flex-direction: column; }
   .aux-account-search { width: 100%; }
+  .aux-account-merge-action { width: 100%; }
+  .aux-account-merge-dialog-header { padding: 18px 46px 16px 17px; }
+  .aux-account-merge-form { padding: 17px; }
+  .aux-account-merge-field-grid { grid-template-columns: 1fr; }
+  .aux-account-merge-footer { margin: 1px -17px -17px; padding: 14px 17px 15px; }
+  .aux-account-merge-footer button { width: 100%; min-height: 44px; }
 }
 
 .aux-dashboard {

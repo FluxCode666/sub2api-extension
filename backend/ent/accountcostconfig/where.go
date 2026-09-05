@@ -74,6 +74,11 @@ func Platform(v string) predicate.AccountCostConfig {
 	return predicate.AccountCostConfig(sql.FieldEQ(FieldPlatform, v))
 }
 
+// BillingGroup applies equality check predicate on the "billing_group" field. It's identical to BillingGroupEQ.
+func BillingGroup(v string) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldEQ(FieldBillingGroup, v))
+}
+
 // OauthAccountCost applies equality check predicate on the "oauth_account_cost" field. It's identical to OauthAccountCostEQ.
 func OauthAccountCost(v float64) predicate.AccountCostConfig {
 	return predicate.AccountCostConfig(sql.FieldEQ(FieldOauthAccountCost, v))
@@ -97,6 +102,11 @@ func APIMultiplierMode(v string) predicate.AccountCostConfig {
 // LastSyncedAt applies equality check predicate on the "last_synced_at" field. It's identical to LastSyncedAtEQ.
 func LastSyncedAt(v time.Time) predicate.AccountCostConfig {
 	return predicate.AccountCostConfig(sql.FieldEQ(FieldLastSyncedAt, v))
+}
+
+// AccountCreatedAt applies equality check predicate on the "account_created_at" field. It's identical to AccountCreatedAtEQ.
+func AccountCreatedAt(v time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldEQ(FieldAccountCreatedAt, v))
 }
 
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
@@ -364,6 +374,71 @@ func PlatformContainsFold(v string) predicate.AccountCostConfig {
 	return predicate.AccountCostConfig(sql.FieldContainsFold(FieldPlatform, v))
 }
 
+// BillingGroupEQ applies the EQ predicate on the "billing_group" field.
+func BillingGroupEQ(v string) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldEQ(FieldBillingGroup, v))
+}
+
+// BillingGroupNEQ applies the NEQ predicate on the "billing_group" field.
+func BillingGroupNEQ(v string) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldNEQ(FieldBillingGroup, v))
+}
+
+// BillingGroupIn applies the In predicate on the "billing_group" field.
+func BillingGroupIn(vs ...string) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldIn(FieldBillingGroup, vs...))
+}
+
+// BillingGroupNotIn applies the NotIn predicate on the "billing_group" field.
+func BillingGroupNotIn(vs ...string) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldNotIn(FieldBillingGroup, vs...))
+}
+
+// BillingGroupGT applies the GT predicate on the "billing_group" field.
+func BillingGroupGT(v string) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldGT(FieldBillingGroup, v))
+}
+
+// BillingGroupGTE applies the GTE predicate on the "billing_group" field.
+func BillingGroupGTE(v string) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldGTE(FieldBillingGroup, v))
+}
+
+// BillingGroupLT applies the LT predicate on the "billing_group" field.
+func BillingGroupLT(v string) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldLT(FieldBillingGroup, v))
+}
+
+// BillingGroupLTE applies the LTE predicate on the "billing_group" field.
+func BillingGroupLTE(v string) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldLTE(FieldBillingGroup, v))
+}
+
+// BillingGroupContains applies the Contains predicate on the "billing_group" field.
+func BillingGroupContains(v string) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldContains(FieldBillingGroup, v))
+}
+
+// BillingGroupHasPrefix applies the HasPrefix predicate on the "billing_group" field.
+func BillingGroupHasPrefix(v string) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldHasPrefix(FieldBillingGroup, v))
+}
+
+// BillingGroupHasSuffix applies the HasSuffix predicate on the "billing_group" field.
+func BillingGroupHasSuffix(v string) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldHasSuffix(FieldBillingGroup, v))
+}
+
+// BillingGroupEqualFold applies the EqualFold predicate on the "billing_group" field.
+func BillingGroupEqualFold(v string) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldEqualFold(FieldBillingGroup, v))
+}
+
+// BillingGroupContainsFold applies the ContainsFold predicate on the "billing_group" field.
+func BillingGroupContainsFold(v string) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldContainsFold(FieldBillingGroup, v))
+}
+
 // OauthAccountCostEQ applies the EQ predicate on the "oauth_account_cost" field.
 func OauthAccountCostEQ(v float64) predicate.AccountCostConfig {
 	return predicate.AccountCostConfig(sql.FieldEQ(FieldOauthAccountCost, v))
@@ -627,6 +702,56 @@ func LastSyncedAtIsNil() predicate.AccountCostConfig {
 // LastSyncedAtNotNil applies the NotNil predicate on the "last_synced_at" field.
 func LastSyncedAtNotNil() predicate.AccountCostConfig {
 	return predicate.AccountCostConfig(sql.FieldNotNull(FieldLastSyncedAt))
+}
+
+// AccountCreatedAtEQ applies the EQ predicate on the "account_created_at" field.
+func AccountCreatedAtEQ(v time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldEQ(FieldAccountCreatedAt, v))
+}
+
+// AccountCreatedAtNEQ applies the NEQ predicate on the "account_created_at" field.
+func AccountCreatedAtNEQ(v time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldNEQ(FieldAccountCreatedAt, v))
+}
+
+// AccountCreatedAtIn applies the In predicate on the "account_created_at" field.
+func AccountCreatedAtIn(vs ...time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldIn(FieldAccountCreatedAt, vs...))
+}
+
+// AccountCreatedAtNotIn applies the NotIn predicate on the "account_created_at" field.
+func AccountCreatedAtNotIn(vs ...time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldNotIn(FieldAccountCreatedAt, vs...))
+}
+
+// AccountCreatedAtGT applies the GT predicate on the "account_created_at" field.
+func AccountCreatedAtGT(v time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldGT(FieldAccountCreatedAt, v))
+}
+
+// AccountCreatedAtGTE applies the GTE predicate on the "account_created_at" field.
+func AccountCreatedAtGTE(v time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldGTE(FieldAccountCreatedAt, v))
+}
+
+// AccountCreatedAtLT applies the LT predicate on the "account_created_at" field.
+func AccountCreatedAtLT(v time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldLT(FieldAccountCreatedAt, v))
+}
+
+// AccountCreatedAtLTE applies the LTE predicate on the "account_created_at" field.
+func AccountCreatedAtLTE(v time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldLTE(FieldAccountCreatedAt, v))
+}
+
+// AccountCreatedAtIsNil applies the IsNil predicate on the "account_created_at" field.
+func AccountCreatedAtIsNil() predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldIsNull(FieldAccountCreatedAt))
+}
+
+// AccountCreatedAtNotNil applies the NotNil predicate on the "account_created_at" field.
+func AccountCreatedAtNotNil() predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldNotNull(FieldAccountCreatedAt))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

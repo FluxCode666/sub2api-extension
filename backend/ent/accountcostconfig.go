@@ -25,6 +25,8 @@ type AccountCostConfig struct {
 	Name string `json:"name,omitempty"`
 	// Platform holds the value of the "platform" field.
 	Platform string `json:"platform,omitempty"`
+	// Accounts sharing this value are billed as one account
+	BillingGroup string `json:"billing_group,omitempty"`
 	// Purchased OAuth account cost
 	OauthAccountCost *float64 `json:"oauth_account_cost,omitempty"`
 	// Manual API cost multiplier
@@ -35,6 +37,8 @@ type AccountCostConfig struct {
 	APIMultiplierMode string `json:"api_multiplier_mode,omitempty"`
 	// LastSyncedAt holds the value of the "last_synced_at" field.
 	LastSyncedAt *time.Time `json:"last_synced_at,omitempty"`
+	// Sub2API account creation time
+	AccountCreatedAt *time.Time `json:"account_created_at,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -51,9 +55,9 @@ func (*AccountCostConfig) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case accountcostconfig.FieldID, accountcostconfig.FieldAccountID:
 			values[i] = new(sql.NullInt64)
-		case accountcostconfig.FieldAccountType, accountcostconfig.FieldName, accountcostconfig.FieldPlatform, accountcostconfig.FieldAPIMultiplierMode:
+		case accountcostconfig.FieldAccountType, accountcostconfig.FieldName, accountcostconfig.FieldPlatform, accountcostconfig.FieldBillingGroup, accountcostconfig.FieldAPIMultiplierMode:
 			values[i] = new(sql.NullString)
-		case accountcostconfig.FieldLastSyncedAt, accountcostconfig.FieldCreatedAt, accountcostconfig.FieldUpdatedAt:
+		case accountcostconfig.FieldLastSyncedAt, accountcostconfig.FieldAccountCreatedAt, accountcostconfig.FieldCreatedAt, accountcostconfig.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -100,6 +104,12 @@ func (_m *AccountCostConfig) assignValues(columns []string, values []any) error 
 			} else if value.Valid {
 				_m.Platform = value.String
 			}
+		case accountcostconfig.FieldBillingGroup:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field billing_group", values[i])
+			} else if value.Valid {
+				_m.BillingGroup = value.String
+			}
 		case accountcostconfig.FieldOauthAccountCost:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
 				return fmt.Errorf("unexpected type %T for field oauth_account_cost", values[i])
@@ -133,6 +143,13 @@ func (_m *AccountCostConfig) assignValues(columns []string, values []any) error 
 			} else if value.Valid {
 				_m.LastSyncedAt = new(time.Time)
 				*_m.LastSyncedAt = value.Time
+			}
+		case accountcostconfig.FieldAccountCreatedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field account_created_at", values[i])
+			} else if value.Valid {
+				_m.AccountCreatedAt = new(time.Time)
+				*_m.AccountCreatedAt = value.Time
 			}
 		case accountcostconfig.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -194,6 +211,9 @@ func (_m *AccountCostConfig) String() string {
 	builder.WriteString("platform=")
 	builder.WriteString(_m.Platform)
 	builder.WriteString(", ")
+	builder.WriteString("billing_group=")
+	builder.WriteString(_m.BillingGroup)
+	builder.WriteString(", ")
 	if v := _m.OauthAccountCost; v != nil {
 		builder.WriteString("oauth_account_cost=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
@@ -214,6 +234,11 @@ func (_m *AccountCostConfig) String() string {
 	builder.WriteString(", ")
 	if v := _m.LastSyncedAt; v != nil {
 		builder.WriteString("last_synced_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.AccountCreatedAt; v != nil {
+		builder.WriteString("account_created_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteString(", ")

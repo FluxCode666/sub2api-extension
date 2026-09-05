@@ -40,18 +40,24 @@ func init() {
 	accountcostconfigDescPlatform := accountcostconfigFields[3].Descriptor()
 	// accountcostconfig.PlatformValidator is a validator for the "platform" field. It is called by the builders before save.
 	accountcostconfig.PlatformValidator = accountcostconfigDescPlatform.Validators[0].(func(string) error)
+	// accountcostconfigDescBillingGroup is the schema descriptor for billing_group field.
+	accountcostconfigDescBillingGroup := accountcostconfigFields[4].Descriptor()
+	// accountcostconfig.DefaultBillingGroup holds the default value on creation for the billing_group field.
+	accountcostconfig.DefaultBillingGroup = accountcostconfigDescBillingGroup.Default.(string)
+	// accountcostconfig.BillingGroupValidator is a validator for the "billing_group" field. It is called by the builders before save.
+	accountcostconfig.BillingGroupValidator = accountcostconfigDescBillingGroup.Validators[0].(func(string) error)
 	// accountcostconfigDescAPIMultiplierMode is the schema descriptor for api_multiplier_mode field.
-	accountcostconfigDescAPIMultiplierMode := accountcostconfigFields[7].Descriptor()
+	accountcostconfigDescAPIMultiplierMode := accountcostconfigFields[8].Descriptor()
 	// accountcostconfig.DefaultAPIMultiplierMode holds the default value on creation for the api_multiplier_mode field.
 	accountcostconfig.DefaultAPIMultiplierMode = accountcostconfigDescAPIMultiplierMode.Default.(string)
 	// accountcostconfig.APIMultiplierModeValidator is a validator for the "api_multiplier_mode" field. It is called by the builders before save.
 	accountcostconfig.APIMultiplierModeValidator = accountcostconfigDescAPIMultiplierMode.Validators[0].(func(string) error)
 	// accountcostconfigDescCreatedAt is the schema descriptor for created_at field.
-	accountcostconfigDescCreatedAt := accountcostconfigFields[9].Descriptor()
+	accountcostconfigDescCreatedAt := accountcostconfigFields[11].Descriptor()
 	// accountcostconfig.DefaultCreatedAt holds the default value on creation for the created_at field.
 	accountcostconfig.DefaultCreatedAt = accountcostconfigDescCreatedAt.Default.(func() time.Time)
 	// accountcostconfigDescUpdatedAt is the schema descriptor for updated_at field.
-	accountcostconfigDescUpdatedAt := accountcostconfigFields[10].Descriptor()
+	accountcostconfigDescUpdatedAt := accountcostconfigFields[12].Descriptor()
 	// accountcostconfig.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	accountcostconfig.DefaultUpdatedAt = accountcostconfigDescUpdatedAt.Default.(func() time.Time)
 	// accountcostconfig.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

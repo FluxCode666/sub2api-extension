@@ -3,6 +3,7 @@ package integration
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"sub2api-extension/internal/ops"
 
@@ -94,4 +95,29 @@ func TestApplyProfitMetricsWithZeroTax(t *testing.T) {
 	assert.Zero(t, result.TotalTax)
 	assert.InDelta(t, result.Profit, result.NetProfit, 0.000001)
 	assert.InDelta(t, result.Days[0].Profit, result.Days[0].NetProfit, 0.000001)
+}
+
+func TestBillingGroupKeyKeepsUnmergedAccountsSeparate(t *testing.T) {
+	first := billingGroupKey(ops.AccountCostConfig{}, 11, "oauth")
+	second := billingGroupKey(ops.AccountCostConfig{}, 12, "oauth")
+	if first == second {
+		t.Fatalf("unmerged accounts share billing key %q", first)
+	}
+}
+
+func TestAddAccountBreakdownMergesBillingGroup(t *testing.T) {
+	group := "same-oauth"
+	created := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	result := &ops.ConsumptionResponse{}
+	index := make(map[string]int)
+	addAccountBreakdown(result, index, ops.AccountCostConfig{BillingGroup: group, AccountCreatedAt: &created}, 11, "oauth", 100, 20, 2, 0, "purchase cost")
+	addAccountBreakdown(result, index, ops.AccountCostConfig{BillingGroup: group}, 12, "oauth", 200, 0, 3, 0, "purchase cost")
+
+	if len(result.Accounts) != 1 {
+		t.Fatalf("got %d account rows, want one merged row", len(result.Accounts))
+	}
+	row := result.Accounts[0]
+	if row.AccountID != 11 || len(row.AccountIDs) != 2 || row.Requests != 5 || row.Revenue != 300 || row.OAuthCost != 20 {
+		t.Fatalf("merged row = %+v", row)
+	}
 }

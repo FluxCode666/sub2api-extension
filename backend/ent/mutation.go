@@ -62,6 +62,7 @@ type AccountCostConfigMutation struct {
 	account_type               *string
 	name                       *string
 	platform                   *string
+	billing_group              *string
 	oauth_account_cost         *float64
 	addoauth_account_cost      *float64
 	api_multiplier_override    *float64
@@ -70,6 +71,7 @@ type AccountCostConfigMutation struct {
 	addsynced_api_multiplier   *float64
 	api_multiplier_mode        *string
 	last_synced_at             *time.Time
+	account_created_at         *time.Time
 	created_at                 *time.Time
 	updated_at                 *time.Time
 	clearedFields              map[string]struct{}
@@ -364,6 +366,42 @@ func (m *AccountCostConfigMutation) PlatformCleared() bool {
 func (m *AccountCostConfigMutation) ResetPlatform() {
 	m.platform = nil
 	delete(m.clearedFields, accountcostconfig.FieldPlatform)
+}
+
+// SetBillingGroup sets the "billing_group" field.
+func (m *AccountCostConfigMutation) SetBillingGroup(s string) {
+	m.billing_group = &s
+}
+
+// BillingGroup returns the value of the "billing_group" field in the mutation.
+func (m *AccountCostConfigMutation) BillingGroup() (r string, exists bool) {
+	v := m.billing_group
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBillingGroup returns the old "billing_group" field's value of the AccountCostConfig entity.
+// If the AccountCostConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountCostConfigMutation) OldBillingGroup(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBillingGroup is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBillingGroup requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBillingGroup: %w", err)
+	}
+	return oldValue.BillingGroup, nil
+}
+
+// ResetBillingGroup resets all changes to the "billing_group" field.
+func (m *AccountCostConfigMutation) ResetBillingGroup() {
+	m.billing_group = nil
 }
 
 // SetOauthAccountCost sets the "oauth_account_cost" field.
@@ -661,6 +699,55 @@ func (m *AccountCostConfigMutation) ResetLastSyncedAt() {
 	delete(m.clearedFields, accountcostconfig.FieldLastSyncedAt)
 }
 
+// SetAccountCreatedAt sets the "account_created_at" field.
+func (m *AccountCostConfigMutation) SetAccountCreatedAt(t time.Time) {
+	m.account_created_at = &t
+}
+
+// AccountCreatedAt returns the value of the "account_created_at" field in the mutation.
+func (m *AccountCostConfigMutation) AccountCreatedAt() (r time.Time, exists bool) {
+	v := m.account_created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountCreatedAt returns the old "account_created_at" field's value of the AccountCostConfig entity.
+// If the AccountCostConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountCostConfigMutation) OldAccountCreatedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountCreatedAt: %w", err)
+	}
+	return oldValue.AccountCreatedAt, nil
+}
+
+// ClearAccountCreatedAt clears the value of the "account_created_at" field.
+func (m *AccountCostConfigMutation) ClearAccountCreatedAt() {
+	m.account_created_at = nil
+	m.clearedFields[accountcostconfig.FieldAccountCreatedAt] = struct{}{}
+}
+
+// AccountCreatedAtCleared returns if the "account_created_at" field was cleared in this mutation.
+func (m *AccountCostConfigMutation) AccountCreatedAtCleared() bool {
+	_, ok := m.clearedFields[accountcostconfig.FieldAccountCreatedAt]
+	return ok
+}
+
+// ResetAccountCreatedAt resets all changes to the "account_created_at" field.
+func (m *AccountCostConfigMutation) ResetAccountCreatedAt() {
+	m.account_created_at = nil
+	delete(m.clearedFields, accountcostconfig.FieldAccountCreatedAt)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *AccountCostConfigMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -767,7 +854,7 @@ func (m *AccountCostConfigMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AccountCostConfigMutation) Fields() []string {
-	fields := make([]string, 0, 11)
+	fields := make([]string, 0, 13)
 	if m.account_id != nil {
 		fields = append(fields, accountcostconfig.FieldAccountID)
 	}
@@ -779,6 +866,9 @@ func (m *AccountCostConfigMutation) Fields() []string {
 	}
 	if m.platform != nil {
 		fields = append(fields, accountcostconfig.FieldPlatform)
+	}
+	if m.billing_group != nil {
+		fields = append(fields, accountcostconfig.FieldBillingGroup)
 	}
 	if m.oauth_account_cost != nil {
 		fields = append(fields, accountcostconfig.FieldOauthAccountCost)
@@ -794,6 +884,9 @@ func (m *AccountCostConfigMutation) Fields() []string {
 	}
 	if m.last_synced_at != nil {
 		fields = append(fields, accountcostconfig.FieldLastSyncedAt)
+	}
+	if m.account_created_at != nil {
+		fields = append(fields, accountcostconfig.FieldAccountCreatedAt)
 	}
 	if m.created_at != nil {
 		fields = append(fields, accountcostconfig.FieldCreatedAt)
@@ -817,6 +910,8 @@ func (m *AccountCostConfigMutation) Field(name string) (ent.Value, bool) {
 		return m.Name()
 	case accountcostconfig.FieldPlatform:
 		return m.Platform()
+	case accountcostconfig.FieldBillingGroup:
+		return m.BillingGroup()
 	case accountcostconfig.FieldOauthAccountCost:
 		return m.OauthAccountCost()
 	case accountcostconfig.FieldAPIMultiplierOverride:
@@ -827,6 +922,8 @@ func (m *AccountCostConfigMutation) Field(name string) (ent.Value, bool) {
 		return m.APIMultiplierMode()
 	case accountcostconfig.FieldLastSyncedAt:
 		return m.LastSyncedAt()
+	case accountcostconfig.FieldAccountCreatedAt:
+		return m.AccountCreatedAt()
 	case accountcostconfig.FieldCreatedAt:
 		return m.CreatedAt()
 	case accountcostconfig.FieldUpdatedAt:
@@ -848,6 +945,8 @@ func (m *AccountCostConfigMutation) OldField(ctx context.Context, name string) (
 		return m.OldName(ctx)
 	case accountcostconfig.FieldPlatform:
 		return m.OldPlatform(ctx)
+	case accountcostconfig.FieldBillingGroup:
+		return m.OldBillingGroup(ctx)
 	case accountcostconfig.FieldOauthAccountCost:
 		return m.OldOauthAccountCost(ctx)
 	case accountcostconfig.FieldAPIMultiplierOverride:
@@ -858,6 +957,8 @@ func (m *AccountCostConfigMutation) OldField(ctx context.Context, name string) (
 		return m.OldAPIMultiplierMode(ctx)
 	case accountcostconfig.FieldLastSyncedAt:
 		return m.OldLastSyncedAt(ctx)
+	case accountcostconfig.FieldAccountCreatedAt:
+		return m.OldAccountCreatedAt(ctx)
 	case accountcostconfig.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case accountcostconfig.FieldUpdatedAt:
@@ -899,6 +1000,13 @@ func (m *AccountCostConfigMutation) SetField(name string, value ent.Value) error
 		}
 		m.SetPlatform(v)
 		return nil
+	case accountcostconfig.FieldBillingGroup:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBillingGroup(v)
+		return nil
 	case accountcostconfig.FieldOauthAccountCost:
 		v, ok := value.(float64)
 		if !ok {
@@ -933,6 +1041,13 @@ func (m *AccountCostConfigMutation) SetField(name string, value ent.Value) error
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetLastSyncedAt(v)
+		return nil
+	case accountcostconfig.FieldAccountCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountCreatedAt(v)
 		return nil
 	case accountcostconfig.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -1047,6 +1162,9 @@ func (m *AccountCostConfigMutation) ClearedFields() []string {
 	if m.FieldCleared(accountcostconfig.FieldLastSyncedAt) {
 		fields = append(fields, accountcostconfig.FieldLastSyncedAt)
 	}
+	if m.FieldCleared(accountcostconfig.FieldAccountCreatedAt) {
+		fields = append(fields, accountcostconfig.FieldAccountCreatedAt)
+	}
 	return fields
 }
 
@@ -1079,6 +1197,9 @@ func (m *AccountCostConfigMutation) ClearField(name string) error {
 	case accountcostconfig.FieldLastSyncedAt:
 		m.ClearLastSyncedAt()
 		return nil
+	case accountcostconfig.FieldAccountCreatedAt:
+		m.ClearAccountCreatedAt()
+		return nil
 	}
 	return fmt.Errorf("unknown AccountCostConfig nullable field %s", name)
 }
@@ -1099,6 +1220,9 @@ func (m *AccountCostConfigMutation) ResetField(name string) error {
 	case accountcostconfig.FieldPlatform:
 		m.ResetPlatform()
 		return nil
+	case accountcostconfig.FieldBillingGroup:
+		m.ResetBillingGroup()
+		return nil
 	case accountcostconfig.FieldOauthAccountCost:
 		m.ResetOauthAccountCost()
 		return nil
@@ -1113,6 +1237,9 @@ func (m *AccountCostConfigMutation) ResetField(name string) error {
 		return nil
 	case accountcostconfig.FieldLastSyncedAt:
 		m.ResetLastSyncedAt()
+		return nil
+	case accountcostconfig.FieldAccountCreatedAt:
+		m.ResetAccountCreatedAt()
 		return nil
 	case accountcostconfig.FieldCreatedAt:
 		m.ResetCreatedAt()

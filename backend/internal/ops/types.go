@@ -15,12 +15,13 @@ type CostConfig struct {
 // Sub2APIAccount is the read-only account metadata needed by the extension.
 // It is populated from Sub2API's accounts table during periodic sync.
 type Sub2APIAccount struct {
-	ID             int64     `json:"id"`
-	Name           string    `json:"name"`
-	Type           string    `json:"type"`
-	Platform       string    `json:"platform"`
-	RateMultiplier float64   `json:"rate_multiplier"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID             int64      `json:"id"`
+	Name           string     `json:"name"`
+	Type           string     `json:"type"`
+	Platform       string     `json:"platform"`
+	RateMultiplier float64    `json:"rate_multiplier"`
+	CreatedAt      *time.Time `json:"created_at,omitempty"`
+	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
 // AccountCostConfig is the extension-owned per-account cost policy. A nil
@@ -30,11 +31,13 @@ type AccountCostConfig struct {
 	AccountType           string     `json:"account_type"`
 	Name                  string     `json:"name"`
 	Platform              string     `json:"platform"`
+	BillingGroup          string     `json:"billing_group,omitempty"`
 	OAuthAccountCost      *float64   `json:"oauth_account_cost,omitempty"`
 	APIMultiplierOverride *float64   `json:"api_multiplier_override,omitempty"`
 	SyncedAPIMultiplier   *float64   `json:"synced_api_multiplier,omitempty"`
 	APIMultiplierMode     string     `json:"api_multiplier_mode"`
 	LastSyncedAt          *time.Time `json:"last_synced_at,omitempty"`
+	AccountCreatedAt      *time.Time `json:"account_created_at,omitempty"`
 }
 
 func (c AccountCostConfig) EffectiveAPIMultiplier(fallback float64) float64 {
@@ -66,6 +69,13 @@ type CostConfigResponse struct {
 	LastSyncAt *time.Time          `json:"last_sync_at,omitempty"`
 }
 
+// BillingGroupUpdate assigns multiple same-type Sub2API account records to a
+// shared billing identity. The group name is extension-owned metadata.
+type BillingGroupUpdate struct {
+	AccountIDs   []int64 `json:"account_ids"`
+	BillingGroup string  `json:"billing_group"`
+}
+
 func DefaultCostConfig() CostConfig {
 	return CostConfig{OAuthAccountCost: 0, APICostMultiplier: 1, TaxRate: 0, Currency: "CNY"}
 }
@@ -93,19 +103,22 @@ type DailyConsumption struct {
 }
 
 type AccountConsumption struct {
-	AccountID        int64   `json:"account_id"`
-	AccountType      string  `json:"account_type"`
-	Name             string  `json:"name"`
-	Platform         string  `json:"platform"`
-	Requests         int64   `json:"requests"`
-	Revenue          float64 `json:"revenue"`
-	APICost          float64 `json:"api_cost"`
-	OAuthCost        float64 `json:"oauth_cost"`
-	GrossProfit      float64 `json:"gross_profit"`
-	TaxAmount        float64 `json:"tax_amount"`
-	NetProfit        float64 `json:"net_profit"`
-	Multiplier       float64 `json:"multiplier"`
-	MultiplierSource string  `json:"multiplier_source"`
+	AccountID        int64      `json:"account_id"`
+	AccountIDs       []int64    `json:"account_ids,omitempty"`
+	AccountType      string     `json:"account_type"`
+	Name             string     `json:"name"`
+	Platform         string     `json:"platform"`
+	BillingGroup     string     `json:"billing_group,omitempty"`
+	AccountCreatedAt *time.Time `json:"account_created_at,omitempty"`
+	Requests         int64      `json:"requests"`
+	Revenue          float64    `json:"revenue"`
+	APICost          float64    `json:"api_cost"`
+	OAuthCost        float64    `json:"oauth_cost"`
+	GrossProfit      float64    `json:"gross_profit"`
+	TaxAmount        float64    `json:"tax_amount"`
+	NetProfit        float64    `json:"net_profit"`
+	Multiplier       float64    `json:"multiplier"`
+	MultiplierSource string     `json:"multiplier_source"`
 }
 
 type ConsumptionResponse struct {

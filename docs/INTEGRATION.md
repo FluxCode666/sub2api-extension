@@ -167,7 +167,7 @@ Dashboard 的规范路径是：
 /admin/dashboard
 ```
 
-运营中心路径为 `/admin/ops/consumption` 与 `/admin/ops/cost-config`。消费核算按天聚合收入、请求量、Token、API 成本、OAuth 账号成本、毛利/税前利润、税额、税后利润和利润率，日期范围最多 93 天；全局默认配置、税点和每个账号的独立成本配置写入扩展自有数据库，不会修改 Sub2API 数据库。税点以百分比配置，例如 `6` 表示 `6%`，并按收入计提：`税额 = 收入 × 税点`，`税前利润 = 收入 − 总成本`，`税后利润 = 税前利润 − 税额`。OAuth 账号按账号 ID 配置采购单价，并在筛选范围内按独立账号计入、归集到首次使用日；API 账号按账号 ID 配置倍率，支持手工覆盖或定时同步 Sub2API `accounts.rate_multiplier`。历史 usage log 优先使用 `account_rate_multiplier` 快照，因此上游倍率后续变化不会改写已经发生的成本。
+运营中心路径为 `/admin/ops/consumption` 与 `/admin/ops/cost-config`。消费核算按天聚合收入、请求量、Token、API 成本、OAuth 账号成本、毛利/税前利润、税额、税后利润和利润率，日期范围最多 93 天；全局默认配置、税点和每个账号的独立成本配置写入扩展自有数据库，不会修改 Sub2API 数据库。税点以百分比配置，例如 `6` 表示 `6%`，并按收入计提：`税额 = 收入 × 税点`，`税前利润 = 收入 − 总成本`，`税后利润 = 税前利润 − 税额`。OAuth 账号按账号 ID 配置采购单价，并在筛选范围内按独立账号计入、归集到首次使用日；为同一实体重新上号产生的多条 Sub2API 账号记录，可在“批量合并计费”下拉中一次选择多个同类型账号并归入同一计费组，消费明细会合并收入/请求并只计一次 OAuth 采购成本，同时列出组内全部账号 ID。账号创建时间从 Sub2API `accounts.created_at` 定时同步并在账号成本明细中展示。API 账号按账号 ID 配置倍率，支持手工覆盖或定时同步 Sub2API `accounts.rate_multiplier`。历史 usage log 优先使用 `account_rate_multiplier` 快照，因此上游倍率后续变化不会改写已经发生的成本。
 
 Dashboard 列出当前注册页面，标题和路径都可点击：
 
