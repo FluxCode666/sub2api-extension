@@ -30,6 +30,8 @@ import DynamicPage from '@/pages/DynamicPage'
 import ContentExamplePage from '@/pages/examples/ContentExamplePage'
 import InteractionExamplePage from '@/pages/examples/InteractionExamplePage'
 import APIExamplePage from '@/pages/examples/APIExamplePage'
+import HomepagePage from '@/pages/HomepagePage'
+import HomepageConfigPage from '@/pages/admin/HomepageConfigPage'
 import { fetchDynamicPages } from '@/lib/dynamic-pages'
 
 // bootstrap: 获取动态页清单, 与静态注册表合并(KTD7)。
@@ -75,8 +77,10 @@ function AdminEntryRedirect() {
 export default function App() {
   return (
     <Routes>
-      {/* 根路径是控制台入口；官网首页由数据库动态页面 /p/home 提供。 */}
+      {/* 根路径与当前扩展控制台保持兼容；Sub2API 官网使用独立入口。 */}
       <Route path="/" element={<AdminEntryRedirect />} />
+      <Route path="/sub2api-home" element={<HomepagePage />} />
+      <Route path="/embed" element={<HomepagePage />} />
       {/* 独立登录入口: AdminGuard 的 no-embedded-token 分支重定向到此。
           功能路由, 不登记到 page-registry (非内容页, 不污染埋点仪表盘)。 */}
       <Route element={<PublicLayout />}>
@@ -92,6 +96,7 @@ export default function App() {
         {/* U6: 仪表盘为管理端首页 (R10) */}
         <Route index element={<AdminEntryRedirect />} />
         <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="homepage" element={<HomepageConfigPage />} />
         <Route path="pages" element={<PageManagementPage />} />
         <Route path="files" element={<FileManagementPage />} />
         {/* Legacy bookmark: the former image resource route now points to the same file manager. */}

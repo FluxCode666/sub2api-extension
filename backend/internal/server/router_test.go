@@ -126,7 +126,7 @@ func TestSetupRouter_PublicHomepageConfigReturnsDefaults(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, w.Body.String(), "TERALEMO")
+	assert.Contains(t, w.Body.String(), "Sub2API")
 	assert.Contains(t, w.Body.String(), "consoleHref")
 	assert.Contains(t, w.Body.String(), "trustedPartners")
 }

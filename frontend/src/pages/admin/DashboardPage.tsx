@@ -261,7 +261,7 @@ export default function DashboardPage() {
           <div className="aux-card-heading"><div><span className="aux-card-icon aux-card-icon--warm"><Zap aria-hidden="true" /></span><div><p>快捷动作</p><h2>继续推进</h2></div></div></div>
           <div className="aux-quick-actions">
             <Link to="/admin/pages" className="aux-quick-action"><span>页面管理</span><ArrowUpRight aria-hidden="true" /></Link>
-            <Link to="/p/home" className="aux-quick-action"><span>查看官网</span><ArrowUpRight aria-hidden="true" /></Link>
+                    <Link to="/p/home" className="aux-quick-action"><span>查看官网</span><ArrowUpRight aria-hidden="true" /></Link>
           </div>
         </div>
       </section>

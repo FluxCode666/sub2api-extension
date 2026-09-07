@@ -1,8 +1,8 @@
 # sub2api 集成配置指南
 
-本指南说明如何在不修改 sub2api 代码的前提下，通过 `home_content` 嵌入 TERALEMO 官网，并通过 `custom_menu_items` 将 sub2api-extension 管理页面嵌入 sub2api 控制台。
+本指南说明如何在不修改 sub2api 代码的前提下，通过 `home_content` 嵌入所需的官网页面，并通过 `custom_menu_items` 将 sub2api-extension 管理页面嵌入 sub2api 控制台。
 
-sub2api-extension 根路径 `/` 会跳转到控制台 `/admin/dashboard`。原硬编码官网已迁移到数据库动态页面 `/p/home`，应将该路径作为 sub2api `home_content` 的 URL；Sub2API 官方页面仍可通过 `/p/sub2api-home` 访问。
+sub2api-extension 根路径 `/` 会跳转到控制台 `/admin/dashboard`。当前系统官网仍由数据库动态页面 `/p/home` 提供；新增的 Sub2API 官方官网是独立 React 页面 `/sub2api-home`，可通过 `/embed` 作为通用 iframe 页面嵌入其他系统。
 
 官网内容在页面管理中维护。管理员可在 `/admin/pages` 编辑数据库中的 `home` 页面，公开访问路径为 `/p/home`。
 
@@ -12,7 +12,7 @@ sub2api-extension 根路径 `/` 会跳转到控制台 `/admin/dashboard`。原�
 
 ```text
 sub2api 首页
-  home_content URL iframe -> sub2api-extension /p/home
+  home_content URL iframe -> sub2api-extension /embed 或 /sub2api-home
 
 sub2api 控制台
   custom_menu_items -> 带 token 的 iframe
@@ -102,7 +102,7 @@ docker compose -f docker-compose.yml --env-file .env up -d
 在 sub2api「站点设置」的「首页内容」中填写 sub2api-extension 的公开动态页面 URL：
 
 ```text
-https://aux.example.com/p/home?theme=light
+https://aux.example.com/sub2api-home?theme=light
 ```
 
 sub2api 会把 URL 作为 iframe 地址。`theme=light` 或 `theme=dark` 可指定初始主题，访客仍可在官网右上角手动切换。
@@ -159,7 +159,7 @@ sub2api 会把 URL 作为 iframe 地址。`theme=light` 或 `theme=dark` 可指�
 /admin/pages
 ```
 
-其中 `home` 页面保存迁移后的官网首页 HTML。编辑后保存到数据库，公开页面 `/p/home` 会读取最新内容；Sub2API 官方页面仍保留在 `/p/sub2api-home`。
+其中 `home` 页面保存迁移后的官网首页 HTML。编辑后保存到数据库，公开页面 `/p/home` 会读取最新内容；Sub2API 官方页面位于 `/sub2api-home`，通用嵌入入口为 `/embed`。
 
 Dashboard 的规范路径是：
 
@@ -173,8 +173,8 @@ Dashboard 列出当前注册页面，标题和路径都可点击：
 
 | 页面 | 路径 |
 |------|------|
-| TERALEMO 官网（数据库动态页面） | `/p/home` |
-| Sub2API 官网（数据库动态页面） | `/p/sub2api-home` |
+| 当前系统官网（数据库动态页面） | `/p/home` |
+| Sub2API 官方官网（静态 React 页面） | `/sub2api-home` |
 | 分析仪表盘 | `/admin/dashboard` |
 | 页面管理 | `/admin/pages` |
 | 静态内容示例 | `/admin/examples/content` |
@@ -271,8 +271,8 @@ Sub2API 用户下拉选项。管理员还可以调用 `POST /api/aux/admin/invoi
 - [ ] sub2api-extension `/health` 返回 200。
 - [ ] sub2api-extension 能连接自己的 PostgreSQL。
 - [ ] `SUB2API_BASE_URL` 指向可用的 sub2api 后端。
-- [ ] sub2api `home_content` 已设置为 sub2api-extension `/p/home` 动态页面 URL。
-- [ ] sub2api 首页能展示 TERALEMO 官网，亮色/暗色切换正常。
+- [ ] sub2api `home_content` 已设置为 当前系统官网或 Sub2API 官网对应 URL。
+- [ ] sub2api 首页能展示配置的官网页面，亮色/暗色切换正常。
 - [ ] sub2api `custom_menu_items` 已添加 `/admin/dashboard`。
 - [ ] sub2api `custom_menu_items` 已添加 `/admin/pages`。
 - [ ] `page_slug` 为空且 `visibility` 为 `admin`。
@@ -327,3 +327,15 @@ iframe 没有提供有效 token，或附属会话已经失效：
 - 确认浏览器已有 aux 管理员会话。
 - 检查请求是否携带 `X-Aux-Session`。
 - 重新从 sub2api 菜单进入或在 sub2api-extension 登录页重新登录。
+
+## Sub2API 官网配置
+
+Sub2API 官网的运营配置位于管理端 `/admin/homepage`，不影响当前系统官网 `/p/home`。配置保存到扩展的 `system_meta`，官网页面和其他嵌入方通过同一份配置读取：
+
+- 公开读取：`GET /api/aux/homepage/config`
+- 管理读取：`GET /api/aux/admin/homepage/config`
+- 管理保存：`PUT /api/aux/admin/homepage/config`（需要附属管理员会话）
+- 官网页面：`/sub2api-home`
+- 通用嵌入页面：`/embed`
+
+配置支持 `siteName` 网站名称、`trustedPartners` 受信赖的合作伙伴列表，以及 `documentationUrl` 使用文档、`termsUrl` 服务条款、`userTermsUrl` 用户条款、`privacyUrl` 隐私协议等链接。链接会在后端保存前清洗，仅允许站内路径、锚点和 `http(s)` URL；合作伙伴最多 24 个，Logo 仅接受 `http(s)` URL。

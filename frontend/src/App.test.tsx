@@ -32,6 +32,14 @@ vi.mock('@/pages/admin/FileManagementPage', () => ({
   default: () => <h1>file-management-page</h1>,
 }))
 
+vi.mock('@/pages/HomepagePage', () => ({
+  default: () => <h1>homepage-page</h1>,
+}))
+
+vi.mock('@/pages/admin/HomepageConfigPage', () => ({
+  default: () => <h1>homepage-config-page</h1>,
+}))
+
 vi.mock('@/pages/examples/ContentExamplePage', () => ({
   default: () => <h1>content-example-page</h1>,
 }))
@@ -58,9 +66,7 @@ describe('App routing', () => {
       </MemoryRouter>,
     )
 
-    await waitFor(() => {
-      expect(screen.getByTestId('location')).toHaveTextContent('/admin/dashboard')
-    })
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/admin/dashboard'))
     expect(screen.getByRole('heading', { name: 'dashboard-page' })).toBeInTheDocument()
   })
 
@@ -72,11 +78,17 @@ describe('App routing', () => {
       </MemoryRouter>,
     )
 
-    await waitFor(() => {
-      expect(screen.getByTestId('location')).toHaveTextContent(
-        '/admin/dashboard?token=sub2api-jwt&user_id=7&ui_mode=embedded',
-      )
-    })
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/admin/dashboard?token=sub2api-jwt&user_id=7&ui_mode=embedded'))
+  })
+
+  it('exposes the independent Sub2API homepage route', () => {
+    render(
+      <MemoryRouter initialEntries={['/sub2api-home']}>
+        <App />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('heading', { name: 'homepage-page' })).toBeInTheDocument()
   })
 
   it('preserves sub2api embedded query parameters when redirecting /admin', async () => {
@@ -108,14 +120,14 @@ describe('App routing', () => {
     expect(screen.getByRole('heading', { name: 'dashboard-page' })).toBeInTheDocument()
   })
 
-  it('does not expose the removed homepage configuration route', () => {
+  it('exposes the homepage configuration route inside admin', () => {
     render(
       <MemoryRouter initialEntries={['/admin/homepage']}>
         <App />
       </MemoryRouter>,
     )
 
-    expect(screen.getByRole('heading', { name: '页面不存在' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'homepage-config-page' })).toBeInTheDocument()
   })
 
   it('keeps unknown routes on the 404 page instead of sending them to the public home page', () => {

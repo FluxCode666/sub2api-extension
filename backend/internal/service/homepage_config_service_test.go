@@ -27,7 +27,7 @@ func TestHomepageConfigService_GetDefaultsWhenEmpty(t *testing.T) {
 	config, err := svc.Get(context.Background())
 
 	require.NoError(t, err)
-	assert.Equal(t, "TERALEMO", config.HeroTitle)
+	assert.Equal(t, "Sub2API", config.SiteName)
 	assert.Empty(t, config.TrustedPartners)
 }
 
@@ -36,6 +36,7 @@ func TestHomepageConfigService_SaveNormalizesPartnersAndLinks(t *testing.T) {
 	svc := NewHomepageConfigService(store)
 
 	saved, err := svc.Save(context.Background(), HomepageConfig{
+		SiteName:        " My Sub2API ",
 		HeroLabel:       " 生产级网关 ",
 		HeroTitle:       "新的首页标题",
 		HeroDescription: "新的首页简介",
@@ -52,7 +53,8 @@ func TestHomepageConfigService_SaveNormalizesPartnersAndLinks(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "生产级网关", saved.HeroLabel)
-	assert.Equal(t, "#contact", saved.PrimaryHref)
+	assert.Equal(t, "My Sub2API", saved.SiteName)
+	assert.Equal(t, "/login", saved.PrimaryHref)
 	assert.Equal(t, "https://docs.example.com", saved.DocsHref)
 	assert.Equal(t, "/admin", saved.ConsoleHref)
 	require.Len(t, saved.TrustedPartners, 1)

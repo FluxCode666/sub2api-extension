@@ -27,6 +27,7 @@ import {
   Flame,
   LayoutDashboard,
   ReceiptText,
+  PanelsTopLeft,
   SlidersHorizontal,
   Terminal,
 } from 'lucide-react'
@@ -177,6 +178,14 @@ export default function AdminLayout() {
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
+                    <NavLink to="/admin/homepage" end>
+                      <PanelsTopLeft className="h-4 w-4" />
+                      <span>官网配置</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
                     <NavLink to="/admin/pages" end>
                       <FilePlus2 className="h-4 w-4" />
                       <span>页面管理</span>
@@ -255,6 +264,14 @@ export default function AdminLayout() {
                 <NavLink to="/p/home" end>
                   <ExternalLink className="h-4 w-4" />
                   <span>返回官网</span>
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <NavLink to="/sub2api-home" end>
+                  <ExternalLink className="h-4 w-4" />
+                  <span>Sub2API 官网</span>
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>

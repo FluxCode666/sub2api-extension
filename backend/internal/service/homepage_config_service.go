@@ -33,32 +33,42 @@ type TrustedPartner struct {
 
 // HomepageConfig 是可在管理端调整的官网首页内容。
 type HomepageConfig struct {
-	HeroLabel       string           `json:"heroLabel"`
-	HeroTitle       string           `json:"heroTitle"`
-	HeroDescription string           `json:"heroDescription"`
-	Model           string           `json:"model"`
-	PrimaryCTA      string           `json:"primaryCta"`
-	PrimaryHref     string           `json:"primaryHref"`
-	DocsCTA         string           `json:"docsCta"`
-	DocsHref        string           `json:"docsHref"`
-	ConsoleHref     string           `json:"consoleHref"`
-	TrustedPartners []TrustedPartner `json:"trustedPartners"`
+	SiteName         string           `json:"siteName"`
+	HeroLabel        string           `json:"heroLabel"`
+	HeroTitle        string           `json:"heroTitle"`
+	HeroDescription  string           `json:"heroDescription"`
+	Model            string           `json:"model"`
+	PrimaryCTA       string           `json:"primaryCta"`
+	PrimaryHref      string           `json:"primaryHref"`
+	DocsCTA          string           `json:"docsCta"`
+	DocsHref         string           `json:"docsHref"`
+	ConsoleHref      string           `json:"consoleHref"`
+	DocumentationURL string           `json:"documentationUrl"`
+	TermsURL         string           `json:"termsUrl"`
+	UserTermsURL     string           `json:"userTermsUrl"`
+	PrivacyURL       string           `json:"privacyUrl"`
+	TrustedPartners  []TrustedPartner `json:"trustedPartners"`
 }
 
 // DefaultHomepageConfig 是无配置或配置读取失败时使用的安全默认值。
 // 伙伴列表故意为空，以便没有配置时不展示“受信赖的伙伴”区块。
 func DefaultHomepageConfig() HomepageConfig {
 	return HomepageConfig{
-		HeroLabel:       "面向生产环境的 AI 网关",
-		HeroTitle:       "TERALEMO",
-		HeroDescription: "将安全准入、智能路由、稳定保障、用量管理与运行观测统一到同一网关层。",
-		Model:           "gpt-5.6-sol",
-		PrimaryCTA:      "获取接入方案",
-		PrimaryHref:     "#contact",
-		DocsCTA:         "查看开发者文档",
-		DocsHref:        "#developers",
-		ConsoleHref:     "/admin",
-		TrustedPartners: []TrustedPartner{},
+		SiteName:         "Sub2API",
+		HeroLabel:        "面向生产环境的 AI 网关",
+		HeroTitle:        "AI API 网关，面向下一次调用",
+		HeroDescription:  "用一个清晰、稳定、可观测的入口，连接模型、团队与真实业务。",
+		Model:            "gpt-5.6-sol",
+		PrimaryCTA:       "开始使用",
+		PrimaryHref:      "/login",
+		DocsCTA:          "查看开发文档",
+		DocsHref:         "#developers",
+		ConsoleHref:      "/admin",
+		DocumentationURL: "",
+		TermsURL:         "",
+		UserTermsURL:     "",
+		PrivacyURL:       "",
+		TrustedPartners:  []TrustedPartner{},
 	}
 }
 
@@ -115,6 +125,7 @@ func normalizeHomepageConfig(config HomepageConfig) HomepageConfig {
 		config.HeroDescription = defaults.HeroDescription
 	}
 	config.HeroLabel = boundedText(config.HeroLabel, defaults.HeroLabel, 120)
+	config.SiteName = boundedText(config.SiteName, defaults.SiteName, 80)
 	config.HeroTitle = boundedText(config.HeroTitle, defaults.HeroTitle, 160)
 	config.HeroDescription = boundedText(config.HeroDescription, defaults.HeroDescription, 360)
 	config.Model = boundedText(config.Model, defaults.Model, 120)
@@ -123,6 +134,10 @@ func normalizeHomepageConfig(config HomepageConfig) HomepageConfig {
 	config.DocsCTA = boundedText(config.DocsCTA, defaults.DocsCTA, 48)
 	config.DocsHref = safeHref(config.DocsHref, defaults.DocsHref)
 	config.ConsoleHref = safeHref(config.ConsoleHref, defaults.ConsoleHref)
+	config.DocumentationURL = safeHref(config.DocumentationURL, defaults.DocumentationURL)
+	config.TermsURL = safeHref(config.TermsURL, defaults.TermsURL)
+	config.UserTermsURL = safeHref(config.UserTermsURL, defaults.UserTermsURL)
+	config.PrivacyURL = safeHref(config.PrivacyURL, defaults.PrivacyURL)
 
 	partners := make([]TrustedPartner, 0, min(len(config.TrustedPartners), 24))
 	for _, partner := range config.TrustedPartners {
