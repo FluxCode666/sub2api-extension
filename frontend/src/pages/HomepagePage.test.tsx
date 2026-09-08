@@ -63,6 +63,19 @@ describe('HomepagePage', () => {
     expect(nav.getAllByRole('link')).toHaveLength(3)
   })
 
+  it.each(['/sub2api-home', '/embed'])('opens the console in the top-level tab from %s', async (path) => {
+    vi.mocked(apiClient.get).mockResolvedValue({ code: 0, data: {
+      ...DEFAULT_HOMEPAGE_CONFIG,
+      consoleHref: 'http://127.0.0.1:8003/dashboard',
+    } })
+    const { container } = render(<MemoryRouter initialEntries={[path]}><HomepagePage /></MemoryRouter>)
+    await waitFor(() => expect(container.querySelector('.sub2api-home')).toHaveAttribute('data-loading', 'false'))
+
+    const consoleLink = screen.getByRole('link', { name: '进入控制台' })
+    expect(consoleLink).toHaveAttribute('href', 'http://127.0.0.1:8003/dashboard')
+    expect(consoleLink).toHaveAttribute('target', '_top')
+  })
+
   it.each([
     { name: 'legacy defaults', data: {}, count: 6 },
     { name: 'explicitly empty menus', data: { navigationItems: [] }, count: 2 },

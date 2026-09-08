@@ -106,6 +106,8 @@ https://aux.example.com/embed
 
 sub2api 会把 URL 作为 iframe 地址，官网内容通过 `/admin/homepage` 配置。
 
+官网「进入控制台」按钮使用顶层导航（`target="_top"`），在当前浏览器标签页中进入配置的控制台地址，不会把控制台加载到官网 iframe 内。若宿主 iframe 使用 `sandbox`，需要允许用户点击触发顶层导航（`allow-top-navigation-by-user-activation`）。
+
 ### 2.2 配置 custom_menu_items
 
 1. 登录 sub2api 管理后台。

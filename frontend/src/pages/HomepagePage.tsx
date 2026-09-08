@@ -424,7 +424,7 @@ export default function HomepagePage() {
         <a href="#top" className="sub2api-brand"><BrandMark logoUrl={config.siteLogoUrl} /><span>{config.siteName}</span></a>
         <div className={`sub2api-nav-links ${menuOpen ? 'is-open' : ''}`}>
           <div className="sub2api-nav-items">{navigationItems.map((item, index) => <a key={`navigation-${index}`} {...linkProps(item.href.trim())} onClick={() => setMenuOpen(false)}>{item.label}</a>)}</div>
-          <a {...linkProps(config.consoleHref)} target="_self" className="sub2api-nav-cta" onClick={() => setMenuOpen(false)}>进入控制台 <ArrowUpRight size={15} /></a>
+          <a {...linkProps(config.consoleHref)} target="_top" className="sub2api-nav-cta" onClick={() => setMenuOpen(false)}>进入控制台 <ArrowUpRight size={15} /></a>
         </div>
         <button className="sub2api-menu-button" aria-label={menuOpen ? '关闭菜单' : '打开菜单'} onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X /> : <Menu />}</button>
       </nav>
