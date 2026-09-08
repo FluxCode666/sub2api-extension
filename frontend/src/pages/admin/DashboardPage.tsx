@@ -217,7 +217,7 @@ export default function DashboardPage() {
           </p>
           <div className="aux-dashboard-hero-links">
             <Link to="/admin/pages" className="aux-console-button aux-console-button--primary">管理页面 <ArrowUpRight aria-hidden="true" /></Link>
-            <Link to="/p/home" className="aux-console-button aux-console-button--secondary">查看官网</Link>
+            <Link to="/api-docs" className="aux-console-button aux-console-button--secondary">API 文档</Link>
           </div>
         </div>
         <div className="aux-dashboard-hero-orbit" aria-hidden="true">
@@ -261,7 +261,7 @@ export default function DashboardPage() {
           <div className="aux-card-heading"><div><span className="aux-card-icon aux-card-icon--warm"><Zap aria-hidden="true" /></span><div><p>快捷动作</p><h2>继续推进</h2></div></div></div>
           <div className="aux-quick-actions">
             <Link to="/admin/pages" className="aux-quick-action"><span>页面管理</span><ArrowUpRight aria-hidden="true" /></Link>
-                    <Link to="/p/home" className="aux-quick-action"><span>查看官网</span><ArrowUpRight aria-hidden="true" /></Link>
+            <Link to="/api-docs" className="aux-quick-action"><span>API 文档</span><ArrowUpRight aria-hidden="true" /></Link>
           </div>
         </div>
       </section>

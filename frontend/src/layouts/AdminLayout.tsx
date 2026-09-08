@@ -29,6 +29,7 @@ import {
   ReceiptText,
   PanelsTopLeft,
   SlidersHorizontal,
+  Settings2,
   Terminal,
 } from 'lucide-react'
 import { fetchDynamicPages, getMergedRegistry, subscribeDynamicPages } from '@/lib/dynamic-pages'
@@ -72,7 +73,7 @@ export default function AdminLayout() {
   const staticAdminPages = adminPages.filter((p) => !p.id.startsWith('page:') && p.id !== 'file-management')
   const opsAdminPages = staticAdminPages.filter((page) => page.id === 'ops-ttft')
   const operationsAdminPages = staticAdminPages.filter((page) => page.id === 'ops-consumption' || page.id === 'ops-cost-config')
-  const coreAdminPages = staticAdminPages.filter((page) => !page.id.startsWith('ops-'))
+  const coreAdminPages = staticAdminPages.filter((page) => !page.id.startsWith('ops-') && page.id !== 'system-config')
 
   // 静态核心管理页的图标映射
   const staticIcons: Record<string, React.ElementType> = {
@@ -81,6 +82,7 @@ export default function AdminLayout() {
     'ops-ttft': Flame,
     'ops-consumption': Calculator,
     'ops-cost-config': SlidersHorizontal,
+    'system-config': Settings2,
   }
 
   return (
@@ -194,6 +196,14 @@ export default function AdminLayout() {
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
+                    <NavLink to="/admin/system-config" end>
+                      <Settings2 className="h-4 w-4" />
+                      <span>系统配置</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
                     <NavLink to="/admin/files" end>
                       <Files className="h-4 w-4" />
                       <span>文件管理</span>
@@ -261,9 +271,9 @@ export default function AdminLayout() {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <NavLink to="/p/home" end>
-                  <ExternalLink className="h-4 w-4" />
-                  <span>返回官网</span>
+                <NavLink to="/api-docs" end>
+                  <FileText className="h-4 w-4" />
+                  <span>API 文档</span>
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>

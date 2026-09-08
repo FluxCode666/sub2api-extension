@@ -119,6 +119,20 @@ describe('DashboardPage', () => {
     expect(within(row as HTMLTableRowElement).getByText('0')).toBeInTheDocument()
   })
 
+  it('does not expose a fixed /p/home shortcut', async () => {
+    vi.mocked(apiClient.get).mockResolvedValueOnce({
+      code: 0,
+      message: 'success',
+      data: mockOverview,
+    })
+
+    renderPage()
+
+    await screen.findByRole('link', { name: '分析仪表盘' })
+    expect(screen.queryByRole('link', { name: '查看官网' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: 'API 文档' }).every((link) => link.getAttribute('href') === '/api-docs')).toBe(true)
+  })
+
   it('renders current feature usage in backend order', async () => {
     vi.mocked(apiClient.get).mockResolvedValueOnce({
       code: 0,

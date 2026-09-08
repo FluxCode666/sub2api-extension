@@ -49,9 +49,13 @@ curl -I https://<你的域名>/health
 外部页面应使用浏览器可访问的完整 URL，例如：
 
 ```text
-https://<你的域名>/p/home
+https://<你的域名>/api-docs?embed=1
 https://<你的域名>/admin/dashboard
 ```
+
+数据库动态页面按管理员创建的 slug 访问：公开页使用
+`https://<你的域名>/p/<slug>`，管理员页使用
+`https://<你的域名>/admin/p/<slug>`。系统不会把 `/p/home` 当作固定首页。
 
 文件管理页中的图片资源接口返回相对路径 `/api/aux/assets/:id`，管理端会基于当前浏览器的
 `window.location.origin` 补全域名。因此通过 NGINX 域名访问资源页并复制 URL 时，

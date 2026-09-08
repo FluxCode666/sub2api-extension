@@ -127,6 +127,7 @@ func TestSetupRouter_PublicHomepageConfigReturnsDefaults(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "Sub2API")
+	assert.Contains(t, w.Body.String(), "gpt-6-astra")
 	assert.Contains(t, w.Body.String(), "consoleHref")
 	assert.Contains(t, w.Body.String(), "trustedPartners")
 }

@@ -1,4 +1,4 @@
-// Package admin 提供官网首页的管理员配置端点。
+// Package admin 提供兼容 homepage.config 的系统配置端点。
 package admin
 
 import (

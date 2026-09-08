@@ -1,6 +1,6 @@
 //go:build ignore
 
-// update_homepage_links 只更新现有 home 动态页的链接元数据和声明属性。
+// update_homepage_links 只更新现有 home 动态页的链接元数据和声明属性（可选维护脚本）。
 //
 // 与 seed_homepage.go 不同，本脚本不会重写官网 HTML；它会保留数据库中
 // 管理员已经编辑过的内容，只补齐 data-metadata-href 属性和缺失的元数据键。

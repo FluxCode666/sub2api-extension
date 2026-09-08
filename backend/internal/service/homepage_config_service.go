@@ -1,8 +1,6 @@
-// Package service 保留旧版官网配置 API 的读取与持久化能力。
-// 当前官网首页由 pages 表中的 slug=home 动态页面承载。
-//
-// 该兼容接口仍使用现有 system_meta 表保存旧版 JSON 文档，但不再参与
-// /p/home 的渲染；新页面内容统一由 pages.content_html 管理。
+// Package service 保留旧版 homepage.config API 的读取与持久化能力。
+// 当前配置端点服务于 Sub2API 官网与 API 文档；动态页面内容统一由
+// pages.content_html / pages.content_react 管理。
 package service
 
 import (
@@ -24,7 +22,7 @@ const (
 	legacyHomepageModel           = "gpt-5.6-sol"
 )
 
-// TrustedPartner 是官网“受信赖的伙伴”滚动项。
+// TrustedPartner 是旧版配置中的兼容字段。
 // LogoURL 留空时前端只展示名称，不渲染占位图标。
 type TrustedPartner struct {
 	Name    string `json:"name"`
@@ -78,7 +76,6 @@ type HomepageConfig struct {
 }
 
 // DefaultHomepageConfig 是无配置或配置读取失败时使用的安全默认值。
-// 伙伴列表故意为空，以便没有配置时不展示“受信赖的伙伴”区块。
 func DefaultHomepageConfig() HomepageConfig {
 	showDevelopersSection := true
 	showQuickstartSection := true
@@ -119,7 +116,7 @@ func DefaultHomepageConfig() HomepageConfig {
 	}
 }
 
-// HomepageConfigStore 抽象官网配置存储，便于服务层单测注入内存实现。
+// HomepageConfigStore 抽象兼容配置存储，便于服务层单测注入内存实现。
 type HomepageConfigStore interface {
 	GetHomepageConfig(ctx context.Context) (*HomepageConfig, error)
 	SaveHomepageConfig(ctx context.Context, config HomepageConfig) error
