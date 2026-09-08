@@ -338,4 +338,8 @@ Sub2API 官网的运营配置位于管理端 `/admin/homepage`，不影响当前
 - 官网页面：`/sub2api-home`
 - 通用嵌入页面：`/embed`
 
-配置支持 `siteName` 网站名称、`trustedPartners` 受信赖的合作伙伴列表，以及 `documentationUrl` 使用文档、`termsUrl` 服务条款、`userTermsUrl` 用户条款、`privacyUrl` 隐私协议等链接。链接会在后端保存前清洗，仅允许站内路径、锚点和 `http(s)` URL；合作伙伴最多 24 个，Logo 仅接受 `http(s)` URL。
+配置支持 `siteName` 网站名称、`siteLogoUrl` 官网 Logo、`showDevelopersSection` 开关、`showQuickstartSection` 开关、`trustedPartners` 合作伙伴列表和 `integrations` 接入生态列表。`showDevelopersSection` 控制「从代码，到增长」开发者板块及其导航入口，`showQuickstartSection` 控制「START IN MINUTES」快速接入板块，两个开关默认开启；每个接入生态项包含 `name`、`logoUrl`、`documentationUrl`，官网会将其展示为可点击的应用节点；同时支持 `documentationUrl` 使用文档、`termsUrl` 服务条款、`userTermsUrl` 用户条款、`privacyUrl` 隐私协议等链接。链接会在后端保存前清洗，仅允许站内路径、锚点和 `http(s)` URL；合作伙伴最多 24 个，接入生态最多 12 个，Logo 仅接受 `http(s)` URL。
+
+`developersDocsUrl` 单独配置「BUILT FOR BUILDERS」板块的「接入文档」按钮链接，在后台「品牌与 Hero → 接入文档 URL」中维护。留空时沿用 `documentationUrl`，两者均为空时隐藏按钮；外部文档在新标签页打开。此配置同时适用于独立官网和嵌入页面。
+
+管理端「顶部导航」维护 `navigationItems` 数组，每项包含 `label`（菜单名称，最多 24 个字符）和 `href`（跳转链接），最多 8 项。可以添加、编辑、上移、下移或删除菜单，官网桌面导航和移动菜单按配置顺序展示。「进入控制台」仍使用 `consoleHref` 单独配置。旧配置缺少该字段时沿用原有导航，显式保存空数组可清空左侧菜单。指向 `#developers`、`#quickstart` 的菜单随对应板块开关隐藏，合作伙伴为空时隐藏 `#partners` 菜单；外部 HTTP/HTTPS 链接在新标签页打开。
