@@ -39,6 +39,7 @@ interface AccountConsumption {
   account_id: number;
   account_ids?: number[];
   account_type: string;
+  account_types?: string[];
   name: string;
   platform: string;
   billing_group?: string;
@@ -52,6 +53,7 @@ interface AccountConsumption {
   net_profit: number;
   multiplier: number;
   multiplier_source: string;
+  multipliers?: Array<{ account_id: number; multiplier: number; source: string }>;
 }
 
 interface ConsumptionResponse {
@@ -592,11 +594,11 @@ export default function ConsumptionPage() {
                     return <tr key={`${account.account_type}-${account.billing_group || account.account_id}`}>
                       <td><strong>{account.billing_group || account.name || `账号 ${account.account_id}`}</strong><small>{account.billing_group ? `合并 ${accountIDs.map((id) => `#${id}`).join(", ")}` : `#${account.account_id}`} · {account.platform || "—"}</small></td>
                       <td><small>{formatDateTime(account.account_created_at)}</small></td>
-                      <td>{account.account_type === "oauth" ? "OAuth" : "API"}</td>
+                      <td>{account.account_type === "mixed" ? "API + OAuth" : account.account_type === "oauth" ? "OAuth" : "API"}</td>
                       <td>{account.requests.toLocaleString("zh-CN")}</td>
                       <td>{formatMoney(account.revenue, currency)}</td>
                       <td>{formatMoney(cost, currency)}</td>
-                      <td><small>{account.account_type === "api" ? `×${account.multiplier.toFixed(4)} · ${account.multiplier_source}` : "采购单号成本"}</small></td>
+                      <td><small>{formatAccountCostBasis(account)}</small></td>
                       <td className={account.gross_profit >= 0 ? "is-positive" : "is-negative"}>{formatMoney(account.gross_profit, currency)}</td>
                       <td>{formatMoney(account.tax_amount, currency)}</td>
                       <td className={account.net_profit >= 0 ? "is-positive" : "is-negative"}>{formatMoney(account.net_profit, currency)}</td>
@@ -610,6 +612,19 @@ export default function ConsumptionPage() {
       )}
     </div>
   );
+}
+
+function formatAccountCostBasis(account: AccountConsumption): React.ReactNode {
+  if (account.account_type === "oauth") return "采购单号成本";
+  const multipliers = account.multipliers?.length
+    ? account.multipliers.map((item) => `#${item.account_id} ×${item.multiplier.toFixed(4)} · ${item.source}`).join("；")
+    : "API 倍率未记录";
+  if (account.account_type === "mixed") {
+    return <>{multipliers}<br />{account.account_types?.includes("oauth") ? "OAuth 采购单号成本" : ""}</>;
+  }
+  return account.multipliers?.length && account.multipliers.length > 1
+    ? multipliers
+    : `×${account.multiplier.toFixed(4)} · ${account.multiplier_source}`;
 }
 
 function MetricCard({

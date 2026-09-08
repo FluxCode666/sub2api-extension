@@ -97,6 +97,15 @@ func TestApplyProfitMetricsWithZeroTax(t *testing.T) {
 	assert.InDelta(t, result.Days[0].Profit, result.Days[0].NetProfit, 0.000001)
 }
 
+func TestAccountAPICostIgnoresOAuthUsageSnapshots(t *testing.T) {
+	if got := accountAPICost("oauth", 12.5, 4, 2); got != 0 {
+		t.Fatalf("OAuth API cost = %v, want 0", got)
+	}
+	if got := accountAPICost("api", 12.5, 4, 2); got != 20.5 {
+		t.Fatalf("API cost = %v, want 20.5", got)
+	}
+}
+
 func TestBillingGroupKeyKeepsUnmergedAccountsSeparate(t *testing.T) {
 	first := billingGroupKey(ops.AccountCostConfig{}, 11, "oauth")
 	second := billingGroupKey(ops.AccountCostConfig{}, 12, "oauth")
@@ -119,5 +128,43 @@ func TestAddAccountBreakdownMergesBillingGroup(t *testing.T) {
 	row := result.Accounts[0]
 	if row.AccountID != 11 || len(row.AccountIDs) != 2 || row.Requests != 5 || row.Revenue != 300 || row.OAuthCost != 20 {
 		t.Fatalf("merged row = %+v", row)
+	}
+}
+
+func TestBillingGroupKeyAllowsMixedAccountTypes(t *testing.T) {
+	apiKey := billingGroupKey(ops.AccountCostConfig{BillingGroup: "shared"}, 11, "api")
+	oauthKey := billingGroupKey(ops.AccountCostConfig{BillingGroup: "shared"}, 12, "oauth")
+	if apiKey != oauthKey {
+		t.Fatalf("mixed billing group keys differ: api=%q oauth=%q", apiKey, oauthKey)
+	}
+}
+
+func TestAddAccountBreakdownKeepsMultipleAPIMultipliers(t *testing.T) {
+	result := &ops.ConsumptionResponse{}
+	index := make(map[string]int)
+	addAccountBreakdown(result, index, ops.AccountCostConfig{BillingGroup: "shared"}, 11, "api", 100, 10, 1, 0.1, "manual")
+	addAccountBreakdown(result, index, ops.AccountCostConfig{BillingGroup: "shared"}, 12, "api", 200, 30, 1, 0.2, "Sub2API sync")
+
+	if len(result.Accounts) != 1 {
+		t.Fatalf("got %d account rows, want one merged row", len(result.Accounts))
+	}
+	row := result.Accounts[0]
+	if row.AccountType != "api" || row.APICost != 40 || len(row.Multipliers) != 2 || row.MultiplierSource != "multiple" {
+		t.Fatalf("merged API row = %+v", row)
+	}
+}
+
+func TestAddAccountBreakdownMergesAPIAndOAuthCosts(t *testing.T) {
+	result := &ops.ConsumptionResponse{}
+	index := make(map[string]int)
+	addAccountBreakdown(result, index, ops.AccountCostConfig{BillingGroup: "shared"}, 11, "api", 100, 10, 1, 0.1, "manual")
+	addAccountBreakdown(result, index, ops.AccountCostConfig{BillingGroup: "shared"}, 12, "oauth", 200, 20, 2, 0, "purchase cost")
+
+	if len(result.Accounts) != 1 {
+		t.Fatalf("got %d account rows, want one mixed row", len(result.Accounts))
+	}
+	row := result.Accounts[0]
+	if row.AccountType != "mixed" || len(row.AccountTypes) != 2 || row.APICost != 10 || row.OAuthCost != 20 || row.Requests != 3 || row.Revenue != 300 {
+		t.Fatalf("mixed row = %+v", row)
 	}
 }

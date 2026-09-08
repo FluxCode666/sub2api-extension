@@ -117,6 +117,10 @@ func (h *CostHandler) UpdateAccountConfig(c *gin.Context) {
 	}
 	saved, err := h.provider.SaveAccountConfig(c.Request.Context(), config)
 	if err != nil {
+		if errors.Is(err, service.ErrBillingGroupOAuthCostConflict) {
+			response.BadRequest(c, "OAuth accounts in one billing group must use the same effective purchase cost")
+			return
+		}
 		response.Error(c, http.StatusInternalServerError, "failed to save account cost config")
 		return
 	}
@@ -135,8 +139,12 @@ func (h *CostHandler) UpdateBillingGroup(c *gin.Context) {
 	}
 	data, err := h.provider.SaveBillingGroup(c.Request.Context(), update)
 	if err != nil {
+		if errors.Is(err, service.ErrBillingGroupOAuthCostConflict) {
+			response.BadRequest(c, "OAuth accounts in one billing group must use the same effective purchase cost")
+			return
+		}
 		if errors.Is(err, service.ErrInvalidBillingGroupUpdate) {
-			response.BadRequest(c, "select at least two existing accounts of the same type and provide a billing group")
+			response.BadRequest(c, "select at least two existing accounts and provide a billing group")
 			return
 		}
 		response.Error(c, http.StatusInternalServerError, "failed to save billing group")

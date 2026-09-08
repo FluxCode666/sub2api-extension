@@ -111,9 +111,9 @@ func (s *Sub2APICostStore) QueryConsumption(ctx context.Context, query ops.Consu
 	}
 	snapshotCost := fmt.Sprintf(`CASE WHEN %s IS NOT NULL THEN (%s) * (%s) ELSE 0 END`, snapshotMultiplier, baseCost, snapshotMultiplier)
 	unsnapshottedRawCost := fmt.Sprintf(`CASE WHEN %s IS NULL THEN (%s) ELSE 0 END`, snapshotMultiplier, baseCost)
-	accountFallback := "1"
+	accountFallback := "NULL::double precision"
 	if joined && accountColumns["rate_multiplier"] {
-		accountFallback = `COALESCE(NULLIF(a."rate_multiplier"::double precision, 0), 1)`
+		accountFallback = `NULLIF(a."rate_multiplier"::double precision, 0)`
 	}
 	whereSQL := `u."created_at" >= $1 AND u."created_at" < $2`
 	statement := fmt.Sprintf(`
@@ -125,10 +125,11 @@ func (s *Sub2APICostStore) QueryConsumption(ctx context.Context, query ops.Consu
 		       COALESCE(SUM(%s), 0)::double precision,
 		       COALESCE(SUM(%s), 0)::double precision,
 		       %s::double precision,
-		       COALESCE(SUM(%s), 0)::bigint
+		       COALESCE(SUM(%s), 0)::bigint,
+		       %s::double precision
 		FROM usage_logs u%s
 		WHERE %s
-		GROUP BY 1, 2, 3, 8 ORDER BY 1 ASC, 2 ASC`, accountID, kind, revenue, snapshotCost, unsnapshottedRawCost, accountFallback, tokens, join, whereSQL)
+		GROUP BY 1, 2, 3, 8, 10 ORDER BY 1 ASC, 2 ASC`, accountID, kind, revenue, snapshotCost, unsnapshottedRawCost, accountFallback, tokens, snapshotMultiplier, join, whereSQL)
 	rows, err := s.db.QueryContext(ctx, statement, query.StartTime, query.EndTime)
 	if err != nil {
 		return nil, err
@@ -141,14 +142,16 @@ func (s *Sub2APICostStore) QueryConsumption(ctx context.Context, query ops.Consu
 	}
 	result := &ops.ConsumptionResponse{StartTime: query.StartTime, EndTime: query.EndTime, Config: config, Days: make([]ops.DailyConsumption, 0), Accounts: make([]ops.AccountConsumption, 0)}
 	dayIndex := make(map[string]int)
+	apiDayAccounts := make(map[string]map[int64]struct{})
 	accountIndex := make(map[string]int)
 	for rows.Next() {
 		var day time.Time
 		var accountIDScan sql.NullInt64
 		var kindValue string
 		var requests, tokenCount int64
-		var rawRevenue, historicalCost, unsnapshottedRaw, fallbackMultiplier float64
-		if err := rows.Scan(&day, &accountIDScan, &kindValue, &requests, &rawRevenue, &historicalCost, &unsnapshottedRaw, &fallbackMultiplier, &tokenCount); err != nil {
+		var rawRevenue, historicalCost, unsnapshottedRaw float64
+		var accountRateMultiplier, snapshotRateMultiplier sql.NullFloat64
+		if err := rows.Scan(&day, &accountIDScan, &kindValue, &requests, &rawRevenue, &historicalCost, &unsnapshottedRaw, &accountRateMultiplier, &tokenCount, &snapshotRateMultiplier); err != nil {
 			return nil, err
 		}
 		accountIDValue := int64(0)
@@ -156,11 +159,15 @@ func (s *Sub2APICostStore) QueryConsumption(ctx context.Context, query ops.Consu
 			accountIDValue = accountIDScan.Int64
 		}
 		accountConfig := configs[accountIDValue]
-		multiplier := accountConfig.EffectiveAPIMultiplier(fallbackMultiplier)
-		apiCost := historicalCost
-		if kindValue != "oauth" {
-			apiCost += unsnapshottedRaw * multiplier
+		fallbackMultiplier := config.APICostMultiplier
+		if !snapshotRateMultiplier.Valid && accountRateMultiplier.Valid && accountRateMultiplier.Float64 > 0 {
+			fallbackMultiplier = accountRateMultiplier.Float64
 		}
+		multiplier := accountConfig.EffectiveAPIMultiplier(fallbackMultiplier)
+		if snapshotRateMultiplier.Valid {
+			multiplier = snapshotRateMultiplier.Float64
+		}
+		apiCost := accountAPICost(kindValue, historicalCost, unsnapshottedRaw, multiplier)
 		key := day.Format("2006-01-02")
 		idx, ok := dayIndex[key]
 		if !ok {
@@ -172,16 +179,22 @@ func (s *Sub2APICostStore) QueryConsumption(ctx context.Context, query ops.Consu
 		item.Requests += requests
 		item.TotalTokens += tokenCount
 		item.Revenue += rawRevenue
-		item.APICost += apiCost
-		item.TotalCost += apiCost
 		result.TotalRevenue += rawRevenue
 		result.TotalRequests += requests
 		result.TotalTokens += tokenCount
 		if kindValue != "oauth" {
-			item.APIAccountCount++
+			item.APICost += apiCost
+			item.TotalCost += apiCost
+			if _, ok := apiDayAccounts[key]; !ok {
+				apiDayAccounts[key] = make(map[int64]struct{})
+			}
+			if _, ok := apiDayAccounts[key][accountIDValue]; !ok {
+				apiDayAccounts[key][accountIDValue] = struct{}{}
+				item.APIAccountCount++
+			}
 			result.TotalAPICost += apiCost
 			if accountIDValue != 0 {
-				addAccountBreakdown(result, accountIndex, accountConfig, accountIDValue, kindValue, rawRevenue, apiCost, requests, multiplier, multiplierSource(accountConfig, historicalCost, unsnapshottedRaw))
+				addAccountBreakdown(result, accountIndex, accountConfig, accountIDValue, kindValue, rawRevenue, apiCost, requests, multiplier, multiplierSource(accountConfig, snapshotRateMultiplier, accountRateMultiplier))
 			}
 		} else if accountIDValue != 0 {
 			addAccountBreakdown(result, accountIndex, accountConfig, accountIDValue, kindValue, rawRevenue, 0, requests, 0, "purchase cost")
@@ -227,6 +240,16 @@ func (s *Sub2APICostStore) QueryConsumption(ctx context.Context, query ops.Consu
 	return result, nil
 }
 
+func accountAPICost(kind string, historicalCost, unsnapshottedRaw, multiplier float64) float64 {
+	if kind == "oauth" {
+		// OAuth usage is charged once as a purchased account below. A usage log
+		// may still carry account_rate_multiplier, but that snapshot is not an
+		// API provider cost and must never leak into API/total cost totals.
+		return 0
+	}
+	return historicalCost + unsnapshottedRaw*multiplier
+}
+
 func applyProfitMetrics(result *ops.ConsumptionResponse, config ops.CostConfig) {
 	for i := range result.Days {
 		result.Days[i].GrossProfit = result.Days[i].Revenue - result.Days[i].TotalCost
@@ -262,12 +285,16 @@ func addAccountBreakdown(result *ops.ConsumptionResponse, index map[string]int, 
 		i = len(result.Accounts)
 		index[key] = i
 		result.Accounts = append(result.Accounts, ops.AccountConsumption{
-			AccountID: accountID, AccountIDs: []int64{accountID}, AccountType: kind,
+			AccountID: accountID, AccountIDs: []int64{accountID}, AccountType: kind, AccountTypes: []string{kind},
 			Name: config.Name, Platform: config.Platform, BillingGroup: strings.TrimSpace(config.BillingGroup),
 			AccountCreatedAt: config.AccountCreatedAt,
 		})
 	}
 	item := &result.Accounts[i]
+	if !containsString(item.AccountTypes, kind) {
+		item.AccountTypes = append(item.AccountTypes, kind)
+		item.AccountType = "mixed"
+	}
 	if !containsAccountID(item.AccountIDs, accountID) {
 		item.AccountIDs = append(item.AccountIDs, accountID)
 	}
@@ -281,20 +308,30 @@ func addAccountBreakdown(result *ops.ConsumptionResponse, index map[string]int, 
 	} else {
 		item.APICost += cost
 		if multiplier > 0 {
-			item.Multiplier = multiplier
+			if item.Multiplier == 0 {
+				item.Multiplier = multiplier
+			} else if item.Multiplier != multiplier {
+				item.MultiplierSource = "multiple"
+			}
 		}
-		if source != "" {
+		if source != "" && item.MultiplierSource != "multiple" {
 			item.MultiplierSource = source
+		}
+		if multiplier > 0 && source != "" && !containsAccountMultiplier(item.Multipliers, accountID, multiplier, source) {
+			item.Multipliers = append(item.Multipliers, ops.AccountMultiplier{AccountID: accountID, Multiplier: multiplier, Source: source})
 		}
 	}
 }
 
 func billingGroupKey(config ops.AccountCostConfig, accountID int64, kind string) string {
 	group := strings.ToLower(strings.TrimSpace(config.BillingGroup))
-	if group == "" {
-		group = fmt.Sprintf("account:%d", accountID)
+	if group != "" {
+		// Billing groups intentionally do not include account type: a mixed
+		// API/OAuth group is valid, while each cost model is still calculated
+		// independently before the result is merged into one row.
+		return "group:" + group
 	}
-	return kind + ":" + group
+	return kind + ":account:" + fmt.Sprintf("%d", accountID)
 }
 
 func containsAccountID(ids []int64, id int64) bool {
@@ -306,8 +343,26 @@ func containsAccountID(ids []int64, id int64) bool {
 	return false
 }
 
-func multiplierSource(config ops.AccountCostConfig, historicalCost, unsnapshottedRaw float64) string {
-	if unsnapshottedRaw == 0 && historicalCost != 0 {
+func containsString(values []string, value string) bool {
+	for _, current := range values {
+		if current == value {
+			return true
+		}
+	}
+	return false
+}
+
+func containsAccountMultiplier(values []ops.AccountMultiplier, accountID int64, multiplier float64, source string) bool {
+	for _, value := range values {
+		if value.AccountID == accountID && value.Multiplier == multiplier && value.Source == source {
+			return true
+		}
+	}
+	return false
+}
+
+func multiplierSource(config ops.AccountCostConfig, snapshotMultiplier, accountRateMultiplier sql.NullFloat64) string {
+	if snapshotMultiplier.Valid {
 		return "usage log snapshot"
 	}
 	if config.APIMultiplierOverride != nil {
@@ -316,7 +371,10 @@ func multiplierSource(config ops.AccountCostConfig, historicalCost, unsnapshotte
 	if config.SyncedAPIMultiplier != nil {
 		return "Sub2API sync"
 	}
-	return "Sub2API account"
+	if accountRateMultiplier.Valid && accountRateMultiplier.Float64 > 0 {
+		return "Sub2API account"
+	}
+	return "global default"
 }
 
 type oauthFirstUse struct {

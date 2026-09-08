@@ -78,8 +78,9 @@ export default function CostConfigPage() {
   }, [draftAccounts, search]);
 
   const selectedMergeAccounts = useMemo(() => draftAccounts.filter((account) => mergeAccountIDs.includes(account.account_id)), [draftAccounts, mergeAccountIDs]);
-  const selectedMergeType = selectedMergeAccounts[0]?.account_type;
-  const mergeGroupOptions = useMemo(() => billingGroupOptions(draftAccounts, selectedMergeType), [draftAccounts, selectedMergeType]);
+  const selectedMergeTypes = useMemo(() => new Set(selectedMergeAccounts.map((account) => account.account_type)), [selectedMergeAccounts]);
+  const selectedMergeLabel = selectedMergeTypes.size === 2 ? "API / OAuth" : selectedMergeTypes.has("oauth") ? "OAuth" : "API";
+  const mergeGroupOptions = useMemo(() => billingGroupOptions(draftAccounts), [draftAccounts]);
 
   const resetMergeForm = () => {
     setMergeAccountPickerOpen(false);
@@ -177,10 +178,6 @@ export default function CostConfigPage() {
       setMergeError("请填写或选择计费组名称。");
       return;
     }
-    if (new Set(selectedMergeAccounts.map((account) => account.account_type)).size !== 1) {
-      setMergeError("OAuth 与 API 成本口径不同，请只选择相同类型的账号。");
-      return;
-    }
     setSavingBillingGroup(true);
     setMergeError("");
     try {
@@ -207,7 +204,7 @@ export default function CostConfigPage() {
         <div>
           <p className="aux-cost-eyebrow"><span />运营中心 / 成本配置</p>
           <h1>账号成本配置</h1>
-          <p>OAuth 按单号采购成本核算，API 按账号倍率核算。历史日志优先使用发生时的倍率快照，避免上游调价后改写历史利润。</p>
+          <p>OAuth 按单号采购成本核算，API 按账号倍率核算；同一计费组支持 API / OAuth 混合归集，但仍分别套用各自成本口径。</p>
         </div>
         <button type="button" className="aux-cost-refresh" onClick={() => void syncAccounts()} disabled={syncing}><RefreshCw size={16} className={syncing ? "aux-spin" : ""} />{syncing ? "同步中…" : "立即同步倍率"}</button>
       </header>
@@ -226,7 +223,7 @@ export default function CostConfigPage() {
         <aside className="aux-cost-panel aux-config-preview-panel">
           <p className="aux-cost-panel-kicker">Sync status</p><h2>同步与历史口径</h2>
           <div className="aux-config-preview-card"><span className="aux-preview-label"><Coins size={15} />当前账号</span><strong>{data?.accounts.length ?? 0} 个</strong><small>OAuth {data?.accounts.filter((item) => item.account_type === "oauth").length ?? 0} · API {data?.accounts.filter((item) => item.account_type === "api").length ?? 0}</small></div>
-          <div className="aux-config-preview-card"><span className="aux-preview-label"><SlidersHorizontal size={15} />合并计费组</span><strong>{billingGroupCount(data?.accounts ?? [])} 组</strong><small>计费组相同的 OAuth 记录只计一次采购成本</small></div>
+          <div className="aux-config-preview-card"><span className="aux-preview-label"><SlidersHorizontal size={15} />合并计费组</span><strong>{billingGroupCount(data?.accounts ?? [])} 组</strong><small>同组 API / OAuth 账号分别核算成本后汇总</small></div>
           <div className="aux-config-preview-card"><span className="aux-preview-label"><SlidersHorizontal size={15} />最近同步</span><strong>{data?.last_sync_at ? formatSyncTime(data.last_sync_at) : "尚未同步"}</strong></div>
           <div className="aux-config-help"><CircleHelp size={16} /><span>API 手工倍率只影响没有历史快照的记录；已有 usage_logs.account_rate_multiplier 的历史记录永远按发生时倍率核算。</span></div>
         </aside>
@@ -246,7 +243,7 @@ export default function CostConfigPage() {
                   <span className="aux-account-merge-dialog-icon"><UsersRound aria-hidden="true" /></span>
                   <div>
                     <DialogTitle>账号合并计费</DialogTitle>
-                    <DialogDescription>选择两个或更多同类型账号，将它们归入同一个计费组。</DialogDescription>
+                    <DialogDescription>选择两个或更多 API / OAuth 账号，将它们归入同一个计费组。系统会按账号类型分别核算成本。</DialogDescription>
                   </div>
                 </DialogHeader>
                 <form className="aux-account-merge-form" onSubmit={(event) => { event.preventDefault(); void saveBillingGroup(); }}>
@@ -255,7 +252,7 @@ export default function CostConfigPage() {
                     <Popover open={mergeAccountPickerOpen} onOpenChange={setMergeAccountPickerOpen}>
                       <PopoverTrigger asChild>
                         <Button id="merge-account-picker" type="button" variant="outline" role="combobox" aria-expanded={mergeAccountPickerOpen} className="aux-account-merge-trigger">
-                          <span>{mergeAccountIDs.length ? `已选择 ${mergeAccountIDs.length} 个${selectedMergeType === "oauth" ? " OAuth" : " API"}账号` : "选择需要合并的账号"}</span>
+                          <span>{mergeAccountIDs.length ? `已选择 ${mergeAccountIDs.length} 个${selectedMergeLabel}账号` : "选择需要合并的账号"}</span>
                           <ChevronDown aria-hidden="true" />
                         </Button>
                       </PopoverTrigger>
@@ -267,12 +264,10 @@ export default function CostConfigPage() {
                             <CommandGroup>
                               {draftAccounts.map((account) => {
                                 const selected = mergeAccountIDs.includes(account.account_id);
-                                const disabled = Boolean(selectedMergeType && selectedMergeType !== account.account_type && !selected);
                                 return (
                                   <CommandItem
                                     key={account.account_id}
                                     value={`${account.name} ${account.account_id} ${account.platform} ${account.account_type} ${account.billing_group ?? ""}`}
-                                    disabled={disabled}
                                     className="aux-account-merge-option"
                                     onSelect={() => toggleMergeAccount(account)}
                                   >
@@ -286,7 +281,7 @@ export default function CostConfigPage() {
                         </Command>
                       </PopoverContent>
                     </Popover>
-                    <p className="aux-account-merge-field-hint">选择首个账号后，只能继续选择相同类型的账号。</p>
+                    <p className="aux-account-merge-field-hint">支持 API 与 OAuth 混合合并；统计时仍按各自成本口径计算。同组 OAuth 账号需使用相同有效采购成本。</p>
                   </div>
 
                   <div className="aux-account-merge-field-grid">
@@ -321,7 +316,7 @@ export default function CostConfigPage() {
             <td>{account.account_type === "oauth" ? <input className="aux-account-number" type="number" min="0" step="0.01" value={account.oauth_account_cost ?? ""} placeholder={`默认 ${global.oauth_account_cost}`} onChange={(event) => updateAccount(setDraftAccounts, account.account_id, { oauth_account_cost: event.target.value === "" ? null : Number(event.target.value) })} /> : <span className="aux-account-muted">不适用</span>}</td>
             <td>{account.account_type === "api" ? <div className="aux-account-multiplier"><input className="aux-account-number" type="number" min="0.01" step="0.01" disabled={account.api_multiplier_mode !== "manual"} value={account.api_multiplier_override ?? ""} placeholder={account.synced_api_multiplier?.toFixed(2) ?? global.api_cost_multiplier.toFixed(2)} onChange={(event) => updateAccount(setDraftAccounts, account.account_id, { api_multiplier_override: event.target.value === "" ? null : Number(event.target.value), api_multiplier_mode: "manual" })} /><button type="button" className={`aux-account-mode ${account.api_multiplier_mode === "manual" ? "is-manual" : ""}`} onClick={() => updateAccount(setDraftAccounts, account.account_id, { api_multiplier_mode: account.api_multiplier_mode === "manual" ? "sync" : "manual", api_multiplier_override: account.api_multiplier_mode === "manual" ? null : account.api_multiplier_override })}>{account.api_multiplier_mode === "manual" ? "手工" : "跟随同步"}</button></div> : <span className="aux-account-muted">不适用</span>}</td>
             <td>{account.account_type === "api" ? <><strong>{account.synced_api_multiplier?.toFixed(4) ?? "—"}</strong><small>{account.last_synced_at ? formatSyncTime(account.last_synced_at) : "未同步"}</small></> : <span className="aux-account-muted">采购价独立配置</span>}</td>
-            <td><select className="aux-account-group" value={account.billing_group ?? ""} aria-label={`账号 ${account.account_id} 的合并计费组`} onChange={(event) => updateAccount(setDraftAccounts, account.account_id, { billing_group: event.target.value })}><option value="">独立计费</option>{billingGroupOptions(draftAccounts, account.account_type).map((group) => <option key={group} value={group}>{group}</option>)}</select><small>选择已有组，保存后生效</small></td>
+            <td><select className="aux-account-group" value={account.billing_group ?? ""} aria-label={`账号 ${account.account_id} 的合并计费组`} onChange={(event) => updateAccount(setDraftAccounts, account.account_id, { billing_group: event.target.value })}><option value="">独立计费</option>{billingGroupOptions(draftAccounts).map((group) => <option key={group} value={group}>{group}</option>)}</select><small>选择已有组，保存后生效</small></td>
             <td><button type="button" className="aux-account-save" disabled={savingAccount === account.account_id} onClick={() => void saveAccount(account)}>{savingAccount === account.account_id ? "保存中…" : "保存"}</button></td>
           </tr>)}
         </tbody></table></div>
@@ -347,15 +342,14 @@ function formatAccountCreatedAt(value: string) {
 function billingGroupCount(accounts: AccountCostConfig[]) {
   return new Set(accounts.flatMap((account) => {
     const group = account.billing_group?.trim().toLocaleLowerCase();
-    return group ? [`${account.account_type}:${group}`] : [];
+    return group ? [group] : [];
   })).size;
 }
 
-function billingGroupOptions(accounts: AccountCostConfig[], accountType?: AccountCostConfig["account_type"]) {
+function billingGroupOptions(accounts: AccountCostConfig[]) {
   const seen = new Set<string>();
   const result: string[] = [];
   for (const account of accounts) {
-    if (accountType && account.account_type !== accountType) continue;
     const group = account.billing_group?.trim();
     const key = group?.toLocaleLowerCase();
     if (!group || !key || seen.has(key)) continue;
