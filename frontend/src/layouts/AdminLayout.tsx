@@ -20,12 +20,14 @@ import {
   Bell,
   Calculator,
   ClipboardList,
+  ExternalLink,
   FilePlus2,
   Files,
   FileText,
   Flame,
   LayoutDashboard,
   ReceiptText,
+  PanelsTopLeft,
   SlidersHorizontal,
   Settings2,
   Terminal,
@@ -178,6 +180,14 @@ export default function AdminLayout() {
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
+                    <NavLink to="/admin/homepage" end>
+                      <PanelsTopLeft className="h-4 w-4" />
+                      <span>官网配置</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
                     <NavLink to="/admin/pages" end>
                       <FilePlus2 className="h-4 w-4" />
                       <span>页面管理</span>
@@ -264,6 +274,14 @@ export default function AdminLayout() {
                 <NavLink to="/api-docs" end>
                   <FileText className="h-4 w-4" />
                   <span>API 文档</span>
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <NavLink to="/sub2api-home" end>
+                  <ExternalLink className="h-4 w-4" />
+                  <span>Sub2API 官网</span>
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>

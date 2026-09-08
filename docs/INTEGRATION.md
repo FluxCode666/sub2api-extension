@@ -1,12 +1,15 @@
 # sub2api 集成配置指南
 
-本指南说明如何在不修改 sub2api 代码的前提下，通过 `custom_menu_items` 将 sub2api-extension 的管理页面或公开 API 文档嵌入 sub2api 控制台，也说明数据库动态页面的通用路由约定。
+本指南说明如何在不修改 sub2api 代码的前提下，通过 `home_content` 嵌入 Sub2API 官网，并通过 `custom_menu_items` 将 sub2api-extension 管理页面和公开 API 文档嵌入 sub2api 控制台。
 
-sub2api-extension 根路径 `/` 会跳转到控制台 `/admin/dashboard`。公开内容只通过数据库动态页面 `/p/:slug` 按 slug 按需加载；本系统不预置或依赖名为 `home` 的页面，也不需要配置 sub2api 的 `home_content`。
+sub2api-extension 根路径 `/` 会跳转到控制台 `/admin/dashboard`。Sub2API 官网是独立 React 页面 `/sub2api-home`，可通过 `/embed` 嵌入其他系统；公开 API 文档位于 `/api-docs`。管理员创建的动态页面通过 `/p/:slug` 按需加载，本系统不预置或依赖名为 `home` 的动态页面。
 
 ## 架构
 
 ```text
+sub2api 首页
+  home_content URL iframe -> sub2api-extension /embed 或 /sub2api-home
+
 sub2api 控制台
   custom_menu_items -> 带 token 的 iframe
     -> sub2api-extension /admin/pages 或 /admin/dashboard
@@ -93,7 +96,17 @@ docker compose -f docker-compose.yml --env-file .env up -d
 
 ## 2. 配置管理菜单与动态页面
 
-### 2.1 配置 custom_menu_items
+### 2.1 配置 home_content
+
+如需将 Sub2API 官网嵌入系统首页，在 sub2api「站点设置」的「首页内容」中填写：
+
+```text
+https://aux.example.com/embed
+```
+
+sub2api 会把 URL 作为 iframe 地址，官网内容通过 `/admin/homepage` 配置。
+
+### 2.2 配置 custom_menu_items
 
 1. 登录 sub2api 管理后台。
 2. 进入「站点设置」。
@@ -129,7 +142,7 @@ docker compose -f docker-compose.yml --env-file .env up -d
 
 管理端必须从 sub2api 的这个菜单入口打开（推荐 URL 使用 `/admin/dashboard`）；不要把不带查询参数的扩展 URL 直接当作已登录入口收藏或访问。sub2api 的登录 JWT 保存在 sub2api 自身的浏览器 origin 中，浏览器不会允许扩展跨 origin 读取它；只有菜单 iframe 注入的 `token`（或扩展自身已有的 `X-Aux-Session`）可以完成免登录进入。扩展会保留入口 URL 上的嵌入参数，根路径重定向不会丢失 `token`。
 
-### 2.2 从页面管理直接上架
+### 2.3 从页面管理直接上架
 
 配置 `SUB2API_DATABASE_*` 和 `SUB2API_EXTENSION_PUBLIC_URL` 后，打开扩展的「页面管理」，每个页面会显示「sub2api」上架开关。开启后会在 sub2api `settings` 表的 `custom_menu_items` 数组中追加一项；若本扩展自己的 `aux-page-<页面 ID>` 已存在，则只更新这一项。菜单名称和可见角色（普通用户/管理员）可在页面编辑框中单独配置，不会覆盖其他手工菜单。关闭开关、删除页面或修改页面 URL 时会同步移除/更新对应项。
 
@@ -137,7 +150,7 @@ docker compose -f docker-compose.yml --env-file .env up -d
 
 管理页显示的“已上架”不是只看 `aux-page-<页面 ID>` 是否存在。扩展会重新计算期望的 URL、菜单名称和可见角色，并与 sub2api 当前 `custom_menu_items` 中的 URL、名称、角色及 `page_slug` 逐项核对；管理员在 sub2api 中改动任一受管字段后，该页面会显示为“未上架”，可在扩展页面管理中重新保存以恢复同步。
 
-### 2.3 挂载 API 文档页
+### 2.4 挂载 API 文档页
 
 扩展内置的 Sub2API 接口文档页是公开静态页面，路径为：
 
@@ -180,9 +193,9 @@ https://aux.example.com/api-docs?embed=1&api_base=https%3A%2F%2Fapi.example.com
 
 文档页只读取 `api_base` 来替换示例地址，不读取父页面 Cookie、Token 或 DOM。生产环境应继续使用 HTTPS，并确认反向代理没有添加 `X-Frame-Options`；`frame-src` 允许列表由 Sub2API 根据 `custom_menu_items[].url` 的 origin 刷新。
 
-### 2.4 动态配置系统名称与示例模型
+### 2.5 动态配置系统名称与示例模型
 
-管理员可以在扩展管理端的“系统配置”（`/admin/system-config`）修改系统名称和“API 文档调用示例默认模型”。系统名称沿用首页配置的 `heroTitle`，默认值为 `TERALEMO`；默认模型为 `gpt-6-astra`。保存后，API 文档页眉、页脚、首页预览、快速开始和各接口的 cURL / Python / Go / Java 示例会在下一次打开或刷新时使用新值。配置保存在扩展的 `system_meta` 中，不需要重新部署页面。
+管理员可以在扩展管理端的“系统配置”（`/admin/system-config`）修改系统名称和“API 文档调用示例默认模型”。系统名称使用官网配置的 `siteName`，兼容旧配置的 `heroTitle`；默认模型为 `gpt-6-astra`。保存名称时保留官网 Hero 标题。API 文档页眉、页脚、首页预览、快速开始和各接口的 cURL / Python / Go / Java 示例会在下一次打开或刷新时使用新值。配置保存在扩展的 `system_meta` 中，不需要重新部署页面。
 
 ## 3. 页面管理与 Dashboard
 
@@ -301,6 +314,7 @@ Sub2API 用户下拉选项。管理员还可以调用 `POST /api/aux/admin/invoi
 - [ ] sub2api-extension `/health` 返回 200。
 - [ ] sub2api-extension 能连接自己的 PostgreSQL。
 - [ ] `SUB2API_BASE_URL` 指向可用的 sub2api 后端。
+- [ ] 如需嵌入官网，sub2api `home_content` 已设置为 `/embed` 或 `/sub2api-home` 的完整 URL，首页能正常展示。
 - [ ] sub2api `custom_menu_items` 已添加 `/admin/dashboard`。
 - [ ] sub2api `custom_menu_items` 已添加 `/admin/pages`。
 - [ ] sub2api `custom_menu_items` 已添加 `/api-docs`（如需在用户菜单展示文档）。
@@ -357,3 +371,19 @@ iframe 没有提供有效 token，或附属会话已经失效：
 - 确认浏览器已有 aux 管理员会话。
 - 检查请求是否携带 `X-Aux-Session`。
 - 重新从 sub2api 菜单进入或在 sub2api-extension 登录页重新登录。
+
+## Sub2API 官网配置
+
+Sub2API 官网的运营配置位于管理端 `/admin/homepage`，不影响当前系统官网 `/p/home`。配置保存到扩展的 `system_meta`，官网页面和其他嵌入方通过同一份配置读取：
+
+- 公开读取：`GET /api/aux/homepage/config`
+- 管理读取：`GET /api/aux/admin/homepage/config`
+- 管理保存：`PUT /api/aux/admin/homepage/config`（需要附属管理员会话）
+- 官网页面：`/sub2api-home`
+- 通用嵌入页面：`/embed`
+
+配置支持 `siteName` 网站名称、`siteLogoUrl` 官网 Logo、`showDevelopersSection` 开关、`showQuickstartSection` 开关、`trustedPartners` 合作伙伴列表和 `integrations` 接入生态列表。`showDevelopersSection` 控制「从代码，到增长」开发者板块及其导航入口，`showQuickstartSection` 控制「START IN MINUTES」快速接入板块，两个开关默认开启；每个接入生态项包含 `name`、`logoUrl`、`documentationUrl`，官网会将其展示为可点击的应用节点；同时支持 `documentationUrl` 使用文档、`termsUrl` 服务条款、`userTermsUrl` 用户条款、`privacyUrl` 隐私协议等链接。链接会在后端保存前清洗，仅允许站内路径、锚点和 `http(s)` URL；合作伙伴最多 24 个，接入生态最多 12 个，Logo 仅接受 `http(s)` URL。
+
+`developersDocsUrl` 单独配置「BUILT FOR BUILDERS」板块的「接入文档」按钮链接，在后台「品牌与 Hero → 接入文档 URL」中维护。留空时沿用 `documentationUrl`，两者均为空时隐藏按钮；外部文档在新标签页打开。此配置同时适用于独立官网和嵌入页面。
+
+管理端「顶部导航」维护 `navigationItems` 数组，每项包含 `label`（菜单名称，最多 24 个字符）和 `href`（跳转链接），最多 8 项。可以添加、编辑、上移、下移或删除菜单，官网桌面导航和移动菜单按配置顺序展示。「进入控制台」仍使用 `consoleHref` 单独配置。旧配置缺少该字段时沿用原有导航，显式保存空数组可清空左侧菜单。指向 `#developers`、`#quickstart` 的菜单随对应板块开关隐藏，合作伙伴为空时隐藏 `#partners` 菜单；外部 HTTP/HTTPS 链接在新标签页打开。

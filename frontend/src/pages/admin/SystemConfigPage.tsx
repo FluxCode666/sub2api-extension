@@ -6,8 +6,9 @@ import './SystemConfigPage.css'
 
 const DEFAULT_MODEL = 'gpt-6-astra'
 
-/** 兼容旧版 system_meta 配置结构；Sub2API 系统名称沿用 homepage 配置中的 heroTitle。 */
+/** 系统名称优先使用 siteName，兼容旧版 system_meta 配置中的 heroTitle。 */
 interface HomepageConfig {
+  siteName?: string
   heroLabel?: string
   heroTitle?: string
   heroDescription?: string
@@ -46,6 +47,7 @@ export default function SystemConfigPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const systemNameLimit = config.siteName !== undefined ? 80 : 160
 
   const loadConfig = useCallback(async (showToast = false) => {
     setError('')
@@ -55,7 +57,7 @@ export default function SystemConfigPage() {
       if (response.code !== 0 || !response.data) throw new Error(response.message || '无法读取系统配置')
       const nextConfig = mergeConfig(response.data)
       setConfig(nextConfig)
-      setDraftSystemName(nextConfig.heroTitle ?? DEFAULT_CONFIG.heroTitle ?? '')
+      setDraftSystemName(nextConfig.siteName ?? nextConfig.heroTitle ?? DEFAULT_CONFIG.heroTitle ?? '')
       setDraftModel(nextConfig.model)
       if (showToast) toast.success('系统配置已刷新')
     } catch (reason) {
@@ -81,8 +83,8 @@ export default function SystemConfigPage() {
       toast.error(message)
       return
     }
-    if (systemName.length > 160) {
-      const message = 'Sub2API 系统名称不能超过 160 个字符。'
+    if (systemName.length > systemNameLimit) {
+      const message = `Sub2API 系统名称不能超过 ${systemNameLimit} 个字符。`
       setError(message)
       toast.error(message)
       return
@@ -106,13 +108,13 @@ export default function SystemConfigPage() {
       // 将已读取的完整配置一起提交，避免只保存 model 时覆盖其他兼容字段。
       const response = await apiClient.put<AuxEnvelope<HomepageConfig>>('/admin/homepage/config', {
         ...config,
-        heroTitle: systemName,
+        [config.siteName !== undefined ? 'siteName' : 'heroTitle']: systemName,
         model,
       })
       if (response.code !== 0 || !response.data) throw new Error(response.message || '系统配置保存失败')
       const savedConfig = mergeConfig(response.data)
       setConfig(savedConfig)
-      setDraftSystemName(savedConfig.heroTitle ?? DEFAULT_CONFIG.heroTitle ?? '')
+      setDraftSystemName(savedConfig.siteName ?? savedConfig.heroTitle ?? DEFAULT_CONFIG.heroTitle ?? '')
       setDraftModel(savedConfig.model)
       toast.success('系统配置已保存', { description: 'Sub2API 系统名称和 API 文档中的调用示例会立即更新。' })
     } catch (reason) {
@@ -171,7 +173,7 @@ export default function SystemConfigPage() {
               id="system-name"
               aria-label="Sub2API 系统名称"
               value={draftSystemName}
-              maxLength={160}
+              maxLength={systemNameLimit}
               autoComplete="organization"
               onChange={(event) => setDraftSystemName(event.target.value)}
             />

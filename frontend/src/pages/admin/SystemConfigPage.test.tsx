@@ -50,4 +50,22 @@ describe('SystemConfigPage', () => {
 
     await waitFor(() => expect(putConfig).toHaveBeenCalledWith('/admin/homepage/config', expect.objectContaining({ heroTitle: 'Example Cloud' })))
   })
+
+  it('updates the shared site name while preserving homepage content', async () => {
+    const config = { siteName: 'Sub2API', heroTitle: 'AI API 网关，面向下一次调用', model: 'gpt-6-astra', developersDocsUrl: '/api-docs' }
+    getConfig.mockResolvedValue({ code: 0, data: config })
+    putConfig.mockResolvedValue({ code: 0, data: { ...config, siteName: 'Example Cloud' } })
+    render(<SystemConfigPage />)
+
+    const input = await screen.findByRole('textbox', { name: 'Sub2API 系统名称' })
+    expect(input).toHaveValue('Sub2API')
+    fireEvent.change(input, { target: { value: 'Example Cloud' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存配置' }))
+
+    await waitFor(() => expect(putConfig).toHaveBeenCalledWith('/admin/homepage/config', expect.objectContaining({
+      ...config,
+      siteName: 'Example Cloud',
+    })))
+    expect(input).toHaveValue('Example Cloud')
+  })
 })
