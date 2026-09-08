@@ -37,7 +37,7 @@ describe('HomepagePage', () => {
     const docs = await nav.findByRole('link', { name: '文档中心' })
     expect(nav.getAllByRole('link').map(link => link.textContent?.trim())).toEqual(['S2Sub2API', '文档中心', '状态', '进入控制台'])
     expect(docs).toHaveAttribute('href', 'https://docs.example.com')
-    expect(docs).toHaveAttribute('target', '_blank')
+    expect(docs).toHaveAttribute('target', '_top')
     expect(docs).toHaveAttribute('rel', 'noreferrer')
     await user.click(nav.getByRole('button', { name: '打开菜单' }))
     await user.click(nav.getByRole('link', { name: '状态' }))
@@ -63,17 +63,41 @@ describe('HomepagePage', () => {
     expect(nav.getAllByRole('link')).toHaveLength(3)
   })
 
-  it.each(['/sub2api-home', '/embed'])('opens the console in the top-level tab from %s', async (path) => {
-    vi.mocked(apiClient.get).mockResolvedValue({ code: 0, data: {
+  it.each(['/sub2api-home', '/embed'])('opens page links in the top-level tab and keeps section anchors local from %s', async (path) => {
+    const config = {
       ...DEFAULT_HOMEPAGE_CONFIG,
+      navigationItems: [{ label: '文档中心', href: 'https://docs.example.com' }, { label: '指标', href: '#metrics' }],
+      primaryHref: 'http://127.0.0.1:8003/register',
+      docsHref: '#developers',
       consoleHref: 'http://127.0.0.1:8003/dashboard',
-    } })
+      documentationUrl: '/guide',
+      developersDocsUrl: 'https://docs.example.com/quickstart',
+      termsUrl: 'https://example.com/terms',
+      userTermsUrl: '/user-terms',
+      privacyUrl: 'https://example.com/privacy',
+      trustedPartners: [{ name: '示例伙伴', linkUrl: 'https://partner.example.com' }, { name: '本地伙伴', linkUrl: '/partners/local' }],
+      integrations: [{ name: '示例应用', documentationUrl: 'https://docs.example.com/app' }, { name: '本地应用', documentationUrl: '/guide/local' }],
+    }
+    vi.mocked(apiClient.get).mockResolvedValue({ code: 0, data: config })
     const { container } = render(<MemoryRouter initialEntries={[path]}><HomepagePage /></MemoryRouter>)
     await waitFor(() => expect(container.querySelector('.sub2api-home')).toHaveAttribute('data-loading', 'false'))
 
-    const consoleLink = screen.getByRole('link', { name: '进入控制台' })
-    expect(consoleLink).toHaveAttribute('href', 'http://127.0.0.1:8003/dashboard')
-    expect(consoleLink).toHaveAttribute('target', '_top')
+    const links = screen.getAllByRole('link')
+    expect(links.map(link => link.getAttribute('href'))).toEqual(expect.arrayContaining([
+      '#top', '#metrics', '#developers', config.primaryHref, config.docsHref, config.consoleHref,
+      config.documentationUrl, config.developersDocsUrl, config.termsUrl, config.userTermsUrl, config.privacyUrl,
+      ...config.navigationItems.map(item => item.href),
+      ...config.trustedPartners.map(partner => partner.linkUrl),
+      ...config.integrations.map(integration => integration.documentationUrl),
+    ]))
+    expect(screen.getAllByRole('link', { name: config.primaryCta })).toHaveLength(2)
+    for (const link of links) {
+      if (link.getAttribute('href')?.startsWith('#')) {
+        expect(link).not.toHaveAttribute('target')
+      } else {
+        expect(link).toHaveAttribute('target', '_top')
+      }
+    }
   })
 
   it.each([
@@ -100,11 +124,9 @@ describe('HomepagePage', () => {
     expect(button.closest('section')).toHaveAttribute('id', 'developers')
     expect(button).toHaveAttribute('href', href)
     if (external) {
-      expect(button).toHaveAttribute('target', '_blank')
       expect(button).toHaveAttribute('rel', 'noreferrer')
-    } else {
-      expect(button).not.toHaveAttribute('target')
     }
+    expect(button).toHaveAttribute('target', '_top')
   })
 
   it.each([

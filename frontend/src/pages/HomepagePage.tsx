@@ -391,8 +391,7 @@ export default function HomepagePage() {
   }, { scope: rootRef, dependencies: [loading], revertOnUpdate: true })
 
   const linkProps = (href: string) => {
-    const external = safeExternalHref(href)
-    return external ? { href: external, target: '_blank', rel: 'noreferrer' } : { href }
+    return { href, target: href.startsWith('#') ? undefined : '_top', rel: safeExternalHref(href) ? 'noreferrer' : undefined }
   }
   const showDocsButton = config.showDevelopersSection || config.docsHref !== '#developers'
   const developersDocsHref = [config.developersDocsUrl, config.documentationUrl]
@@ -424,7 +423,7 @@ export default function HomepagePage() {
         <a href="#top" className="sub2api-brand"><BrandMark logoUrl={config.siteLogoUrl} /><span>{config.siteName}</span></a>
         <div className={`sub2api-nav-links ${menuOpen ? 'is-open' : ''}`}>
           <div className="sub2api-nav-items">{navigationItems.map((item, index) => <a key={`navigation-${index}`} {...linkProps(item.href.trim())} onClick={() => setMenuOpen(false)}>{item.label}</a>)}</div>
-          <a {...linkProps(config.consoleHref)} target="_top" className="sub2api-nav-cta" onClick={() => setMenuOpen(false)}>进入控制台 <ArrowUpRight size={15} /></a>
+          <a {...linkProps(config.consoleHref)} className="sub2api-nav-cta" onClick={() => setMenuOpen(false)}>进入控制台 <ArrowUpRight size={15} /></a>
         </div>
         <button className="sub2api-menu-button" aria-label={menuOpen ? '关闭菜单' : '打开菜单'} onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X /> : <Menu />}</button>
       </nav>
@@ -449,7 +448,7 @@ export default function HomepagePage() {
           <div className="sub2api-partner-row">
             {config.trustedPartners.map((partner) => {
               const content = <>{partner.logoUrl ? <img src={partner.logoUrl} alt="" /> : <span className="sub2api-partner-monogram">{partner.name.slice(0, 1)}</span>}<strong>{partner.name}</strong></>
-              return partner.linkUrl ? <a key={partner.name} href={partner.linkUrl} target="_blank" rel="noreferrer">{content}</a> : <div key={partner.name}>{content}</div>
+              return partner.linkUrl ? <a key={partner.name} {...linkProps(partner.linkUrl)}>{content}</a> : <div key={partner.name}>{content}</div>
             })}
           </div>
         </section> : null}
