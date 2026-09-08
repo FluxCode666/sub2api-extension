@@ -10,9 +10,21 @@ import {
 
 const expectedPages = [
   {
+    id: 'api-docs',
+    title: 'API 文档',
+    path: '/api-docs',
+    visibility: 'public',
+  },
+  {
     id: 'dashboard',
     title: '分析仪表盘',
     path: '/admin/dashboard',
+    visibility: 'admin',
+  },
+  {
+    id: 'system-config',
+    title: '系统配置',
+    path: '/admin/system-config',
     visibility: 'admin',
   },
   {
@@ -57,7 +69,7 @@ describe('page-registry', () => {
   it('does not register the root redirect as a content page', () => {
     expect(getPageById('home')).toBeUndefined()
     expect(getPageByPath('/')).toBeUndefined()
-    expect(getPublicPages()).toEqual([])
+    expect(getPublicPages()).toEqual([expectedPages[0]])
   })
 
   it('finds current pages by id and path', () => {
@@ -68,7 +80,7 @@ describe('page-registry', () => {
   })
 
   it('separates public and admin pages', () => {
-    expect(getAdminPages()).toEqual(expectedPages)
+    expect(getAdminPages()).toEqual(expectedPages.slice(1))
     expect(getPages()).toEqual(expectedPages)
   })
 })

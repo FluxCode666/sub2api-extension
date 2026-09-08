@@ -24,12 +24,14 @@ import InvoiceManagementPage from '@/pages/admin/InvoiceManagementPage'
 import NotificationManagementPage from '@/pages/admin/NotificationManagementPage'
 import SystemLogsPage from '@/pages/admin/SystemLogsPage'
 import OperationLogsPage from '@/pages/admin/OperationLogsPage'
+import SystemConfigPage from '@/pages/admin/SystemConfigPage'
 import InvoicePortalPage from '@/pages/InvoicePortalPage'
 import AdminDynamicPage from '@/pages/admin/AdminDynamicPage'
 import DynamicPage from '@/pages/DynamicPage'
 import ContentExamplePage from '@/pages/examples/ContentExamplePage'
 import InteractionExamplePage from '@/pages/examples/InteractionExamplePage'
 import APIExamplePage from '@/pages/examples/APIExamplePage'
+import ApiDocsPage from '@/pages/ApiDocsPage'
 import { fetchDynamicPages } from '@/lib/dynamic-pages'
 
 // bootstrap: 获取动态页清单, 与静态注册表合并(KTD7)。
@@ -75,7 +77,7 @@ function AdminEntryRedirect() {
 export default function App() {
   return (
     <Routes>
-      {/* 根路径是控制台入口；官网首页由数据库动态页面 /p/home 提供。 */}
+      {/* 根路径是控制台入口；公开内容统一由数据库动态页面 /p/:slug 提供。 */}
       <Route path="/" element={<AdminEntryRedirect />} />
       {/* 独立登录入口: AdminGuard 的 no-embedded-token 分支重定向到此。
           功能路由, 不登记到 page-registry (非内容页, 不污染埋点仪表盘)。 */}
@@ -87,6 +89,10 @@ export default function App() {
       {/* 用户端发票中心：由 Sub2API custom_menu_items 以 iframe 打开并注入 token。 */}
       <Route path="/invoice" element={<InvoicePortalPage />} />
       <Route path="/invoices" element={<InvoicePortalPage />} />
+      {/* Sub2API developer documentation: public by design so it can be mounted
+          in a user-facing custom menu or embedded by another system. */}
+      <Route path="/api-docs" element={<ApiDocsPage />} />
+      <Route path="/docs" element={<ApiDocsPage />} />
       {/* 管理端: 需管理员会话 (对应 sub2api custom_menu_items, 传 token) */}
       <Route path="/admin" element={<AdminGuard><AdminLayout /></AdminGuard>}>
         {/* U6: 仪表盘为管理端首页 (R10) */}
@@ -104,6 +110,7 @@ export default function App() {
         <Route path="logs/system" element={<SystemLogsPage />} />
         <Route path="logs/operation" element={<OperationLogsPage />} />
         <Route path="logs/operations" element={<OperationLogsPage />} />
+        <Route path="system-config" element={<SystemConfigPage />} />
         {/* 动态页面(admin): /admin/p/:slug, 经 AdminGuard, on-demand fetch */}
         <Route path="p/:slug" element={<AdminDynamicPage />} />
         <Route path="examples/content" element={<ContentExamplePage />} />

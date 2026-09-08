@@ -1060,7 +1060,7 @@ export default function PageManagementPage() {
                 Logo 等配置统一保存在这里；图片请先在“文件管理”页上传，再将 HTTP URL 填入 logo 的值。
               </p>
               <p className="text-xs text-gray-500">
-                官网 home 页可用 <code>console_href</code>、<code>api_docs_href</code>、<code>usage_guide_href</code>、<code>contact_sales_href</code>、<code>terms_href</code> 配置入口；值支持相对路径或完整 HTTP/HTTPS 地址。
+                公开动态页面可用 <code>console_href</code>、<code>api_docs_href</code>、<code>usage_guide_href</code>、<code>contact_sales_href</code>、<code>terms_href</code> 配置入口；值支持相对路径或完整 HTTP/HTTPS 地址。
               </p>
               <div className="space-y-2">
                 {metadataEntries.map((entry, index) => (

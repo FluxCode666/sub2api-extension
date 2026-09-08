@@ -151,7 +151,7 @@ func TestPageService_Create_Validation(t *testing.T) {
 		t.Errorf("Create: slug=%s pageID=%s, want landing/page:landing", p.Slug, p.PageID)
 	}
 
-	// 官网首页现在是数据库动态页，home slug 可以由页面管理维护。
+	// `home` 只是普通动态页 slug，不享有固定首页语义。
 	if _, err := svc.Create(ctx, PageInput{Slug: "home", Title: "Homepage"}); err != nil {
 		t.Fatalf("Create: home should be a dynamic page slug: %v", err)
 	}

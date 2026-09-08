@@ -32,6 +32,14 @@ vi.mock('@/pages/admin/FileManagementPage', () => ({
   default: () => <h1>file-management-page</h1>,
 }))
 
+vi.mock('@/pages/admin/SystemConfigPage', () => ({
+  default: () => <h1>system-config-page</h1>,
+}))
+
+vi.mock('@/pages/DynamicPage', () => ({
+  default: () => <h1>dynamic-page</h1>,
+}))
+
 vi.mock('@/pages/examples/ContentExamplePage', () => ({
   default: () => <h1>content-example-page</h1>,
 }))
@@ -118,6 +126,16 @@ describe('App routing', () => {
     expect(screen.getByRole('heading', { name: '页面不存在' })).toBeInTheDocument()
   })
 
+  it('keeps /p/home on the generic dynamic page route', () => {
+    render(
+      <MemoryRouter initialEntries={['/p/home']}>
+        <App />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('heading', { name: 'dynamic-page' })).toBeInTheDocument()
+  })
+
   it('keeps unknown routes on the 404 page instead of sending them to the public home page', () => {
     render(
       <MemoryRouter initialEntries={['/some-removed-route']}>
@@ -137,6 +155,7 @@ describe('App routing', () => {
     ['/admin/assets', 'image-assets-page'],
     ['/admin/ops/consumption', 'consumption-page'],
     ['/admin/ops/cost-config', 'cost-config-page'],
+    ['/admin/system-config', 'system-config-page'],
     ['/admin/examples/content', 'content-example-page'],
     ['/admin/examples/interaction', 'interaction-example-page'],
     ['/admin/examples/api', 'api-example-page'],

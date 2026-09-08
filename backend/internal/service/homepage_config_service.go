@@ -1,8 +1,6 @@
-// Package service 保留旧版官网配置 API 的读取与持久化能力。
-// 当前官网首页由 pages 表中的 slug=home 动态页面承载。
-//
-// 该兼容接口仍使用现有 system_meta 表保存旧版 JSON 文档，但不再参与
-// /p/home 的渲染；新页面内容统一由 pages.content_html 管理。
+// Package service 保留旧版 homepage.config API 的读取与持久化能力。
+// 当前配置端点仅为 API 文档示例提供默认模型；动态页面内容统一由
+// pages.content_html / pages.content_react 管理。
 package service
 
 import (
@@ -23,7 +21,7 @@ const (
 	legacyHomepageHeroDescription = "TERALEMO 将安全准入、智能路由、稳定保障、用量管理与运行观测统一到同一网关层。"
 )
 
-// TrustedPartner 是官网“受信赖的伙伴”滚动项。
+// TrustedPartner 是旧版配置中的兼容字段。
 // LogoURL 留空时前端只展示名称，不渲染占位图标。
 type TrustedPartner struct {
 	Name    string `json:"name"`
@@ -31,7 +29,7 @@ type TrustedPartner struct {
 	LinkURL string `json:"linkUrl,omitempty"`
 }
 
-// HomepageConfig 是可在管理端调整的官网首页内容。
+// HomepageConfig 保留旧版 system_meta 字段，以兼容已有配置记录；当前管理端只调整 Model。
 type HomepageConfig struct {
 	HeroLabel       string           `json:"heroLabel"`
 	HeroTitle       string           `json:"heroTitle"`
@@ -46,13 +44,12 @@ type HomepageConfig struct {
 }
 
 // DefaultHomepageConfig 是无配置或配置读取失败时使用的安全默认值。
-// 伙伴列表故意为空，以便没有配置时不展示“受信赖的伙伴”区块。
 func DefaultHomepageConfig() HomepageConfig {
 	return HomepageConfig{
 		HeroLabel:       "面向生产环境的 AI 网关",
 		HeroTitle:       "TERALEMO",
 		HeroDescription: "将安全准入、智能路由、稳定保障、用量管理与运行观测统一到同一网关层。",
-		Model:           "gpt-5.6-sol",
+		Model:           "gpt-6-astra",
 		PrimaryCTA:      "获取接入方案",
 		PrimaryHref:     "#contact",
 		DocsCTA:         "查看开发者文档",
@@ -62,7 +59,7 @@ func DefaultHomepageConfig() HomepageConfig {
 	}
 }
 
-// HomepageConfigStore 抽象官网配置存储，便于服务层单测注入内存实现。
+// HomepageConfigStore 抽象兼容配置存储，便于服务层单测注入内存实现。
 type HomepageConfigStore interface {
 	GetHomepageConfig(ctx context.Context) (*HomepageConfig, error)
 	SaveHomepageConfig(ctx context.Context, config HomepageConfig) error

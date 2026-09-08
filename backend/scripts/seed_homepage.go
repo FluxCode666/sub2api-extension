@@ -1,6 +1,7 @@
-// Package main 提供首页初始化脚本。
+// Package main 提供可选的旧版首页初始化脚本。
 //
-// 用途: 将首页内容插入到数据库中，作为 slug='home' 的动态页面。
+// 用途: 按需将一份示例内容插入到数据库中，作为 slug='home' 的普通动态页面。
+// 运行时不会自动调用此脚本，/p/home 也没有固定首页语义。
 // 运行: go run ./scripts/seed_homepage.go
 //
 // 前提: 数据库已通过 `go run ./cmd/server -migrate` 完成迁移。

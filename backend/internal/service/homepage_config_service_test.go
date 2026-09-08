@@ -28,6 +28,7 @@ func TestHomepageConfigService_GetDefaultsWhenEmpty(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "TERALEMO", config.HeroTitle)
+	assert.Equal(t, "gpt-6-astra", config.Model)
 	assert.Empty(t, config.TrustedPartners)
 }
 

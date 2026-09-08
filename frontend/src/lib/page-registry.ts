@@ -1,7 +1,7 @@
 /**
  * 页面清单注册表 —— 页面身份的单一真相源 (KTD7)。
  *
- * 静态核心页(dashboard/files/ops-*)在此声明(代码登记, 不可变)。
+ * 静态页(API 文档、dashboard/files/ops-*)在此声明(代码登记, 不可变)。
  * 动态页(管理员创建)来自后端 /api/aux/pages, 在 lib/dynamic-pages.ts 与静态注册表合并。
  *
  * - App.tsx 路由与 registry 共享同一 id 命名空间
@@ -9,8 +9,8 @@
  * - U6 仪表盘从 registry 派生页面清单 (R5: 非独立注册表)
  * - 动态页 id = "page:<slug>"(命名空间隔离, 见 dynamic-pages.ts)
  *
- * 页面存在于代码但零访问 → 仪表盘显示 0 (U6 处理)。公开官网已迁移到数据库
- * 动态页 `home`，根路径重定向不再作为内容页面登记。
+ * 页面存在于代码但零访问 → 仪表盘显示 0 (U6 处理)。公开 API 文档是稳定静态页；公开内容统一由数据库
+ * 动态页按 slug 提供，根路径重定向不作为内容页面登记。
  * 页面 identity 来自代码, 不在线编辑/上下架。
  *
  * 添加新静态页面步骤:
@@ -47,9 +47,21 @@ export interface PageEntry {
  */
 export const STATIC_PAGE_REGISTRY: readonly PageEntry[] = [
   {
+    id: 'api-docs',
+    title: 'API 文档',
+    path: '/api-docs',
+    visibility: 'public',
+  },
+  {
     id: 'dashboard',
     title: '分析仪表盘',
     path: '/admin/dashboard',
+    visibility: 'admin',
+  },
+  {
+    id: 'system-config',
+    title: '系统配置',
+    path: '/admin/system-config',
     visibility: 'admin',
   },
   {

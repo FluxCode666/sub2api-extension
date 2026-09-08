@@ -74,9 +74,9 @@ JSON
 `level`，操作日志额外支持 `status`。响应数据为 `{items,total,page,page_size}`，
 日志只追加保存，系统请求和管理员写操作会自动记录。
 
-官网首页 `/p/home` 支持通过元数据覆盖以下入口链接（值可以是相对路径，也可以是完整的 `http://` / `https://` 地址；也支持 `mailto:` 和 `tel:`）：
+公开动态页面支持通过元数据覆盖以下入口链接（值可以是相对路径，也可以是完整的 `http://` / `https://` 地址；也支持 `mailto:` 和 `tel:`）：
 
-| 元数据键 | 官网入口 |
+| 元数据键 | 入口用途 |
 | --- | --- |
 | `console_href` | 控制台 |
 | `api_docs_href` | API 文档（开发者区与页脚） |
@@ -84,7 +84,7 @@ JSON
 | `contact_sales_href` | 联系商务 |
 | `terms_href` | 服务条款 |
 
-值为空时保留官网内置的页内锚点。动态 HTML 沙箱会把非页内链接交给宿主页面做顶层导航，因此链接到本系统、其他域名或完整 URL 都不会在 opaque-origin iframe 内加载，不会触发开发环境 `origin=null` 的 CORS 空白页。
+值为空时保留页面内置的页内锚点。动态 HTML 沙箱会把非页内链接交给宿主页面做顶层导航，因此链接到本系统、其他域名或完整 URL 都不会在 opaque-origin iframe 内加载，不会触发开发环境 `origin=null` 的 CORS 空白页。
 
 ## 更新、启停和删除
 

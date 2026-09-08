@@ -1,23 +1,19 @@
 # sub2api 集成配置指南
 
-本指南说明如何在不修改 sub2api 代码的前提下，通过 `home_content` 嵌入 TERALEMO 官网，并通过 `custom_menu_items` 将 sub2api-extension 管理页面嵌入 sub2api 控制台。
+本指南说明如何在不修改 sub2api 代码的前提下，通过 `custom_menu_items` 将 sub2api-extension 的管理页面或公开 API 文档嵌入 sub2api 控制台，也说明数据库动态页面的通用路由约定。
 
-sub2api-extension 根路径 `/` 会跳转到控制台 `/admin/dashboard`。原硬编码官网已迁移到数据库动态页面 `/p/home`，应将该路径作为 sub2api `home_content` 的 URL；Sub2API 官方页面仍可通过 `/p/sub2api-home` 访问。
-
-官网内容在页面管理中维护。管理员可在 `/admin/pages` 编辑数据库中的 `home` 页面，公开访问路径为 `/p/home`。
-
-官网页脚入口可通过 `home` 页元数据配置：`console_href`、`api_docs_href`、`usage_guide_href`、`contact_sales_href`、`terms_href`。值可填写完整的 `http://` / `https://` 地址；为空时沿用官网默认的页内锚点。
+sub2api-extension 根路径 `/` 会跳转到控制台 `/admin/dashboard`。公开内容只通过数据库动态页面 `/p/:slug` 按 slug 按需加载；本系统不预置或依赖名为 `home` 的页面，也不需要配置 sub2api 的 `home_content`。
 
 ## 架构
 
 ```text
-sub2api 首页
-  home_content URL iframe -> sub2api-extension /p/home
-
 sub2api 控制台
   custom_menu_items -> 带 token 的 iframe
     -> sub2api-extension /admin/pages 或 /admin/dashboard
       -> AdminGuard 验证或换取 aux 会话
+
+公开动态页面（可选）
+  /p/:slug -> pages 表中的已启用公开页面
 ```
 
 sub2api-extension 使用自己的 PostgreSQL 保存页面访问、功能点击和运营成本配置数据。管理员身份通过 sub2api iframe token 或独立账号密码登录验证。页面上架功能会额外使用具备读写权限的连接访问 sub2api PostgreSQL 的 `settings` 表，同步 `custom_menu_items`；运维首字延迟看板与运营中心则使用同一连接只读 `usage_logs`、`groups` 和 `accounts` 表，不会把 sub2api 的业务表映射到扩展 Ent schema。
@@ -95,19 +91,9 @@ cp .env.example .env
 docker compose -f docker-compose.yml --env-file .env up -d
 ```
 
-## 2. 配置首页与管理菜单
+## 2. 配置管理菜单与动态页面
 
-### 2.1 配置 home_content
-
-在 sub2api「站点设置」的「首页内容」中填写 sub2api-extension 的公开动态页面 URL：
-
-```text
-https://aux.example.com/p/home?theme=light
-```
-
-sub2api 会把 URL 作为 iframe 地址。`theme=light` 或 `theme=dark` 可指定初始主题，访客仍可在官网右上角手动切换。
-
-### 2.2 配置 custom_menu_items
+### 2.1 配置 custom_menu_items
 
 1. 登录 sub2api 管理后台。
 2. 进入「站点设置」。
@@ -143,13 +129,60 @@ sub2api 会把 URL 作为 iframe 地址。`theme=light` 或 `theme=dark` 可指�
 
 管理端必须从 sub2api 的这个菜单入口打开（推荐 URL 使用 `/admin/dashboard`）；不要把不带查询参数的扩展 URL 直接当作已登录入口收藏或访问。sub2api 的登录 JWT 保存在 sub2api 自身的浏览器 origin 中，浏览器不会允许扩展跨 origin 读取它；只有菜单 iframe 注入的 `token`（或扩展自身已有的 `X-Aux-Session`）可以完成免登录进入。扩展会保留入口 URL 上的嵌入参数，根路径重定向不会丢失 `token`。
 
-### 2.3 从页面管理直接上架
+### 2.2 从页面管理直接上架
 
 配置 `SUB2API_DATABASE_*` 和 `SUB2API_EXTENSION_PUBLIC_URL` 后，打开扩展的「页面管理」，每个页面会显示「sub2api」上架开关。开启后会在 sub2api `settings` 表的 `custom_menu_items` 数组中追加一项；若本扩展自己的 `aux-page-<页面 ID>` 已存在，则只更新这一项。菜单名称和可见角色（普通用户/管理员）可在页面编辑框中单独配置，不会覆盖其他手工菜单。关闭开关、删除页面或修改页面 URL 时会同步移除/更新对应项。
 
 页面的访问路径仍由页面自身可见性决定：公开页使用 `/p/<slug>`，管理员页使用 `/admin/p/<slug>`；sub2api 可见角色只控制菜单是否展示。`SUB2API_EXTENSION_PUBLIC_URL` 必须是浏览器可访问的完整 origin，不能填写 `aux-backend` 等 Docker 内部服务名。
 
 管理页显示的“已上架”不是只看 `aux-page-<页面 ID>` 是否存在。扩展会重新计算期望的 URL、菜单名称和可见角色，并与 sub2api 当前 `custom_menu_items` 中的 URL、名称、角色及 `page_slug` 逐项核对；管理员在 sub2api 中改动任一受管字段后，该页面会显示为“未上架”，可在扩展页面管理中重新保存以恢复同步。
+
+### 2.3 挂载 API 文档页
+
+扩展内置的 Sub2API 接口文档页是公开静态页面，路径为：
+
+```text
+/api-docs
+```
+
+它不要求扩展管理员会话，适合直接挂载到 Sub2API 的用户菜单。自定义菜单项必须使用浏览器可访问的完整 HTTPS 地址，并保持 `page_slug` 为空：
+
+```json
+[
+  {
+    "id": "aux-api-docs",
+    "label": "API 文档",
+    "icon_svg": "",
+    "url": "https://aux.example.com/api-docs?embed=1",
+    "page_slug": "",
+    "visibility": "user",
+    "sort_order": 110
+  }
+]
+```
+
+Sub2API 会将该 URL 作为 iframe 打开；`embed=1` 用于收起非必要宿主导航。文档页也识别 `ui_mode=embedded`，因此由 Sub2API 自动附加嵌入参数时无需额外处理。页面示例中的 API 基础地址默认为当前 origin；如果文档页与 API 网关使用不同域名，请在 URL 中传入 `api_base`，例如：
+
+```text
+https://aux.example.com/api-docs?embed=1&api_base=https%3A%2F%2Fapi.example.com
+```
+
+其他系统可以复用同一个公开 URL：
+
+```html
+<iframe
+  src="https://aux.example.com/api-docs?embed=1&api_base=https%3A%2F%2Fapi.example.com"
+  title="Sub2API API 文档"
+  style="width:100%;min-height:720px;border:0"
+  loading="lazy"
+></iframe>
+```
+
+文档页只读取 `api_base` 来替换示例地址，不读取父页面 Cookie、Token 或 DOM。生产环境应继续使用 HTTPS，并确认反向代理没有添加 `X-Frame-Options`；`frame-src` 允许列表由 Sub2API 根据 `custom_menu_items[].url` 的 origin 刷新。
+
+### 2.4 动态配置系统名称与示例模型
+
+管理员可以在扩展管理端的“系统配置”（`/admin/system-config`）修改系统名称和“API 文档调用示例默认模型”。系统名称沿用首页配置的 `heroTitle`，默认值为 `TERALEMO`；默认模型为 `gpt-6-astra`。保存后，API 文档页眉、页脚、首页预览、快速开始和各接口的 cURL / Python / Go / Java 示例会在下一次打开或刷新时使用新值。配置保存在扩展的 `system_meta` 中，不需要重新部署页面。
 
 ## 3. 页面管理与 Dashboard
 
@@ -159,7 +192,7 @@ sub2api 会把 URL 作为 iframe 地址。`theme=light` 或 `theme=dark` 可指�
 /admin/pages
 ```
 
-其中 `home` 页面保存迁移后的官网首页 HTML。编辑后保存到数据库，公开页面 `/p/home` 会读取最新内容；Sub2API 官方页面仍保留在 `/p/sub2api-home`。
+管理员创建的公开页面通过 `/p/<slug>` 访问，管理员页面通过 `/admin/p/<slug>` 访问。页面是否存在、是否启用和如何展示均由页面管理维护；`/p/home` 若未创建不会被特殊处理，本系统也不会主动跳转或读取它。
 
 Dashboard 的规范路径是：
 
@@ -167,19 +200,16 @@ Dashboard 的规范路径是：
 /admin/dashboard
 ```
 
-运营中心路径为 `/admin/ops/consumption` 与 `/admin/ops/cost-config`。消费核算按天聚合收入、请求量、Token、API 成本、OAuth 账号成本、毛利/税前利润、税额、税后利润和利润率，日期范围最多 93 天；全局默认配置、税点和每个账号的独立成本配置写入扩展自有数据库，不会修改 Sub2API 数据库。税点以百分比配置，例如 `6` 表示 `6%`，并按收入计提：`税额 = 收入 × 税点`，`税前利润 = 收入 − 总成本`，`税后利润 = 税前利润 − 税额`。OAuth 账号按账号 ID 配置采购单价，并在筛选范围内按独立账号计入、归集到首次使用日；为同一实体重新上号产生的多条 Sub2API 账号记录，可在“批量合并计费”下拉中一次选择多个同类型账号并归入同一计费组，消费明细会合并收入/请求并只计一次 OAuth 采购成本，同时列出组内全部账号 ID。账号创建时间从 Sub2API `accounts.created_at` 定时同步并在账号成本明细中展示。API 账号按账号 ID 配置倍率，支持手工覆盖或定时同步 Sub2API `accounts.rate_multiplier`。历史 usage log 优先使用 `account_rate_multiplier` 快照，因此上游倍率后续变化不会改写已经发生的成本。
+运营中心路径为 `/admin/ops/consumption` 与 `/admin/ops/cost-config`。消费核算按天聚合收入、请求量、Token、API 成本、OAuth 账号成本、毛利/税前利润、税额、税后利润和利润率，日期范围最多 93 天；全局默认配置、税点和每个账号的独立成本配置写入扩展自有数据库，不会修改 Sub2API 数据库。税点以百分比配置，例如 `6` 表示 `6%`，并按收入计提：`税额 = 收入 × 税点`，`税前利润 = 收入 − 总成本`，`税后利润 = 税前利润 − 税额`。OAuth 账号按账号 ID 配置采购单价，并在筛选范围内按独立账号计入、归集到首次使用日；同一计费组中的 OAuth 记录只计一次采购成本，因此组内 OAuth 账号必须使用相同的有效采购单价。API 账号按账号 ID 配置倍率，优先级为手工覆盖、已同步倍率、Sub2API 当前 `accounts.rate_multiplier`，都不存在时才使用全局默认倍率；同一计费组中的多个 API 账号分别按各自有效倍率计算后汇总，明细会列出组内全部账号及倍率。API 与 OAuth 账号也可以加入同一计费组，系统会分别套用 API 倍率和 OAuth 采购成本规则后汇总；OAuth 账号的 `account_rate_multiplier` 快照不会被误算为 API 成本。历史 API usage log 优先使用 `account_rate_multiplier` 快照，因此上游倍率后续变化不会改写已经发生的成本。
 
 Dashboard 列出当前注册页面，标题和路径都可点击：
 
 | 页面 | 路径 |
 |------|------|
-| TERALEMO 官网（数据库动态页面） | `/p/home` |
-| Sub2API 官网（数据库动态页面） | `/p/sub2api-home` |
 | 分析仪表盘 | `/admin/dashboard` |
 | 页面管理 | `/admin/pages` |
-| 静态内容示例 | `/admin/examples/content` |
-| 交互与埋点示例 | `/admin/examples/interaction` |
-| API 请求示例 | `/admin/examples/api` |
+| API 文档 | `/api-docs` |
+| 系统配置 | `/admin/system-config` |
 
 旧页面的历史埋点仍保存在数据库，但不会显示在当前 Dashboard，也不计入当前页面汇总。
 
@@ -271,10 +301,9 @@ Sub2API 用户下拉选项。管理员还可以调用 `POST /api/aux/admin/invoi
 - [ ] sub2api-extension `/health` 返回 200。
 - [ ] sub2api-extension 能连接自己的 PostgreSQL。
 - [ ] `SUB2API_BASE_URL` 指向可用的 sub2api 后端。
-- [ ] sub2api `home_content` 已设置为 sub2api-extension `/p/home` 动态页面 URL。
-- [ ] sub2api 首页能展示 TERALEMO 官网，亮色/暗色切换正常。
 - [ ] sub2api `custom_menu_items` 已添加 `/admin/dashboard`。
 - [ ] sub2api `custom_menu_items` 已添加 `/admin/pages`。
+- [ ] sub2api `custom_menu_items` 已添加 `/api-docs`（如需在用户菜单展示文档）。
 - [ ] `page_slug` 为空且 `visibility` 为 `admin`。
 - [ ] 管理员点击「内容分析」后 iframe 能显示 Dashboard。
 - [ ] 管理员点击「首字延迟」后，运维看板能从 Sub2API PostgreSQL 读取 `usage_logs.first_token_ms`。
@@ -285,7 +314,8 @@ Sub2API 用户下拉选项。管理员还可以调用 `POST /api/aux/admin/invoi
 - [ ] 管理员在「成本配置」按账号保存 OAuth 单号成本或 API 手工倍率。
 - [ ] 「成本配置」可以立即同步 Sub2API 账号倍率，并显示最近同步时间；定时同步间隔由 `SUB2API_EXTENSION_COST_SYNC_INTERVAL_SECONDS` 配置（默认 300 秒）。
 - [ ] 上游倍率变化后，历史记录仍按 `usage_logs.account_rate_multiplier` 快照核算，未带快照的新记录才使用当前账号配置。
-- [ ] 页面管理保存 `home` 后，刷新公开首页可读取最新 HTML。
+- [ ] 页面管理创建并启用公开页面后，`/p/<slug>` 可读取最新内容。
+- [ ] 未创建的 `/p/home` 不会被系统当作固定首页处理。
 - [ ] Dashboard 中当前注册页面链接均可打开。
 - [ ] 交互示例的操作会进入 Dashboard 功能使用度。
 - [ ] API 示例能读取 `/api/aux/admin/examples/status`。
