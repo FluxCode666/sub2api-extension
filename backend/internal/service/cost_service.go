@@ -92,10 +92,30 @@ func (s *CostService) SaveAccountConfig(ctx context.Context, config ops.AccountC
 	if s == nil || s.configStore == nil {
 		return config, errors.New("cost store is unavailable")
 	}
+	if strings.TrimSpace(config.BillingGroup) != "" && config.AccountType == "oauth" {
+		accounts, err := s.configStore.ListAccountCostConfigs(ctx)
+		if err != nil {
+			return config, err
+		}
+		global, err := s.configStore.GetCostConfig(ctx)
+		if err != nil {
+			return config, err
+		}
+		expected := config.EffectiveOAuthCost(global.OAuthAccountCost)
+		for _, account := range accounts {
+			if account.AccountID == config.AccountID || account.AccountType != "oauth" || !strings.EqualFold(strings.TrimSpace(account.BillingGroup), strings.TrimSpace(config.BillingGroup)) {
+				continue
+			}
+			if account.EffectiveOAuthCost(global.OAuthAccountCost) != expected {
+				return config, ErrBillingGroupOAuthCostConflict
+			}
+		}
+	}
 	return s.configStore.SaveAccountCostConfig(ctx, config)
 }
 
-var ErrInvalidBillingGroupUpdate = errors.New("billing group requires at least two existing accounts of the same type")
+var ErrInvalidBillingGroupUpdate = errors.New("billing group requires at least two existing accounts")
+var ErrBillingGroupOAuthCostConflict = errors.New("oauth accounts in a billing group must use the same effective purchase cost")
 
 func (s *CostService) SaveBillingGroup(ctx context.Context, update ops.BillingGroupUpdate) (ops.CostConfigResponse, error) {
 	if s == nil || s.configStore == nil {
@@ -118,30 +138,51 @@ func (s *CostService) SaveBillingGroup(ctx context.Context, update ops.BillingGr
 	if err != nil {
 		return ops.CostConfigResponse{}, err
 	}
+	global, err := s.configStore.GetCostConfig(ctx)
+	if err != nil {
+		return ops.CostConfigResponse{}, err
+	}
 	wanted := make(map[int64]struct{}, len(ids))
 	for _, id := range ids {
 		wanted[id] = struct{}{}
 	}
-	accountType := ""
 	found := 0
 	for _, account := range accounts {
 		if _, ok := wanted[account.AccountID]; !ok {
 			continue
-		}
-		if accountType == "" {
-			accountType = account.AccountType
-		} else if account.AccountType != accountType {
-			return ops.CostConfigResponse{}, ErrInvalidBillingGroupUpdate
 		}
 		found++
 	}
 	if found != len(ids) {
 		return ops.CostConfigResponse{}, ErrInvalidBillingGroupUpdate
 	}
+	if err := validateOAuthBillingGroupCosts(accounts, wanted, group, global.OAuthAccountCost); err != nil {
+		return ops.CostConfigResponse{}, err
+	}
 	if err := s.configStore.SetAccountBillingGroup(ctx, ids, group); err != nil {
 		return ops.CostConfigResponse{}, err
 	}
 	return s.GetConfig(ctx)
+}
+
+func validateOAuthBillingGroupCosts(accounts []ops.AccountCostConfig, wanted map[int64]struct{}, group string, globalCost float64) error {
+	var expected *float64
+	for _, account := range accounts {
+		_, selected := wanted[account.AccountID]
+		inTargetGroup := strings.EqualFold(strings.TrimSpace(account.BillingGroup), group)
+		if (!selected && !inTargetGroup) || strings.ToLower(strings.TrimSpace(account.AccountType)) != "oauth" {
+			continue
+		}
+		cost := account.EffectiveOAuthCost(globalCost)
+		if expected == nil {
+			expected = &cost
+			continue
+		}
+		if *expected != cost {
+			return ErrBillingGroupOAuthCostConflict
+		}
+	}
+	return nil
 }
 
 func (s *CostService) Sync(ctx context.Context) (ops.CostConfigResponse, error) {

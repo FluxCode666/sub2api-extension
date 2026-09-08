@@ -69,8 +69,9 @@ type CostConfigResponse struct {
 	LastSyncAt *time.Time          `json:"last_sync_at,omitempty"`
 }
 
-// BillingGroupUpdate assigns multiple same-type Sub2API account records to a
-// shared billing identity. The group name is extension-owned metadata.
+// BillingGroupUpdate assigns multiple Sub2API account records to a shared
+// billing identity. API and OAuth accounts may share a group; their costs are
+// still calculated independently according to their respective policies.
 type BillingGroupUpdate struct {
 	AccountIDs   []int64 `json:"account_ids"`
 	BillingGroup string  `json:"billing_group"`
@@ -103,22 +104,33 @@ type DailyConsumption struct {
 }
 
 type AccountConsumption struct {
-	AccountID        int64      `json:"account_id"`
-	AccountIDs       []int64    `json:"account_ids,omitempty"`
-	AccountType      string     `json:"account_type"`
-	Name             string     `json:"name"`
-	Platform         string     `json:"platform"`
-	BillingGroup     string     `json:"billing_group,omitempty"`
-	AccountCreatedAt *time.Time `json:"account_created_at,omitempty"`
-	Requests         int64      `json:"requests"`
-	Revenue          float64    `json:"revenue"`
-	APICost          float64    `json:"api_cost"`
-	OAuthCost        float64    `json:"oauth_cost"`
-	GrossProfit      float64    `json:"gross_profit"`
-	TaxAmount        float64    `json:"tax_amount"`
-	NetProfit        float64    `json:"net_profit"`
-	Multiplier       float64    `json:"multiplier"`
-	MultiplierSource string     `json:"multiplier_source"`
+	AccountID        int64               `json:"account_id"`
+	AccountIDs       []int64             `json:"account_ids,omitempty"`
+	AccountType      string              `json:"account_type"`
+	AccountTypes     []string            `json:"account_types,omitempty"`
+	Name             string              `json:"name"`
+	Platform         string              `json:"platform"`
+	BillingGroup     string              `json:"billing_group,omitempty"`
+	AccountCreatedAt *time.Time          `json:"account_created_at,omitempty"`
+	Requests         int64               `json:"requests"`
+	Revenue          float64             `json:"revenue"`
+	APICost          float64             `json:"api_cost"`
+	OAuthCost        float64             `json:"oauth_cost"`
+	GrossProfit      float64             `json:"gross_profit"`
+	TaxAmount        float64             `json:"tax_amount"`
+	NetProfit        float64             `json:"net_profit"`
+	Multiplier       float64             `json:"multiplier"`
+	MultiplierSource string              `json:"multiplier_source"`
+	Multipliers      []AccountMultiplier `json:"multipliers,omitempty"`
+}
+
+// AccountMultiplier keeps every API multiplier contributing to a merged
+// billing row. A group can contain multiple API accounts and historical
+// snapshots can legitimately use different effective multipliers.
+type AccountMultiplier struct {
+	AccountID  int64   `json:"account_id"`
+	Multiplier float64 `json:"multiplier"`
+	Source     string  `json:"source"`
 }
 
 type ConsumptionResponse struct {
