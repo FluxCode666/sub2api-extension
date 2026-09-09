@@ -148,6 +148,9 @@ describe('ApiDocsPage', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: '调用示例' }))
     expect(screen.getAllByText(/gpt-6-astra/).length).toBeGreaterThan(0)
+    const chatCard = document.querySelector('#endpoint-chat-completions') as HTMLElement
+    expect(within(chatCard).getByText('响应示例')).toBeInTheDocument()
+    expect(chatCard.querySelector('.aux-api-example-response pre code')).toHaveTextContent('chat.completion')
     fireEvent.click(screen.getByRole('tab', { name: 'Python' }))
     expect(document.querySelector('.aux-api-examples-panel pre code')).toHaveTextContent('import requests')
   })
