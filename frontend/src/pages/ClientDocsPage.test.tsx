@@ -257,6 +257,56 @@ describe('ClientDocsPage', () => {
     expect(document.body.textContent).not.toContain('GATEWAY_API_KEY')
   })
 
+  it.each([
+    ['claude-code', 'Claude Code', 'https://gateway.test/proxy'],
+    ['claude-desktop', 'Claude Desktop', 'https://gateway.test/proxy'],
+    ['codex', 'Codex', 'https://gateway.test/proxy/v1'],
+    ['hermes', 'Hermes', 'https://gateway.test/proxy/v1'],
+    ['pi', 'Pi', 'https://gateway.test/proxy/v1'],
+  ])('keeps %s CC Switch parameters in sync with valid input and hides stale values', async (id, name, expectedBase) => {
+    renderPage(`/client-docs?client=${id}&api_base=https%3A%2F%2Fgateway.test%2Fproxy%2Fv1%2F`)
+    const quickConfig = screen.getByRole('region', { name: 'CC Switch 快捷配置' })
+    expect(document.querySelector('#configure')).toContainElement(quickConfig)
+    expect(within(quickConfig).getByRole('link', { name: '下载 CC Switch' })).toHaveAttribute('href', 'https://github.com/farion1231/cc-switch/releases/latest')
+    fireEvent.change(screen.getByLabelText('模型名称'), { target: { value: 'custom-model' } })
+    fireEvent.click(within(quickConfig).getByRole('button', { name: `复制${name} · CC Switch 填写参考` }))
+    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalled())
+    const copied = vi.mocked(navigator.clipboard.writeText).mock.lastCall![0]
+    expect(copied.match(/接口地址\s+(\S+)/)?.[1]).toBe(expectedBase)
+    expect(copied).toContain('custom-model')
+    expect(copied).toContain('sk-YOUR_API_KEY')
+    expect(copied).toContain(name)
+
+    fireEvent.change(screen.getByLabelText('API 基础地址'), { target: { value: 'https://gateway.test/v1/responses' } })
+    expect(within(quickConfig).queryByRole('button', { name: `复制${name} · CC Switch 填写参考` })).not.toBeInTheDocument()
+    expect(within(quickConfig).queryByText(/custom-model/)).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('API 基础地址'), { target: { value: 'https://updated.test' } })
+    expect(within(quickConfig).getByRole('button', { name: `复制${name} · CC Switch 填写参考` })).toBeEnabled()
+    expect(quickConfig).toHaveTextContent('https://updated.test')
+    fireEvent.change(screen.getByLabelText('模型名称'), { target: { value: ' ' } })
+    expect(within(quickConfig).queryByRole('button', { name: `复制${name} · CC Switch 填写参考` })).not.toBeInTheDocument()
+  })
+
+  it('installs Claude Desktop as its own app and keeps CC Switch inside the relevant guides', () => {
+    renderPage('/client-docs?client=claude-desktop')
+    expect(screen.getByRole('heading', { name: 'Claude Desktop 接入指南' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '下载 Claude Desktop' })).toHaveAttribute('href', 'https://claude.ai/download')
+    expect(screen.getByLabelText('模型名称')).toHaveValue('claude-opus-5')
+    expect(document.querySelector('#install code')).not.toBeInTheDocument()
+    expect(screen.queryByRole('tablist', { name: '操作系统' })).not.toBeInTheDocument()
+    expect(document.querySelector('#verify code')).toHaveTextContent('当前时间')
+    expect(screen.queryByRole('heading', { name: '手动配置' })).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'CC Switch 快捷配置' })).toHaveTextContent('完全退出并重新打开 Claude Desktop')
+
+    const directory = screen.getByRole('navigation', { name: '客户端目录' })
+    expect(within(directory).queryByRole('button', { name: /CC Switch/ })).not.toBeInTheDocument()
+    fireEvent.click(within(directory).getByRole('button', { name: 'Pi' }))
+    expect(screen.getByText('pi', { selector: '#verify code' })).toBeInTheDocument()
+    expect(document.querySelector('#verify')).not.toHaveTextContent('--provider gateway')
+    fireEvent.click(within(directory).getByRole('button', { name: 'Paseo' }))
+    expect(screen.queryByRole('region', { name: 'CC Switch 快捷配置' })).not.toBeInTheDocument()
+  })
+
   it('blocks invalid config instead of copying stale values', () => {
     renderPage('/client-docs?client=codex')
     fireEvent.change(screen.getByLabelText('API 基础地址'), { target: { value: 'https://gateway.test/v1/responses' } })

@@ -86,6 +86,14 @@ html:has(.client-docs), body:has(.client-docs) { overflow-x: clip; scroll-behavi
 .client-instructions { list-style: decimal; margin: 0 0 var(--space-cg-xl); padding-left: var(--space-cg-xl); color: var(--color-cg-muted); }
 .client-instructions li { padding-left: var(--space-cg-sm); margin-block: var(--space-cg-lg); overflow-wrap: anywhere; }
 .client-instructions li::marker { color: var(--color-cg-accent); font-weight: 600; font-variant-numeric: tabular-nums; }
+.client-quick-config { margin-bottom: var(--space-cg-2xl); padding: var(--space-cg-xl); border: var(--rule-cg-width) solid var(--color-cg-control); border-radius: var(--radius-cg-medium); background: var(--color-cg-soft); }
+.client-quick-config h3, .client-config-method-title { margin: 0 0 var(--space-cg-md); font-size: var(--text-cg-body); font-weight: 650; line-height: 1.5; }
+.client-quick-config > p { margin: 0 0 var(--space-cg-md); color: var(--color-cg-muted); overflow-wrap: anywhere; }
+.client-quick-config-links { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-cg-sm) var(--space-cg-xl); margin-bottom: var(--space-cg-md); font-size: var(--text-cg-ui); }
+.client-quick-config-links a { min-height: 44px; }
+.client-quick-config .client-instructions { margin-bottom: 0; }
+.client-quick-config .client-quick-config-next { margin: var(--space-cg-xl) 0 0; font-size: var(--text-cg-ui); }
+.client-quick-config-next a { min-height: 44px; }
 .client-prerequisite { margin-bottom: var(--space-cg-xl); }
 .client-prerequisite strong { font-weight: 650; }
 .client-prerequisite p { color: var(--color-cg-muted); margin: var(--space-cg-md) 0 var(--space-cg-lg); }

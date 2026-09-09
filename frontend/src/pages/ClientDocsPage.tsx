@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { ArrowDown, ArrowRight, ArrowUp, ArrowUpRight, BookOpen, Check, ChevronDown, Copy, ExternalLink, Home, ImageIcon, KeyRound, Monitor, Moon, Search, Sun, Terminal, X } from 'lucide-react'
-import { CLIENT_GUIDES, getClientGuide, getConfigExample, getInstallCommand, getVerifyCommand, normalizeGatewayURL, type ClientId, type GuidePlatform, type GuideScreenshot } from '@/lib/client-guides'
+import { CC_SWITCH_DOCS_URL, CC_SWITCH_DOWNLOAD_URL, CLIENT_GUIDES, getCCSwitchExample, getClientGuide, getConfigExample, getInstallCommand, getVerifyCommand, normalizeGatewayURL, type ClientId, type GuidePlatform, type GuideScreenshot } from '@/lib/client-guides'
 import { trackFeatureClick } from '@/lib/telemetry-sdk'
 import { apiClient, type AuxEnvelope } from '@/lib/api-client'
 import '@fontsource-variable/geist'
@@ -154,6 +154,7 @@ export default function ClientDocsPage() {
   const model = modelInput.trim()
   const validModel = !!model && !/[\x00-\x1f\x7f]/.test(model)
   const example = baseURL && validModel ? getConfigExample(guide.id, baseURL, model, platform) : null
+  const quickExample = baseURL && validModel ? getCCSwitchExample(guide.id, baseURL, model) : null
   const installCommand = getInstallCommand(guide.id, platform)
   const verifyCommand = validModel ? getVerifyCommand(guide.id, model, platform) : null
   const currentIndex = CLIENT_GUIDES.findIndex(client => client.id === guide.id)
@@ -177,8 +178,8 @@ export default function ClientDocsPage() {
 
   const faqs = [
     { title: '返回 401 / 403，怎么处理？', text: '确认使用的是平台控制台创建的 API Key，复制时没有多余空格。再检查密钥是否启用、是否有模型与分组权限，以及账户额度是否可用。' },
-    { title: 'API 地址到底要不要加 /v1？', text: 'Claude Code 和 Obsidian Claudian 的 ANTHROPIC_BASE_URL、ZCode 本示例的 Base URL 均填网关根地址；本页的 OpenAI 兼容接口示例使用以 /v1 结尾的地址。上方填写根地址即可，示例会按当前指南自动处理，避免重复 /v1。' },
-    { title: '提示模型不存在或接口 404？', text: '模型名称需要与平台提供的模型 ID 完全一致，密钥所属分组也要支持指南标注的协议：Codex 使用 Responses，Claude Code、Obsidian Claudian 与 ZCode 示例使用 Messages，Pi、Hermes 与其他示例使用 Chat Completions。Paseo 沿用所选客户端的协议与配置。' },
+    { title: 'API 地址到底要不要加 /v1？', text: 'Claude Code 和 Obsidian Claudian 的 ANTHROPIC_BASE_URL、Claude Desktop 与 ZCode 本示例的接口地址均填网关根地址；本页的 OpenAI 兼容接口示例使用以 /v1 结尾的地址。上方填写根地址即可，示例会按当前指南自动处理，避免重复 /v1。' },
+    { title: '提示模型不存在或接口 404？', text: '模型名称需要与平台提供的模型 ID 完全一致，密钥所属分组也要支持指南标注的协议：Codex 使用 Responses，Claude Code、Claude Desktop、Obsidian Claudian 与 ZCode 示例使用 Messages，Pi、Hermes 与其他示例使用 Chat Completions。Paseo 沿用所选客户端的协议与配置。' },
     { title: '修改配置后为什么没有生效？', text: '环境变量只影响当前终端及其启动的程序。请从设置变量的终端启动客户端，并检查是否有项目配置覆盖了用户配置。OpenClaw 服务需重启；Pi 重新打开 /model 读取模型文件。' },
   ]
 
@@ -337,11 +338,28 @@ export default function ClientDocsPage() {
           </section>
 
           <section id="configure" className="client-guide-section">
-            <div className="client-step-heading"><h2>配置连接</h2></div><p>{guide.configDescription}</p>
+            <div className="client-step-heading"><h2>配置连接</h2></div>
+            {guide.id === 'claude-desktop' && <p>{guide.configDescription}</p>}
+            {guide.ccSwitch && <div className="client-quick-config" role="region" aria-labelledby="client-quick-config-title">
+              <h3 id="client-quick-config-title">CC Switch 快捷配置</h3>
+              <p>{guide.ccSwitch.description}</p>
+              <div className="client-quick-config-links">
+                <a className="client-inline-link" href={CC_SWITCH_DOWNLOAD_URL} target="_blank" rel="noreferrer">下载 CC Switch <ArrowUpRight size={14} aria-hidden="true" /></a>
+                <a className="client-inline-link" href={`${CC_SWITCH_DOCS_URL}${guide.id === 'claude-desktop' ? '2.6-claude-desktop.md' : '2.1-add.md'}`} target="_blank" rel="noreferrer">配置说明 <ArrowUpRight size={14} aria-hidden="true" /></a>
+              </div>
+              <ol className="client-instructions">{guide.ccSwitch.steps.map(step => <li key={step}>{step}</li>)}</ol>
+              {quickExample ? <CodeBlock title={`${guide.name} · CC Switch 填写参考`} language={quickExample.language} code={quickExample.code} feature={`${guide.id}-cc-switch`} /> : <div className="client-config-error" role="status">填写有效的 API 基础地址和模型后，即可查看快捷配置参数。</div>}
+              {(guide.ccSwitch.screenshots ?? (guide.ccSwitch.screenshot ? [guide.ccSwitch.screenshot] : [])).map((screenshot, index) => <Screenshot key={`${guide.id}-cc-switch-${index}`} screenshot={screenshot} clientName={guide.name} />)}
+              <p className="client-quick-config-next">{guide.id !== 'claude-desktop' && '快捷配置与下方手动配置任选一种。'}完成后，<a className="client-inline-link" href="#verify" onClick={() => setActiveSection('verify')}>验证接入 <ArrowDown size={14} aria-hidden="true" /></a>。</p>
+            </div>}
+            {guide.id !== 'claude-desktop' && <>
+            {guide.ccSwitch && <h3 className="client-config-method-title">手动配置</h3>}
+            <p>{guide.configDescription}</p>
             {guide.configSteps && <ol className="client-instructions">{guide.configSteps.map(step => <li key={step}>{step}</li>)}</ol>}
             {guide.id === 'hermes' && <CodeBlock title="启动配置向导" language="Terminal" code="hermes model" feature="hermes-wizard" />}
             {guide.endpoint && (example ? <CodeBlock title={guide.configPath} language={example.language} code={example.code} feature={`${guide.id}-config`} /> : <div className="client-config-error" role="status">请先在「准备接入信息」中填写有效地址和模型名称，再生成配置。</div>)}
             {guide.authFile && <><p>{guide.authFile.description}</p><CodeBlock title={guide.authFile.path} language="JSON" code={guide.authFile.code} feature={`${guide.id}-auth`} /></>}
+            </>}
             {guide.endpoint && <div className="client-protocol-note"><span>请求端点</span><code>{guide.endpoint}</code><span>{guide.endpoint === '/v1/messages' ? '由客户端自动添加，基础地址不加 /v1。' : '示例已自动补齐 /v1，无需添加完整端点。'}</span></div>}
             <Screenshot key={`${guide.id}-configure`} screenshot={guide.screenshots.configure} clientName={guide.name} />
           </section>

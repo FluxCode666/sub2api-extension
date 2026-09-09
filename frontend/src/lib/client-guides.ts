@@ -23,7 +23,7 @@ export interface ClientGuide {
   installTitle?: string
   installSteps?: { text: string; href?: string; linkLabel?: string }[]
   installAlternatives?: { title: string; description: string; command: string }[]
-  ccSwitch?: { description: string; steps: string[] }
+  ccSwitch?: { description: string; steps: string[]; screenshot?: GuideScreenshot; screenshots?: GuideScreenshot[] }
   configPath: string
   configDescription: string
   configSteps?: string[]
@@ -53,6 +53,16 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
     ],
     configPath: '终端环境变量',
     configDescription: '在当前终端设置网关根地址、API Key 和 Claude 模型。ANTHROPIC_BASE_URL 不加 /v1；请把 sk-YOUR_API_KEY 换成控制台创建的密钥。如需持久化，可将这些变量合并到 ~/.claude/settings.json 的 env 对象中，下方截图展示这种方式。',
+    ccSwitch: {
+      description: '在图形界面填写网关、密钥与模型，由 CC Switch 保存到 Claude Code 配置中。',
+      steps: [
+        '先完成上方 Claude Code 安装，再安装并打开最新版本 CC Switch。在应用切换器中选择「Claude」（Claude Code），点击右上角「+」添加自定义供应商。',
+        '按下方参考填写供应商名称、接口地址和 API Key，使用 Anthropic Messages 协议与 Auth Token（Bearer）认证；接口地址填写网关根地址，不加 /v1。',
+        '默认模型填写本页的模型 ID，默认值为 claude-opus-5。保存并点击供应商卡片的「启用」，由 CC Switch 写入 ~/.claude/settings.json。',
+        '重新打开 Claude Code 后验证接入。如原终端中仍有旧的网关或密钥环境变量，先清理冲突变量，确保使用刚启用的供应商。',
+      ],
+      screenshot: { src: '/client-docs/claude-code/cc-switch.png', alt: 'CC Switch 编辑 Claude Code 供应商：填写网关地址、API Key、Anthropic Messages 格式和模型映射，密钥已遮盖', caption: 'CC Switch 快捷配置 Claude Code' },
+    },
     verification: '在同一个终端启动 Claude Code，直接发送「当前时间」。收到正常回复后，在控制台核对本次用量。',
     troubleshooting: '如果仍使用原来的账号或提示凭据冲突，请检查环境变量与 ~/.claude/settings.json 中的配置，清理冲突的 ANTHROPIC_API_KEY 或旧网关变量。终端变量只对当前终端及其启动的程序生效；需要持久化时，按官方说明合并到 ~/.claude/settings.json 的 env 中。',
     screenshots: {
@@ -71,21 +81,18 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
       { text: '下载并安装 Claude Desktop，打开应用并完成首次启动。', href: 'https://claude.ai/download', linkLabel: '下载 Claude Desktop' },
       { text: '准备好平台 API 基础地址、API Key 和模型 ID；使用 CC Switch 时，这些信息会在供应商表单中填写。' },
     ],
-    configPath: 'Claude Desktop 供应商参数参考',
-    configDescription: '推荐使用下方的 CC Switch 快捷配置，由 CC Switch 写入 Claude Desktop 的 3P profile。手动配置时请按平台提供的 Claude Desktop 接入方式填写网关、密钥和模型；Claude Desktop 切换供应商后需要完全退出并重新打开。',
-    configSteps: [
-      'Claude Desktop 的原生直连通常需要 Anthropic Messages API，并使用 Claude Desktop 能识别的 Sonnet、Opus 或 Haiku 角色模型。',
-      '如果平台模型 ID 不是 Claude Desktop 可识别的角色名，使用 CC Switch 的模型映射模式，将角色模型映射到平台实际模型。',
-    ],
+    configPath: 'CC Switch 中的 Claude Desktop 供应商',
+    configDescription: '本指南通过 CC Switch 接入 Anthropic Messages 网关。Claude Desktop 使用独立的桌面配置，切换供应商后需要完全退出并重新打开；不需要先安装 Claude Code。',
     verification: '完全退出并重新打开 Claude Desktop，确认当前供应商和模型后发送「当前时间」。收到正常回复后，在平台控制台核对请求用量。',
-    troubleshooting: '如果 Claude Desktop 仍使用原账号或提示认证失败，请在 CC Switch 中确认供应商已启用、API 地址和密钥无误，并检查模型映射是否指向可用模型。修改供应商后需要完全退出并重新打开 Claude Desktop。',
+    troubleshooting: '找不到 Claude Desktop 入口时，升级 CC Switch，并检查「设置 → 通用 → 应用可见性」。目前 CC Switch 的 Claude Desktop 配置写入支持 macOS 与 Windows。模型列表为空时，检查网关 /v1/models，或在直连设置的「手动指定 Claude Desktop 模型列表」中添加本页模型。模型映射模式需保持 CC Switch 运行并开启 Claude Desktop 本地路由；在「设置 → 路由 → 本地路由」中开启「在主页面显示本地路由开关」后，可回到 Claude Desktop 面板开启。每次切换供应商后都要完全退出并重启 Claude Desktop。',
     ccSwitch: {
-      description: 'CC Switch 可直接管理 Claude Desktop 的供应商、模型映射和切换，不需要手动编辑 3P profile 文件。',
+      description: '由 CC Switch 管理桌面应用的供应商配置，默认以 claude-opus-5 和 Anthropic Messages 直连接入。',
       steps: [
-        '安装并打开 CC Switch，在应用切换器中选择「Claude Desktop」。',
-        '点击「添加供应商」；已有 Claude Code 配置时，可选择从 Claude Code 导入，减少重复填写。',
-        '填写 API 基础地址、API Key 和模型；非 Claude 角色模型开启「需要模型映射」，保存后点击「启用」。',
-        '完全退出并重新打开 Claude Desktop，再发送「当前时间」验证。模型映射模式需要保持 CC Switch 的本地路由运行。',
+        '先完成上方 Claude Desktop 安装，再安装并打开最新版本 CC Switch，选择「Claude Desktop」面板。',
+        '点击右上角「+」添加自定义供应商；若已在 CC Switch 的 Claude 面板配置过供应商，也可使用「将 Claude Code 中已有的供应商导入」，随后核对配置。',
+        '填写下方网关根地址和平台 API Key。使用 claude-opus-5 等可识别的 Claude 模型时，保持「需要模型映射」关闭；模型列表通常从网关 /v1/models 自动读取，重启后在模型菜单选择本页模型。',
+        '使用非 Claude 角色模型或需要转换协议时，开启「需要模型映射」，选择上游 API 格式，在角色对应的「实际请求模型」中填写平台模型 ID，并开启 Claude Desktop 本地路由。',
+        '保存后点击供应商卡片的「启用」，完全退出并重新打开 Claude Desktop。模型映射模式下使用期间保持 CC Switch 与本地路由运行。',
       ],
     },
     screenshots: {
@@ -108,12 +115,14 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
       code: JSON.stringify({ OPENAI_API_KEY: 'sk-YOUR_API_KEY' }, null, 2),
     },
     ccSwitch: {
-      description: 'CC Switch 可以直接管理 Codex 供应商并写入 auth.json 与 config.toml，适合在多个 API 供应商之间快速切换。',
+      description: '在 CC Switch 中添加 Responses 供应商，保存并切换 Codex 的网关与模型配置。',
       steps: [
-        '安装并打开 CC Switch，在应用切换器中选择「Codex」。',
-        '点击「添加供应商」，填写平台 API Key、API 地址和模型；Responses 供应商可直接使用，其他协议按 CC Switch 提示开启本地路由映射。',
-        '点击「启用」完成写入，重新打开 Codex，再发送「当前时间」验证。',
+        '先完成上方 Codex 安装，再安装并打开最新版本 CC Switch，选择「Codex」面板，点击右上角「+」添加自定义供应商。',
+        '按下方参考填写平台 API Key 和以 /v1 结尾的接口地址，选择 OpenAI Responses 协议；本指南使用原生 Responses 网关，无需开启本地路由映射。',
+        '模型填写本页的模型 ID，默认值为 gpt-6-astra。保存并点击供应商卡片的「启用」。',
+        '关闭并重新打开 Codex，使供应商配置生效，然后按下方验证步骤发送消息。',
       ],
+      screenshot: { src: '/client-docs/codex/cc-switch.png', alt: 'CC Switch 编辑 Codex 供应商：填写供应商名称、官网链接、API Key 和完整 API 请求地址，密钥已遮盖', caption: 'CC Switch 编辑 Codex 供应商' },
     },
     verification: '保存 config.toml 和 auth.json 后，重新启动 codex，直接发送「当前时间」。收到正常回复后，在控制台检查用量。',
     troubleshooting: 'Codex 需要 Responses 接口。若出现 404，请检查网关是否提供 /v1/responses，以及 base_url 是否只包含一次 /v1。提示缺少 API Key 时，检查 ~/.codex/auth.json 中的 OPENAI_API_KEY，以及 config.toml 中的 cli_auth_credentials_store = "file" 和 requires_openai_auth = true。迁移旧配置时移除提供方中的 env_key；若设置了 CODEX_HOME，两个文件都应放在该目录下。',
@@ -134,16 +143,20 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
     ccSwitch: {
       description: 'CC Switch 可管理 Pi 的供应商预设和模型配置，减少手动编辑 models.json 的步骤。',
       steps: [
-        '安装并打开 CC Switch，在应用切换器中选择「Pi」。',
-        '添加或选择供应商，填写 API Key、API 地址和模型；确认 API 格式与平台兼容。',
-        '点击「启用」写入 Pi 配置，重新打开 Pi 或刷新 /model，再发送「当前时间」验证。',
+        '先完成上方 Pi 安装，再安装并打开最新版本 CC Switch，选择「Pi」面板，点击右上角「+」添加自定义供应商。',
+        '填写供应商名称与唯一的供应商标识（例如 gateway），再填写平台 API Key 与下方以 /v1 结尾的地址；API 格式选择 OpenAI Chat Completions（openai-completions），添加本页模型 ID 及显示名称。',
+        '保存供应商并确认已写入 Pi 配置。重新打开 Pi，在 /model 中选择刚添加的供应商与模型，再按下方步骤验证。',
+      ],
+      screenshots: [
+        { src: '/client-docs/pi/cc-switch-provider.png', alt: 'CC Switch 编辑 Pi 供应商：填写 API Key、Base URL 与 OpenAI Chat Completions 接口格式，密钥已遮盖', caption: 'CC Switch 配置 Pi 供应商' },
+        { src: '/client-docs/pi/cc-switch-models.png', alt: 'CC Switch 的 Pi 模型配置列表，包含多个模型 ID 与显示名称', caption: 'CC Switch 配置 Pi 模型列表' },
       ],
     },
-    verification: '启动 Pi 后，输入 /model，选择 gateway 下的目标模型。发送「当前时间」，确认收到回复，并在控制台检查请求用量。修改 models.json 后，重新打开 /model 即可重新读取。',
+    verification: '启动 Pi 后，输入 /model，选择刚配置的供应商与目标模型（手动配置示例中的供应商为 gateway）。发送「当前时间」，确认收到回复，并在控制台检查请求用量。修改 models.json 后，重新打开 /model 即可重新读取。',
     troubleshooting: '模型没有显示时，先检查 JSON 格式和 API Key，再打开 /model。若返回接口不支持，请检查 api 字段与网关协议；此示例的 openai-completions 对应 /v1/chat/completions。',
     screenshots: {
-      configure: { src: '', alt: 'Pi models.json 中的 gateway 配置', caption: 'models.json 自定义模型' },
-      verify: { src: '', alt: 'Pi 的 /model 菜单选择 gateway 模型', caption: '/model 选择与首次对话' },
+      configure: { src: '/client-docs/pi/models.png', alt: 'Pi 的 models.json 中配置 FluxCode 提供方、OpenAI Chat Completions 接口和模型，密钥已遮盖', caption: 'models.json 自定义模型' },
+      verify: { src: '/client-docs/pi/verify.png', alt: 'Pi 发送「当前时间」后调用 date 获取时间并返回正常回复', caption: '发送「当前时间」验证接入' },
     },
   },
   {
@@ -158,12 +171,13 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
     ccSwitch: {
       description: 'CC Switch 可直接管理 Hermes 的供应商与模型，适合快速切换不同网关。',
       steps: [
-        '安装并打开 CC Switch，在应用切换器中选择「Hermes」。',
-        '添加或选择供应商，填写 API Key、API 地址和模型；保存后点击「启用」。',
-        '重新打开 Hermes，在会话中确认当前模型，再发送「当前时间」验证。',
+        '先完成上方 Hermes 安装，再安装并打开最新版本 CC Switch，选择「Hermes」面板，点击右上角「+」添加自定义供应商。',
+        '填写平台 API Key、下方以 /v1 结尾的 API 地址和本页模型 ID，API 模式选择 OpenAI Chat Completions。',
+        '保存后点击供应商卡片的「启用」，重新打开 Hermes，在 /model 中确认刚配置的供应商与模型，再按下方步骤验证。',
       ],
+      screenshot: { src: '', alt: 'CC Switch 的 Hermes 面板配置 Chat Completions 供应商与模型', caption: 'CC Switch 快捷配置 Hermes' },
     },
-    verification: '完成向导后运行 hermes，在会话中用 /model 检查当前模型，然后发送「当前时间」。回复正常后，去控制台核对用量记录。',
+    verification: '完成配置后运行 hermes，在会话中用 /model 检查当前模型，然后发送「当前时间」。回复正常后，去控制台核对用量记录。',
     troubleshooting: '自定义端点应通过 hermes model 保存，或配置 config.yaml 的 model.base_url。不要依赖旧的 LLM_MODEL 环境变量。启动异常可运行 hermes doctor；工具本身的额外服务可能需要单独配置。',
     screenshots: {
       configure: { src: '', alt: 'Hermes 选择 Custom endpoint 并填写网关信息的向导', caption: 'Custom endpoint 配置向导' },
@@ -293,6 +307,21 @@ export function getClientGuide(id: string | null): ClientGuide {
   return CLIENT_GUIDES.find(guide => guide.id === id) ?? CLIENT_GUIDES[0]
 }
 
+export const CC_SWITCH_DOWNLOAD_URL = 'https://github.com/farion1231/cc-switch/releases/latest'
+export const CC_SWITCH_DOCS_URL = 'https://github.com/farion1231/cc-switch/blob/v3.20.2/docs/user-manual/zh/2-providers/'
+
+export function getCCSwitchExample(id: ClientId, baseURL: string, model: string): { language: string; code: string } | null {
+  const guide = getClientGuide(id)
+  if (!guide.ccSwitch) return null
+  const app = id === 'claude-code' ? 'Claude（Claude Code）' : guide.name
+  const apiURL = guide.endpoint === '/v1/messages' ? baseURL : `${baseURL}/v1`
+  const providerKey = id === 'pi' ? '\n供应商标识    gateway（若已存在请换一个）' : ''
+  return {
+    language: '界面填写参考',
+    code: `应用          ${app}\n供应商名称    Gateway${providerKey}\n接口地址      ${apiURL}\nAPI Key       sk-YOUR_API_KEY\nAPI 格式      ${guide.protocol}\n模型 ID       ${model}`,
+  }
+}
+
 export function normalizeGatewayURL(input: string): string | null {
   const value = input.trim()
   if (!value || /[\s\\]/.test(value)) return null
@@ -342,7 +371,7 @@ export function getConfigExample(id: ClientId, baseURL: string, model: string, p
           : `export ${key}=${quoteShell(value, platform)}`).join('\n'),
       }
     }
-    case 'claude-desktop': return { language: '界面填写参考', code: JSON.stringify({ inferenceProvider: 'gateway', inferenceGatewayBaseUrl: baseURL, inferenceGatewayAuthScheme: 'bearer', inferenceGatewayApiKey: apiKey, model }, null, 2) }
+    case 'claude-desktop': return getCCSwitchExample(id, baseURL, model)
     case 'paseo': return null
     case 'codex': return {
       language: 'TOML',
@@ -360,12 +389,12 @@ export function getConfigExample(id: ClientId, baseURL: string, model: string, p
   }
 }
 
-export function getVerifyCommand(id: ClientId, model: string, platform: GuidePlatform): string | null {
+export function getVerifyCommand(id: ClientId, _model: string, _platform: GuidePlatform): string | null {
   switch (id) {
     case 'claude-code': return 'claude'
     case 'claude-desktop': return null
     case 'codex': return 'codex'
-    case 'pi': return `pi --provider gateway --model ${quoteShell(model, platform)}`
+    case 'pi': return 'pi'
     case 'hermes': return 'hermes'
     case 'openclaw': return 'openclaw models list\nopenclaw gateway restart\nopenclaw dashboard'
     case 'paseo':

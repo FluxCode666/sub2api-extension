@@ -8,7 +8,7 @@
 
 可用参数：
 
-- `client=claude-code|codex|pi|hermes|openclaw|paseo|zcode|deepseek-harness|obsidian`：直达对应客户端；未知值回退到 Claude Code。Obsidian 使用 Claudian 插件（YishenTu/claudian）。
+- `client=claude-code|claude-desktop|codex|pi|hermes|openclaw|paseo|zcode|deepseek-harness|obsidian`：直达对应客户端；未知值回退到 Claude Code。Obsidian 使用 Claudian 插件（YishenTu/claudian）。
 - `api_base=https%3A%2F%2Fapi.example.com`：预填实际网关地址。缺省使用示例域名，避免将附属系统域名误当作模型网关。
 - `embed=1` 或 `ui_mode=embedded`：嵌入入口。
 - `theme=system|light|dark`：指定跟随系统、浅色或深色；兼容宿主传入的主题参数。
@@ -29,13 +29,16 @@
 
 ## 补充截图
 
-随静态文档发布的截图放在 `frontend/public/client-docs/<客户端>/`，在 `frontend/src/lib/client-guides.ts` 对应客户端的 `screenshots.configure.src` 和 `screenshots.verify.src` 中填写 `/client-docs/<客户端>/<文件名>`。后台管理的截图则在 `/admin/files` 上传并复制完整 HTTP(S) 图片 URL 填入。每个客户端预留「配置」与「验证」两个位置，共 18 个；根据实际截图调整 `alt` 和 `caption`。截图中的密钥应遮盖。
+随静态文档发布的截图放在 `frontend/public/client-docs/<客户端>/`，在 `frontend/src/lib/client-guides.ts` 对应客户端的 `screenshots.configure.src` 和 `screenshots.verify.src` 中填写 `/client-docs/<客户端>/<文件名>`。后台管理的截图则在 `/admin/files` 上传并复制完整 HTTP(S) 图片 URL 填入。10 个客户端各有「配置」与「验证」两个位置，共 20 个；Claude Code、Codex、Pi、Hermes 的 CC Switch 快捷配置另各预留一张图，在 `ccSwitch.screenshot.src` 中填写路径（例如 `/client-docs/codex/cc-switch.png`）。Claude Desktop 的配置图直接展示 CC Switch。根据实际截图调整 `alt` 和 `caption`，截图中的密钥应遮盖。
 
-Claude Code、ZCode、Codex、DeepSeek Harness 与 Paseo 已各补齐用户提供的两张原图，共 10 张；其余 8 个位置继续保留占位。截图中的域名、供应商名称与模型为示例，实际接入使用用户自己的配置。
+Claude Code、ZCode、Codex、DeepSeek Harness 与 Paseo 已各补齐用户提供的两张原图，共 10 张；Pi 已补齐 4 张配置与验证原图；其余位置继续保留占位。截图中的域名、供应商名称与模型为示例，实际接入使用用户自己的配置。
 
 - `frontend/public/client-docs/claude-code/configure.png` 展示 `~/.claude/settings.json` 的 `env` 持久化配置，密钥已遮盖；`verify.png` 展示 Claude Code 使用 Opus 5 发送「当前时间」后的回复。
+- `frontend/public/client-docs/claude-code/cc-switch.png` 展示 CC Switch 编辑 Claude Code 供应商：网关地址、API Key、Anthropic Messages 格式与模型映射，密钥已遮盖。
 - `frontend/public/client-docs/zcode/configure.png` 展示 Anthropic Messages 供应商配置，`verify.png` 展示发送「当前时间」后的回复。
 - `frontend/public/client-docs/codex/configure.png` 并排展示 `auth.json` 密钥文件与 `config.toml` 提供方配置，`verify.png` 展示 Codex 桌面客户端发送「当前时间」后的回复。
+- `frontend/public/client-docs/codex/cc-switch.png` 展示 CC Switch 编辑 Codex 供应商时填写完整 API 请求地址、API Key 和保存操作，密钥已遮盖。
+- `frontend/public/client-docs/pi/models.png` 展示 Pi 的 `models.json` 配置，`verify.png` 展示发送「当前时间」后的工具调用和回复；`cc-switch-provider.png` 与 `cc-switch-models.png` 展示 CC Switch 中配置 Pi 供应商和模型列表。
 - `frontend/public/client-docs/deepseek-harness/configure.png` 展示内置 DeepSeek 提供方的 API 密钥、自定义 API 地址与模型目录，`verify.png` 展示在工作区发送「当前时间」后的回复。
 - `frontend/public/client-docs/paseo/configure.png` 展示当前主机的 Providers 设置，Claude、Codex 与 Pi 显示可用；`verify.png` 展示通过 Codex 提供方发送「当前时间」后的回复，前置指南仍可按所选客户端进入。
 
@@ -53,6 +56,10 @@ API 地址会规范化去除尾部斜线和末尾 `/v1`；配置再按协议添�
 
 Claude Code 提供官方安装器与 npm 两种安装方式，任选其一。npm 方式要求 Node.js 22 或更新版本，执行 `npm install -g @anthropic-ai/claude-code`；安装后重新打开终端并继续配置。额外安装方式通过 `installAlternatives` 登记说明与可复制命令。
 
+Claude Desktop 从官网下载桌面安装包，通过其文档页内的 CC Switch 指南配置，支持 macOS 与 Windows。它使用独立的 3P profile，无需先安装 Claude Code。默认以 `claude-opus-5` 和 Anthropic Messages 直连；如需非 Claude 角色模型或协议转换，可开启模型映射并保持 CC Switch 本地路由运行。切换后必须完全退出并重启 Claude Desktop。
+
+Claude Code、Claude Desktop、Codex、Hermes 与 Pi 各自在「配置连接」中展示 CC Switch 快捷配置，不增加 CC Switch 独立路由或客户端条目。`ccSwitch` 字段登记各应用的步骤与可选截图，`getCCSwitchExample` 复用已校验的地址和当前模型生成填写参考：Claude 使用根地址，Codex、Pi、Hermes 使用 `/v1` 地址。参数变为无效时隐藏参考内容。原有手动方式继续保留，快捷配置完成后可直接跳到验证。Pi 从 `/model` 中选择实际保存的供应商，启动命令不强制覆盖为手动示例的 `gateway`。
+
 Codex 使用两份文件：`~/.codex/config.toml` 配置模型与网关，并设置顶层 `cli_auth_credentials_store = "file"` 及提供方的 `requires_openai_auth = true`；API Key 写入 `~/.codex/auth.json` 的 `OPENAI_API_KEY` 字段。文档不再使用 `GATEWAY_API_KEY` 环境变量方式。截图可同时展示两份文件；若用户自定义了 `CODEX_HOME`，两份文件都应位于该目录。
 
 Paseo 的准备步骤提供 Claude Code、Codex、Pi、Hermes 四份现有接入文档的入口，用户只需在运行 Paseo 后台服务的主机上配置所选客户端，并发送「当前时间」确认可用，再返回安装 Paseo Desktop、选择对应提供方与工作区。Claude Code、Codex、Pi 为官方原生支持，Hermes 通过提供方目录启用；更多客户端链接至官方支持列表。Paseo 页面不再重复 Codex 配置文件，也不固定某一种模型 API 协议。
@@ -64,6 +71,8 @@ Obsidian 示例以已配置可用的 Claude Code 为前置条件，安装步骤�
 接入方式于 2026-09-09 对照以下官方资料核对。模型名称、账号权限、运行时版本要求以服务方与客户端当前版本为准；示例中的 `your-model-id` 必须替换为平台实际开放的模型。
 
 - Claude Code：<https://code.claude.com/docs/en/llm-gateway-connect> 与 <https://code.claude.com/docs/en/setup#install-with-npm>
+- Claude Desktop：<https://claude.ai/download>，CC Switch 的桌面接入说明见 <https://github.com/farion1231/cc-switch/blob/v3.20.2/docs/user-manual/zh/2-providers/2.6-claude-desktop.md>
+- CC Switch：以当前正式版 v3.20.2 核对 <https://github.com/farion1231/cc-switch/releases/tag/v3.20.2>、`docs/user-manual/zh/2-providers/2.1-add.md`、`2.2-switch.md`、`src/config/piProviderPresets.ts` 与 `src/components/providers/forms/HermesFormFields.tsx`。下载入口固定为官方 Releases/latest。
 - Codex：<https://developers.openai.com/codex/config-advanced>，提供方字段另对照 <https://github.com/openai/codex/blob/main/codex-rs/core/config.schema.json>
 - Pi：<https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent> 与其 `docs/models.md`。当前官方快速开始使用 `@earendil-works/pi-coding-agent`。
 - Hermes Agent：<https://hermes-agent.nousresearch.com/docs/integrations/providers>

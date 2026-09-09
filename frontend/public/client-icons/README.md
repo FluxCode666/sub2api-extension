@@ -5,6 +5,7 @@
 | 文件 | 来源 |
 | --- | --- |
 | `claude-code.svg` | [Lobe Icons / Claude Code](https://github.com/lobehub/lobe-icons/blob/master/packages/static-svg/icons/claudecode-color.svg) |
+| `claude-desktop.svg` | [Lobe Icons / Claude](https://github.com/lobehub/lobe-icons/blob/master/packages/static-svg/icons/claude-color.svg) |
 | `codex.svg` | [Lobe Icons / Codex](https://github.com/lobehub/lobe-icons/blob/master/packages/static-svg/icons/codex-color.svg) |
 | `pi.svg` | [Pi 官网 favicon](https://pi.dev/favicon.svg) |
 | `hermes.svg` | [Lobe Icons / Hermes Agent](https://github.com/lobehub/lobe-icons/blob/master/packages/static-svg/icons/hermesagent.svg) |
@@ -16,4 +17,4 @@
 
 保留原始图形与品牌色。Paseo 原图为白色，在浅色主题通过 CSS 反相为黑色；Hermes 原图为黑色，在深色主题反相为白色。其他图标不做颜色过滤。
 
-Lobe Icons 提供的三个 SVG 遵循 MIT 许可，完整许可见同目录的 `LICENSE.lobe-icons`。品牌标志及商标归各自权利人所有。
+Lobe Icons 提供的四个 SVG 遵循 MIT 许可，完整许可见同目录的 `LICENSE.lobe-icons`。品牌标志及商标归各自权利人所有。
