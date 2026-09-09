@@ -53,6 +53,8 @@ coverage/
 
 # 本地 agent 与浏览器验收工件
 /.pi/
+/.hallmark/
+/.playwright-cli/
 /output/playwright/
 
 # ============ 编辑器 / OS ============
