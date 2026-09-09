@@ -24,8 +24,8 @@
   --api-panel-line: var(--color-cg-code-rule);
   --api-method-get-bg: oklch(94% 0.03 165);
   --api-method-get-ink: oklch(39% 0.1 165);
-  --api-method-post-bg: var(--color-cg-soft);
-  --api-method-post-ink: var(--color-cg-ink);
+  --api-method-post-bg: oklch(94% 0.03 240);
+  --api-method-post-ink: oklch(42% 0.12 240);
   --api-clear: var(--color-cg-clear);
   --api-shadow-soft: color-mix(in oklch, var(--api-ink) 6%, transparent);
   --api-shadow-medium: color-mix(in oklch, var(--api-ink) 10%, transparent);
@@ -66,8 +66,8 @@
   --api-panel-line: oklch(39% 0.01 90);
   --api-method-get-bg: oklch(27% 0.045 165);
   --api-method-get-ink: oklch(76% 0.1 165);
-  --api-method-post-bg: oklch(26% 0.008 90);
-  --api-method-post-ink: oklch(94% 0.006 90);
+  --api-method-post-bg: oklch(28% 0.045 240);
+  --api-method-post-ink: oklch(78% 0.1 240);
   --api-clear: oklch(20% 0.004 90 / 0);
   --api-shadow-soft: oklch(5% 0.006 90 / 0.18);
   --api-shadow-medium: oklch(5% 0.006 90 / 0.28);
