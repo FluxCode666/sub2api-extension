@@ -223,6 +223,14 @@ html:has(.aux-api-docs), body:has(.aux-api-docs) { overflow-x: clip; }
 .aux-api-code-toolbar button { min-height: 32px; border: 0; background: none; color: var(--api-panel-muted); font-size: 11px; }
 .aux-api-code-toolbar button:hover { color: var(--api-panel-ink); }
 .aux-api-code-block pre { overflow-x: auto; margin: 0; padding: 16px 14px 18px; font-family: var(--api-font-code); font-size: 12px; line-height: 1.75; white-space: pre; }
+.aux-api-code-token { font-style: normal; }
+.aux-api-code-token--comment { color: oklch(67% 0.02 90); }
+.aux-api-code-token--string { color: oklch(79% 0.12 150); }
+.aux-api-code-token--number { color: oklch(80% 0.12 80); }
+.aux-api-code-token--flag { color: oklch(82% 0.11 220); }
+.aux-api-code-token--keyword { color: oklch(82% 0.12 25); font-weight: 650; }
+.aux-api-code-token--property { color: oklch(84% 0.09 220); }
+.aux-api-code-token--punctuation { color: var(--api-panel-muted); }
 
 .aux-api-auth-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .aux-api-auth-grid > div { min-width: 0; min-height: 96px; padding: 15px; border: 1px solid var(--api-line); border-radius: 6px; background: var(--api-surface); }

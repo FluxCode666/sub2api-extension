@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import gsap from 'gsap'
 import {
@@ -658,6 +658,7 @@ function buildExampleCode(endpoint: Endpoint, baseURL: string, exampleModel: str
   if (language === 'curl') {
     const slash = String.fromCharCode(92)
     const lines = [`curl "${url}" \\\n  -H "${headerName}: ${isGoogle ? '$API_KEY' : 'Bearer $API_KEY'}"`]
+    if (endpoint.method === 'POST') lines[0] += ` ${slash}`
     if (endpoint.method === 'POST') {
       lines.push(`  -H "Content-Type: application/json"${requestBody ? ` ${slash}` : ''}`)
       if (requestBody) lines.push(`  -d '${requestBody.replace(/'/g, "'\\''")}'`)
@@ -795,9 +796,53 @@ function buildMarkdownDocument(endpoint: Endpoint, baseURL: string, exampleModel
   ].filter((line, index, lines) => !(line === '' && lines[index - 1] === '' && lines[index + 1] === '')).join('\n').trimEnd() + '\n'
 }
 
+const codeTokenPattern = /(#.*$|\/\/.*$|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b(?:true|false|null|undefined)\b|\b\d+(?:\.\d+)?\b|--?[A-Za-z][\w-]*|[A-Za-z_$][\w$.-]*|[{}()[\],.;:=])/gm
+const codeKeywords: Record<string, Set<string>> = {
+  shell: new Set(['curl']),
+  curl: new Set(['curl']),
+  python: new Set(['import', 'from', 'as', 'def', 'if', 'for', 'in', 'return', 'True', 'False', 'None']),
+  go: new Set(['package', 'import', 'func', 'var', 'if', 'range', 'defer', 'return', 'panic']),
+  java: new Set(['import', 'public', 'class', 'static', 'void', 'new', 'throws', 'String']),
+  json: new Set(['true', 'false', 'null']),
+}
+
+function codeTokenClass(token: string, language: string): string | null {
+  if (token.startsWith('#') || token.startsWith('//')) return 'comment'
+  if (/^["'`]/.test(token)) return 'string'
+  if (/^\d/.test(token)) return 'number'
+  if (/^--?/.test(token)) return 'flag'
+  if (codeKeywords[language]?.has(token)) return 'keyword'
+  if (language === 'json' && /^[A-Za-z_$]/.test(token)) return 'property'
+  if (/^[{}()[\],.;:=]$/.test(token)) return 'punctuation'
+  return null
+}
+
+function highlightCode(code: string, language: string): ReactNode {
+  const highlighted: ReactNode[] = []
+  let lastIndex = 0
+  let tokenIndex = 0
+  for (const match of code.matchAll(codeTokenPattern)) {
+    const token = match[0]
+    const index = match.index ?? 0
+    if (index > lastIndex) highlighted.push(code.slice(lastIndex, index))
+    const tokenClass = codeTokenClass(token, language)
+    highlighted.push(tokenClass
+      ? <span className={`aux-api-code-token aux-api-code-token--${tokenClass}`} key={`token-${tokenIndex}`}>{token}</span>
+      : token)
+    tokenIndex += 1
+    lastIndex = index + token.length
+  }
+  if (lastIndex < code.length) highlighted.push(code.slice(lastIndex))
+  return highlighted
+}
+
+function codeLanguageLabel(language: string): string {
+  return language === 'shell' ? 'shell' : language === 'curl' ? 'cURL' : language
+}
+
 function CodeBlock({ id, code, language = 'shell', copied, onCopy }: { id: string; code: string; language?: string; copied: string | null; onCopy: (id: string, value: string) => void }) {
   const isCopied = copied === id
-  return <div className="aux-api-code-block"><div className="aux-api-code-toolbar"><span><Terminal aria-hidden="true" /> {language}</span><button type="button" onClick={() => onCopy(id, code)} aria-label={isCopied ? '已复制' : '复制代码'}>{isCopied ? <Check aria-hidden="true" /> : <Clipboard aria-hidden="true" />}<span>{isCopied ? '已复制' : '复制'}</span></button></div><pre><code>{code}</code></pre></div>
+  return <div className="aux-api-code-block" data-code-language={language}><div className="aux-api-code-toolbar"><span><Terminal aria-hidden="true" /> {codeLanguageLabel(language)}</span><button type="button" onClick={() => onCopy(id, code)} aria-label={isCopied ? '已复制' : '复制代码'}>{isCopied ? <Check aria-hidden="true" /> : <Clipboard aria-hidden="true" />}<span>{isCopied ? '已复制' : '复制'}</span></button></div><pre><code>{highlightCode(code, language)}</code></pre></div>
 }
 
 function ParameterTable({ parameters, emptyLabel }: { parameters: Parameter[]; emptyLabel: string }) {

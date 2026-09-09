@@ -132,7 +132,7 @@ describe('ApiDocsPage', () => {
     fireEvent.click(screen.getByRole('tab', { name: '调用示例' }))
     expect(screen.getAllByText(/gpt-6-astra/).length).toBeGreaterThan(0)
     fireEvent.click(screen.getByRole('tab', { name: 'Python' }))
-    expect(screen.getByText(/import requests/)).toBeInTheDocument()
+    expect(document.querySelector('.aux-api-examples-panel pre code')).toHaveTextContent('import requests')
   })
 
   it('keeps request examples provider-neutral', () => {
@@ -197,5 +197,42 @@ describe('ApiDocsPage', () => {
     expect(markdown).not.toContain('SUB2API_API_KEY')
 
     await waitFor(() => expect(copyButton).toHaveTextContent('已复制 Markdown'))
+  })
+
+  it('renders valid provider-neutral examples with syntax tokens in every language', () => {
+    renderPage()
+
+    const card = document.querySelector('#endpoint-chat-completions') as HTMLElement
+    fireEvent.click(within(card).getByRole('tab', { name: '调用示例' }))
+    const code = () => card.querySelector('pre code')?.textContent ?? ''
+    const languages = [
+      ['cURL', 'curl', 'Authorization: Bearer $API_KEY'],
+      ['Python', 'import requests', 'requests.post'],
+      ['Go', 'http.NewRequest(http.MethodPost', 'os.Getenv("API_KEY")'],
+      ['Java', 'HttpRequest.Builder', 'HttpRequest.BodyPublishers.ofString'],
+    ] as const
+
+    for (const [language, expectedCode, expectedAuth] of languages) {
+      fireEvent.click(within(card).getByRole('tab', { name: language }))
+      expect(code()).toContain(expectedCode)
+      expect(code()).toContain(expectedAuth)
+      expect(card.querySelectorAll('.aux-api-code-token').length).toBeGreaterThan(0)
+    }
+    fireEvent.click(within(card).getByRole('tab', { name: 'cURL' }))
+    expect(code().split('\n')[1]).toMatch(/Authorization: Bearer \$API_KEY" \\\s*$/)
+
+    const modelsCard = document.querySelector('#endpoint-models') as HTMLElement
+    fireEvent.click(within(modelsCard).getByRole('button', { name: '查看参数与示例' }))
+    fireEvent.click(within(modelsCard).getByRole('tab', { name: '调用示例' }))
+    fireEvent.click(within(modelsCard).getByRole('tab', { name: 'Go' }))
+    expect(modelsCard.querySelector('pre code')).toHaveTextContent('http.MethodGet')
+    expect(modelsCard.querySelector('pre code')).toHaveTextContent('http.NewRequest')
+
+    const googleCard = document.querySelector('#endpoint-gemini-generate-content') as HTMLElement
+    fireEvent.click(within(googleCard).getByRole('button', { name: '查看参数与示例' }))
+    fireEvent.click(within(googleCard).getByRole('tab', { name: '调用示例' }))
+    fireEvent.click(within(googleCard).getByRole('tab', { name: 'Python' }))
+    expect(googleCard.querySelector('pre code')).toHaveTextContent('x-goog-api-key')
+    expect(googleCard.querySelector('pre code')).toHaveTextContent('/v1beta/models/gpt-6-astra:generateContent')
   })
 })
