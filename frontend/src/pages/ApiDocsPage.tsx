@@ -8,6 +8,7 @@ import {
   Clipboard,
   Code2,
   ExternalLink,
+  FileText,
   Home,
   Menu,
   Monitor,
@@ -742,6 +743,58 @@ function buildExampleCode(endpoint: Endpoint, baseURL: string, exampleModel: str
   ].join('\n')
 }
 
+function markdownTableCell(value: string): string {
+  return value.replace(/\|/g, '\\|').replace(/[\r\n]+/g, ' ')
+}
+
+function markdownParameterTable(parameters: Parameter[]): string {
+  if (parameters.length === 0) return '无参数。'
+  return [
+    '| 参数名称 | 类型 | 是否可选 | 默认值 | 说明 |',
+    '| --- | --- | --- | --- | --- |',
+    ...parameters.map((parameter) => `| \`${markdownTableCell(parameter.name)}\` | \`${markdownTableCell(parameter.type)}\` | ${parameter.required ? '否' : '是'} | \`${markdownTableCell(parameter.defaultValue)}\` | ${markdownTableCell(parameter.description)} |`),
+  ].join('\n')
+}
+
+function buildMarkdownDocument(endpoint: Endpoint, baseURL: string, exampleModel: string): string {
+  const requestBody = endpoint.request?.trim().replace(/("model"\s*:\s*)"[^"]+"/, `$1"${exampleModel.trim() || DEFAULT_EXAMPLE_MODEL}"`)
+  const examples = (['curl', 'python', 'go', 'java'] as const).map((language) => {
+    const label = language === 'curl' ? 'cURL' : language === 'python' ? 'Python' : language === 'go' ? 'Go' : 'Java'
+    return `### ${label}\n\n\`\`\`${language}\n${buildExampleCode(endpoint, baseURL, exampleModel, language)}\n\`\`\``
+  })
+  return [
+    `# ${endpoint.title}`,
+    '',
+    `> ${endpoint.group} · \`${endpoint.method}\` \`${endpoint.path}\``,
+    '',
+    endpoint.description,
+    '',
+    '## 认证方式',
+    '',
+    endpoint.auth,
+    '',
+    '## 请求参数',
+    '',
+    markdownParameterTable(endpoint.requestParams),
+    '',
+    requestBody ? '## 请求体示例' : '',
+    requestBody ? '' : '',
+    requestBody ? `\`\`\`json\n${requestBody}\n\`\`\`` : '',
+    requestBody ? '' : '',
+    '## 响应参数',
+    '',
+    markdownParameterTable(endpoint.responseParams),
+    '',
+    '## 响应示例',
+    '',
+    `\`\`\`json\n${endpoint.response.trim()}\n\`\`\``,
+    '',
+    '## 调用示例',
+    '',
+    ...examples.flatMap((example) => [example, '']),
+  ].filter((line, index, lines) => !(line === '' && lines[index - 1] === '' && lines[index + 1] === '')).join('\n').trimEnd() + '\n'
+}
+
 function CodeBlock({ id, code, language = 'shell', copied, onCopy }: { id: string; code: string; language?: string; copied: string | null; onCopy: (id: string, value: string) => void }) {
   const isCopied = copied === id
   return <div className="aux-api-code-block"><div className="aux-api-code-toolbar"><span><Terminal aria-hidden="true" /> {language}</span><button type="button" onClick={() => onCopy(id, code)} aria-label={isCopied ? '已复制' : '复制代码'}>{isCopied ? <Check aria-hidden="true" /> : <Clipboard aria-hidden="true" />}<span>{isCopied ? '已复制' : '复制'}</span></button></div><pre><code>{code}</code></pre></div>
@@ -756,13 +809,15 @@ function EndpointCard({ endpoint, baseURL, exampleModel, copied, onCopy, expande
   const [panel, setPanel] = useState<DetailPanel>('request')
   const [language, setLanguage] = useState<ExampleLanguage>('curl')
   const requestCode = buildExampleCode(endpoint, baseURL, exampleModel, language)
+  const markdownCopyId = `${endpoint.id}-markdown`
+  const markdownCopied = copied === markdownCopyId
   const detailId = `endpoint-details-${endpoint.id}`
   const panelTabs: Array<{ id: DetailPanel; label: string; count?: number }> = [
     { id: 'request', label: '请求参数', count: endpoint.requestParams.length },
     { id: 'response', label: '响应参数', count: endpoint.responseParams.length },
     { id: 'examples', label: '调用示例' },
   ]
-  return <article id={`endpoint-${endpoint.id}`} className={`aux-api-endpoint-card${expanded ? ' is-expanded' : ''}`}><div className="aux-api-endpoint-summary"><div className="aux-api-endpoint-topline"><div className="aux-api-method-path"><span className={`aux-api-method aux-api-method--${endpoint.method.toLowerCase()}`}>{endpoint.method}</span><code>{endpoint.path}</code></div><span className="aux-api-auth-badge"><ShieldCheck aria-hidden="true" /> {endpoint.auth}</span></div><h4>{endpoint.title}</h4><p>{endpoint.description}</p><div className="aux-api-endpoint-meta"><span>{endpoint.requestParams.length} 个请求参数</span><span>{endpoint.responseParams.length} 个响应参数</span><button className="aux-api-expand-button" type="button" aria-expanded={expanded} aria-controls={detailId} onClick={onToggle}>{expanded ? '收起详情' : '查看参数与示例'} <ChevronDown aria-hidden="true" /></button></div></div>{expanded && <div className="aux-api-endpoint-details" id={detailId}><div className="aux-api-detail-tabs" role="tablist" aria-label={`${endpoint.title}详情`}>
+  return <article id={`endpoint-${endpoint.id}`} className={`aux-api-endpoint-card${expanded ? ' is-expanded' : ''}`}><div className="aux-api-endpoint-summary"><div className="aux-api-endpoint-topline"><div className="aux-api-method-path"><span className={`aux-api-method aux-api-method--${endpoint.method.toLowerCase()}`}>{endpoint.method}</span><code>{endpoint.path}</code></div><span className="aux-api-auth-badge"><ShieldCheck aria-hidden="true" /> {endpoint.auth}</span></div><h4>{endpoint.title}</h4><p>{endpoint.description}</p><div className="aux-api-endpoint-meta"><span>{endpoint.requestParams.length} 个请求参数</span><span>{endpoint.responseParams.length} 个响应参数</span><div className="aux-api-endpoint-actions"><button className="aux-api-markdown-button" type="button" aria-label={markdownCopied ? '已复制 Markdown' : `复制 ${endpoint.title} Markdown 文档`} onClick={() => onCopy(markdownCopyId, buildMarkdownDocument(endpoint, baseURL, exampleModel))}>{markdownCopied ? <Check aria-hidden="true" /> : <FileText aria-hidden="true" />}<span>{markdownCopied ? '已复制 Markdown' : '复制 Markdown'}</span></button><button className="aux-api-expand-button" type="button" aria-expanded={expanded} aria-controls={detailId} onClick={onToggle}>{expanded ? '收起详情' : '查看参数与示例'} <ChevronDown aria-hidden="true" /></button></div></div></div>{expanded && <div className="aux-api-endpoint-details" id={detailId}><div className="aux-api-detail-tabs" role="tablist" aria-label={`${endpoint.title}详情`}>
     {panelTabs.map((tab) => <button key={tab.id} type="button" role="tab" aria-selected={panel === tab.id} className={panel === tab.id ? 'is-active' : ''} onClick={() => setPanel(tab.id)}>{tab.label}{tab.count !== undefined && <span>{tab.count}</span>}</button>)}
   </div>{panel === 'request' && <ParameterTable parameters={endpoint.requestParams} emptyLabel="此接口不接收请求参数。" />}{panel === 'response' && <ParameterTable parameters={endpoint.responseParams} emptyLabel="暂无结构化响应参数说明。" />}{panel === 'examples' && <div className="aux-api-examples-panel"><div className="aux-api-language-tabs" role="tablist" aria-label={`${endpoint.title}示例语言`}>{exampleLanguages.map((item) => <button key={item.id} type="button" role="tab" aria-selected={language === item.id} className={language === item.id ? 'is-active' : ''} onClick={() => setLanguage(item.id)}>{item.label}</button>)}</div><CodeBlock id={`${endpoint.id}-${language}`} code={requestCode} language={language === 'curl' ? 'shell' : language} copied={copied} onCopy={onCopy} /></div>}</div>}</article>
 }

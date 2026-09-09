@@ -158,4 +158,44 @@ describe('ApiDocsPage', () => {
 
     await waitFor(() => expect(writeText).toHaveBeenCalled())
   })
+
+  it('provides a Markdown copy action for every endpoint', () => {
+    renderPage()
+
+    const markdownButtons = screen.getAllByRole('button', { name: /复制 .* Markdown 文档/ })
+    expect(markdownButtons).toHaveLength(7)
+    expect(document.querySelectorAll('.aux-api-endpoint-card .aux-api-markdown-button')).toHaveLength(7)
+  })
+
+  it('copies a complete Markdown document for an endpoint', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.assign(navigator, { clipboard: { writeText } })
+    renderPage()
+
+    const card = document.querySelector('#endpoint-chat-completions')
+    expect(card).not.toBeNull()
+    const copyButton = within(card as HTMLElement).getByRole('button', { name: /复制 .* Markdown 文档/ })
+    fireEvent.click(copyButton)
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1))
+    const markdown = writeText.mock.calls[0][0] as string
+    expect(markdown).toContain('# Chat Completions')
+    expect(markdown).toContain('> OpenAI 兼容 · `POST` `/v1/chat/completions`')
+    expect(markdown).toContain('## 请求参数')
+    expect(markdown).toContain('| `model` | `string` | 否 | `-` |')
+    expect(markdown).toContain('## 请求体示例')
+    expect(markdown).toContain('"model": "gpt-6-astra"')
+    expect(markdown).toContain('## 响应参数')
+    expect(markdown).toContain('## 响应示例')
+    expect(markdown).toContain('## 调用示例')
+    expect(markdown).toContain('```curl')
+    expect(markdown).toContain('```python')
+    expect(markdown).toContain('```go')
+    expect(markdown).toContain('```java')
+    expect(markdown).toContain('$API_KEY')
+    expect(markdown).toContain(window.location.origin)
+    expect(markdown).not.toContain('SUB2API_API_KEY')
+
+    await waitFor(() => expect(copyButton).toHaveTextContent('已复制 Markdown'))
+  })
 })

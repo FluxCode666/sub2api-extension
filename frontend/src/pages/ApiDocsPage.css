@@ -253,7 +253,13 @@ html:has(.aux-api-docs), body:has(.aux-api-docs) { overflow-x: clip; }
 .aux-api-endpoint-summary p { max-width: 68ch; margin: 8px 0 0; color: var(--api-muted); font-size: 14px; line-height: 1.7; }
 .aux-api-endpoint-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin-top: 18px; color: var(--api-subtle); font-size: 11px; }
 .aux-api-endpoint-meta > span + span { padding-left: 16px; border-left: 1px solid var(--api-line); }
-.aux-api-expand-button { display: inline-flex; min-height: 32px; align-items: center; gap: 6px; margin-left: auto; padding: 7px 10px; border: 0; border-radius: 5px; background: var(--api-surface-muted); color: var(--api-ink); font-size: 11px; font-weight: 750; white-space: nowrap; }
+.aux-api-endpoint-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-left: auto; }
+.aux-api-markdown-button, .aux-api-expand-button { display: inline-flex; min-height: 32px; align-items: center; gap: 6px; padding: 7px 10px; border-radius: 5px; font-size: 11px; font-weight: 750; white-space: nowrap; }
+.aux-api-markdown-button { border: 1px solid var(--api-line); background: var(--api-surface); color: var(--api-muted); }
+.aux-api-markdown-button:hover, .aux-api-markdown-button:focus-visible { border-color: var(--api-accent); background: var(--api-accent-soft); color: var(--api-accent-strong); }
+.aux-api-markdown-button svg { width: 13px; height: 13px; }
+.aux-api-markdown-button:has(svg.lucide-check) { border-color: var(--api-green); color: var(--api-green); }
+.aux-api-expand-button { border: 0; background: var(--api-surface-muted); color: var(--api-ink); }
 .aux-api-expand-button:hover { background: var(--api-accent); color: var(--api-accent-ink); }
 .aux-api-expand-button svg { width: 13px; height: 13px; transition: transform 180ms var(--api-ease-out); }
 .aux-api-endpoint-card.is-expanded .aux-api-expand-button svg { transform: rotate(180deg); }
@@ -363,7 +369,7 @@ html:has(.aux-api-docs), body:has(.aux-api-docs) { overflow-x: clip; }
   .aux-api-endpoint-topline { align-items: flex-start; flex-direction: column; gap: 10px; }
   .aux-api-endpoint-meta { align-items: flex-start; flex-direction: column; }
   .aux-api-endpoint-meta > span + span { padding-left: 0; border-left: 0; }
-  .aux-api-expand-button { margin-left: 0; }
+  .aux-api-endpoint-actions { width: 100%; justify-content: flex-start; margin-left: 0; }
   .aux-api-parameter-table-wrap, .aux-api-examples-panel { padding: 9px; }
   .aux-api-parameter-table { display: block; min-width: 0; }
   .aux-api-parameter-table thead { display: none; }
