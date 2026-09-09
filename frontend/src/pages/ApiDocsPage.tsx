@@ -10,6 +10,7 @@ import {
   ExternalLink,
   FileText,
   Home,
+  LayoutDashboard,
   Menu,
   Monitor,
   Moon,
@@ -378,6 +379,7 @@ export default function ApiDocsPage() {
   const [siteLogoUrl, setSiteLogoUrl] = useState('')
   const [systemDomain, setSystemDomain] = useState('')
   const [documentationUrl, setDocumentationUrl] = useState('')
+  const [consoleHref, setConsoleHref] = useState('')
   const [termsUrl, setTermsUrl] = useState('')
   const [privacyUrl, setPrivacyUrl] = useState('')
   const [copied, setCopied] = useState<string | null>(null)
@@ -403,7 +405,7 @@ export default function ApiDocsPage() {
 
   useEffect(() => {
     let active = true
-    void apiClient.get<AuxEnvelope<{ model?: string; systemName?: string; siteName?: string; heroTitle?: string; siteLogoUrl?: string; systemDomain?: string; documentationUrl?: string; termsUrl?: string; privacyUrl?: string }>>('/homepage/config').then((envelope) => {
+    void apiClient.get<AuxEnvelope<{ model?: string; systemName?: string; siteName?: string; heroTitle?: string; siteLogoUrl?: string; systemDomain?: string; consoleHref?: string; documentationUrl?: string; termsUrl?: string; privacyUrl?: string }>>('/homepage/config').then((envelope) => {
       const model = envelope.data?.model?.trim()
       const name = configuredDocumentName(envelope.data)
       if (active && envelope.code === 0) {
@@ -411,6 +413,7 @@ export default function ApiDocsPage() {
         if (name) setSystemName(name)
         if (envelope.data?.siteLogoUrl?.trim()) setSiteLogoUrl(envelope.data.siteLogoUrl.trim())
         if (envelope.data?.systemDomain?.trim()) setSystemDomain(configuredDomain(envelope.data.systemDomain))
+        if (envelope.data?.consoleHref?.trim()) setConsoleHref(envelope.data.consoleHref.trim())
         if (envelope.data?.documentationUrl?.trim()) setDocumentationUrl(envelope.data.documentationUrl.trim())
         if (envelope.data?.termsUrl?.trim()) setTermsUrl(envelope.data.termsUrl.trim())
         if (envelope.data?.privacyUrl?.trim()) setPrivacyUrl(envelope.data.privacyUrl.trim())
@@ -498,6 +501,7 @@ export default function ApiDocsPage() {
           <div className="aux-api-header-tools">
             <nav className={`aux-api-header-nav${menuOpen ? ' is-open' : ''}`} aria-label="文档导航">
               <Link className="aux-api-header-home" to="/sub2api-home"><Home aria-hidden="true" /><span>官网</span></Link>
+              {consoleHref ? <a {...siteHrefProps(consoleHref)} className="aux-api-header-console" onClick={() => setMenuOpen(false)}><LayoutDashboard aria-hidden="true" /><span>控制台</span></a> : null}
               <Link to={`/client-docs?${clientDocsParams}`}>客户端接入 <ArrowUpRight aria-hidden="true" /></Link>
               <a href="#quickstart" onClick={() => setMenuOpen(false)}>快速开始</a>
               <a href="#errors" onClick={() => setMenuOpen(false)}>错误处理</a>

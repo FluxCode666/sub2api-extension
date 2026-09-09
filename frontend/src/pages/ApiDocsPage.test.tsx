@@ -87,6 +87,7 @@ describe('ApiDocsPage', () => {
         siteName: 'TERALEMO',
         siteLogoUrl: 'https://cdn.example.com/logo.svg',
         systemDomain: 'https://gateway.example.com/',
+        consoleHref: 'https://console.example.com/dashboard',
         documentationUrl: 'https://docs.example.com',
         termsUrl: 'https://example.com/terms',
         privacyUrl: '/privacy',
@@ -104,6 +105,22 @@ describe('ApiDocsPage', () => {
     expect(within(footer).getByRole('link', { name: /使用文档/ })).toHaveAttribute('target', '_blank')
     expect(within(footer).getByRole('link', { name: /服务条款/ })).toHaveAttribute('target', '_blank')
     expect(within(footer).getByRole('link', { name: /隐私协议/ })).toHaveAttribute('href', '/privacy')
+    getConfig.mockRestore()
+  })
+
+  it('uses the homepage console link in the top navigation', async () => {
+    const getConfig = vi.spyOn(apiClient, 'get').mockResolvedValue({
+      code: 0,
+      message: 'ok',
+      data: { consoleHref: 'https://console.example.com/dashboard' },
+    } as never)
+
+    renderPage()
+
+    const consoleLink = await screen.findByRole('link', { name: '控制台' })
+    expect(consoleLink).toHaveAttribute('href', 'https://console.example.com/dashboard')
+    expect(consoleLink).toHaveAttribute('target', '_blank')
+    expect(consoleLink).toHaveAttribute('rel', 'noreferrer')
     getConfig.mockRestore()
   })
 
