@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
@@ -8,8 +8,12 @@ import {
   ChevronRight,
   Clipboard,
   Code2,
+  Home,
   Menu,
+  Monitor,
+  Moon,
   ShieldCheck,
+  Sun,
   Terminal,
   X,
 } from 'lucide-react'
@@ -287,6 +291,9 @@ const endpoints: Endpoint[] = [
 ]
 
 const DEFAULT_EXAMPLE_MODEL = 'gpt-6-astra'
+type ThemePreference = 'system' | 'light' | 'dark'
+const THEME_STORAGE_KEY = 'aux-client-docs-theme'
+const SYSTEM_DARK_QUERY = '(prefers-color-scheme: dark)'
 
 const quickstartCurl = `curl "$API_BASE/v1/chat/completions" \\
   -H "Authorization: Bearer $API_KEY" \\
@@ -309,11 +316,41 @@ function initialBaseURL(search: string): string {
   return value?.trim().replace(/\/$/, '') || currentPageOrigin()
 }
 
+function parseThemePreference(value: string | null): ThemePreference | null {
+  return value === 'light' || value === 'dark' || value === 'system' ? value : null
+}
+
+function readSavedTheme(): ThemePreference {
+  try {
+    return parseThemePreference(window.localStorage.getItem(THEME_STORAGE_KEY)) ?? 'system'
+  } catch {
+    return 'system'
+  }
+}
+
+function systemPrefersDark(): boolean {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia(SYSTEM_DARK_QUERY).matches
+    : false
+}
+
+function subscribeToSystemTheme(onChange: () => void): () => void {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {}
+  const media = window.matchMedia(SYSTEM_DARK_QUERY)
+  media.addEventListener('change', onChange)
+  return () => media.removeEventListener('change', onChange)
+}
+
 export default function ApiDocsPage() {
   const pageRef = useRef<HTMLDivElement>(null)
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const pageOrigin = currentPageOrigin()
   const embedded = searchParams.get('embed') === '1' || searchParams.get('ui_mode') === 'embedded'
+  const [savedTheme, setSavedTheme] = useState(readSavedTheme)
+  const systemDark = useSyncExternalStore(subscribeToSystemTheme, systemPrefersDark, () => false)
+  const themePreference = parseThemePreference(searchParams.get('theme')) ?? savedTheme
+  const theme = themePreference === 'system' ? (systemDark ? 'dark' : 'light') : themePreference
+  const ThemeIcon = themePreference === 'system' ? Monitor : themePreference === 'dark' ? Moon : Sun
   const [baseURL, setBaseURL] = useState(() => initialBaseURL(searchParams.toString()))
   const [exampleModel, setExampleModel] = useState(DEFAULT_EXAMPLE_MODEL)
   const [systemName, setSystemName] = useState('')
@@ -369,6 +406,18 @@ export default function ApiDocsPage() {
     if (value) clientDocsParams.set(key, value)
   }
 
+  function selectTheme(value: string) {
+    const preference = parseThemePreference(value)
+    if (!preference) return
+    setSavedTheme(preference)
+    try { window.localStorage.setItem(THEME_STORAGE_KEY, preference) } catch { /* 当前页面仍可切换主题。 */ }
+    setSearchParams(current => {
+      const next = new URLSearchParams(current)
+      next.set('theme', preference)
+      return next
+    }, { replace: true })
+  }
+
   useEffect(() => {
     const ids = ['quickstart', 'authentication', ...endpoints.map((endpoint) => `endpoint-${endpoint.id}`), 'errors']
     const sections = ids.map((id) => document.getElementById(id)).filter((section): section is HTMLElement => Boolean(section))
@@ -417,20 +466,30 @@ export default function ApiDocsPage() {
   }
 
   return (
-    <div ref={pageRef} className={`aux-api-docs${embedded ? ' aux-api-docs--embedded' : ''}`}>
+    <div ref={pageRef} data-theme={theme} className={`aux-api-docs${embedded ? ' aux-api-docs--embedded' : ''}`}>
       <header className="aux-api-docs-header">
         <a className="aux-api-brand" href="#top" aria-label={`${documentName}首页`}>
           <span className="aux-api-brand-mark"><Code2 aria-hidden="true" /></span>
           <span><strong>{systemName || 'API'}</strong><small>Developer Docs</small></span>
         </a>
-        <nav className={`aux-api-header-nav${menuOpen ? ' is-open' : ''}`} aria-label="文档导航">
-          <Link to={`/client-docs?${clientDocsParams}`}>客户端接入</Link>
-          <a href="#quickstart" onClick={() => setMenuOpen(false)}>快速开始</a>
-          <a href="#errors" onClick={() => setMenuOpen(false)}>错误处理</a>
-        </nav>
-        <button className="aux-api-menu-button" type="button" aria-label={menuOpen ? '关闭导航' : '打开导航'} onClick={() => setMenuOpen((open) => !open)}>
-          {menuOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
-        </button>
+        <div className="aux-api-header-tools">
+          <nav className={`aux-api-header-nav${menuOpen ? ' is-open' : ''}`} aria-label="文档导航">
+            <Link className="aux-api-header-home" to="/sub2api-home"><Home aria-hidden="true" /><span>官网</span></Link>
+            <Link to={`/client-docs?${clientDocsParams}`}>客户端接入</Link>
+            <a href="#quickstart" onClick={() => setMenuOpen(false)}>快速开始</a>
+            <a href="#errors" onClick={() => setMenuOpen(false)}>错误处理</a>
+          </nav>
+          <div className="aux-api-theme-picker">
+            <ThemeIcon size={15} aria-hidden="true" />
+            <select aria-label="外观主题" value={themePreference} onChange={event => selectTheme(event.target.value)}>
+              <option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option>
+            </select>
+            <ChevronDown size={12} className="aux-api-theme-chevron" aria-hidden="true" />
+          </div>
+          <button className="aux-api-menu-button" type="button" aria-label={menuOpen ? '关闭导航' : '打开导航'} onClick={() => setMenuOpen((open) => !open)}>
+            {menuOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
+          </button>
+        </div>
       </header>
 
       <main id="top">

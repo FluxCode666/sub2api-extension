@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { apiClient } from '@/lib/api-client'
 import ApiDocsPage from './ApiDocsPage'
 
@@ -11,6 +11,10 @@ function renderPage(entry = '/api-docs') {
     </MemoryRouter>,
   )
 }
+
+afterEach(() => {
+  window.localStorage.removeItem('aux-client-docs-theme')
+})
 
 describe('ApiDocsPage', () => {
   it('renders the public API reference and endpoint cards', () => {
@@ -30,6 +34,21 @@ describe('ApiDocsPage', () => {
     expect(screen.getByRole('link', { name: 'GET /v1/models' })).toHaveAttribute('href', '#endpoint-models')
     expect(screen.getByRole('link', { name: 'POST /v1/messages' })).toHaveAttribute('href', '#endpoint-messages')
     expect(screen.getByRole('link', { name: 'POST /v1beta/models/{model}:generateContent' })).toHaveAttribute('href', '#endpoint-gemini-generate-content')
+  })
+
+  it('links back to the public homepage from the top navigation', () => {
+    renderPage()
+
+    expect(screen.getByRole('link', { name: '官网' })).toHaveAttribute('href', '/sub2api-home')
+  })
+
+  it.each(['light', 'dark'] as const)('supports an explicit %s appearance theme', (preference) => {
+    const { container } = renderPage(`/api-docs?theme=${preference}`)
+
+    expect(screen.getByRole('combobox', { name: '外观主题' })).toHaveValue(preference)
+    expect(container.querySelector('.aux-api-docs')).toHaveAttribute('data-theme', preference)
+    fireEvent.change(screen.getByRole('combobox', { name: '外观主题' }), { target: { value: preference === 'light' ? 'dark' : 'light' } })
+    expect(container.querySelector('.aux-api-docs')).toHaveAttribute('data-theme', preference === 'light' ? 'dark' : 'light')
   })
 
   it('removes the standalone endpoint directory, search box, and group tabs', () => {
