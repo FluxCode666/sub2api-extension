@@ -1,0 +1,39 @@
+# 可选：首次启用后，后续在管理员控制台点击版本号更新应用。
+# 部署目录必须以相同绝对路径挂载，保证 Docker 对宿主机 bind mount 的解析一致。
+# 参见 deploy/UPDATES.md；不要修改已有 Compose project 名和数据卷。
+services:
+  aux-backend:
+    environment:
+      - SUB2API_EXTENSION_UPDATE_SOCKET=/run/sub2api-update/updater.sock
+    volumes:
+      - sub2api-extension-update:/run/sub2api-update:ro
+
+  aux-updater:
+    image: ${SUB2API_EXTENSION_IMAGE}:${SUB2API_EXTENSION_UPDATER_TAG:?请设置首次启用更新服务的版本号}-updater
+    restart: unless-stopped
+    user: "0:0"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+    environment:
+      - SUB2API_EXTENSION_DEPLOY_PATH=${SUB2API_EXTENSION_DEPLOY_PATH:?请设置宿主机部署目录绝对路径}
+      - SUB2API_EXTENSION_COMPOSE_PROJECT=${COMPOSE_PROJECT_NAME:-sub2api-extension}
+      - SUB2API_EXTENSION_RELEASE_REPOSITORY=${SUB2API_EXTENSION_RELEASE_REPOSITORY:-FluxCode666/sub2api-extension}
+      - SUB2API_EXTENSION_IMAGE=${SUB2API_EXTENSION_IMAGE}
+      - SUB2API_EXTENSION_GITHUB_TOKEN=${SUB2API_EXTENSION_GITHUB_TOKEN:-}
+      - DOCKER_CONFIG=/docker-config
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${SUB2API_EXTENSION_DEPLOY_PATH}:${SUB2API_EXTENSION_DEPLOY_PATH}
+      - ${SUB2API_EXTENSION_DEPLOY_PATH}/docker-config:/docker-config:ro
+      - sub2api-extension-update:/run/sub2api-update
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  sub2api-extension-update:

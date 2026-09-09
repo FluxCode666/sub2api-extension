@@ -15,6 +15,7 @@
 ARG NODE_IMAGE=node:24-alpine
 ARG GOLANG_IMAGE=golang:1.26.5-alpine
 ARG ALPINE_IMAGE=alpine:3.21
+ARG DOCKER_CLI_IMAGE=docker:28-cli
 ARG GOPROXY=https://goproxy.cn,direct
 ARG GOSUMDB=sum.golang.google.cn
 ARG NPM_CONFIG_REGISTRY=
@@ -86,12 +87,24 @@ RUN --mount=type=cache,id=aux-gomod,target=/go/pkg/mod \
     -ldflags="-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.Date=${DATE_VALUE}" \
     -trimpath \
     -o /app/aux-server \
-    ./cmd/server
+    ./cmd/server && \
+    CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build \
+    -ldflags="-s -w" -trimpath -o /app/aux-updater ./cmd/updater
 
 # -----------------------------------------------------------------------------
 # Stage 3: Final Runtime Image
 # -----------------------------------------------------------------------------
-FROM ${ALPINE_IMAGE}
+# 独立更新镜像：只有此服务持有 Docker socket，应用镜像保持非 root。
+FROM ${DOCKER_CLI_IMAGE} AS updater
+COPY --from=backend-builder /app/aux-updater /usr/local/bin/aux-updater
+ENTRYPOINT ["/usr/local/bin/aux-updater"]
+
+FROM ${ALPINE_IMAGE} AS app
+ARG VERSION=0.1.0-dev
+ARG COMMIT=docker
+LABEL org.opencontainers.image.version="${VERSION}"
+LABEL org.opencontainers.image.revision="${COMMIT}"
+LABEL org.opencontainers.image.source="https://github.com/FluxCode666/sub2api-extension"
 
 LABEL maintainer="sub2api-extension"
 LABEL description="Sub2API Extension - sub2api auxiliary content carrier"

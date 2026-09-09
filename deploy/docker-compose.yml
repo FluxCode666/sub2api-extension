@@ -5,7 +5,7 @@
 # 不包含 PostgreSQL 镜像——数据库由外部提供（sub2api 的 postgres / 独立 RDS / 自建实例）。
 #
 # 与 deploy/docker-compose.dev.yml（开发用，含 postgres、从源码 build）的区别：
-#   - 仅 aux-backend 一个服务
+#   - aux-migrate 迁移完成后启动 aux-backend
 #   - image 从 GHCR 拉取（${SUB2API_EXTENSION_IMAGE}:${SUB2API_EXTENSION_IMAGE_TAG}），不 build
 #   - DATABASE_* 指向外部 PostgreSQL
 #
@@ -35,7 +35,7 @@ services:
   # invoice_requests、notification_channels、notification_deliveries 表及其新增字段。
   # 它只操作本系统使用的表，不会修改 sub2api 自有表。
   aux-migrate:
-    image: ${SUB2API_EXTENSION_IMAGE:?SUB2API_EXTENSION_IMAGE is required}:${SUB2API_EXTENSION_IMAGE_TAG:?SUB2API_EXTENSION_IMAGE_TAG is required}
+    image: ${SUB2API_EXTENSION_IMAGE_REF:-${SUB2API_EXTENSION_IMAGE:?SUB2API_EXTENSION_IMAGE is required}:${SUB2API_EXTENSION_IMAGE_TAG:?SUB2API_EXTENSION_IMAGE_TAG is required}}
     restart: "no"
     command: ["-migrate"]
     environment:
@@ -55,8 +55,8 @@ services:
       - sub2api-network
 
   aux-backend:
-    image: ${SUB2API_EXTENSION_IMAGE:?SUB2API_EXTENSION_IMAGE is required}:${SUB2API_EXTENSION_IMAGE_TAG:?SUB2API_EXTENSION_IMAGE_TAG is required}
-    container_name: ${SUB2API_EXTENSION_CONTAINER_NAME:-sub2api-extension}
+    image: ${SUB2API_EXTENSION_IMAGE_REF:-${SUB2API_EXTENSION_IMAGE:?SUB2API_EXTENSION_IMAGE is required}:${SUB2API_EXTENSION_IMAGE_TAG:?SUB2API_EXTENSION_IMAGE_TAG is required}}
+    container_name: ${SUB2API_EXTENSION_CONTAINER_NAME:-aux-system}
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -101,6 +101,10 @@ services:
       - SUB2API_DATABASE_SSLMODE=${SUB2API_DATABASE_SSLMODE:-disable}
       - SUB2API_EXTENSION_PUBLIC_URL=${SUB2API_EXTENSION_PUBLIC_URL:-}
       - SUB2API_EXTENSION_COST_SYNC_INTERVAL_SECONDS=${SUB2API_EXTENSION_COST_SYNC_INTERVAL_SECONDS:-300}
+      # ---- GitHub 正式版本查询（令牌只留在服务器） ----
+      - SUB2API_EXTENSION_RELEASE_REPOSITORY=${SUB2API_EXTENSION_RELEASE_REPOSITORY:-FluxCode666/sub2api-extension}
+      - SUB2API_EXTENSION_IMAGE=${SUB2API_EXTENSION_IMAGE}
+      - SUB2API_EXTENSION_GITHUB_TOKEN=${SUB2API_EXTENSION_GITHUB_TOKEN:-}
 
       # ---- JWT 配置（附属系统管理员会话签名）----
       # 重要：设置固定 JWT_SECRET，避免容器重启后会话失效。生成: openssl rand -hex 32

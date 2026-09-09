@@ -73,7 +73,7 @@
 - **分析仪表盘** —— 聚合当前注册页面的访问量与功能使用度，历史已删除页面的数据保留但不展示
 - **标准 API 信封** —— `{code, message, data?}` 成功 / `{code, message, reason?}` 错误
 - **单镜像部署** —— 多阶段 Docker 构建，后端同源托管前端 dist，无 CORS
-- **CI/CD 流水线** —— GitHub Actions 四条工作流（CI / 安全扫描 / 测试部署 / 生产部署），多架构镜像构建推送 GHCR，SSH 部署、健康检查与自动回滚
+- **CI/CD 流水线** —— GitHub Actions 四条工作流（CI / 安全扫描 / 测试部署 / Release 发布），多架构镜像构建推送 GHCR，中文 Release、管理员主动更新、健康检查与应用回退
 
 ## 管理员动态页面编写能力
 
@@ -122,7 +122,7 @@ sub2api-extension/
 │       └── pages/               # 动态页面宿主、Dashboard 与示例页面
 ├── deploy/
 │   ├── docker-compose.dev.yml   # 开发用（含 postgres，从源码 build）
-│   ├── docker-compose.yml       # 生产用（仅 aux-backend，GHCR 镜像，无数据库）
+│   ├── docker-compose.yml       # 生产用（迁移与应用，GHCR 镜像，无数据库）
 │   ├── .env.dev.example         # 开发环境变量示例
 │   ├── .env.test.example        # 测试环境变量示例
 │   ├── .env.example             # 生产环境变量示例
@@ -131,7 +131,7 @@ sub2api-extension/
 ├── tools/
 │   └── page-admin.py             # 动态页面管理员 API 命令行工具
 ├── .github/
-│   ├── workflows/               # CI / 安全扫描 / 测试部署 / 生产部署
+│   ├── workflows/               # CI / 安全扫描 / 测试部署 / Release 发布
 │   └── CICD.md                  # ← CI/CD 完整文档（流水线/Secrets/部署/回滚）
 ├── .agents/skills/              # 页面编写、sub2api 集成和部署运维 skills
 ├── docs/
@@ -195,7 +195,7 @@ docker compose --project-name sub2api-extension-test \
 
 测试环境应使用独立数据库、JWT 密钥、sub2api 实例、域名和数据卷，禁止复用生产数据。
 
-生产用 `deploy/docker-compose.yml`，仅运行 `aux-backend`（从 GHCR 拉取镜像），**不含数据库镜像**——PostgreSQL 由外部提供。
+生产用 `deploy/docker-compose.yml`，运行一次性迁移服务 `aux-migrate` 和应用 `aux-backend`（从 GHCR 拉取镜像），**不含数据库镜像**——PostgreSQL 由外部提供。
 
 ```bash
 cd deploy
@@ -214,7 +214,7 @@ docker compose -f docker-compose.yml --env-file .env up -d
 `127.0.0.1:8787`，避免公网绕过 TLS 直接访问应用端口。NGINX 配置和安装步骤见
 [deploy/nginx/README.md](deploy/nginx/README.md)。
 
-测试部署由 `test` 分支 push 自动触发；生产部署仅允许从 `main` 分支手动触发并填写版本号。两者都会先运行完整质量门禁，再构建 amd64/arm64 镜像、推送 GHCR、通过 SSH 更新 Compose，并执行健康检查；失败时尝试恢复上一镜像标签。**完整流水线、Secrets 配置与首次部署指南见 [.github/CICD.md](.github/CICD.md)。**
+测试部署仍由 `test` 分支 push 触发。推送新的版本 tag 后，Release 工作流会先执行完整 CI，再构建 amd64/arm64 应用及独立更新服务镜像，发布中文 GitHub Release；不会连接或部署生产服务器。管理员可点击控制台左上角版本号查看最新发布并主动更新，健康检查失败时回退应用镜像。首次使用需启用更新服务，见 [安装与更新指南](deploy/UPDATES.md)；流水线与测试环境配置见 [.github/CICD.md](.github/CICD.md)。
 
 ## 本地开发
 

@@ -48,6 +48,7 @@ backend/vendor/
 deploy/.env.dev
 deploy/.env.test
 deploy/.env
+**/docker-config/
 
 # 日志 / 测试覆盖率
 logs/

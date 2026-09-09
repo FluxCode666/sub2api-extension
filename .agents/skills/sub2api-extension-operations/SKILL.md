@@ -13,46 +13,21 @@ description: 修改或排查 sub2api-extension 的 Docker、Compose、GitHub Act
 - 为兼容既有 sub2api 集成，Compose 服务名仍是 `aux-backend`，API 前缀仍是 `/api/aux/*`；项目环境变量统一使用 `SUB2API_EXTENSION_*` 前缀。GitHub Environment 的部署密钥和变量继续使用无项目前缀的名称。
 - 不要把数据库密码、JWT、PAT 或 SSH 私钥写入仓库、页面元数据或动态 HTML。
 
-## GitHub Actions
+## GitHub Actions 与更新
 
-工作流位于 `.github/workflows/`：
+- `ci.yml`：main push、PR 与复用调用，执行 Go race test、lint、前端 typecheck/test/build。
+- `security-scan.yml`：PR 和定时安全扫描。
+- `deploy-test.yml`：test 分支或手动，CI 后构建测试镜像并 SSH 部署测试环境，保留 `test` Environment 的 `TEST_*` Secrets。
+- `release.yml`：semver tag 触发，CI 后构建 amd64/arm64 应用与更新服务镜像，再发布中文 GitHub Release、镜像摘要清单和部署附件。不连接生产服务器，不使用生产 SSH Secrets 或 deployment job。
+- 已公开 tag 不允许覆盖；预发布不覆盖 latest。发布说明从 CHANGELOG.md 中与 tag 对应的中文章节提取。
 
-| 工作流 | 触发 | 规则 |
-|---|---|---|
-| `ci.yml` | `main` push、Pull Request、部署工作流调用 | Go race test、golangci-lint、前端 typecheck/test/build |
-| `security-scan.yml` | Pull Request、每周定时 | `govulncheck`、`pnpm audit` |
-| `deploy-test.yml` | push `test` 或手动 | 复用 CI，构建测试镜像并部署测试环境 |
-| `deploy-production.yml` | 仅手动 | 只允许从 `main` 发布版本并部署生产 |
+生产使用基础 `deploy/docker-compose.yml`（aux-migrate、aux-backend、外部 PostgreSQL）。`deploy/docker-compose.update.yml` 是可选更新服务配置，首次启用后管理员才能在控制台主动更新。详细安装与故障恢复步骤遵循 `deploy/UPDATES.md`，不要绕过鉴权、版本校验和质量门禁。
 
-测试和生产必须使用独立 GitHub Environments：`test`、`production`。生产 Environment 建议配置 Required reviewers 和分支保护。生产并发不能取消正在执行的发布；测试可以取消旧部署。
+更新服务必须独立于主应用执行，仅通过共享卷 Unix socket 接收请求。Docker socket 只挂给更新服务，不公开 TCP 端口；主应用保持非 root。按固定仓库的最新正式 Release 清单核对版本和镜像摘要，不接受浏览器传入任意镜像、URL 或 shell 命令。
 
-Environment Secrets（测试环境使用 `TEST_` 区分，生产环境由 Environment 隔离）：
+更新前拉取镜像，显式运行一次性 aux-migrate，随后只重建 aux-backend，验证预期镜像和 healthy 状态后持久化版本。任务必须可恢复、拒绝并发更新，失败回退旧应用镜像；数据库迁移不会回退。更新服务自身通过独立的 SUB2API_EXTENSION_UPDATER_TAG 固定，不在执行应用更新时重建。
 
-- 测试：`TEST_DEPLOY_HOST`、`TEST_DEPLOY_USER`、`TEST_DEPLOY_PASSWORD` 或 `TEST_DEPLOY_SSH_KEY`、`TEST_DEPLOY_PORT`、`TEST_DEPLOY_PATH`、`TEST_DEPLOY_FINGERPRINT`、`GHCR_PAT`。
-- 生产：`DEPLOY_HOST`、`DEPLOY_USER`、`DEPLOY_PASSWORD` 或 `DEPLOY_SSH_KEY`、`DEPLOY_PORT`、`DEPLOY_PATH`、`DEPLOY_FINGERPRINT`、`GHCR_PAT`。
-- 可选 Environment Variable：`PUBLIC_URL`，配置后从 runner 验证 `/health` 和 `/p/home`。
-
-工作流不再读取旧的 `TEST_AUX_DEPLOY_*`、`AUX_DEPLOY_*` 或 `AUX_PUBLIC_URL`；改名时需在 GitHub Environment 中重新创建对应条目。服务器 `.env.test`/`.env` 的 Compose 运行时变量统一使用 `SUB2API_EXTENSION_*`。
-
-不要绕过质量门禁直接在部署 job 中构建；镜像必须在 reusable `ci.yml` 通过后才构建。部署脚本必须使用 `docker compose config -q`、拉取镜像、等待 `healthy`，失败时打印有限日志并尝试恢复上一版本标签。
-
-## Compose 环境
-
-生产 Compose：`deploy/docker-compose.yml`，只运行 `aux-backend`，数据库使用外部 PostgreSQL。开发 Compose：`deploy/docker-compose.dev.yml`，包含独立 `aux-postgres`，仅用于本地开发。测试与生产必须分别配置：
-
-- 数据库地址、用户、库名和密码
-- sub2api 地址
-- JWT secret
-- 宿主机端口；域名、证书和 NGINX upstream 由部署者自行维护
-- Docker Compose project 和数据卷
-
-测试默认部署目录为 `/opt/sub2api-extension-test`，生产默认部署目录为 `/opt/sub2api-extension`。服务器目录只持有 `docker-compose.yml` 和 `.env.test`/`.env`；流水线同步 Compose 文件，但不覆盖环境文件中的数据库、JWT 和 sub2api 配置。
-
-如果是已有 `aux-system` 部署，先检查旧目录和数据卷再改路径。Compose project 名或卷名变化可能创建新卷，不能直接删除旧卷；应先执行 `docker volume inspect`、备份 `/app/data`，再迁移图片和其他系统数据。
-
-数据库迁移是显式运维步骤：新版本新增 `pages`、`image_assets` 等表或字段时，先在目标数据库执行 `make migrate`（或 `go run ./cmd/server -migrate`），再启动/切换应用镜像。正式服务启动不会自动迁移，部署工作流也不会隐式改数据库 schema。
-
-开发 Compose `deploy/docker-compose.dev.yml` 含独立 `aux-postgres`，只用于本地开发。不要把开发 PostgreSQL、默认密码和 `SUB2API_BASE_URL` 带进生产模板。
+必须保留部署目录的 .env、既有 Compose project、容器名称、网络、端口、数据库、JWT 和资源卷。部署目录以相同绝对路径挂载到更新服务内。已有 aux-system 部署要先核对实际 project 和卷，不可擅自改成新的默认名。测试与生产各使用独立配置和数据；开发 Compose 的 PostgreSQL 不带入生产。
 
 ## 文件资源持久化
 
@@ -72,7 +47,7 @@ Environment Secrets（测试环境使用 `TEST_` 区分，生产环境由 Enviro
 - `deploy/nginx/conf.d/sub2api-extension.conf`
 - `deploy/nginx/snippets/sub2api-extension-proxy.conf`
 
-生产 Compose 默认只绑定 `127.0.0.1:8787`，公网 HTTPS 由 NGINX 反代。证书路径必须使用：
+生产 Compose 默认只绑定 `127.0.0.1:8004`，公网 HTTPS 由 NGINX 反代。证书路径必须使用：
 
 ```text
 /etc/nginx/certs/<domain>/fullchain.pem
@@ -91,12 +66,12 @@ curl --fail https://<domain>/health
 
 ## 健康检查与故障排查
 
-容器健康检查访问容器内 `http://localhost:8787/health`。部署失败时按顺序检查：
+容器健康检查访问容器内 `http://localhost:8004/health`。部署失败时按顺序检查：
 
 ```bash
 docker compose -f docker-compose.yml --env-file .env ps
 docker compose -f docker-compose.yml --env-file .env logs --tail=200 aux-backend
-curl -v http://127.0.0.1:8787/health
+curl -v http://127.0.0.1:8004/health
 docker network inspect sub2api-network
 ```
 
@@ -107,8 +82,8 @@ docker network inspect sub2api-network
 ## 发布检查清单
 
 - [ ] 代码在 `test` 环境验证通过
-- [ ] 生产从 `main` 触发，版本号不可变且符合 `v?MAJOR.MINOR.PATCH` 规则
-- [ ] `production` Environment 审批已完成
+- [ ] 发布 tag 不可变且符合 semver，CHANGELOG.md 包含对应中文版本说明
+- [ ] 镜像构建成功后才发布 Release；生产更新由管理员主动发起
 - [ ] 数据库、JWT、sub2api 和数据卷没有跨环境复用
 - [ ] Compose config、容器健康检查和公网 `/health`、`/p/home` 均通过
 - [ ] 失败时保留日志并确认自动回滚结果

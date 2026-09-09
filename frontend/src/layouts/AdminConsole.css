@@ -1,3 +1,38 @@
+.aux-admin-version-button,
+.aux-admin-version-compact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+  min-height: 24px;
+  width: fit-content;
+  padding: 2px 4px;
+  margin-left: -4px;
+  border-radius: 4px;
+  color: var(--console-muted);
+  font-family: "Geist Variable", monospace;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.aux-admin-version-button:hover,
+.aux-admin-version-compact:hover {
+  color: var(--console-accent);
+  background: var(--console-accent-soft);
+}
+
+.aux-admin-version-button:focus-visible,
+.aux-admin-version-compact:focus-visible {
+  outline: 2px solid var(--console-accent);
+  outline-offset: 3px;
+}
+
+.aux-admin-topbar .aux-admin-version-button {
+  border: 1px solid var(--console-line);
+  padding: 3px 7px;
+  margin-left: 2px;
+}
+
 .aux-admin-shell {
   --console-bg: #f1f0eb;
   --console-surface: #fbfaf6;
@@ -1666,6 +1701,28 @@ html.dark .aux-admin-shell {
 .aux-config-add { background: var(--console-accent-soft); padding: 9px 13px; color: var(--console-accent); }.aux-config-add:hover { background: var(--console-accent); color: white; }.aux-partner-editor { display: grid; gap: 10px; }.aux-partner-row { display: grid; grid-template-columns: 1fr 1.35fr 1.35fr 36px; gap: 8px; align-items: center; }.aux-config-delete { display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--console-muted); cursor: pointer; }.aux-config-delete:hover { background: rgba(203, 76, 76, .12); color: #c44c4c; }.aux-config-empty { margin: 0; border: 1px dashed var(--console-line-strong); border-radius: 10px; padding: 20px; color: var(--console-muted); font-size: 12px; text-align: center; }.aux-config-error { margin: 0 0 16px; border: 1px solid rgba(196,76,76,.25); border-radius: 10px; background: rgba(196,76,76,.08); padding: 12px 14px; color: #b14141; font-size: 12px; }.aux-config-save-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 24px 3px 0; color: var(--console-muted); font-size: 11px; }.aux-config-save-row > span { display: inline-flex; align-items: center; gap: 7px; }.aux-config-save-row > span svg { color: #4eaa75; }.aux-config-save { background: var(--console-ink); padding: 13px 18px; color: var(--console-bg); }.aux-config-save:hover { background: var(--console-accent); color: white; }.aux-config-save:disabled { cursor: wait; opacity: .6; }
 @media (max-width: 700px) { .aux-homepage-config-page .aux-page-header, .aux-config-section-heading, .aux-config-save-row { align-items: flex-start; flex-direction: column; }.aux-config-card { padding: 20px 16px; }.aux-config-grid { display: block; }.aux-config-grid label + label { margin-top: 14px; }.aux-config-span-2 { grid-column: auto; }.aux-partner-row { grid-template-columns: 1fr 36px; }.aux-partner-row input:nth-child(2), .aux-partner-row input:nth-child(3) { grid-column: 1; }.aux-partner-row input:first-child { grid-column: 1; }.aux-partner-row .aux-config-delete { grid-column: 2; grid-row: 1 / span 3; }.aux-config-save { width: 100%; justify-content: center; } }
 .aux-config-section-note { margin: -10px 0 18px; color: var(--console-muted); font-size: 12px; line-height: 1.6; }
+.aux-release-markdown { color: var(--console-ink); }
+.aux-release-markdown > :first-child { margin-top: 0; }
+.aux-release-markdown > :last-child { margin-bottom: 0; }
+.aux-release-markdown :is(h1, h2, h3, h4) { margin: 1.1em 0 .45em; color: var(--console-ink); font-weight: 700; line-height: 1.35; }
+.aux-release-markdown h1 { font-size: 1.2em; }
+.aux-release-markdown h2 { font-size: 1.08em; }
+.aux-release-markdown h3, .aux-release-markdown h4 { font-size: 1em; }
+.aux-release-markdown p { margin: .65em 0; }
+.aux-release-markdown :is(ul, ol) { margin: .65em 0; padding-left: 1.35em; }
+.aux-release-markdown ul { list-style: disc; }
+.aux-release-markdown ol { list-style: decimal; }
+.aux-release-markdown li + li { margin-top: .2em; }
+.aux-release-markdown blockquote { margin: .75em 0; border-left: 3px solid var(--console-accent); padding-left: .85em; color: var(--console-muted); }
+.aux-release-markdown a { color: var(--console-accent); text-decoration: underline; text-underline-offset: 3px; }
+.aux-release-markdown a:hover { color: var(--console-ink); }
+.aux-release-markdown code { border-radius: 4px; background: var(--console-accent-soft); padding: .12em .35em; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .9em; }
+.aux-release-markdown pre { margin: .8em 0; overflow-x: auto; border: 1px solid var(--console-line); border-radius: 6px; background: var(--console-surface); padding: .75em .9em; }
+.aux-release-markdown pre code { display: block; background: transparent; padding: 0; white-space: pre; }
+.aux-release-markdown hr { margin: 1em 0; border: 0; border-top: 1px solid var(--console-line); }
+.aux-release-markdown table { width: 100%; margin: .8em 0; border-collapse: collapse; font-size: .92em; }
+.aux-release-markdown :is(th, td) { border: 1px solid var(--console-line); padding: .4em .55em; text-align: left; vertical-align: top; }
+.aux-release-markdown th { background: var(--console-accent-soft); font-weight: 650; }
 .aux-navigation-editor { display: grid; gap: 16px; }
 .aux-navigation-row { grid-template-columns: minmax(120px, .6fr) minmax(0, 1.4fr) auto; align-items: end; }
 .aux-navigation-actions { display: flex; align-items: center; gap: 2px; padding-bottom: 4px; }

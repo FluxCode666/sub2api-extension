@@ -67,3 +67,7 @@ coverage/
 *.njsproj
 *.sln
 *.sw?
+
+# Docker Registry 登录凭据（控制台更新服务）
+/deploy/**/docker-config/
+__pycache__/

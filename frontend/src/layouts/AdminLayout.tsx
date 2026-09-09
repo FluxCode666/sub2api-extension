@@ -35,6 +35,7 @@ import {
 import { fetchDynamicPages, getMergedRegistry, subscribeDynamicPages } from '@/lib/dynamic-pages'
 import { getMenuIcon } from '@/lib/menu-icons'
 import { Toaster } from '@/components/ui/sonner'
+import AdminVersionControl, { AdminVersionButton } from '@/components/admin/AdminVersionControl'
 import '@fontsource-variable/geist'
 import './AdminConsole.css'
 
@@ -86,6 +87,7 @@ export default function AdminLayout() {
   }
 
   return (
+    <AdminVersionControl>
     <SidebarProvider className="aux-admin-shell">
       <Sidebar collapsible="icon" className="aux-admin-sidebar">
         <SidebarHeader>
@@ -97,9 +99,7 @@ export default function AdminLayout() {
               <span className="aux-admin-brand-title truncate text-sm font-semibold">
                 Aux Admin
               </span>
-              <span className="aux-admin-brand-subtitle truncate text-xs">
-                页面管理系统
-              </span>
+              <AdminVersionButton />
             </div>
           </div>
         </SidebarHeader>
@@ -303,6 +303,7 @@ export default function AdminLayout() {
             <span className="aux-admin-topbar-title">
               Aux Admin
             </span>
+            <AdminVersionButton />
           </div>
           <div className="aux-admin-topbar-meta"><span className="aux-topbar-dot" />运营控制台</div>
         </header>
@@ -313,6 +314,7 @@ export default function AdminLayout() {
       {/* 管理端所有写操作共用同一套成功/失败反馈。 */}
       <Toaster position="top-right" />
     </SidebarProvider>
+    </AdminVersionControl>
   )
 }
 

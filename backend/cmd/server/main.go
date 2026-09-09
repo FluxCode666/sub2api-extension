@@ -27,6 +27,7 @@ import (
 	"sub2api-extension/internal/integration"
 	"sub2api-extension/internal/server"
 	"sub2api-extension/internal/service"
+	"sub2api-extension/internal/update"
 	"sub2api-extension/internal/web"
 
 	entsql "entgo.io/ent/dialect/sql"
@@ -205,7 +206,8 @@ func main() {
 		log.Printf("cost account sync failed: %v", syncErr)
 	})
 
-	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, imageAssetHandler, fileAssetHandler, ttftHandler, costHandler, invoiceUserHandler, invoiceAdminHandler, notificationAdminHandler, logService, logHandler)
+	systemHandler := adminhandler.NewSystemHandler(update.Build{Version: Version, Commit: Commit, BuildTime: Date}, update.NewGitHubFromEnv(), update.NewClient(os.Getenv("SUB2API_EXTENSION_UPDATE_SOCKET")))
+	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, imageAssetHandler, fileAssetHandler, ttftHandler, costHandler, invoiceUserHandler, invoiceAdminHandler, notificationAdminHandler, logService, logHandler, systemHandler)
 
 	// 启动 HTTP 服务器
 	addr := cfg.Server.Address()

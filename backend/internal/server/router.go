@@ -163,12 +163,15 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 	var ttftHandler *adminhandler.TTFTHandler
 	var costHandler *adminhandler.CostHandler
 	var logHandler *adminhandler.LogHandler
+	var systemHandler *adminhandler.SystemHandler
 	var logService *service.LogService
 	var invoiceUserHandler *handler.InvoiceUserHandler
 	var invoiceAdminHandler *adminhandler.InvoiceAdminHandler
 	var notificationAdminHandler *adminhandler.NotificationAdminHandler
 	for _, optionalHandler := range optionalHandlers {
 		switch typed := optionalHandler.(type) {
+		case *adminhandler.SystemHandler:
+			systemHandler = typed
 		case *adminhandler.HomepageConfigHandler:
 			homepageHandler = typed
 		case *adminhandler.ImageAssetHandler:
@@ -251,10 +254,18 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 	if authService != nil {
 		guarded := admin.Group("")
 		guarded.Use(middleware.AdminGuard(authService))
+		if systemHandler != nil {
+			guarded.GET("/system/version", systemHandler.Version)
+			guarded.GET("/system/release", systemHandler.Latest)
+			guarded.GET("/system/update", systemHandler.Status)
+		}
 		if logService != nil {
 			guarded.Use(middleware.OperationLogger(logService))
 		}
 		{
+			if systemHandler != nil {
+				guarded.POST("/system/update", systemHandler.Start)
+			}
 			// 占位: 确认守卫生效。U4+ 替换为具体路由。
 			guarded.GET("", func(c *gin.Context) {
 				response.Success(c, gin.H{"group": "aux-admin", "status": "guarded", "ok": true})
