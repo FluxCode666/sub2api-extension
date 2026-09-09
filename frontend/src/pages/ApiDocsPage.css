@@ -97,9 +97,10 @@ html:has(.aux-api-docs), body:has(.aux-api-docs) { overflow-x: clip; }
 .aux-api-brand { display: inline-flex; min-width: 0; align-items: center; gap: 11px; flex-shrink: 0; min-height: 44px; }
 .aux-api-brand-mark { display: inline-flex; width: 22px; height: 22px; flex-shrink: 0; align-items: center; justify-content: center; color: var(--api-accent); }
 .aux-api-brand-mark svg { width: 22px; height: 22px; }
+.aux-api-brand > span:last-child { display: inline-flex; min-width: 0; align-items: baseline; gap: var(--space-cg-md); }
 .aux-api-brand strong, .aux-api-brand small { display: block; letter-spacing: 0; }
 .aux-api-brand strong { max-width: 24ch; overflow: hidden; font-size: 14px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-.aux-api-brand small { display: none; margin-left: 10px; color: var(--api-muted); font-size: 12px; font-weight: 500; }
+.aux-api-brand small { display: none; margin-left: 0; color: var(--api-muted); font-size: 12px; font-weight: 500; }
 .aux-api-header-nav { display: flex; align-items: center; gap: 2px; color: var(--api-muted); font-size: 13px; font-weight: 650; }
 .aux-api-header-nav a { display: inline-flex; min-height: 44px; align-items: center; gap: 6px; border-radius: 6px; padding: 10px 11px; transition: color 160ms var(--api-ease-out), background-color 160ms var(--api-ease-out); white-space: nowrap; }
 .aux-api-header-nav a:hover { background: var(--api-surface-muted); color: var(--api-accent); }
@@ -406,6 +407,7 @@ html:has(.aux-api-docs), body:has(.aux-api-docs) { overflow-x: clip; }
   .aux-api-header-inner, .aux-api-docs main, .aux-api-footer { width: min(1480px, calc(100% - 64px)); }
   .aux-api-header-tools { gap: var(--space-cg-xl); }
   .aux-api-brand small { display: inline; }
+  .aux-api-brand strong { display: inline; }
   .aux-api-header-home { width: auto; }
   .aux-api-header-home span { display: inline; }
   .aux-api-header-api { display: inline-flex; }
