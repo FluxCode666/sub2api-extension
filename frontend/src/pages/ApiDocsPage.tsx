@@ -10,8 +10,6 @@ import {
   ExternalLink,
   FileText,
   Home,
-  LayoutDashboard,
-  Menu,
   Monitor,
   Moon,
   ArrowUp,
@@ -19,7 +17,6 @@ import {
   ShieldCheck,
   Sun,
   Terminal,
-  X,
 } from 'lucide-react'
 import { apiClient, type AuxEnvelope } from '@/lib/api-client'
 import '@fontsource-variable/geist'
@@ -383,7 +380,6 @@ export default function ApiDocsPage() {
   const [termsUrl, setTermsUrl] = useState('')
   const [privacyUrl, setPrivacyUrl] = useState('')
   const [copied, setCopied] = useState<string | null>(null)
-  const [menuOpen, setMenuOpen] = useState(false)
   const [expandedEndpoints, setExpandedEndpoints] = useState<Set<string>>(() => new Set(['chat-completions']))
   const [activeSection, setActiveSection] = useState('quickstart')
   const [sidebarPinned, setSidebarPinned] = useState(false)
@@ -499,13 +495,8 @@ export default function ApiDocsPage() {
             <span><strong>{systemName || 'API 文档'}</strong><small>配置你的模型接口</small></span>
           </a>
           <div className="aux-api-header-tools">
-            <nav className={`aux-api-header-nav${menuOpen ? ' is-open' : ''}`} aria-label="文档导航">
-              <Link className="aux-api-header-home" to="/sub2api-home"><Home aria-hidden="true" /><span>官网</span></Link>
-              {consoleHref ? <a {...siteHrefProps(consoleHref)} className="aux-api-header-console" onClick={() => setMenuOpen(false)}><LayoutDashboard aria-hidden="true" /><span>控制台</span></a> : null}
-              <Link to={`/client-docs?${clientDocsParams}`}>客户端接入 <ArrowUpRight aria-hidden="true" /></Link>
-              <a href="#quickstart" onClick={() => setMenuOpen(false)}>快速开始</a>
-              <a href="#errors" onClick={() => setMenuOpen(false)}>错误处理</a>
-            </nav>
+            <Link className="aux-api-header-home" to="/sub2api-home" aria-label="返回官网"><Home aria-hidden="true" /><span>官网</span></Link>
+            <Link className="aux-api-header-api" to={`/client-docs?${clientDocsParams}`} aria-label="查看客户端接入文档">客户端接入 <ArrowUpRight aria-hidden="true" /></Link>
             <div className="aux-api-theme-picker">
               <ThemeIcon size={15} aria-hidden="true" />
               <select aria-label="外观主题" value={themePreference} onChange={event => selectTheme(event.target.value)}>
@@ -513,9 +504,7 @@ export default function ApiDocsPage() {
               </select>
               <ChevronDown size={12} className="aux-api-theme-chevron" aria-hidden="true" />
             </div>
-            <button className="aux-api-menu-button" type="button" aria-label={menuOpen ? '关闭导航' : '打开导航'} onClick={() => setMenuOpen((open) => !open)}>
-              {menuOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
-            </button>
+            {consoleHref ? <a {...siteHrefProps(consoleHref)} className="aux-api-header-console"><span>控制台</span> <ArrowUpRight aria-hidden="true" /></a> : null}
           </div>
         </div>
       </header>

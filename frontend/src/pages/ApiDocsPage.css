@@ -103,8 +103,12 @@ html:has(.aux-api-docs), body:has(.aux-api-docs) { overflow-x: clip; }
 .aux-api-header-nav { display: flex; align-items: center; gap: 2px; color: var(--api-muted); font-size: 13px; font-weight: 650; }
 .aux-api-header-nav a { display: inline-flex; min-height: 44px; align-items: center; gap: 6px; border-radius: 6px; padding: 10px 11px; transition: color 160ms var(--api-ease-out), background-color 160ms var(--api-ease-out); white-space: nowrap; }
 .aux-api-header-nav a:hover { background: var(--api-surface-muted); color: var(--api-accent); }
-.aux-api-header-nav .aux-api-header-console { border: 1px solid var(--api-accent); background: var(--api-accent); color: var(--api-accent-ink); }
-.aux-api-header-nav .aux-api-header-console:hover { background: var(--api-accent-strong); color: var(--api-accent-ink); }
+.aux-api-header-api { display: none; align-items: center; gap: 6px; min-height: 44px; color: var(--api-muted); font-size: 13px; font-weight: 650; white-space: nowrap; }
+.aux-api-header-api:hover { color: var(--api-accent); }
+.aux-api-header-console { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 6px; border-radius: 6px; padding: 0 16px; background: var(--api-accent); color: var(--api-accent-ink); font-size: 13px; font-weight: 650; transition: transform 160ms var(--api-ease-out), background-color 160ms var(--api-ease-out); white-space: nowrap; }
+.aux-api-header-console:hover { background: var(--api-accent-strong); color: var(--api-accent-ink); }
+.aux-api-header-console:active { transform: translateY(1px); }
+.aux-api-header-console svg, .aux-api-header-api svg { width: 16px; height: 16px; }
 .aux-api-header-home { display: inline-flex; width: 44px; min-height: 44px; align-items: center; justify-content: center; gap: 6px; color: var(--api-muted); }
 .aux-api-header-home span { display: none; }
 .aux-api-header-home svg { width: 17px; height: 17px; }
@@ -401,6 +405,7 @@ html:has(.aux-api-docs), body:has(.aux-api-docs) { overflow-x: clip; }
   .aux-api-brand small { display: inline; }
   .aux-api-header-home { width: auto; }
   .aux-api-header-home span { display: inline; }
+  .aux-api-header-api { display: inline-flex; }
   .aux-api-footer-brand { flex-basis: auto; margin-right: auto; }
 }
 

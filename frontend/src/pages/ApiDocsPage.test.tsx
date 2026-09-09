@@ -42,7 +42,7 @@ describe('ApiDocsPage', () => {
   it('links back to the public homepage from the top navigation', () => {
     renderPage()
 
-    expect(screen.getByRole('link', { name: '官网' })).toHaveAttribute('href', '/sub2api-home')
+    expect(screen.getByRole('link', { name: '返回官网' })).toHaveAttribute('href', '/sub2api-home')
   })
 
   it.each(['light', 'dark'] as const)('supports an explicit %s appearance theme', (preference) => {
