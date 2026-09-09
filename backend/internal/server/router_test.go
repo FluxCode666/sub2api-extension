@@ -500,6 +500,20 @@ func TestSetupRouter_FrontendStaticServesIndexForSPARoutes(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "SPA", "SPA 路由应 fallback 到 index.html")
 
+	// 客户端接入文档是 SPA 路由，直接访问或刷新带尾斜杠的入口都应返回 index.html。
+	for _, path := range []string{"/client-docs", "/client-docs/"} {
+		reqClientDocs := httptest.NewRequest(http.MethodGet, path, nil)
+		wClientDocs := httptest.NewRecorder()
+		r.ServeHTTP(wClientDocs, reqClientDocs)
+		if path == "/client-docs" {
+			require.Equal(t, http.StatusMovedPermanently, wClientDocs.Code, path)
+			assert.Equal(t, "/client-docs/", wClientDocs.Header().Get("Location"), path)
+			continue
+		}
+		require.Equal(t, http.StatusOK, wClientDocs.Code, path)
+		assert.Contains(t, wClientDocs.Body.String(), "SPA", path)
+	}
+
 	// /assets/* 直接映射静态文件
 	req2 := httptest.NewRequest(http.MethodGet, "/assets/app.js", nil)
 	w2 := httptest.NewRecorder()
