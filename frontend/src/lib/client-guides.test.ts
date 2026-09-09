@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { execFileSync } from 'node:child_process'
-import { getConfigExample, getVerifyCommand, normalizeGatewayURL, quoteShell } from './client-guides'
+import { getClientGuide, getConfigExample, getVerifyCommand, normalizeGatewayURL, quoteShell } from './client-guides'
 
 describe('client guide configuration', () => {
   it.each([
@@ -45,6 +45,16 @@ describe('client guide configuration', () => {
     expect(obsidian.code).toContain('ANTHROPIC_BASE_URL="https://gateway.test"')
     expect(obsidian.code).toContain('ANTHROPIC_MODEL="custom-model"')
     expect(obsidian.code).not.toContain('$env:')
+  })
+
+  it.each(['pi', 'zcode'] as const)('documents all three API formats for %s', id => {
+    const guide = getClientGuide(id)
+    expect(guide.protocol).toContain('Anthropic Messages')
+    expect(guide.protocol).toContain('Chat Completions')
+    expect(guide.protocol).toContain('Responses')
+    expect(guide.configDescription).toContain('/v1/messages')
+    expect(guide.configDescription).toContain('/v1/chat/completions')
+    expect(guide.configDescription).toContain('/v1/responses')
   })
 
   it.each([

@@ -107,6 +107,12 @@ describe('ClientDocsPage', () => {
     explicit.unmount()
   })
 
+  it('uses the configured site name in the copyright footer', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ code: 0, data: { siteName: 'TERALEMO' } })
+    renderPage('/client-docs?client=codex')
+    await waitFor(() => expect(screen.getByText('© 2026 TERALEMO. All rights reserved.')).toBeInTheDocument())
+  })
+
   it('supports direct links, switching every client and browser history', async () => {
     renderPage('/client-docs?client=codex')
     expect(screen.getByRole('heading', { name: 'Codex 接入指南' })).toBeInTheDocument()

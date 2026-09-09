@@ -2,14 +2,16 @@ import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent }
 import { Link, useSearchParams } from 'react-router-dom'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
+import { ScrollToPlugin } from 'gsap/ScrollToPlugin'
 import { ArrowDown, ArrowRight, ArrowUp, ArrowUpRight, BookOpen, Check, ChevronDown, Copy, ExternalLink, Home, ImageIcon, KeyRound, Monitor, Moon, Search, Sun, Terminal, X } from 'lucide-react'
 import { CC_SWITCH_DOCS_URL, CC_SWITCH_DOWNLOAD_URL, CLIENT_GUIDES, getCCSwitchExample, getClientGuide, getConfigExample, getInstallCommand, getVerifyCommand, normalizeGatewayURL, type ClientId, type GuidePlatform, type GuideScreenshot } from '@/lib/client-guides'
 import { trackFeatureClick } from '@/lib/telemetry-sdk'
 import { apiClient, type AuxEnvelope } from '@/lib/api-client'
+import { DEFAULT_HOMEPAGE_CONFIG, isHomepageNavigationHref, type HomepageConfig } from '@/lib/homepage'
 import '@fontsource-variable/geist'
 import './ClientDocsPage.css'
 
-gsap.registerPlugin(useGSAP)
+gsap.registerPlugin(useGSAP, ScrollToPlugin)
 const canAnimate = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
 
 const GUIDE_SECTIONS = [
@@ -58,7 +60,9 @@ function ClientMark({ id, small = false }: { id: ClientId; small?: boolean }) {
 
 function CodeBlock({ title, language, code, feature }: { title: string; language: string; code: string; feature: string }) {
   const [status, setStatus] = useState<'idle' | 'copying' | 'copied' | 'error'>('idle')
+  const blockRef = useRef<HTMLDivElement>(null)
   const codeRef = useRef<HTMLElement>(null)
+  const copyButtonRef = useRef<HTMLButtonElement>(null)
   const copyAttempt = useRef(0)
   useEffect(() => {
     if (status === 'idle' || status === 'copying') return
@@ -69,6 +73,22 @@ function CodeBlock({ title, language, code, feature }: { title: string; language
     setStatus('idle')
     return () => { copyAttempt.current += 1 }
   }, [code])
+
+  useGSAP(() => {
+    if (!canAnimate || status === 'idle' || status === 'copying') return
+    const media = gsap.matchMedia()
+    media.add('(prefers-reduced-motion: no-preference)', () => {
+      if (!copyButtonRef.current) return
+      gsap.fromTo(copyButtonRef.current, { scale: 0.96 }, {
+        scale: 1,
+        duration: 0.22,
+        ease: 'back.out(1.7)',
+        overwrite: 'auto',
+        clearProps: 'scale',
+      })
+    })
+    return () => media.revert()
+  }, { scope: blockRef, dependencies: [status], revertOnUpdate: true })
 
   async function copy() {
     if (status === 'copying') return
@@ -92,8 +112,8 @@ function CodeBlock({ title, language, code, feature }: { title: string; language
     }
   }
 
-  return <div className="client-code" data-state={status}>
-    <div className="client-code-bar"><span>{title}</span><div><small>{language}</small><button type="button" onClick={() => void copy()} disabled={status === 'copying'} aria-busy={status === 'copying'} aria-label={`复制${title}`}>
+  return <div ref={blockRef} className="client-code" data-state={status}>
+    <div className="client-code-bar"><span>{title}</span><div><small>{language}</small><button ref={copyButtonRef} type="button" onClick={() => void copy()} disabled={status === 'copying'} aria-busy={status === 'copying'} aria-label={`复制${title}`}>
       {status === 'copied' ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}{status === 'copied' ? '已复制' : status === 'copying' ? '复制中' : '复制'}
     </button></div></div>
     <pre tabIndex={0} aria-label={title}><code ref={codeRef}>{code}</code></pre>
@@ -104,16 +124,48 @@ function CodeBlock({ title, language, code, feature }: { title: string; language
 function Screenshot({ screenshot, clientName }: { screenshot: GuideScreenshot; clientName: string }) {
   const [failed, setFailed] = useState(false)
   const [expanded, setExpanded] = useState(false)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const figureRef = useRef<HTMLElement>(null)
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const dialogImageRef = useRef<HTMLImageElement>(null)
   const hasImage = !!screenshot.src && !failed
   useEffect(() => {
     const dialog = dialogRef.current
     if (!dialog) return
-    if (expanded && typeof dialog.showModal === 'function' && !dialog.open) dialog.showModal()
-    if (!expanded && typeof dialog.close === 'function' && dialog.open) dialog.close()
+    if (expanded && typeof dialog.showModal === 'function' && !dialog.open) {
+      dialog.showModal()
+    }
+    if (!expanded && typeof dialog.close === 'function' && dialog.open) {
+      dialog.close()
+    }
+    setDialogOpen(expanded)
   }, [expanded])
 
-  return <figure className="client-screenshot">
+  useGSAP(() => {
+    if (!canAnimate || !dialogOpen || !dialogRef.current?.open) return
+    const media = gsap.matchMedia()
+    media.add('(prefers-reduced-motion: no-preference)', () => {
+      gsap.fromTo(dialogRef.current, { autoAlpha: 0, scale: 0.985 }, {
+        autoAlpha: 1,
+        scale: 1,
+        duration: 0.2,
+        ease: 'power2.out',
+        overwrite: 'auto',
+        clearProps: 'autoAlpha,scale',
+      })
+      gsap.fromTo(dialogImageRef.current, { autoAlpha: 0, y: 6 }, {
+        autoAlpha: 1,
+        y: 0,
+        duration: 0.24,
+        ease: 'power2.out',
+        overwrite: 'auto',
+        clearProps: 'autoAlpha,y',
+      })
+    })
+    return () => media.revert()
+  }, { scope: figureRef, dependencies: [dialogOpen], revertOnUpdate: true })
+
+  return <figure ref={figureRef} className="client-screenshot">
     {hasImage ? <button type="button" className="client-screenshot-image" onClick={() => setExpanded(true)} aria-label={`放大查看：${screenshot.caption}`}>
       <img src={screenshot.src} alt={screenshot.alt} loading="lazy" onError={() => setFailed(true)} />
       <span><ImageIcon size={14} aria-hidden="true" /> 点击放大</span>
@@ -122,9 +174,9 @@ function Screenshot({ screenshot, clientName }: { screenshot: GuideScreenshot; c
       <div><strong>{screenshot.caption}</strong><span>图示待补充 · 可先按文字步骤完成</span></div>
     </div>}
     {hasImage && <figcaption>{clientName}<span>/</span>{screenshot.caption}</figcaption>}
-    {hasImage && <dialog className="client-image-dialog" aria-label={screenshot.caption} ref={dialogRef} onClose={() => setExpanded(false)} onClick={event => { if (event.target === event.currentTarget) setExpanded(false) }}>
+    {hasImage && <dialog className="client-image-dialog" aria-label={screenshot.caption} ref={dialogRef} onClose={() => { setExpanded(false); setDialogOpen(false) }} onClick={event => { if (event.target === event.currentTarget) setExpanded(false) }}>
       <button type="button" autoFocus onClick={() => setExpanded(false)} aria-label="关闭大图"><X aria-hidden="true" /></button>
-      <img src={screenshot.src} alt={screenshot.alt} /><p>{screenshot.caption}</p>
+      <img ref={dialogImageRef} src={screenshot.src} alt={screenshot.alt} /><p>{screenshot.caption}</p>
     </dialog>}
   </figure>
 }
@@ -133,6 +185,7 @@ export default function ClientDocsPage() {
   const pageRef = useRef<HTMLDivElement>(null)
   const articleRef = useRef<HTMLElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
+  const scrollTopRef = useRef<() => void>(() => {})
   const scrollRequested = useRef(false)
   const [params, setParams] = useSearchParams()
   const [savedTheme, setSavedTheme] = useState(readSavedTheme)
@@ -148,6 +201,7 @@ export default function ClientDocsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeSection, setActiveSection] = useState('prepare')
   const [systemName, setSystemName] = useState('')
+  const [consoleHref, setConsoleHref] = useState(DEFAULT_HOMEPAGE_CONFIG.consoleHref)
   const embedded = params.get('embed') === '1' || params.get('ui_mode') === 'embedded'
   const baseURL = normalizeGatewayURL(baseInput)
   const modelInput = models[guide.id] ?? guide.defaultModel
@@ -222,7 +276,7 @@ export default function ClientDocsPage() {
 
   useEffect(() => {
     let active = true
-    void apiClient.get<AuxEnvelope<{ siteName?: string; heroTitle?: string; systemDomain?: string }>>('/homepage/config').then(envelope => {
+    void apiClient.get<AuxEnvelope<Partial<HomepageConfig>>>('/homepage/config').then(envelope => {
       const name = envelope.data?.siteName?.trim() || envelope.data?.heroTitle?.trim()
       if (active && envelope.code === 0 && name) {
         setSystemName(name)
@@ -230,6 +284,10 @@ export default function ClientDocsPage() {
       const configuredDomain = envelope.data?.systemDomain?.trim()
       if (active && envelope.code === 0 && configuredDomain && !baseInputDirty.current) {
         setBaseInput(configuredDomain)
+      }
+      const configuredConsole = envelope.data?.consoleHref?.trim()
+      if (active && envelope.code === 0 && configuredConsole && isHomepageNavigationHref(configuredConsole)) {
+        setConsoleHref(configuredConsole)
       }
     }).catch(() => {
       // 系统名称读取失败时保留通用页尾，接入步骤仍可正常阅读。
@@ -247,14 +305,110 @@ export default function ClientDocsPage() {
     return () => observer.disconnect()
   }, [guide.id])
 
+  useGSAP((_, contextSafe) => {
+    if (!contextSafe) return
+    const jumpWithoutMotion = contextSafe(() => {
+      window.scrollTo({ top: 0, behavior: 'auto' })
+    })
+    scrollTopRef.current = jumpWithoutMotion
+    const media = gsap.matchMedia()
+    media.add('(prefers-reduced-motion: no-preference)', () => {
+      scrollTopRef.current = contextSafe(() => {
+        gsap.to(window, {
+          duration: 0.56,
+          scrollTo: { y: 0, autoKill: true },
+          ease: 'power2.out',
+          overwrite: 'auto',
+        })
+      })
+      return () => { scrollTopRef.current = jumpWithoutMotion }
+    })
+    return () => {
+      media.revert()
+      scrollTopRef.current = () => {}
+    }
+  }, { scope: pageRef })
+
+  useGSAP(() => {
+    if (!canAnimate) return
+    const media = gsap.matchMedia()
+    media.add(
+      {
+        reduceMotion: '(prefers-reduced-motion: reduce)',
+        desktop: '(min-width: 60rem)',
+      },
+      context => {
+        if (context.conditions?.reduceMotion) return
+        const intro = gsap.timeline({ defaults: { ease: 'power2.out' } })
+        intro
+          .fromTo('.client-sidebar nav button.is-current', { autoAlpha: 0.72, x: -4 }, {
+            autoAlpha: 1,
+            x: 0,
+            duration: 0.2,
+            overwrite: 'auto',
+            clearProps: 'autoAlpha,x',
+          }, 0)
+          .fromTo('.client-breadcrumb', { autoAlpha: 0, y: 5 }, {
+            autoAlpha: 1,
+            y: 0,
+            duration: 0.2,
+            clearProps: 'autoAlpha,y',
+          }, 0)
+          .fromTo('.client-guide-title-row', { autoAlpha: 0, y: 8 }, {
+            autoAlpha: 1,
+            y: 0,
+            duration: 0.28,
+            clearProps: 'autoAlpha,y',
+          }, '<0.04')
+          .fromTo('.client-article-heading > p', { autoAlpha: 0, y: 6 }, {
+            autoAlpha: 1,
+            y: 0,
+            duration: 0.22,
+            clearProps: 'autoAlpha,y',
+          }, '<0.05')
+          .fromTo('.client-guide-meta, .client-quick-links', { autoAlpha: 0, y: 5 }, {
+            autoAlpha: 1,
+            y: 0,
+            duration: 0.2,
+            stagger: 0.04,
+            clearProps: 'autoAlpha,y',
+          }, '<0.04')
+          .fromTo('#prepare .client-step-heading, #prepare > p, #prepare > .client-settings, #prepare > .client-prerequisite', { autoAlpha: 0, y: 7 }, {
+            autoAlpha: 1,
+            y: 0,
+            duration: 0.22,
+            stagger: 0.035,
+            clearProps: 'autoAlpha,y',
+          }, '<0.05')
+
+        if (context.conditions?.desktop) {
+          intro.fromTo('.client-reading-rail > div', { autoAlpha: 0, x: 6 }, {
+            autoAlpha: 1,
+            x: 0,
+            duration: 0.24,
+            clearProps: 'autoAlpha,x',
+          }, '<0.06')
+        }
+      },
+    )
+    return () => media.revert()
+  }, { scope: pageRef, dependencies: [guide.id], revertOnUpdate: true })
+
   useGSAP(() => {
     if (!canAnimate) return
     const media = gsap.matchMedia()
     media.add('(prefers-reduced-motion: no-preference)', () => {
-      gsap.fromTo('.client-article-heading', { opacity: 0.65, y: 4 }, { opacity: 1, y: 0, duration: 0.2, ease: 'power2.out', clearProps: 'all' })
+      gsap.fromTo('#client-platform-panel', { autoAlpha: 0, y: 4 }, {
+        autoAlpha: 1,
+        y: 0,
+        duration: 0.18,
+        ease: 'power2.out',
+        overwrite: 'auto',
+        clearProps: 'autoAlpha,y',
+      })
     })
     return () => media.revert()
-  }, { scope: pageRef, dependencies: [guide.id], revertOnUpdate: true })
+  }, { scope: pageRef, dependencies: [platform], revertOnUpdate: true })
 
   useEffect(() => {
     if (!scrollRequested.current) return
@@ -270,7 +424,7 @@ export default function ClientDocsPage() {
     <a href="#guide" className="client-skip">跳到接入步骤</a>
     <header className="client-header">
       <div className="client-header-inner client-shell">
-        <a className="client-brand" href="#top" aria-label="客户端接入文档首页"><BookOpen size={22} aria-hidden="true" /><strong>接入文档</strong><span className="client-brand-caption">配置你的工作方式</span></a>
+        <a className="client-brand" href="#top" aria-label="客户端接入文档首页" onClick={event => { event.preventDefault(); scrollTopRef.current() }}><BookOpen size={22} aria-hidden="true" /><strong>接入文档</strong><span className="client-brand-caption">配置你的工作方式</span></a>
         <div className="client-header-tools">
           <Link className="client-header-home" to="/sub2api-home" aria-label="返回官网"><Home size={17} aria-hidden="true" /><span>官网</span></Link>
           <Link className="client-header-api" to={apiDocsHref} aria-label="查看 API 文档">API 参考 <ArrowUpRight size={16} aria-hidden="true" /></Link>
@@ -281,6 +435,7 @@ export default function ClientDocsPage() {
             </select>
             <ChevronDown size={12} className="client-theme-chevron" aria-hidden="true" />
           </div>
+          <a className="client-header-console" href={consoleHref} target={consoleHref.startsWith('#') ? undefined : '_top'} rel={/^https?:/i.test(consoleHref) ? 'noreferrer' : undefined} onClick={() => trackFeatureClick('client-docs', 'open-console')}>控制台 <ArrowUpRight size={16} aria-hidden="true" /></a>
         </div>
       </div>
     </header>
@@ -360,7 +515,7 @@ export default function ClientDocsPage() {
             {guide.endpoint && (example ? <CodeBlock title={guide.configPath} language={example.language} code={example.code} feature={`${guide.id}-config`} /> : <div className="client-config-error" role="status">请先在「准备接入信息」中填写有效地址和模型名称，再生成配置。</div>)}
             {guide.authFile && <><p>{guide.authFile.description}</p><CodeBlock title={guide.authFile.path} language="JSON" code={guide.authFile.code} feature={`${guide.id}-auth`} /></>}
             </>}
-            {guide.endpoint && <div className="client-protocol-note"><span>请求端点</span><code>{guide.endpoint}</code><span>{guide.endpoint === '/v1/messages' ? '由客户端自动添加，基础地址不加 /v1。' : '示例已自动补齐 /v1，无需添加完整端点。'}</span></div>}
+            {guide.endpoint && <div className="client-protocol-note"><span>请求端点</span><code>{guide.id === 'zcode' || guide.id === 'pi' ? '/v1/messages · /v1/chat/completions · /v1/responses' : guide.endpoint}</code><span>{guide.id === 'zcode' || guide.id === 'pi' ? '按所选 API 格式使用对应端点，基础地址不加 /v1。' : guide.endpoint === '/v1/messages' ? '由客户端自动添加，基础地址不加 /v1。' : '示例已自动补齐 /v1，无需添加完整端点。'}</span></div>}
             <Screenshot key={`${guide.id}-configure`} screenshot={guide.screenshots.configure} clientName={guide.name} />
           </section>
 
@@ -386,6 +541,6 @@ export default function ClientDocsPage() {
         <div className="client-reading-note"><Check size={18} aria-hidden="true" /><p>接入完成后<br />发送「当前时间」<br />确认收到正常回复。</p></div>
       </div></aside>
     </main>
-    <footer className="client-footer client-shell"><div className="client-footer-brand"><Terminal size={18} aria-hidden="true" /><span>{systemName ? `${systemName} · 客户端接入文档` : '客户端接入文档'}</span></div><span>{CLIENT_GUIDES.length} 种客户端 · 持续更新</span><nav aria-label="相关文档"><Link to={apiDocsHref}>API 参考 <ArrowUpRight size={16} aria-hidden="true" /></Link><a href="#top">回到顶部 <ArrowUp size={16} aria-hidden="true" /></a></nav></footer>
+    <footer className="client-footer client-shell"><div className="client-footer-brand"><Terminal size={18} aria-hidden="true" /><span>{systemName ? `${systemName} · 客户端接入文档` : '客户端接入文档'}</span></div><span>{CLIENT_GUIDES.length} 种客户端 · 持续更新</span><span className="client-footer-copyright">© 2026 {systemName || 'TERALEMO'}. All rights reserved.</span><nav aria-label="相关文档"><Link to={apiDocsHref}>API 参考 <ArrowUpRight size={16} aria-hidden="true" /></Link><a href="#top" onClick={event => { event.preventDefault(); scrollTopRef.current() }}>回到顶部 <ArrowUp size={16} aria-hidden="true" /></a></nav></footer>
   </div>
 }

@@ -30,15 +30,17 @@ html:has(.client-docs), body:has(.client-docs) { overflow-x: clip; scroll-behavi
 .client-skip { position: fixed; top: var(--space-cg-lg); left: var(--space-cg-lg); z-index: var(--z-cg-skip); transform: translateY(-160%); padding: var(--space-cg-md) var(--space-cg-lg); background: var(--color-cg-ink); color: var(--color-cg-paper) !important; border-radius: var(--radius-cg-small); }
 .client-skip:focus { transform: none; }
 .client-header { position: sticky; top: 0; z-index: var(--z-cg-sticky); background: var(--color-cg-paper); color: var(--color-cg-ink); border-bottom: var(--rule-cg-width) solid var(--color-cg-rule); }
-.client-header-inner { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: var(--space-cg-lg); }
+.client-header-inner { min-height: 72px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-cg-sm) var(--space-cg-lg); padding-block: var(--space-cg-md); }
 .client-brand { display: inline-flex; align-items: center; gap: var(--space-cg-md); min-height: 44px; }
 .client-brand > svg { color: var(--color-cg-accent); }
 .client-brand strong { font-size: var(--text-cg-body); font-weight: 700; }
 .client-brand-caption { display: none; }
-.client-header-tools { display: flex; align-items: center; gap: var(--space-cg-sm); }
+.client-header-tools { display: flex; align-items: center; gap: var(--space-cg-sm); margin-left: auto; }
 .client-header-home { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-cg-sm); width: 44px; min-height: 44px; color: var(--color-cg-muted); font-size: var(--text-cg-ui); }
 .client-header-home span { display: none; }
 .client-header-api { display: none; }
+.client-docs .client-header-console { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-cg-xs); min-height: 44px; padding-inline: var(--space-cg-md); border-radius: var(--radius-cg-small); background: var(--color-cg-accent); color: var(--color-cg-accent-ink); font-size: var(--text-cg-ui); font-weight: 600; transition: transform var(--dur-cg-press) var(--ease-cg-out); }
+.client-docs .client-header-console:active { transform: translateY(1px); }
 .client-theme-picker { position: relative; display: flex; align-items: center; color: var(--color-cg-muted); }
 .client-theme-picker > svg:first-child { position: absolute; left: var(--space-cg-md); pointer-events: none; }
 .client-theme-picker select { appearance: none; border: var(--rule-cg-width) solid var(--color-cg-control); border-radius: var(--radius-cg-small); padding: 0 28px 0 36px; height: 44px; background: var(--color-cg-surface); color: var(--color-cg-ink); font-size: var(--text-cg-small); cursor: pointer; }
@@ -61,6 +63,17 @@ html:has(.client-docs), body:has(.client-docs) { overflow-x: clip; scroll-behavi
 .client-mobile-menu > div > svg { position: absolute; right: var(--space-cg-lg); pointer-events: none; }
 .client-breadcrumb { display: none; align-items: center; flex-wrap: wrap; gap: var(--space-cg-sm); font-size: var(--text-cg-small); color: var(--color-cg-muted); margin-bottom: var(--space-cg-xl); }
 .client-article-heading { margin-bottom: var(--space-cg-xl); }
+.client-guide-title-row,
+.client-article-heading > p,
+.client-guide-meta,
+.client-quick-links,
+.client-step-heading,
+.client-sidebar nav button.is-current,
+.client-reading-rail > div,
+.client-code-bar button,
+.client-platform-tabs + div,
+.client-image-dialog,
+.client-image-dialog > img { will-change: transform, opacity; }
 .client-guide-title-row { display: flex; align-items: center; gap: var(--space-cg-md); }
 .client-guide-title-row h1 { font-size: var(--text-cg-display); font-weight: 700; line-height: 1.25; letter-spacing: -0.035em; margin: 0; text-wrap: balance; }
 .client-article-heading > p { margin: var(--space-cg-lg) 0 var(--space-cg-xl); color: var(--color-cg-muted); }
@@ -163,11 +176,11 @@ html:has(.client-docs), body:has(.client-docs) { overflow-x: clip; scroll-behavi
 
 @media (min-width: 40rem) {
   .client-shell { width: min(1480px, calc(100% - 64px)); }
+  .client-header-inner { flex-wrap: nowrap; padding-block: 0; }
   .client-header-tools { gap: var(--space-cg-xl); }
   .client-header-home { width: auto; }
   .client-header-home span { display: inline; }
   .client-header-api { display: inline-flex; align-items: center; gap: var(--space-cg-sm); min-height: 44px; font-size: var(--text-cg-ui); }
-  .client-brand-caption { display: inline; font-size: var(--text-cg-small); color: var(--color-cg-muted); margin-left: var(--space-cg-md); }
   .client-doc-layout { padding-top: var(--space-cg-3xl); }
   .client-breadcrumb { display: flex; }
   .client-settings { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -176,6 +189,7 @@ html:has(.client-docs), body:has(.client-docs) { overflow-x: clip; scroll-behavi
   .client-footer-brand { flex-basis: auto; margin-right: auto; }
 }
 @media (min-width: 60rem) {
+  .client-brand-caption { display: inline; font-size: var(--text-cg-small); color: var(--color-cg-muted); margin-left: var(--space-cg-md); }
   .client-doc-layout { grid-template-columns: 224px minmax(0, 1fr); gap: var(--space-cg-3xl); }
   .client-sidebar { display: block; align-self: stretch; }
   .client-sidebar-inner { position: sticky; top: 104px; max-height: calc(100svh - 128px); overflow-y: auto; scrollbar-width: thin; padding: var(--space-cg-xs); margin: calc(-1 * var(--space-cg-xs)); }
@@ -209,6 +223,7 @@ html:has(.client-docs), body:has(.client-docs) { overflow-x: clip; scroll-behavi
   .client-mobile-toc { display: none; }
 }
 @media (hover: hover) {
+  .client-docs .client-header-console:hover { background: var(--color-cg-focus); }
   .client-docs a:hover { color: var(--color-cg-accent); }
   .client-docs :is(.client-code-bar button, .client-platform-tabs button, .client-sidebar nav button, .client-theme-picker select):hover:not(:disabled) { background: var(--color-cg-selected); color: var(--color-cg-accent); }
   .client-faq summary:hover, .client-mobile-toc summary:hover { color: var(--color-cg-accent); }
@@ -220,4 +235,9 @@ html:has(.client-docs), body:has(.client-docs) { overflow-x: clip; scroll-behavi
   html:has(.client-docs) { scroll-behavior: auto; }
   .client-docs *, .client-docs *::before, .client-docs *::after { animation: none !important; transition: none !important; }
   .client-docs button:active:not(:disabled) { transform: none; }
+  .client-docs .client-header-console:active { transform: none; }
+}
+
+@media (max-width: 39.999rem) {
+  .client-docs :is(section, .client-article) { scroll-margin-top: 144px; }
 }

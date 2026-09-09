@@ -96,8 +96,8 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
       ],
     },
     screenshots: {
-      configure: { src: '', alt: 'Claude Desktop 在 CC Switch 中配置供应商与模型映射', caption: 'CC Switch 配置 Claude Desktop' },
-      verify: { src: '', alt: 'Claude Desktop 发送「当前时间」后的正常回复', caption: '发送「当前时间」验证接入' },
+      configure: { src: '/client-docs/claude-desktop/cc-switch.png', alt: 'CC Switch 的 Claude Desktop 供应商配置与模型映射界面，密钥已遮盖', caption: 'CC Switch 配置 Claude Desktop' },
+      verify: { src: '/client-docs/claude-desktop/verify.png', alt: 'Claude Desktop 发送「当前时间」后的正常回复', caption: '发送「当前时间」验证接入' },
     },
   },
   {
@@ -134,17 +134,17 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
   {
     id: 'pi', name: 'Pi', icon: '/client-icons/pi.svg', category: '可扩展编程',
     description: '轻量、可组合，保留你习惯的终端工作方式。',
-    protocol: 'OpenAI Chat Completions', endpoint: '/v1/chat/completions', defaultModel: 'your-model-id',
+    protocol: 'Anthropic Messages · Chat Completions · Responses', endpoint: '/v1/chat/completions', defaultModel: 'your-model-id',
     officialUrl: 'https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/models.md',
     installUrl: 'https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent#quick-start',
     prerequisite: '先安装当前受支持的 Node.js LTS 与 npm。这里的 Pi 指 pi-mono 项目中的 coding agent，安装包以官方快速开始文档为准。',
     configPath: '~/.pi/agent/models.json',
-    configDescription: '在 models.json 的 providers 中新增 gateway，保留其他提供方。将 sk-YOUR_API_KEY 替换为你的密钥；Windows 路径为 %USERPROFILE%\\.pi\\agent\\models.json。',
+    configDescription: '在 models.json 的 providers 中新增 gateway，保留其他提供方。Pi Agent 支持 Anthropic Messages（/v1/messages）、Chat Completions（/v1/chat/completions）和 Responses（/v1/responses），请选择与网关和模型匹配的 API 格式；下方可复制示例使用 Chat Completions。将 sk-YOUR_API_KEY 替换为你的密钥；Windows 路径为 %USERPROFILE%\\.pi\\agent\\models.json。',
     ccSwitch: {
       description: 'CC Switch 可管理 Pi 的供应商预设和模型配置，减少手动编辑 models.json 的步骤。',
       steps: [
         '先完成上方 Pi 安装，再安装并打开最新版本 CC Switch，选择「Pi」面板，点击右上角「+」添加自定义供应商。',
-        '填写供应商名称与唯一的供应商标识（例如 gateway），再填写平台 API Key 与下方以 /v1 结尾的地址；API 格式选择 OpenAI Chat Completions（openai-completions），添加本页模型 ID 及显示名称。',
+        '填写供应商名称与唯一的供应商标识（例如 gateway），再填写平台 API Key 与下方以 /v1 结尾的地址；API 格式可选择 Anthropic Messages、Chat Completions 或 Responses，本页复制示例对应 OpenAI Chat Completions（openai-completions），添加本页模型 ID 及显示名称。',
         '保存供应商并确认已写入 Pi 配置。重新打开 Pi，在 /model 中选择刚添加的供应商与模型，再按下方步骤验证。',
       ],
       screenshots: [
@@ -153,7 +153,7 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
       ],
     },
     verification: '启动 Pi 后，输入 /model，选择刚配置的供应商与目标模型（手动配置示例中的供应商为 gateway）。发送「当前时间」，确认收到回复，并在控制台检查请求用量。修改 models.json 后，重新打开 /model 即可重新读取。',
-    troubleshooting: '模型没有显示时，先检查 JSON 格式和 API Key，再打开 /model。若返回接口不支持，请检查 api 字段与网关协议；此示例的 openai-completions 对应 /v1/chat/completions。',
+    troubleshooting: '模型没有显示时，先检查 JSON 格式和 API Key，再打开 /model。若返回接口不支持，请检查 api 字段与网关协议：openai-completions 对应 /v1/chat/completions，Responses 与 Anthropic Messages 请选择对应适配器和端点。',
     screenshots: {
       configure: { src: '/client-docs/pi/models.png', alt: 'Pi 的 models.json 中配置 FluxCode 提供方、OpenAI Chat Completions 接口和模型，密钥已遮盖', caption: 'models.json 自定义模型' },
       verify: { src: '/client-docs/pi/verify.png', alt: 'Pi 发送「当前时间」后调用 date 获取时间并返回正常回复', caption: '发送「当前时间」验证接入' },
@@ -230,7 +230,7 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
   {
     id: 'zcode', name: 'ZCode', icon: '/client-icons/zcode.png', category: '桌面编程',
     description: '在桌面工作区中，接入团队自己的模型通道。',
-    protocol: 'Anthropic Messages', endpoint: '/v1/messages', defaultModel: 'your-model-id',
+    protocol: 'Anthropic Messages · Chat Completions · Responses', endpoint: '/v1/messages', defaultModel: 'your-model-id',
     officialUrl: 'https://zcode.z.ai/cn/docs/configuration',
     installUrl: 'https://zcode.z.ai/cn/docs/install',
     prerequisite: '从 ZCode 官网下载适用于 macOS、Windows 或 Linux 的桌面安装包。以下使用自定义供应商接入平台网关。',
@@ -239,14 +239,14 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
       { text: '打开应用。首次欢迎页可选择「使用 API Key」；已进入工作区时，从模型选择器底部进入「管理模型」。' },
     ],
     configPath: 'ZCode 自定义供应商填写参考',
-    configDescription: '进入「设置 → 模型设置」，添加自定义供应商。本示例与下方截图一致，使用 Anthropic Messages 接口连接 Claude 模型。截图中的地址与模型仅作示例，请替换为你的网关地址和平台实际开放的模型 ID。',
+    configDescription: '进入「设置 → 模型设置」，添加自定义供应商。ZCode 支持 Anthropic Messages（/v1/messages）、Chat Completions（/v1/chat/completions）和 Responses（/v1/responses），请选择与网关和模型匹配的 API 格式；下方截图示例使用 Anthropic Messages。截图中的地址与模型仅作示例，请替换为你的网关地址和平台实际开放的模型 ID。',
     configSteps: [
       '在供应商列表底部点击「添加供应商」，为通道命名，例如 FluxCode Claude。',
-      'Base URL 填写网关根地址，不加 /v1；API 格式选择「Anthropic Messages (/v1/messages)」，API Key 填写平台控制台创建的密钥。',
+      'Base URL 填写网关根地址，不加 /v1；API 格式按实际接入方式选择「Anthropic Messages (/v1/messages)」「Chat Completions (/chat/completions)」或「Responses (/responses)」，API Key 填写平台控制台创建的密钥。',
       '点击「添加模型」，填写完整的 Claude 模型 ID，保存并确认供应商显示「已启用」。',
     ],
     verification: '回到工作区，新建任务，在模型选择器中选择刚添加的供应商及其模型（截图中为 FluxCode Claude/claude-opus-5），直接发送「当前时间」。收到正常回复后，在平台控制台核对请求用量。',
-    troubleshooting: '模型未出现时，检查供应商是否启用、模型是否已添加并保存。出现 404 时，确认 Base URL 为网关根地址、API 格式为 Anthropic Messages，且密钥和模型支持 /v1/messages。若模型返回推理参数错误，先按模型实际能力调整思考强度。',
+    troubleshooting: '模型未出现时，检查供应商是否启用、模型是否已添加并保存。出现 404 时，确认 Base URL 为网关根地址，并让 API 格式与实际端点匹配：Anthropic Messages 使用 /v1/messages，Chat Completions 使用 /chat/completions，Responses 使用 /responses。若模型返回推理参数错误，先按模型实际能力调整思考强度。',
     screenshots: {
       configure: { src: '/client-docs/zcode/configure.png', alt: 'ZCode 模型设置中配置 FluxCode Claude 供应商，Base URL 使用网关根地址，API 格式为 Anthropic Messages，密钥已遮盖', caption: '添加供应商与模型' },
       verify: { src: '/client-docs/zcode/verify.png', alt: 'ZCode 选择 FluxCode Claude/claude-opus-5 并发送「当前时间」后的正常回复', caption: '发送「当前时间」验证接入' },
@@ -316,9 +316,10 @@ export function getCCSwitchExample(id: ClientId, baseURL: string, model: string)
   const app = id === 'claude-code' ? 'Claude（Claude Code）' : guide.name
   const apiURL = guide.endpoint === '/v1/messages' ? baseURL : `${baseURL}/v1`
   const providerKey = id === 'pi' ? '\n供应商标识    gateway（若已存在请换一个）' : ''
+  const apiFormat = id === 'pi' ? 'OpenAI Chat Completions (openai-completions)' : guide.protocol
   return {
     language: '界面填写参考',
-    code: `应用          ${app}\n供应商名称    Gateway${providerKey}\n接口地址      ${apiURL}\nAPI Key       sk-YOUR_API_KEY\nAPI 格式      ${guide.protocol}\n模型 ID       ${model}`,
+    code: `应用          ${app}\n供应商名称    Gateway${providerKey}\n接口地址      ${apiURL}\nAPI Key       sk-YOUR_API_KEY\nAPI 格式      ${apiFormat}\n模型 ID       ${model}`,
   }
 }
 
