@@ -33,6 +33,7 @@
 | `/admin/p/:slug` | 需要管理员会话的动态页面 |
 | `/p/:slug` | 公开动态页面；仅当数据库中存在并启用对应页面时可访问 |
 | `/api-docs`（`/docs`） | Sub2API API 文档，可挂载菜单或嵌入其他系统 |
+| `/client-docs` | Claude Code、Codex、Pi、Hermes、OpenClaw、Paseo、ZCode、DeepSeek Harness、Obsidian（Claudian）接入指南，支持 `?client=codex` 直达与 `?embed=1` 嵌入 |
 | `/login` | 独立管理员登录入口 |
 
 项目不会为 `/` 渲染官网内容，也不会把某个固定页面视为官网首页。若 sub2api 需要展示公开内容，应由管理员创建公开动态页面后，再将该页面 URL 配置到 sub2api 的相应设置中。

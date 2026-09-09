@@ -47,6 +47,12 @@ export interface PageEntry {
  */
 export const STATIC_PAGE_REGISTRY: readonly PageEntry[] = [
   {
+    id: 'client-docs',
+    title: '客户端接入',
+    path: '/client-docs',
+    visibility: 'public',
+  },
+  {
     id: 'api-docs',
     title: 'API 文档',
     path: '/api-docs',

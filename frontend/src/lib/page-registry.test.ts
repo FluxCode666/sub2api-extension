@@ -10,6 +10,12 @@ import {
 
 const expectedPages = [
   {
+    id: 'client-docs',
+    title: '客户端接入',
+    path: '/client-docs',
+    visibility: 'public',
+  },
+  {
     id: 'api-docs',
     title: 'API 文档',
     path: '/api-docs',
@@ -69,7 +75,7 @@ describe('page-registry', () => {
   it('does not register the root redirect as a content page', () => {
     expect(getPageById('home')).toBeUndefined()
     expect(getPageByPath('/')).toBeUndefined()
-    expect(getPublicPages()).toEqual([expectedPages[0]])
+    expect(getPublicPages()).toEqual(expectedPages.filter(page => page.visibility === 'public'))
   })
 
   it('finds current pages by id and path', () => {
@@ -80,7 +86,7 @@ describe('page-registry', () => {
   })
 
   it('separates public and admin pages', () => {
-    expect(getAdminPages()).toEqual(expectedPages.slice(1))
+    expect(getAdminPages()).toEqual(expectedPages.filter(page => page.visibility === 'admin'))
     expect(getPages()).toEqual(expectedPages)
   })
 })

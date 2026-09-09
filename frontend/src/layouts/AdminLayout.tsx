@@ -271,6 +271,14 @@ export default function AdminLayout() {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
+                <NavLink to="/client-docs" end>
+                  <FileText className="h-4 w-4" />
+                  <span>客户端接入</span>
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
                 <NavLink to="/api-docs" end>
                   <FileText className="h-4 w-4" />
                   <span>API 文档</span>

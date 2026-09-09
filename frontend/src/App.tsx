@@ -8,6 +8,7 @@
  * 路由 meta 思路对齐 sub2api frontend/src/router/index.ts:
  *   requiresAuth / requiresAdmin 通过 guard 组件实现 (U3)。
  */
+import { lazy, Suspense } from 'react'
 import { Link, Navigate, Routes, Route, useLocation } from 'react-router-dom'
 import PublicLayout from '@/layouts/PublicLayout'
 import AdminLayout from '@/layouts/AdminLayout'
@@ -35,6 +36,8 @@ import HomepagePage from '@/pages/HomepagePage'
 import HomepageConfigPage from '@/pages/admin/HomepageConfigPage'
 import ApiDocsPage from '@/pages/ApiDocsPage'
 import { fetchDynamicPages } from '@/lib/dynamic-pages'
+
+const ClientDocsPage = lazy(() => import('@/pages/ClientDocsPage'))
 
 // bootstrap: 获取动态页清单, 与静态注册表合并(KTD7)。
 // 失败时降级为仅静态页, 不阻塞前端。
@@ -97,6 +100,7 @@ export default function App() {
           in a user-facing custom menu or embedded by another system. */}
       <Route path="/api-docs" element={<ApiDocsPage />} />
       <Route path="/docs" element={<ApiDocsPage />} />
+      <Route path="/client-docs" element={<Suspense fallback={<main className="p-8" role="status">正在加载接入指南…</main>}><ClientDocsPage /></Suspense>} />
       {/* 管理端: 需管理员会话 (对应 sub2api custom_menu_items, 传 token) */}
       <Route path="/admin" element={<AdminGuard><AdminLayout /></AdminGuard>}>
         {/* U6: 仪表盘为管理端首页 (R10) */}

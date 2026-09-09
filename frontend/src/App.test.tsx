@@ -66,6 +66,10 @@ function LocationProbe() {
 }
 
 describe('App routing', () => {
+  it('opens client documentation as a public standalone page', async () => {
+    render(<MemoryRouter initialEntries={['/client-docs?client=codex']}><App /></MemoryRouter>)
+    expect(await screen.findByRole('heading', { name: 'Codex 接入指南' })).toBeInTheDocument()
+  })
   it('redirects the root path to the admin dashboard', async () => {
     render(
       <MemoryRouter initialEntries={['/']}>

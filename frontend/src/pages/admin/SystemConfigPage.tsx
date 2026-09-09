@@ -166,7 +166,7 @@ export default function SystemConfigPage() {
             </div>
             <span className="aux-system-config-status"><CircleCheck aria-hidden="true" />实时生效</span>
           </div>
-          <p className="aux-system-config-description">Sub2API 系统名称会显示在 API 文档页眉和页脚；默认模型会显示在首页预览、快速开始 cURL，以及各接口的多语言示例中。</p>
+          <p className="aux-system-config-description">Sub2API 系统名称会显示在 API 文档页眉和页脚，以及客户端接入文档页脚；默认模型会显示在首页预览、快速开始 cURL，以及各接口的多语言示例中。</p>
           <label className="aux-system-config-field" htmlFor="system-name">
             <span>Sub2API 系统名称</span>
             <input

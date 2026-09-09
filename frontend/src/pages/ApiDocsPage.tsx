@@ -1,16 +1,17 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import {
-  BookOpen,
   Check,
   ChevronDown,
   ChevronRight,
   Clipboard,
   Code2,
+  Layers3,
   Menu,
   ShieldCheck,
+  Sparkles,
   Terminal,
   X,
 } from 'lucide-react'
@@ -363,6 +364,11 @@ export default function ApiDocsPage() {
   }, [])
 
   const documentName = systemName ? `${systemName} API 文档` : 'API 文档'
+  const clientDocsParams = new URLSearchParams({ api_base: baseURL })
+  for (const key of ['embed', 'ui_mode', 'theme']) {
+    const value = searchParams.get(key)
+    if (value) clientDocsParams.set(key, value)
+  }
 
   useEffect(() => {
     const ids = ['quickstart', 'authentication', ...endpoints.map((endpoint) => `endpoint-${endpoint.id}`), 'errors']
@@ -419,6 +425,7 @@ export default function ApiDocsPage() {
           <span><strong>{systemName || 'API'}</strong><small>Developer Docs</small></span>
         </a>
         <nav className={`aux-api-header-nav${menuOpen ? ' is-open' : ''}`} aria-label="文档导航">
+          <Link to={`/client-docs?${clientDocsParams}`}>客户端接入</Link>
           <a href="#quickstart" onClick={() => setMenuOpen(false)}>快速开始</a>
           <a href="#errors" onClick={() => setMenuOpen(false)}>错误处理</a>
         </nav>
@@ -429,9 +436,10 @@ export default function ApiDocsPage() {
 
       <main id="top">
         <section className="aux-api-hero">
+          <div className="aux-api-hero-atmosphere" aria-hidden="true" />
           <div className="aux-api-hero-copy">
             <p className="aux-api-eyebrow"><span className="aux-api-status-dot" /> {systemName ? `${systemName} API reference` : 'API reference'}</p>
-            <h1>把模型能力，<em>接入你的产品。</em></h1>
+            <h1>把模型能力，<span className="aux-api-inline-image" aria-hidden="true" /> <em>接入你的产品。</em></h1>
             <p className="aux-api-hero-lede"><span>一套兼容 OpenAI 与 Anthropic SDK 的统一接口。</span><span>使用 API Key 接入模型、流式响应、向量和图片能力，</span><span>无需改动现有业务代码。</span></p>
             <div className="aux-api-hero-actions">
               <a className="aux-api-primary-button" href="#quickstart">开始接入 <ChevronRight aria-hidden="true" /></a>
@@ -444,10 +452,34 @@ export default function ApiDocsPage() {
           </div>
         </section>
 
-        <section className="aux-api-signal-row" aria-label="接口特性">
-          <div><ShieldCheck aria-hidden="true" /><span><strong>Bearer API Key</strong><small>简单、明确的鉴权方式</small></span></div>
-          <div><Terminal aria-hidden="true" /><span><strong>OpenAI compatible</strong><small>复用主流 SDK 和工具链</small></span></div>
-          <div><BookOpen aria-hidden="true" /><span><strong>Embed ready</strong><small>可挂载菜单，也可嵌入系统</small></span></div>
+        <section className="aux-api-interest" aria-label="接口能力概览">
+          <div className="aux-api-section-heading aux-api-interest-heading">
+            <div><p className="aux-api-kicker">A single contract</p><h2>常用能力，按需组合。</h2><p>从模型列表到流式响应，每个端点都保留清晰的请求与响应边界。</p></div>
+          </div>
+          <div className="aux-api-interest-grid">
+            <article className="aux-api-interest-card aux-api-interest-card--wide">
+              <div className="aux-api-interest-card-icon"><Layers3 aria-hidden="true" /></div>
+              <h3>从一次请求开始</h3>
+              <p>统一的模型、消息与响应结构，直接对应可复制的调用示例。</p>
+              <code>POST /v1/chat/completions</code>
+            </article>
+            <article className="aux-api-interest-card aux-api-interest-card--accent">
+              <div className="aux-api-interest-card-icon"><Sparkles aria-hidden="true" /></div>
+              <strong>SDK ready</strong>
+              <span>OpenAI · Anthropic · Gemini</span>
+            </article>
+            <article className="aux-api-interest-card aux-api-interest-card--dark">
+              <strong>只保留必要信息</strong>
+              <p>SSE、向量和图片端点共用同一鉴权方式。</p>
+              <span className="aux-api-interest-rule" />
+              <code>Authorization: Bearer $API_KEY</code>
+            </article>
+          </div>
+          <div className="aux-api-marquee" aria-label="支持的协议与能力">
+            <div className="aux-api-marquee-track">
+              {['OpenAI compatible', 'Anthropic Messages', 'Gemini native', 'SSE streaming', 'JSON over HTTP', 'SDK friendly', 'OpenAI compatible', 'Anthropic Messages', 'Gemini native', 'SSE streaming', 'JSON over HTTP', 'SDK friendly'].map((label, index) => <span key={`${label}-${index}`}>{label}<i>•</i></span>)}
+            </div>
+          </div>
         </section>
 
         <div className="aux-api-doc-layout">
@@ -541,7 +573,11 @@ export default function ApiDocsPage() {
           </div>
         </div>
       </main>
-      <footer className="aux-api-footer"><span>{documentName}</span><span>兼容 OpenAI 与 Anthropic SDK</span></footer>
+      <footer className="aux-api-footer">
+        <div className="aux-api-footer-copy"><span>{documentName}</span><strong>准备好发出第一条请求了吗？</strong></div>
+        <a className="aux-api-footer-action" href="#quickstart">开始接入 <ChevronRight aria-hidden="true" /></a>
+        <span className="aux-api-footer-note">兼容 OpenAI 与 Anthropic SDK</span>
+      </footer>
     </div>
   )
 }
