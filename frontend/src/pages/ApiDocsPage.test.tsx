@@ -103,6 +103,8 @@ describe('ApiDocsPage', () => {
     expect(footer).toHaveTextContent('gateway.example.com')
     expect(within(footer).getByRole('link', { name: /客户端接入/ })).toHaveAttribute('href', expect.stringContaining('/client-docs'))
     expect(within(footer).getByRole('link', { name: /官网/ })).toHaveAttribute('href', '/sub2api-home')
+    expect(Array.from(footer.querySelectorAll('nav a')).map((link) => link.textContent?.trim())).toEqual(expect.arrayContaining(['官网首页', '客户端接入']))
+    expect(Array.from(footer.querySelectorAll('nav a')).findIndex((link) => link.textContent?.includes('官网首页'))).toBeLessThan(Array.from(footer.querySelectorAll('nav a')).findIndex((link) => link.textContent?.includes('客户端接入')))
     expect(within(footer).queryByRole('link', { name: /使用文档/ })).not.toBeInTheDocument()
     expect(within(footer).getByRole('link', { name: /服务条款/ })).toHaveAttribute('target', '_blank')
     expect(within(footer).getByRole('link', { name: /隐私协议/ })).toHaveAttribute('href', '/privacy')

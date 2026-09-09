@@ -625,8 +625,8 @@ export default function ApiDocsPage() {
         <span className="aux-api-footer-status">{endpoints.length} 个接口 · {systemDomain || configuredDomain(baseURL) || '当前页面服务地址'}</span>
         <span className="aux-api-footer-copyright">© 2026 {systemName || 'API 文档'}. All rights reserved.</span>
         <nav className="aux-api-footer-nav" aria-label="相关文档">
-          <Link to={`/client-docs?${clientDocsParams}`}>客户端接入 <ArrowUpRight aria-hidden="true" /></Link>
           <a {...siteHrefProps('/sub2api-home')}><Home aria-hidden="true" />官网首页</a>
+          <Link to={`/client-docs?${clientDocsParams}`}>客户端接入 <ArrowUpRight aria-hidden="true" /></Link>
           {termsUrl ? <a {...siteHrefProps(termsUrl)}>服务条款</a> : null}
           {privacyUrl ? <a {...siteHrefProps(privacyUrl)}>隐私协议</a> : null}
           <a href="#top">回到顶部 <ArrowUp aria-hidden="true" /></a>
