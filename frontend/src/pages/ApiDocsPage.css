@@ -176,7 +176,7 @@ html:has(.aux-api-docs), body:has(.aux-api-docs) { overflow-x: clip; }
 .aux-api-capability-index svg { color: var(--api-subtle); }
 
 .aux-api-doc-layout { display: grid; grid-template-columns: 216px minmax(0, 1fr); gap: clamp(32px, 5vw, 76px); align-items: start; }
-.aux-api-sidebar { position: fixed; top: 88px; left: max(24px, calc((100vw - 1240px) / 2)); z-index: 12; display: grid; width: 216px; max-height: calc(100svh - 112px); gap: 2px; overflow-y: auto; visibility: hidden; padding: 6px 8px 12px 0; opacity: 0; pointer-events: none; color: var(--api-muted); font-family: var(--api-font-code); font-size: 12px; transform: translateY(8px); transition: opacity 180ms var(--api-ease-out), visibility 180ms var(--api-ease-out), transform 180ms var(--api-ease-out); }
+.aux-api-sidebar { position: fixed; top: 88px; left: max(16px, calc((100vw - 1480px) / 2)); z-index: 12; display: grid; width: 216px; max-height: calc(100svh - 112px); gap: 2px; overflow-y: auto; visibility: hidden; padding: 6px 8px 12px 0; opacity: 0; pointer-events: none; color: var(--api-muted); font-family: var(--api-font-code); font-size: 12px; transform: translateY(8px); transition: opacity 180ms var(--api-ease-out), visibility 180ms var(--api-ease-out), transform 180ms var(--api-ease-out); }
 .aux-api-sidebar.is-pinned { visibility: visible; opacity: 1; pointer-events: auto; transform: translateY(0); }
 .aux-api-sidebar-label, .aux-api-sidebar-section-label { color: var(--api-subtle); font-size: 10px; font-weight: 750; letter-spacing: 0; text-transform: uppercase; }
 .aux-api-sidebar-label { margin-bottom: 8px; }
