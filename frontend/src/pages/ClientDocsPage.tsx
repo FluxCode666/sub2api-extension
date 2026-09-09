@@ -311,6 +311,7 @@ export default function ClientDocsPage() {
       window.scrollTo({ top: 0, behavior: 'auto' })
     })
     scrollTopRef.current = jumpWithoutMotion
+    if (!canAnimate) return () => { scrollTopRef.current = () => {} }
     const media = gsap.matchMedia()
     media.add('(prefers-reduced-motion: no-preference)', () => {
       scrollTopRef.current = contextSafe(() => {
