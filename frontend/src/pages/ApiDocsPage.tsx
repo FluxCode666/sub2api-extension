@@ -1,17 +1,19 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import gsap from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import {
   Check,
   ChevronDown,
   ChevronRight,
   Clipboard,
   Code2,
+  ExternalLink,
   Home,
   Menu,
   Monitor,
   Moon,
+  ArrowUp,
+  ArrowUpRight,
   ShieldCheck,
   Sun,
   Terminal,
@@ -20,9 +22,6 @@ import {
 import { apiClient, type AuxEnvelope } from '@/lib/api-client'
 import '@fontsource-variable/geist'
 import './ApiDocsPage.css'
-
-const canUseScrollTrigger = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-if (canUseScrollTrigger) gsap.registerPlugin(ScrollTrigger)
 
 type EndpointGroup = 'OpenAI 兼容' | '多模态' | 'Anthropic 兼容' | 'Google 原生'
 type ExampleLanguage = 'curl' | 'python' | 'go' | 'java'
@@ -51,6 +50,17 @@ interface Endpoint {
 }
 
 const endpointGroups: EndpointGroup[] = ['OpenAI 兼容', '多模态', 'Anthropic 兼容', 'Google 原生']
+
+const endpointGroupSlugs: Record<EndpointGroup, string> = {
+  'OpenAI 兼容': 'openai',
+  '多模态': 'multimodal',
+  'Anthropic 兼容': 'anthropic',
+  'Google 原生': 'google',
+}
+
+function endpointGroupClass(group: EndpointGroup): string {
+  return `aux-api-endpoint-group--${endpointGroupSlugs[group]}`
+}
 
 const endpoints: Endpoint[] = [
   {
@@ -311,6 +321,16 @@ function configuredDocumentName(config?: { systemName?: string; siteName?: strin
   return config?.systemName?.trim() || config?.siteName?.trim() || config?.heroTitle?.trim() || ''
 }
 
+function configuredDomain(value?: string): string {
+  return value?.trim().replace(/^https?:\/\//, '').replace(/\/$/, '') || ''
+}
+
+function siteHrefProps(href: string): { href: string; target?: string; rel?: string } {
+  return /^https?:\/\//i.test(href)
+    ? { href, target: '_blank', rel: 'noreferrer' }
+    : { href }
+}
+
 function initialBaseURL(search: string): string {
   const value = new URLSearchParams(search).get('api_base')
   return value?.trim().replace(/\/$/, '') || currentPageOrigin()
@@ -354,6 +374,11 @@ export default function ApiDocsPage() {
   const [baseURL, setBaseURL] = useState(() => initialBaseURL(searchParams.toString()))
   const [exampleModel, setExampleModel] = useState(DEFAULT_EXAMPLE_MODEL)
   const [systemName, setSystemName] = useState('')
+  const [siteLogoUrl, setSiteLogoUrl] = useState('')
+  const [systemDomain, setSystemDomain] = useState('')
+  const [documentationUrl, setDocumentationUrl] = useState('')
+  const [termsUrl, setTermsUrl] = useState('')
+  const [privacyUrl, setPrivacyUrl] = useState('')
   const [copied, setCopied] = useState<string | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [expandedEndpoints, setExpandedEndpoints] = useState<Set<string>>(() => new Set(['chat-completions']))
@@ -368,17 +393,8 @@ export default function ApiDocsPage() {
         opacity: 1,
         y: 0,
         stagger: 0.08,
+        duration: 0.36,
         ease: 'none',
-        ...(canUseScrollTrigger ? { scrollTrigger: { trigger: '.aux-api-hero-lede', start: 'top 85%', end: 'bottom 60%', scrub: 0.8 } } : {}),
-      })
-      gsap.utils.toArray<HTMLElement>('.aux-api-section-heading').forEach((heading) => {
-        gsap.from(heading, {
-          opacity: 0,
-          y: 26,
-          duration: 0.65,
-          ease: 'power2.out',
-          ...(canUseScrollTrigger ? { scrollTrigger: { trigger: heading, start: 'top 82%', once: true } } : {}),
-        })
       })
     }, pageRef)
     return () => context.revert()
@@ -386,12 +402,17 @@ export default function ApiDocsPage() {
 
   useEffect(() => {
     let active = true
-    void apiClient.get<AuxEnvelope<{ model?: string; systemName?: string; siteName?: string; heroTitle?: string }>>('/homepage/config').then((envelope) => {
+    void apiClient.get<AuxEnvelope<{ model?: string; systemName?: string; siteName?: string; heroTitle?: string; siteLogoUrl?: string; systemDomain?: string; documentationUrl?: string; termsUrl?: string; privacyUrl?: string }>>('/homepage/config').then((envelope) => {
       const model = envelope.data?.model?.trim()
       const name = configuredDocumentName(envelope.data)
       if (active && envelope.code === 0) {
         if (model) setExampleModel(model)
         if (name) setSystemName(name)
+        if (envelope.data?.siteLogoUrl?.trim()) setSiteLogoUrl(envelope.data.siteLogoUrl.trim())
+        if (envelope.data?.systemDomain?.trim()) setSystemDomain(configuredDomain(envelope.data.systemDomain))
+        if (envelope.data?.documentationUrl?.trim()) setDocumentationUrl(envelope.data.documentationUrl.trim())
+        if (envelope.data?.termsUrl?.trim()) setTermsUrl(envelope.data.termsUrl.trim())
+        if (envelope.data?.privacyUrl?.trim()) setPrivacyUrl(envelope.data.privacyUrl.trim())
       }
     }).catch(() => {
       // API 文档必须可离线打开；未读取到配置时继续使用内置默认模型。
@@ -468,27 +489,29 @@ export default function ApiDocsPage() {
   return (
     <div ref={pageRef} data-theme={theme} className={`aux-api-docs${embedded ? ' aux-api-docs--embedded' : ''}`}>
       <header className="aux-api-docs-header">
-        <a className="aux-api-brand" href="#top" aria-label={`${documentName}首页`}>
-          <span className="aux-api-brand-mark"><Code2 aria-hidden="true" /></span>
-          <span><strong>{systemName || 'API'}</strong><small>Developer Docs</small></span>
-        </a>
-        <div className="aux-api-header-tools">
-          <nav className={`aux-api-header-nav${menuOpen ? ' is-open' : ''}`} aria-label="文档导航">
-            <Link className="aux-api-header-home" to="/sub2api-home"><Home aria-hidden="true" /><span>官网</span></Link>
-            <Link to={`/client-docs?${clientDocsParams}`}>客户端接入</Link>
-            <a href="#quickstart" onClick={() => setMenuOpen(false)}>快速开始</a>
-            <a href="#errors" onClick={() => setMenuOpen(false)}>错误处理</a>
-          </nav>
-          <div className="aux-api-theme-picker">
-            <ThemeIcon size={15} aria-hidden="true" />
-            <select aria-label="外观主题" value={themePreference} onChange={event => selectTheme(event.target.value)}>
-              <option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option>
-            </select>
-            <ChevronDown size={12} className="aux-api-theme-chevron" aria-hidden="true" />
+        <div className="aux-api-header-inner">
+          <a className="aux-api-brand" href="#top" aria-label={`${documentName}首页`}>
+            <span className="aux-api-brand-mark"><Code2 aria-hidden="true" /></span>
+            <span><strong>{systemName || 'API 文档'}</strong><small>配置你的模型接口</small></span>
+          </a>
+          <div className="aux-api-header-tools">
+            <nav className={`aux-api-header-nav${menuOpen ? ' is-open' : ''}`} aria-label="文档导航">
+              <Link className="aux-api-header-home" to="/sub2api-home"><Home aria-hidden="true" /><span>官网</span></Link>
+              <Link to={`/client-docs?${clientDocsParams}`}>客户端接入 <ArrowUpRight aria-hidden="true" /></Link>
+              <a href="#quickstart" onClick={() => setMenuOpen(false)}>快速开始</a>
+              <a href="#errors" onClick={() => setMenuOpen(false)}>错误处理</a>
+            </nav>
+            <div className="aux-api-theme-picker">
+              <ThemeIcon size={15} aria-hidden="true" />
+              <select aria-label="外观主题" value={themePreference} onChange={event => selectTheme(event.target.value)}>
+                <option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option>
+              </select>
+              <ChevronDown size={12} className="aux-api-theme-chevron" aria-hidden="true" />
+            </div>
+            <button className="aux-api-menu-button" type="button" aria-label={menuOpen ? '关闭导航' : '打开导航'} onClick={() => setMenuOpen((open) => !open)}>
+              {menuOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
+            </button>
           </div>
-          <button className="aux-api-menu-button" type="button" aria-label={menuOpen ? '关闭导航' : '打开导航'} onClick={() => setMenuOpen((open) => !open)}>
-            {menuOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
-          </button>
         </div>
       </header>
 
@@ -536,7 +559,7 @@ export default function ApiDocsPage() {
             {endpointGroups.map((group) => {
               const groupEndpoints = endpoints.filter((endpoint) => endpoint.group === group)
               return (
-                <div className="aux-api-sidebar-group" key={group}>
+                <div className={`aux-api-sidebar-group ${endpointGroupClass(group)}`} key={group}>
                   <span className="aux-api-sidebar-group-label">{group}</span>
                   {groupEndpoints.map((endpoint) => (
                     <a
@@ -546,7 +569,7 @@ export default function ApiDocsPage() {
                       aria-label={`${endpoint.method} ${endpoint.path}`}
                     >
                       <span className={`aux-api-sidebar-method aux-api-sidebar-method--${endpoint.method.toLowerCase()}`}>{endpoint.method}</span>
-                      <code>{endpoint.path}</code>
+                      <code title={endpoint.path}>{endpoint.path}</code>
                     </a>
                   ))}
                 </div>
@@ -576,7 +599,7 @@ export default function ApiDocsPage() {
               <div className="aux-api-endpoint-list">
                 {endpointGroups.map((group) => {
                   const groupEndpoints = endpoints.filter((endpoint) => endpoint.group === group)
-                  return <section className="aux-api-endpoint-group" id={`group-${group}`} key={group}><div className="aux-api-group-heading"><h3>{group}</h3><span>{groupEndpoints.length} 个接口</span></div>{groupEndpoints.map((endpoint) => <EndpointCard key={endpoint.id} endpoint={endpoint} baseURL={baseURL} exampleModel={exampleModel} copied={copied} onCopy={copyText} expanded={expandedEndpoints.has(endpoint.id)} onToggle={() => toggleEndpoint(endpoint.id)} />)}</section>
+                  return <section className={`aux-api-endpoint-group ${endpointGroupClass(group)}`} id={`group-${endpointGroupSlugs[group]}`} key={group}><div className="aux-api-group-heading"><h3>{group}</h3><span>{groupEndpoints.length} 个接口</span></div>{groupEndpoints.map((endpoint) => <EndpointCard key={endpoint.id} endpoint={endpoint} baseURL={baseURL} exampleModel={exampleModel} copied={copied} onCopy={copyText} expanded={expandedEndpoints.has(endpoint.id)} onToggle={() => toggleEndpoint(endpoint.id)} />)}</section>
                 })}
               </div>
             </section>
@@ -597,9 +620,21 @@ export default function ApiDocsPage() {
         </div>
       </main>
       <footer className="aux-api-footer">
-        <div className="aux-api-footer-copy"><span>{documentName}</span><strong>准备好发出第一条请求了吗？</strong></div>
-        <a className="aux-api-footer-action" href="#quickstart">开始接入 <ChevronRight aria-hidden="true" /></a>
-        <span className="aux-api-footer-note">兼容 OpenAI 与 Anthropic SDK</span>
+        <div className="aux-api-footer-brand">
+          <span className={`aux-api-footer-mark${siteLogoUrl ? ' has-image' : ''}`}>
+            {siteLogoUrl ? <img src={siteLogoUrl} alt="" /> : <Terminal aria-hidden="true" />}
+          </span>
+          <span>{systemName ? `${systemName} · API 文档` : 'API 文档'}</span>
+        </div>
+        <span className="aux-api-footer-status">{endpoints.length} 个接口 · {systemDomain || configuredDomain(baseURL) || '当前页面服务地址'}</span>
+        <nav className="aux-api-footer-nav" aria-label="相关文档">
+          <Link to={`/client-docs?${clientDocsParams}`}>客户端接入 <ArrowUpRight aria-hidden="true" /></Link>
+          <a {...siteHrefProps('/sub2api-home')}><Home aria-hidden="true" />官网首页</a>
+          {documentationUrl ? <a {...siteHrefProps(documentationUrl)}><ExternalLink aria-hidden="true" />使用文档</a> : null}
+          {termsUrl ? <a {...siteHrefProps(termsUrl)}>服务条款</a> : null}
+          {privacyUrl ? <a {...siteHrefProps(privacyUrl)}>隐私协议</a> : null}
+          <a href="#top">回到顶部 <ArrowUp aria-hidden="true" /></a>
+        </nav>
       </footer>
     </div>
   )

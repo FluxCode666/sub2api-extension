@@ -17,6 +17,21 @@
   --color-cg-code-rule: oklch(39% 0.01 90);
   --color-cg-error: oklch(46% 0.16 27);
   --color-cg-error-bg: oklch(96% 0.02 27);
+  --color-cg-green: oklch(48% 0.12 165);
+  --color-cg-green-soft: oklch(94% 0.025 165);
+  --color-cg-method-get-bg: oklch(94% 0.03 165);
+  --color-cg-method-get-ink: oklch(39% 0.1 165);
+  --color-cg-method-post-bg: oklch(94% 0.03 240);
+  --color-cg-method-post-ink: oklch(42% 0.12 240);
+  /* API documentation group accents: one restrained hue per protocol family. */
+  --color-cg-api-openai: oklch(47% 0.14 255);
+  --color-cg-api-openai-soft: oklch(94% 0.03 255);
+  --color-cg-api-multimodal: oklch(50% 0.14 75);
+  --color-cg-api-multimodal-soft: oklch(95% 0.03 75);
+  --color-cg-api-anthropic: oklch(48% 0.13 305);
+  --color-cg-api-anthropic-soft: oklch(94% 0.03 305);
+  --color-cg-api-google: oklch(45% 0.12 145);
+  --color-cg-api-google-soft: oklch(94% 0.03 145);
   --color-cg-overlay: oklch(15% 0.006 90 / 0.82);
   --color-cg-clear: oklch(96.081% 0.00542 95.1 / 0);
   --font-cg-display: 'Geist Variable', 'PingFang SC', 'Microsoft YaHei', sans-serif;
@@ -47,7 +62,8 @@
   --z-cg-sticky: 20;
   --z-cg-skip: 40;
 }
-.client-docs[data-theme='dark'] {
+.client-docs[data-theme='dark'],
+.aux-api-docs[data-theme='dark'] {
   --color-cg-paper: oklch(20% 0.004 90);
   --color-cg-surface: oklch(23% 0.006 90);
   --color-cg-soft: oklch(26% 0.008 90);
@@ -62,4 +78,18 @@
   --color-cg-code: oklch(17% 0.004 90);
   --color-cg-error: oklch(80% 0.12 27);
   --color-cg-error-bg: oklch(27% 0.035 27);
+  --color-cg-green: oklch(72% 0.12 165);
+  --color-cg-green-soft: oklch(27% 0.045 165);
+  --color-cg-method-get-bg: oklch(27% 0.045 165);
+  --color-cg-method-get-ink: oklch(76% 0.1 165);
+  --color-cg-method-post-bg: oklch(28% 0.045 240);
+  --color-cg-method-post-ink: oklch(78% 0.1 240);
+  --color-cg-api-openai: oklch(78% 0.11 255);
+  --color-cg-api-openai-soft: oklch(28% 0.04 255);
+  --color-cg-api-multimodal: oklch(80% 0.12 78);
+  --color-cg-api-multimodal-soft: oklch(30% 0.045 78);
+  --color-cg-api-anthropic: oklch(80% 0.1 305);
+  --color-cg-api-anthropic-soft: oklch(29% 0.04 305);
+  --color-cg-api-google: oklch(76% 0.1 145);
+  --color-cg-api-google-soft: oklch(28% 0.04 145);
 }

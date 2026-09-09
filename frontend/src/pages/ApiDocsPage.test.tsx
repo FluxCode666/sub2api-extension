@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { apiClient } from '@/lib/api-client'
@@ -21,7 +21,10 @@ describe('ApiDocsPage', () => {
     renderPage()
 
     expect(screen.getByRole('heading', { name: /把模型能力.*接入你的产品/ })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'OpenAI 兼容' })).toBeInTheDocument()
+    const openAiHeading = screen.getByRole('heading', { name: 'OpenAI 兼容' })
+    expect(openAiHeading).toBeInTheDocument()
+    expect(openAiHeading.closest('.aux-api-endpoint-group')).toHaveClass('aux-api-endpoint-group--openai')
+    expect(screen.getByText('多模态', { selector: '.aux-api-sidebar-group-label' })).toHaveClass('aux-api-sidebar-group-label')
     expect(screen.getAllByText('/v1/chat/completions').length).toBeGreaterThan(0)
     expect(screen.getAllByText('/v1beta/models/{model}:generateContent').length).toBeGreaterThan(0)
   })
@@ -79,13 +82,28 @@ describe('ApiDocsPage', () => {
     const getConfig = vi.spyOn(apiClient, 'get').mockResolvedValue({
       code: 0,
       message: 'ok',
-      data: { model: 'gpt-6-astra', heroTitle: 'TERALEMO' },
+      data: {
+        model: 'gpt-6-astra',
+        siteName: 'TERALEMO',
+        siteLogoUrl: 'https://cdn.example.com/logo.svg',
+        systemDomain: 'https://gateway.example.com/',
+        documentationUrl: 'https://docs.example.com',
+        termsUrl: 'https://example.com/terms',
+        privacyUrl: '/privacy',
+      },
     } as never)
 
     renderPage()
 
-    await waitFor(() => expect(screen.getByRole('contentinfo')).toHaveTextContent('TERALEMO API 文档'))
-    expect(screen.getByRole('link', { name: 'TERALEMO API 文档首页' })).toBeInTheDocument()
+    const footer = screen.getByRole('contentinfo')
+    await waitFor(() => expect(footer).toHaveTextContent('TERALEMO · API 文档'))
+    expect(footer.querySelector('img')).toHaveAttribute('src', 'https://cdn.example.com/logo.svg')
+    expect(footer).toHaveTextContent('gateway.example.com')
+    expect(within(footer).getByRole('link', { name: /客户端接入/ })).toHaveAttribute('href', expect.stringContaining('/client-docs'))
+    expect(within(footer).getByRole('link', { name: /官网/ })).toHaveAttribute('href', '/sub2api-home')
+    expect(within(footer).getByRole('link', { name: /使用文档/ })).toHaveAttribute('target', '_blank')
+    expect(within(footer).getByRole('link', { name: /服务条款/ })).toHaveAttribute('target', '_blank')
+    expect(within(footer).getByRole('link', { name: /隐私协议/ })).toHaveAttribute('href', '/privacy')
     getConfig.mockRestore()
   })
 
