@@ -4,6 +4,8 @@
 
 页尾站点名称读取「系统配置 → Sub2API 系统名称」，通过公开接口 `/api/aux/homepage/config` 获取 `siteName`，兼容旧配置的 `heroTitle`。保存系统名称后重新打开或刷新文档页即可更新，无需重新部署；配置读取失败时显示通用的「客户端接入文档」。
 
+「系统配置 → Sub2API 系统域名」保存到公开配置的 `systemDomain` 字段。接入文档加载配置后，会将该 HTTP(S) 地址作为「API 基础地址」默认值；URL 中显式传入 `api_base`，或用户在当前页面手动编辑过地址时优先使用用户值。未配置域名时仍使用示例地址 `https://api.example.com`。
+
 可用参数：
 
 - `client=claude-code|codex|pi|hermes|openclaw|paseo|zcode|deepseek-harness|obsidian`：直达对应客户端；未知值回退到 Claude Code。Obsidian 使用 Claudian 插件（YishenTu/claudian）。
@@ -15,30 +17,41 @@
 
 主题样式以页面根元素的 `data-theme` 为依据，不修改全局主题或其他页面的主题设置。
 
+## 页面结构与交互
+
+页面以直接阅读指南为主：桌面左侧提供可搜索的客户端目录，正文展示当前客户端的准备、安装、配置、验证与常见问题，宽屏右侧提供随阅读位置更新的章节导航。搜索支持客户端名称、用途、Claudian 插件名称与 DSH 别名；无结果时可清空并继续选择。
+
+小于 960px 时，客户端目录变为原生下拉选择；小于 1280px 时，章节导航收进「本页内容」。标题下可直接跳到配置或验证，FAQ 使用独立展开项，页尾在所有宽度下提供 API 参考入口。切换客户端保留网关地址、各客户端填写的模型与主题，并支持浏览器前进、后退。
+
+样式由 `frontend/src/pages/ClientDocsPage.css` 和 `frontend/tokens.css` 管理，使用 Geist、中性暖白与酒红色，所有颜色通过命名的 OKLCH 变量提供深浅主题。GSAP 只用于客户端标题切换的短暂反馈，正文不依赖滚动动画才能显示；减少动态效果偏好会关闭空间动效。复制提供进行中、成功和手动复制回退反馈；等待复制期间修改配置，不会把旧内容的完成状态显示在新配置上。
+
 菜单挂载示例：`https://aux.example.com/client-docs?embed=1&client=codex&api_base=https%3A%2F%2Fapi.example.com`。
 
 ## 补充截图
 
 随静态文档发布的截图放在 `frontend/public/client-docs/<客户端>/`，在 `frontend/src/lib/client-guides.ts` 对应客户端的 `screenshots.configure.src` 和 `screenshots.verify.src` 中填写 `/client-docs/<客户端>/<文件名>`。后台管理的截图则在 `/admin/files` 上传并复制完整 HTTP(S) 图片 URL 填入。每个客户端预留「配置」与「验证」两个位置，共 18 个；根据实际截图调整 `alt` 和 `caption`。截图中的密钥应遮盖。
 
-ZCode、Codex、DeepSeek Harness 与 Paseo 已各补齐用户提供的两张原图，共 8 张；其余 10 个位置继续保留占位。截图中的域名、供应商名称与模型为示例，实际接入使用用户自己的配置。
+Claude Code、ZCode、Codex、DeepSeek Harness 与 Paseo 已各补齐用户提供的两张原图，共 10 张；其余 8 个位置继续保留占位。截图中的域名、供应商名称与模型为示例，实际接入使用用户自己的配置。
 
+- `frontend/public/client-docs/claude-code/configure.png` 展示 `~/.claude/settings.json` 的 `env` 持久化配置，密钥已遮盖；`verify.png` 展示 Claude Code 使用 Opus 5 发送「当前时间」后的回复。
 - `frontend/public/client-docs/zcode/configure.png` 展示 Anthropic Messages 供应商配置，`verify.png` 展示发送「当前时间」后的回复。
 - `frontend/public/client-docs/codex/configure.png` 并排展示 `auth.json` 密钥文件与 `config.toml` 提供方配置，`verify.png` 展示 Codex 桌面客户端发送「当前时间」后的回复。
 - `frontend/public/client-docs/deepseek-harness/configure.png` 展示内置 DeepSeek 提供方的 API 密钥、自定义 API 地址与模型目录，`verify.png` 展示在工作区发送「当前时间」后的回复。
 - `frontend/public/client-docs/paseo/configure.png` 展示当前主机的 Providers 设置，Claude、Codex 与 Pi 显示可用；`verify.png` 展示通过 Codex 提供方发送「当前时间」后的回复，前置指南仍可按所选客户端进入。
 
-`src` 留空或加载失败时显示占位，不会出现破图。填写 URL 后自动渲染图片，支持点击放大、Escape 关闭与返回原按钮。此页面作为静态页面随前端发布，修改截图配置后需要重新构建部署。
+`src` 留空或加载失败时显示紧凑的图示待补充提示，不会出现破图或大块空白。填写 URL 后自动渲染图片，保留原图比例，支持点击放大、Escape 关闭与返回原按钮。此页面作为静态页面随前端发布，修改截图配置后需要重新构建部署。
 
 ## 新增客户端
 
-在 `frontend/src/lib/client-guides.ts` 的 `ClientId` 和 `CLIENT_GUIDES` 中登记客户端，补齐 `getInstallCommand`、`getConfigExample`、`getVerifyCommand`。页面导航、步骤、截图、页尾数量与下一个客户端入口由数据生成。桌面网格每行三项，移动端每行两项；末行自动填满，无需按客户端数量修改布局。
+在 `frontend/src/lib/client-guides.ts` 的 `ClientId` 和 `CLIENT_GUIDES` 中登记客户端，补齐 `getInstallCommand`、`getConfigExample`、`getVerifyCommand`。桌面搜索目录、移动端下拉选择、步骤、截图、页尾数量与下一个客户端入口由数据生成，无需按客户端数量修改布局。
 
 客户端 `icon` 字段引用 `frontend/public/client-icons/` 下的本地品牌图标，供选择区、目录和标题共用。图标来源与许可记录在该目录的 `README.md`，新增时补齐实际品牌图标，不使用字母占位。黑白图标需同时检查深浅主题。
 
 桌面应用或插件可通过 `installSteps` 提供自身的下载链接与安装步骤，`installTitle` 标明安装或启动命令的用途，`configSteps` 提供界面操作步骤。依赖另一个客户端时，通过 `prerequisiteClients` 登记可选客户端并链接到各自的配置指南，在 `prerequisite` 中说明前置要求，不把底层 CLI 的安装命令当作当前客户端的安装方法。链接保留网关地址与嵌入、主题参数。没有终端安装、配置或验证命令时返回 `null`，页面自动隐藏相应命令块；完全沿用其他客户端配置时，`endpoint` 设为 `null`，准备步骤展示前置指南入口。所有客户端统一提供可复制的「当前时间」验证消息，不要求输入 `/status`。
 
 API 地址会规范化去除尾部斜线和末尾 `/v1`；配置再按协议添加所需路径。非法地址阻止配置生成。模型 ID 不写入浏览器存储；API Key 始终使用 `sk-YOUR_API_KEY` 占位，由用户复制后在本地替换。
+
+Claude Code 提供官方安装器与 npm 两种安装方式，任选其一。npm 方式要求 Node.js 22 或更新版本，执行 `npm install -g @anthropic-ai/claude-code`；安装后重新打开终端并继续配置。额外安装方式通过 `installAlternatives` 登记说明与可复制命令。
 
 Codex 使用两份文件：`~/.codex/config.toml` 配置模型与网关，并设置顶层 `cli_auth_credentials_store = "file"` 及提供方的 `requires_openai_auth = true`；API Key 写入 `~/.codex/auth.json` 的 `OPENAI_API_KEY` 字段。文档不再使用 `GATEWAY_API_KEY` 环境变量方式。截图可同时展示两份文件；若用户自定义了 `CODEX_HOME`，两份文件都应位于该目录。
 
@@ -50,7 +63,7 @@ Obsidian 示例以已配置可用的 Claude Code 为前置条件，安装步骤�
 
 接入方式于 2026-09-09 对照以下官方资料核对。模型名称、账号权限、运行时版本要求以服务方与客户端当前版本为准；示例中的 `your-model-id` 必须替换为平台实际开放的模型。
 
-- Claude Code：<https://code.claude.com/docs/en/llm-gateway-connect>
+- Claude Code：<https://code.claude.com/docs/en/llm-gateway-connect> 与 <https://code.claude.com/docs/en/setup#install-with-npm>
 - Codex：<https://developers.openai.com/codex/config-advanced>，提供方字段另对照 <https://github.com/openai/codex/blob/main/codex-rs/core/config.schema.json>
 - Pi：<https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent> 与其 `docs/models.md`。当前官方快速开始使用 `@earendil-works/pi-coding-agent`。
 - Hermes Agent：<https://hermes-agent.nousresearch.com/docs/integrations/providers>

@@ -46,6 +46,7 @@ type HomepageNavigationItem struct {
 // HomepageConfig 是可在管理端调整的官网首页内容。
 type HomepageConfig struct {
 	SiteName                          string `json:"siteName"`
+	SystemDomain                      string `json:"systemDomain"`
 	SiteLogoURL                       string `json:"siteLogoUrl"`
 	HeroLabel                         string `json:"heroLabel"`
 	HeroTitle                         string `json:"heroTitle"`
@@ -81,6 +82,7 @@ func DefaultHomepageConfig() HomepageConfig {
 	showQuickstartSection := true
 	return HomepageConfig{
 		SiteName:                          "Sub2API",
+		SystemDomain:                      "",
 		SiteLogoURL:                       "",
 		HeroLabel:                         "面向生产环境的 AI 网关",
 		HeroTitle:                         "AI API 网关，面向下一次调用",
@@ -179,6 +181,7 @@ func normalizeHomepageConfig(config HomepageConfig) HomepageConfig {
 	}
 	config.HeroLabel = boundedText(config.HeroLabel, defaults.HeroLabel, 120)
 	config.SiteName = boundedText(config.SiteName, defaults.SiteName, 80)
+	config.SystemDomain = safeHref(config.SystemDomain, defaults.SystemDomain)
 	config.SiteLogoURL = safeAssetURL(config.SiteLogoURL)
 	config.HeroTitle = boundedText(config.HeroTitle, defaults.HeroTitle, 160)
 	config.HeroDescription = boundedText(config.HeroDescription, defaults.HeroDescription, 360)

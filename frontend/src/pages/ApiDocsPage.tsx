@@ -8,14 +8,13 @@ import {
   ChevronRight,
   Clipboard,
   Code2,
-  Layers3,
   Menu,
   ShieldCheck,
-  Sparkles,
   Terminal,
   X,
 } from 'lucide-react'
 import { apiClient, type AuxEnvelope } from '@/lib/api-client'
+import '@fontsource-variable/geist'
 import './ApiDocsPage.css'
 
 const canUseScrollTrigger = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
@@ -436,49 +435,36 @@ export default function ApiDocsPage() {
 
       <main id="top">
         <section className="aux-api-hero">
-          <div className="aux-api-hero-atmosphere" aria-hidden="true" />
           <div className="aux-api-hero-copy">
             <p className="aux-api-eyebrow"><span className="aux-api-status-dot" /> {systemName ? `${systemName} API reference` : 'API reference'}</p>
-            <h1>把模型能力，<span className="aux-api-inline-image" aria-hidden="true" /> <em>接入你的产品。</em></h1>
+            <h1>
+              <span className="aux-api-title-line">把模型能力，</span>
+              <span className="aux-api-title-line aux-api-title-line--accent"><em>接入你的产品。</em></span>
+            </h1>
             <p className="aux-api-hero-lede"><span>一套兼容 OpenAI 与 Anthropic SDK 的统一接口。</span><span>使用 API Key 接入模型、流式响应、向量和图片能力，</span><span>无需改动现有业务代码。</span></p>
             <div className="aux-api-hero-actions">
               <a className="aux-api-primary-button" href="#quickstart">开始接入 <ChevronRight aria-hidden="true" /></a>
               <a className="aux-api-secondary-button" href="#endpoint-chat-completions">查看端点</a>
             </div>
           </div>
-          <div className="aux-api-hero-panel" aria-label="API 地址预览">
-            <div className="aux-api-panel-top"><span /><span /><span /><small>request preview</small></div>
-            <div className="aux-api-panel-body"><p><i>POST</i> <code>/v1/chat/completions</code></p><p className="aux-api-code-muted">Authorization: Bearer <b>$API_KEY</b></p><p className="aux-api-code-muted">Content-Type: application/json</p><p className="aux-api-code-gap">&#123; <span>"model"</span>: <strong>"{exampleModel}"</strong> &#125;</p><p className="aux-api-response"><span>200</span> response ready <b>●</b></p></div>
+          <div className="aux-api-hero-visual">
+            <div className="aux-api-hero-panel" aria-label="API 地址预览">
+              <div className="aux-api-panel-top"><small>request preview</small></div>
+              <div className="aux-api-panel-body"><p><i>POST</i> <code>/v1/chat/completions</code></p><p className="aux-api-code-muted">Authorization: Bearer <b>$API_KEY</b></p><p className="aux-api-code-muted">Content-Type: application/json</p><p className="aux-api-code-gap">&#123; <span>"model"</span>: <strong>"{exampleModel}"</strong> &#125;</p><p className="aux-api-response"><span>200</span> response ready <b>●</b></p></div>
+            </div>
           </div>
         </section>
 
         <section className="aux-api-interest" aria-label="接口能力概览">
           <div className="aux-api-section-heading aux-api-interest-heading">
-            <div><p className="aux-api-kicker">A single contract</p><h2>常用能力，按需组合。</h2><p>从模型列表到流式响应，每个端点都保留清晰的请求与响应边界。</p></div>
+            <div><p className="aux-api-kicker">接口索引</p><h2>常用能力，按需组合。</h2><p>先选一类能力，再进入对应端点；每个端点都附带完整参数契约与可复制示例。</p></div>
+            <a className="aux-api-index-link" href="#endpoint-list">浏览全部端点 <ChevronRight aria-hidden="true" /></a>
           </div>
-          <div className="aux-api-interest-grid">
-            <article className="aux-api-interest-card aux-api-interest-card--wide">
-              <div className="aux-api-interest-card-icon"><Layers3 aria-hidden="true" /></div>
-              <h3>从一次请求开始</h3>
-              <p>统一的模型、消息与响应结构，直接对应可复制的调用示例。</p>
-              <code>POST /v1/chat/completions</code>
-            </article>
-            <article className="aux-api-interest-card aux-api-interest-card--accent">
-              <div className="aux-api-interest-card-icon"><Sparkles aria-hidden="true" /></div>
-              <strong>SDK ready</strong>
-              <span>OpenAI · Anthropic · Gemini</span>
-            </article>
-            <article className="aux-api-interest-card aux-api-interest-card--dark">
-              <strong>只保留必要信息</strong>
-              <p>SSE、向量和图片端点共用同一鉴权方式。</p>
-              <span className="aux-api-interest-rule" />
-              <code>Authorization: Bearer $API_KEY</code>
-            </article>
-          </div>
-          <div className="aux-api-marquee" aria-label="支持的协议与能力">
-            <div className="aux-api-marquee-track">
-              {['OpenAI compatible', 'Anthropic Messages', 'Gemini native', 'SSE streaming', 'JSON over HTTP', 'SDK friendly', 'OpenAI compatible', 'Anthropic Messages', 'Gemini native', 'SSE streaming', 'JSON over HTTP', 'SDK friendly'].map((label, index) => <span key={`${label}-${index}`}>{label}<i>•</i></span>)}
-            </div>
+          <div className="aux-api-capability-index">
+            <a href="#endpoint-models"><span className="aux-api-capability-method">GET</span><span><strong>发现模型</strong><small>先读取当前密钥可用的模型列表</small></span><code>/v1/models</code><ChevronRight aria-hidden="true" /></a>
+            <a href="#endpoint-chat-completions"><span className="aux-api-capability-method">POST</span><span><strong>生成对话</strong><small>OpenAI 兼容消息、流式响应与多轮上下文</small></span><code>/v1/chat/completions</code><ChevronRight aria-hidden="true" /></a>
+            <a href="#endpoint-responses"><span className="aux-api-capability-method">POST</span><span><strong>统一响应</strong><small>面向工具调用和新客户端的响应工作流</small></span><code>/v1/responses</code><ChevronRight aria-hidden="true" /></a>
+            <a href="#endpoint-embeddings"><span className="aux-api-capability-method">POST</span><span><strong>语义检索</strong><small>将文本转换为向量，用于搜索与 RAG</small></span><code>/v1/embeddings</code><ChevronRight aria-hidden="true" /></a>
           </div>
         </section>
 
@@ -516,7 +502,7 @@ export default function ApiDocsPage() {
               <div className="aux-api-base-url">
                 <label htmlFor="api-base-url">API 基础地址</label>
                 <div><input id="api-base-url" value={baseURL} placeholder={pageOrigin} onChange={(event) => setBaseURL(event.target.value.replace(/\s/g, '').replace(/\/$/, ''))} aria-label="API 基础地址" /></div>
-                <small>文档页与 API 网关不同域时，请填写实际 API 服务地址。</small>
+                <small>示例请求会使用此地址；跨域部署时请改成实际 API 网关地址。</small>
               </div>
               <CodeBlock id="quickstart-curl" code={quickstartCurl.replace('$API_BASE', baseURL || '$API_BASE').replace('$EXAMPLE_MODEL', exampleModel)} copied={copied} onCopy={copyText} />
             </section>
@@ -548,28 +534,6 @@ export default function ApiDocsPage() {
               <div className="aux-api-error-codes"><span><b>401</b> API Key 缺失或无效</span><span><b>403</b> 账户或分组无权限</span><span><b>429</b> 限流或余额不足</span><span><b>5xx</b> 上游或网关异常</span></div>
             </section>
 
-            <section className="aux-api-integration-section" aria-label="管理员与集成方说明">
-              <details className="aux-api-integration-details">
-                <summary><span><strong>管理员 / 集成方说明</strong><small>配置 Sub2API 菜单或 iframe 嵌入</small></span><ChevronDown aria-hidden="true" /></summary>
-                <div className="aux-api-integration-body">
-                  <p>这部分仅用于页面部署与系统集成，不影响接口调用。普通 API 使用者可以跳过。</p>
-                  <div className="aux-api-embed-grid"><div><span className="aux-api-embed-label">Sub2API custom_menu_items</span><code>{`{
-  "id": "aux-api-docs",
-  "label": "API 文档",
-  "url": "https://aux.example.com/api-docs?embed=1",
-  "page_slug": "",
-  "visibility": "user",
-  "sort_order": 110
-}`}</code></div><div><span className="aux-api-embed-label">其他系统 iframe</span><code>{`<iframe
-  src="https://aux.example.com/api-docs?embed=1"
-  title="${documentName}"
-  style="width:100%;min-height:720px;border:0"
-  loading="lazy"
-></iframe>`}</code></div></div>
-                  <p className="aux-api-embed-note"><ShieldCheck aria-hidden="true" />页面只读取 `api_base` 查询参数来替换示例地址，不会读取宿主系统 Cookie、Token 或 DOM。</p>
-                </div>
-              </details>
-            </section>
           </div>
         </div>
       </main>
@@ -691,7 +655,7 @@ function CodeBlock({ id, code, language = 'shell', copied, onCopy }: { id: strin
 
 function ParameterTable({ parameters, emptyLabel }: { parameters: Parameter[]; emptyLabel: string }) {
   if (parameters.length === 0) return <div className="aux-api-parameter-empty"><Check aria-hidden="true" /><span>{emptyLabel}</span></div>
-  return <div className="aux-api-parameter-table-wrap"><table className="aux-api-parameter-table"><thead><tr><th scope="col">参数</th><th scope="col">类型</th><th scope="col">要求</th><th scope="col">默认值</th><th scope="col">说明</th></tr></thead><tbody>{parameters.map((parameter) => <tr key={parameter.name}><td><code>{parameter.name}</code></td><td><code>{parameter.type}</code></td><td><span className={`aux-api-param-badge${parameter.required ? ' is-required' : ''}`}>{parameter.required ? '必填' : '可选'}</span></td><td><code>{parameter.defaultValue}</code></td><td>{parameter.description}</td></tr>)}</tbody></table></div>
+  return <div className="aux-api-parameter-table-wrap"><table className="aux-api-parameter-table"><thead><tr><th scope="col">参数</th><th scope="col">类型</th><th scope="col">要求</th><th scope="col">默认值</th><th scope="col">说明</th></tr></thead><tbody>{parameters.map((parameter) => <tr key={parameter.name}><td data-label="参数"><code>{parameter.name}</code></td><td data-label="类型"><code>{parameter.type}</code></td><td data-label="要求"><span className={`aux-api-param-badge${parameter.required ? ' is-required' : ''}`}>{parameter.required ? '必填' : '可选'}</span></td><td data-label="默认值"><code>{parameter.defaultValue}</code></td><td data-label="说明">{parameter.description}</td></tr>)}</tbody></table></div>
 }
 
 function EndpointCard({ endpoint, baseURL, exampleModel, copied, onCopy, expanded, onToggle }: { endpoint: Endpoint; baseURL: string; exampleModel: string; copied: string | null; onCopy: (id: string, value: string) => void; expanded: boolean; onToggle: () => void }) {

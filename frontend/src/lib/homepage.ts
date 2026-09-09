@@ -19,6 +19,7 @@ export interface HomepageNavigationItem {
 
 export interface HomepageConfig {
   siteName: string
+  systemDomain: string
   siteLogoUrl: string
   heroLabel: string
   heroTitle: string
@@ -49,6 +50,7 @@ export interface HomepageConfig {
 
 export const DEFAULT_HOMEPAGE_CONFIG: HomepageConfig = {
   siteName: 'Sub2API',
+  systemDomain: '',
   siteLogoUrl: '',
   heroLabel: '面向生产环境的 AI 网关',
   heroTitle: 'AI API 网关，面向下一次调用',

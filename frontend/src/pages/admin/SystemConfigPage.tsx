@@ -9,6 +9,7 @@ const DEFAULT_MODEL = 'gpt-6-astra'
 /** 系统名称优先使用 siteName，兼容旧版 system_meta 配置中的 heroTitle。 */
 interface HomepageConfig {
   siteName?: string
+  systemDomain?: string
   heroLabel?: string
   heroTitle?: string
   heroDescription?: string
@@ -25,6 +26,7 @@ interface HomepageConfig {
 const DEFAULT_CONFIG: HomepageConfig = {
   heroLabel: '面向生产环境的 AI 网关',
   heroTitle: 'TERALEMO',
+  systemDomain: '',
   heroDescription: '将安全准入、智能路由、稳定保障、用量管理与运行观测统一到同一网关层。',
   model: DEFAULT_MODEL,
   primaryCta: '获取接入方案',
@@ -42,6 +44,7 @@ function mergeConfig(value?: HomepageConfig): HomepageConfig {
 export default function SystemConfigPage() {
   const [config, setConfig] = useState<HomepageConfig>(DEFAULT_CONFIG)
   const [draftSystemName, setDraftSystemName] = useState(DEFAULT_CONFIG.heroTitle ?? '')
+  const [draftSystemDomain, setDraftSystemDomain] = useState(DEFAULT_CONFIG.systemDomain ?? '')
   const [draftModel, setDraftModel] = useState(DEFAULT_MODEL)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -58,6 +61,7 @@ export default function SystemConfigPage() {
       const nextConfig = mergeConfig(response.data)
       setConfig(nextConfig)
       setDraftSystemName(nextConfig.siteName ?? nextConfig.heroTitle ?? DEFAULT_CONFIG.heroTitle ?? '')
+      setDraftSystemDomain(nextConfig.systemDomain ?? DEFAULT_CONFIG.systemDomain ?? '')
       setDraftModel(nextConfig.model)
       if (showToast) toast.success('系统配置已刷新')
     } catch (reason) {
@@ -76,6 +80,7 @@ export default function SystemConfigPage() {
 
   const saveConfig = async () => {
     const systemName = draftSystemName.trim()
+    const systemDomain = draftSystemDomain.trim()
     const model = draftModel.trim()
     if (!systemName) {
       const message = '请填写 Sub2API 系统名称。'
@@ -85,6 +90,12 @@ export default function SystemConfigPage() {
     }
     if (systemName.length > systemNameLimit) {
       const message = `Sub2API 系统名称不能超过 ${systemNameLimit} 个字符。`
+      setError(message)
+      toast.error(message)
+      return
+    }
+    if (systemDomain && !/^https?:\/\/[^\s/$.?#].[^\s]*$/i.test(systemDomain)) {
+      const message = 'Sub2API 系统域名必须是完整的 HTTP(S) 地址。'
       setError(message)
       toast.error(message)
       return
@@ -109,12 +120,14 @@ export default function SystemConfigPage() {
       const response = await apiClient.put<AuxEnvelope<HomepageConfig>>('/admin/homepage/config', {
         ...config,
         [config.siteName !== undefined ? 'siteName' : 'heroTitle']: systemName,
+        systemDomain,
         model,
       })
       if (response.code !== 0 || !response.data) throw new Error(response.message || '系统配置保存失败')
       const savedConfig = mergeConfig(response.data)
       setConfig(savedConfig)
       setDraftSystemName(savedConfig.siteName ?? savedConfig.heroTitle ?? DEFAULT_CONFIG.heroTitle ?? '')
+      setDraftSystemDomain(savedConfig.systemDomain ?? DEFAULT_CONFIG.systemDomain ?? '')
       setDraftModel(savedConfig.model)
       toast.success('系统配置已保存', { description: 'Sub2API 系统名称和 API 文档中的调用示例会立即更新。' })
     } catch (reason) {
@@ -128,6 +141,7 @@ export default function SystemConfigPage() {
 
   const restoreDefault = () => {
     setDraftSystemName(DEFAULT_CONFIG.heroTitle ?? '')
+    setDraftSystemDomain(DEFAULT_CONFIG.systemDomain ?? '')
     setDraftModel(DEFAULT_MODEL)
     setError('')
   }
@@ -166,7 +180,7 @@ export default function SystemConfigPage() {
             </div>
             <span className="aux-system-config-status"><CircleCheck aria-hidden="true" />实时生效</span>
           </div>
-          <p className="aux-system-config-description">Sub2API 系统名称会显示在 API 文档页眉和页脚，以及客户端接入文档页脚；默认模型会显示在首页预览、快速开始 cURL，以及各接口的多语言示例中。</p>
+          <p className="aux-system-config-description">系统名称会显示在 API 文档和客户端接入文档页脚；系统域名会作为接入文档 API 基础地址的默认值；默认模型会显示在首页预览、快速开始 cURL，以及各接口的多语言示例中。</p>
           <label className="aux-system-config-field" htmlFor="system-name">
             <span>Sub2API 系统名称</span>
             <input
@@ -178,6 +192,20 @@ export default function SystemConfigPage() {
               onChange={(event) => setDraftSystemName(event.target.value)}
             />
             <small>用于 API 文档的 Sub2API 品牌标识，例如 <code>TERALEMO</code>。</small>
+          </label>
+          <label className="aux-system-config-field" htmlFor="system-domain">
+            <span>Sub2API 系统域名</span>
+            <input
+              id="system-domain"
+              aria-label="Sub2API 系统域名"
+              value={draftSystemDomain}
+              maxLength={300}
+              inputMode="url"
+              autoComplete="url"
+              placeholder="https://api.example.com"
+              onChange={(event) => setDraftSystemDomain(event.target.value)}
+            />
+            <small>用于客户端接入文档的「API 基础地址」默认值，请填写完整的 HTTP(S) 域名。</small>
           </label>
           <label className="aux-system-config-field" htmlFor="system-example-model">
             <span>模型名称</span>
@@ -194,7 +222,7 @@ export default function SystemConfigPage() {
             <small>填写当前可用的模型 ID，例如 <code>gpt-6-astra</code>。</small>
           </label>
           <div className="aux-system-config-actions">
-            <button type="button" className="aux-system-config-secondary" onClick={restoreDefault} disabled={saving || (draftSystemName === (DEFAULT_CONFIG.heroTitle ?? '') && draftModel === DEFAULT_MODEL)}>恢复默认</button>
+            <button type="button" className="aux-system-config-secondary" onClick={restoreDefault} disabled={saving || (draftSystemName === (DEFAULT_CONFIG.heroTitle ?? '') && draftSystemDomain === (DEFAULT_CONFIG.systemDomain ?? '') && draftModel === DEFAULT_MODEL)}>恢复默认</button>
             <button type="button" className="aux-system-config-primary" onClick={() => void saveConfig()} disabled={saving || !draftSystemName.trim() || !draftModel.trim()}>
               <Save aria-hidden="true" />{saving ? '保存中…' : '保存配置'}
             </button>

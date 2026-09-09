@@ -7,7 +7,6 @@ import { apiClient } from '@/lib/api-client'
 
 vi.mock('@gsap/react', () => ({ useGSAP: vi.fn() }))
 vi.mock('gsap', () => ({ default: { registerPlugin: vi.fn() } }))
-vi.mock('gsap/ScrollTrigger', () => ({ ScrollTrigger: { refresh: vi.fn() } }))
 vi.mock('@/lib/telemetry-sdk', () => ({ trackFeatureClick: vi.fn() }))
 vi.mock('@/lib/api-client', () => ({ apiClient: { get: vi.fn() } }))
 
@@ -45,6 +44,11 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('ClientDocsPage', () => {
+  it('links back to the public website from the top navigation', () => {
+    renderPage()
+    expect(screen.getByRole('link', { name: '返回官网' })).toHaveAttribute('href', '/sub2api-home')
+  })
+
   it('follows system appearance by default and reacts to live system changes', () => {
     const system = mockSystemTheme(true)
     const { unmount } = renderPage()
@@ -92,6 +96,17 @@ describe('ClientDocsPage', () => {
     expect(document.querySelector('.client-docs')).toHaveAttribute('data-theme', 'light')
   })
 
+  it('uses the configured system domain as the API base default without overriding an explicit URL', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ code: 0, data: { systemDomain: 'https://gateway.example.com' } })
+    const configured = renderPage('/client-docs?client=codex')
+    await waitFor(() => expect(screen.getByLabelText('API 基础地址')).toHaveValue('https://gateway.example.com'))
+    configured.unmount()
+
+    const explicit = renderPage('/client-docs?client=codex&api_base=https%3A%2F%2Fexplicit.example.com')
+    await waitFor(() => expect(screen.getByLabelText('API 基础地址')).toHaveValue('https://explicit.example.com'))
+    explicit.unmount()
+  })
+
   it('supports direct links, switching every client and browser history', async () => {
     renderPage('/client-docs?client=codex')
     expect(screen.getByRole('heading', { name: 'Codex 接入指南' })).toBeInTheDocument()
@@ -109,6 +124,60 @@ describe('ClientDocsPage', () => {
     }
     fireEvent.click(screen.getByRole('button', { name: '浏览器后退' }))
     await screen.findByRole('heading', { name: `${CLIENT_GUIDES[CLIENT_GUIDES.length - 2].name} 接入指南` })
+  })
+
+  it('finds guides by client or plugin name, supports aliases and restores search focus', () => {
+    renderPage('/client-docs?client=codex')
+    const search = screen.getByRole('searchbox', { name: '搜索客户端' })
+    const directory = screen.getByRole('navigation', { name: '客户端目录' })
+    fireEvent.change(search, { target: { value: '  DSH  ' } })
+    expect(within(directory).getAllByRole('button')).toHaveLength(1)
+    fireEvent.click(within(directory).getByRole('button', { name: 'DeepSeek Harness' }))
+    expect(screen.getByRole('heading', { level: 1, name: 'DeepSeek Harness 接入指南' })).toBeInTheDocument()
+    expect(search).toHaveValue('')
+    fireEvent.change(search, { target: { value: 'claudian' } })
+    expect(within(directory).getAllByRole('button')).toHaveLength(1)
+    expect(within(directory).getByRole('button', { name: 'Obsidian' })).toBeInTheDocument()
+    fireEvent.change(search, { target: { value: 'no-such-client' } })
+    expect(screen.getByText('未找到匹配的客户端')).toBeInTheDocument()
+    expect(within(directory).queryAllByRole('button')).toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: '显示全部客户端' }))
+    expect(within(directory).getAllByRole('button')).toHaveLength(CLIENT_GUIDES.length)
+    expect(search).toHaveFocus()
+  })
+
+  it('switches clients from the mobile selector while preserving configuration and links', () => {
+    renderPage('/client-docs?client=codex&theme=dark&embed=1&api_base=https%3A%2F%2Fgateway.test')
+    const selector = screen.getByRole('combobox', { name: '选择客户端' })
+    expect(within(selector).getAllByRole('option')).toHaveLength(CLIENT_GUIDES.length)
+    fireEvent.change(selector, { target: { value: 'paseo' } })
+    expect(screen.getByRole('heading', { level: 1, name: 'Paseo 接入指南' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '查看 Codex 接入指南' }).getAttribute('href')).toContain('api_base=https%3A%2F%2Fgateway.test')
+    const footerLink = within(screen.getByRole('navigation', { name: '相关文档' })).getByRole('link', { name: 'API 参考' })
+    expect(footerLink.getAttribute('href')).toContain('theme=dark')
+    expect(footerLink.getAttribute('href')).toContain('embed=1')
+    fireEvent.change(selector, { target: { value: 'codex' } })
+    expect(screen.getByLabelText('API 基础地址')).toHaveValue('https://gateway.test')
+  })
+
+  it('prevents duplicate pending copies and ignores completion after the displayed config changes', async () => {
+    let completeCopy!: () => void
+    vi.mocked(navigator.clipboard.writeText).mockImplementationOnce(() => new Promise<void>(resolve => { completeCopy = resolve }))
+    renderPage('/client-docs?client=codex')
+    const button = screen.getByRole('button', { name: '复制~/.codex/config.toml' })
+    fireEvent.click(button)
+    expect(button).toBeDisabled()
+    expect(button).toHaveAttribute('aria-busy', 'true')
+    fireEvent.click(button)
+    expect(navigator.clipboard.writeText).toHaveBeenCalledTimes(1)
+    fireEvent.change(screen.getByLabelText('模型名称'), { target: { value: 'updated-model' } })
+    await act(async () => { completeCopy() })
+    expect(button).toBeEnabled()
+    expect(button).toHaveTextContent('复制')
+    expect(button).not.toHaveTextContent('已复制')
+    fireEvent.click(button)
+    await waitFor(() => expect(button).toHaveTextContent('已复制'))
+    expect(vi.mocked(navigator.clipboard.writeText).mock.lastCall?.[0]).toContain('updated-model')
   })
 
   it('guides desktop and plugin installation without inventing shell commands', () => {

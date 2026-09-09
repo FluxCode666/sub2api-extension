@@ -1,0 +1,65 @@
+/* Hallmark · project-wine tokens · scoped names for the client documentation */
+:root {
+  --color-cg-paper: oklch(96.081% 0.00542 95.1);
+  --color-cg-surface: oklch(99.5% 0.002 90);
+  --color-cg-soft: oklch(95.5% 0.006 90);
+  --color-cg-ink: oklch(26% 0.008 90);
+  --color-cg-muted: oklch(47% 0.01 90);
+  --color-cg-rule: oklch(88% 0.008 90);
+  --color-cg-control: oklch(62% 0.012 90);
+  --color-cg-accent: oklch(44% 0.13 10);
+  --color-cg-accent-ink: oklch(98% 0.004 90);
+  --color-cg-selected: oklch(94% 0.025 10);
+  --color-cg-focus: oklch(47% 0.15 10);
+  --color-cg-code: oklch(22% 0.006 90);
+  --color-cg-code-ink: oklch(94% 0.006 90);
+  --color-cg-code-muted: oklch(79% 0.01 90);
+  --color-cg-code-rule: oklch(39% 0.01 90);
+  --color-cg-error: oklch(46% 0.16 27);
+  --color-cg-error-bg: oklch(96% 0.02 27);
+  --color-cg-overlay: oklch(15% 0.006 90 / 0.82);
+  --color-cg-clear: oklch(96.081% 0.00542 95.1 / 0);
+  --font-cg-display: 'Geist Variable', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-cg-body: 'Geist Variable', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-cg-code: 'SFMono-Regular', Menlo, 'Cascadia Code', monospace;
+  --space-cg-xs: 0.25rem;
+  --space-cg-sm: 0.5rem;
+  --space-cg-md: 0.75rem;
+  --space-cg-lg: 1rem;
+  --space-cg-xl: 1.5rem;
+  --space-cg-2xl: 2rem;
+  --space-cg-3xl: 3rem;
+  --space-cg-4xl: 4rem;
+  --text-cg-small: 0.8125rem;
+  --text-cg-ui: 0.875rem;
+  --text-cg-body: 1rem;
+  --text-cg-heading: 1.375rem;
+  --text-cg-display: clamp(1.75rem, 2.4vw, 2.5rem);
+  --ease-cg-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-cg-in: cubic-bezier(0.7, 0, 0.84, 1);
+  --ease-cg-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-cg-press: 100ms;
+  --dur-cg-short: 150ms;
+  --dur-cg-modal: 250ms;
+  --radius-cg-small: 0.375rem;
+  --radius-cg-medium: 0.625rem;
+  --rule-cg-width: 1px;
+  --z-cg-sticky: 20;
+  --z-cg-skip: 40;
+}
+.client-docs[data-theme='dark'] {
+  --color-cg-paper: oklch(20% 0.004 90);
+  --color-cg-surface: oklch(23% 0.006 90);
+  --color-cg-soft: oklch(26% 0.008 90);
+  --color-cg-ink: oklch(94% 0.006 90);
+  --color-cg-muted: oklch(76% 0.01 90);
+  --color-cg-rule: oklch(35% 0.01 90);
+  --color-cg-control: oklch(56% 0.012 90);
+  --color-cg-accent: oklch(80% 0.09 10);
+  --color-cg-accent-ink: oklch(20% 0.004 90);
+  --color-cg-selected: oklch(29% 0.028 10);
+  --color-cg-focus: oklch(78% 0.105 10);
+  --color-cg-code: oklch(17% 0.004 90);
+  --color-cg-error: oklch(80% 0.12 27);
+  --color-cg-error-bg: oklch(27% 0.035 27);
+}

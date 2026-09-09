@@ -13,7 +13,7 @@ function renderPage(entry = '/api-docs') {
 }
 
 describe('ApiDocsPage', () => {
-  it('renders the public Sub2API integration guide and endpoint cards', () => {
+  it('renders the public API reference and endpoint cards', () => {
     renderPage()
 
     expect(screen.getByRole('heading', { name: /把模型能力.*接入你的产品/ })).toBeInTheDocument()
@@ -41,10 +41,10 @@ describe('ApiDocsPage', () => {
   })
 
   it('accepts an API base URL and marks embedded mode from the query string', () => {
-    renderPage('/api-docs?embed=1&api_base=https%3A%2F%2Fapi.example.com')
+    const { container } = renderPage('/api-docs?embed=1&api_base=https%3A%2F%2Fapi.example.com')
 
     expect(screen.getByDisplayValue('https://api.example.com')).toBeInTheDocument()
-    expect(screen.getByText('页面只读取 `api_base` 查询参数来替换示例地址，不会读取宿主系统 Cookie、Token 或 DOM。')).toBeInTheDocument()
+    expect(container.querySelector('.aux-api-docs')).toHaveClass('aux-api-docs--embedded')
   })
 
   it('uses the current page origin as the API address placeholder by default', () => {
@@ -70,12 +70,12 @@ describe('ApiDocsPage', () => {
     getConfig.mockRestore()
   })
 
-  it('keeps deployment instructions collapsed and out of the user-facing elevator', () => {
+  it('keeps deployment instructions out of the user-facing document', () => {
     renderPage()
 
     expect(screen.queryByRole('link', { name: '嵌入与挂载' })).not.toBeInTheDocument()
-    const summary = screen.getByText('管理员 / 集成方说明')
-    expect(summary.closest('details')).not.toHaveAttribute('open')
+    expect(screen.queryByText('管理员 / 集成方说明')).not.toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('Sub2API custom_menu_items')
   })
 
   it('does not link to a fixed homepage route', () => {

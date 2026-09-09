@@ -1,4 +1,4 @@
-export type ClientId = 'claude-code' | 'codex' | 'pi' | 'hermes' | 'openclaw' | 'paseo' | 'zcode' | 'deepseek-harness' | 'obsidian'
+export type ClientId = 'claude-code' | 'claude-desktop' | 'codex' | 'pi' | 'hermes' | 'openclaw' | 'paseo' | 'zcode' | 'deepseek-harness' | 'obsidian'
 export type GuidePlatform = 'unix' | 'windows'
 
 export interface GuideScreenshot {
@@ -22,6 +22,8 @@ export interface ClientGuide {
   prerequisiteClients?: ClientId[]
   installTitle?: string
   installSteps?: { text: string; href?: string; linkLabel?: string }[]
+  installAlternatives?: { title: string; description: string; command: string }[]
+  ccSwitch?: { description: string; steps: string[] }
   configPath: string
   configDescription: string
   configSteps?: string[]
@@ -37,23 +39,64 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
   {
     id: 'claude-code', name: 'Claude Code', icon: '/client-icons/claude-code.svg', category: '终端编程',
     description: '把 Claude 带进终端，从理解代码到完成修改。',
-    protocol: 'Anthropic Messages', endpoint: '/v1/messages', defaultModel: 'claude-sonnet-4-6',
+    protocol: 'Anthropic Messages', endpoint: '/v1/messages', defaultModel: 'claude-opus-5',
     officialUrl: 'https://code.claude.com/docs/en/llm-gateway-connect',
     installUrl: 'https://code.claude.com/docs/en/setup',
-    prerequisite: '支持 macOS、Linux 与 Windows。以下使用官方安装器，安装后重新打开终端。',
+    prerequisite: '支持 macOS、Linux 与 Windows。可选择官方安装器或 npm，任选一种方式即可；安装后重新打开终端。',
+    installTitle: '通过官方安装器安装 Claude Code',
+    installAlternatives: [
+      {
+        title: '通过 npm 安装 Claude Code',
+        description: '也可以通过 npm 安装：先安装 Node.js 22 或更新版本（建议使用当前 LTS，包含 npm），再执行下方命令。macOS、Linux 与 Windows PowerShell 均可使用。',
+        command: 'npm install -g @anthropic-ai/claude-code',
+      },
+    ],
     configPath: '终端环境变量',
-    configDescription: '在当前终端设置网关根地址、API Key 和 Claude 模型。ANTHROPIC_BASE_URL 不加 /v1；请把 sk-YOUR_API_KEY 换成控制台创建的密钥。',
+    configDescription: '在当前终端设置网关根地址、API Key 和 Claude 模型。ANTHROPIC_BASE_URL 不加 /v1；请把 sk-YOUR_API_KEY 换成控制台创建的密钥。如需持久化，可将这些变量合并到 ~/.claude/settings.json 的 env 对象中，下方截图展示这种方式。',
     verification: '在同一个终端启动 Claude Code，直接发送「当前时间」。收到正常回复后，在控制台核对本次用量。',
     troubleshooting: '如果仍使用原来的账号或提示凭据冲突，请检查环境变量与 ~/.claude/settings.json 中的配置，清理冲突的 ANTHROPIC_API_KEY 或旧网关变量。终端变量只对当前终端及其启动的程序生效；需要持久化时，按官方说明合并到 ~/.claude/settings.json 的 env 中。',
     screenshots: {
-      configure: { src: '', alt: 'Claude Code 网关环境变量配置示例，密钥已遮盖', caption: '网关地址与环境变量配置' },
-      verify: { src: '', alt: 'Claude Code 发送「当前时间」后的正常回复', caption: '发送「当前时间」验证接入' },
+      configure: { src: '/client-docs/claude-code/configure.png', alt: 'Claude Code 的 settings.json：在 env 中配置网关地址、认证令牌与模型，密钥已遮盖', caption: 'settings.json 持久化环境变量配置' },
+      verify: { src: '/client-docs/claude-code/verify.png', alt: 'Claude Code 使用 Opus 5，发送「当前时间」后收到回复', caption: '发送「当前时间」验证接入' },
+    },
+  },
+  {
+    id: 'claude-desktop', name: 'Claude Desktop', icon: '/client-icons/claude-desktop.svg', category: '桌面助手',
+    description: '在桌面应用中使用 Claude，适合长文档与日常对话。',
+    protocol: 'Anthropic Messages', endpoint: '/v1/messages', defaultModel: 'claude-opus-5',
+    officialUrl: 'https://support.anthropic.com/en/articles/10065433-installing-claude-for-desktop',
+    installUrl: 'https://claude.ai/download',
+    prerequisite: '支持 macOS 与 Windows。Claude Desktop 与 Claude Code 是两个独立客户端，配置和生效方式也不同。',
+    installSteps: [
+      { text: '下载并安装 Claude Desktop，打开应用并完成首次启动。', href: 'https://claude.ai/download', linkLabel: '下载 Claude Desktop' },
+      { text: '准备好平台 API 基础地址、API Key 和模型 ID；使用 CC Switch 时，这些信息会在供应商表单中填写。' },
+    ],
+    configPath: 'Claude Desktop 供应商参数参考',
+    configDescription: '推荐使用下方的 CC Switch 快捷配置，由 CC Switch 写入 Claude Desktop 的 3P profile。手动配置时请按平台提供的 Claude Desktop 接入方式填写网关、密钥和模型；Claude Desktop 切换供应商后需要完全退出并重新打开。',
+    configSteps: [
+      'Claude Desktop 的原生直连通常需要 Anthropic Messages API，并使用 Claude Desktop 能识别的 Sonnet、Opus 或 Haiku 角色模型。',
+      '如果平台模型 ID 不是 Claude Desktop 可识别的角色名，使用 CC Switch 的模型映射模式，将角色模型映射到平台实际模型。',
+    ],
+    verification: '完全退出并重新打开 Claude Desktop，确认当前供应商和模型后发送「当前时间」。收到正常回复后，在平台控制台核对请求用量。',
+    troubleshooting: '如果 Claude Desktop 仍使用原账号或提示认证失败，请在 CC Switch 中确认供应商已启用、API 地址和密钥无误，并检查模型映射是否指向可用模型。修改供应商后需要完全退出并重新打开 Claude Desktop。',
+    ccSwitch: {
+      description: 'CC Switch 可直接管理 Claude Desktop 的供应商、模型映射和切换，不需要手动编辑 3P profile 文件。',
+      steps: [
+        '安装并打开 CC Switch，在应用切换器中选择「Claude Desktop」。',
+        '点击「添加供应商」；已有 Claude Code 配置时，可选择从 Claude Code 导入，减少重复填写。',
+        '填写 API 基础地址、API Key 和模型；非 Claude 角色模型开启「需要模型映射」，保存后点击「启用」。',
+        '完全退出并重新打开 Claude Desktop，再发送「当前时间」验证。模型映射模式需要保持 CC Switch 的本地路由运行。',
+      ],
+    },
+    screenshots: {
+      configure: { src: '', alt: 'Claude Desktop 在 CC Switch 中配置供应商与模型映射', caption: 'CC Switch 配置 Claude Desktop' },
+      verify: { src: '', alt: 'Claude Desktop 发送「当前时间」后的正常回复', caption: '发送「当前时间」验证接入' },
     },
   },
   {
     id: 'codex', name: 'Codex', icon: '/client-icons/codex.svg', category: '终端编程',
     description: '用自定义模型提供方，连接你的 Codex 工作流。',
-    protocol: 'OpenAI Responses', endpoint: '/v1/responses', defaultModel: 'your-model-id',
+    protocol: 'OpenAI Responses', endpoint: '/v1/responses', defaultModel: 'gpt-6-astra',
     officialUrl: 'https://developers.openai.com/codex/config-advanced',
     installUrl: 'https://developers.openai.com/codex/cli',
     prerequisite: '先安装当前受支持的 Node.js LTS 与 npm。以下配置面向 Codex CLI；Windows 也可在 WSL2 中选择 macOS / Linux 指引。',
@@ -63,6 +106,14 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
       path: '~/.codex/auth.json',
       description: '再将 API Key 填入 ~/.codex/auth.json 的 OPENAI_API_KEY 字段，把 sk-YOUR_API_KEY 替换为平台控制台创建的密钥。已有登录配置时先备份 auth.json，再按下方示例配置。Windows 原生路径为 %USERPROFILE%\\.codex\\auth.json。',
       code: JSON.stringify({ OPENAI_API_KEY: 'sk-YOUR_API_KEY' }, null, 2),
+    },
+    ccSwitch: {
+      description: 'CC Switch 可以直接管理 Codex 供应商并写入 auth.json 与 config.toml，适合在多个 API 供应商之间快速切换。',
+      steps: [
+        '安装并打开 CC Switch，在应用切换器中选择「Codex」。',
+        '点击「添加供应商」，填写平台 API Key、API 地址和模型；Responses 供应商可直接使用，其他协议按 CC Switch 提示开启本地路由映射。',
+        '点击「启用」完成写入，重新打开 Codex，再发送「当前时间」验证。',
+      ],
     },
     verification: '保存 config.toml 和 auth.json 后，重新启动 codex，直接发送「当前时间」。收到正常回复后，在控制台检查用量。',
     troubleshooting: 'Codex 需要 Responses 接口。若出现 404，请检查网关是否提供 /v1/responses，以及 base_url 是否只包含一次 /v1。提示缺少 API Key 时，检查 ~/.codex/auth.json 中的 OPENAI_API_KEY，以及 config.toml 中的 cli_auth_credentials_store = "file" 和 requires_openai_auth = true。迁移旧配置时移除提供方中的 env_key；若设置了 CODEX_HOME，两个文件都应放在该目录下。',
@@ -80,6 +131,14 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
     prerequisite: '先安装当前受支持的 Node.js LTS 与 npm。这里的 Pi 指 pi-mono 项目中的 coding agent，安装包以官方快速开始文档为准。',
     configPath: '~/.pi/agent/models.json',
     configDescription: '在 models.json 的 providers 中新增 gateway，保留其他提供方。将 sk-YOUR_API_KEY 替换为你的密钥；Windows 路径为 %USERPROFILE%\\.pi\\agent\\models.json。',
+    ccSwitch: {
+      description: 'CC Switch 可管理 Pi 的供应商预设和模型配置，减少手动编辑 models.json 的步骤。',
+      steps: [
+        '安装并打开 CC Switch，在应用切换器中选择「Pi」。',
+        '添加或选择供应商，填写 API Key、API 地址和模型；确认 API 格式与平台兼容。',
+        '点击「启用」写入 Pi 配置，重新打开 Pi 或刷新 /model，再发送「当前时间」验证。',
+      ],
+    },
     verification: '启动 Pi 后，输入 /model，选择 gateway 下的目标模型。发送「当前时间」，确认收到回复，并在控制台检查请求用量。修改 models.json 后，重新打开 /model 即可重新读取。',
     troubleshooting: '模型没有显示时，先检查 JSON 格式和 API Key，再打开 /model。若返回接口不支持，请检查 api 字段与网关协议；此示例的 openai-completions 对应 /v1/chat/completions。',
     screenshots: {
@@ -96,6 +155,14 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
     prerequisite: '这里的 Hermes 指 Nous Research 的 Hermes Agent。官方安装器负责安装运行依赖；安装后重新打开终端。',
     configPath: 'hermes model 配置向导',
     configDescription: '在终端运行 hermes model，选择 Custom endpoint，依次填写下方的 API 地址、密钥和模型名称并保存。会话内的 /model 只用于切换已配置的模型。',
+    ccSwitch: {
+      description: 'CC Switch 可直接管理 Hermes 的供应商与模型，适合快速切换不同网关。',
+      steps: [
+        '安装并打开 CC Switch，在应用切换器中选择「Hermes」。',
+        '添加或选择供应商，填写 API Key、API 地址和模型；保存后点击「启用」。',
+        '重新打开 Hermes，在会话中确认当前模型，再发送「当前时间」验证。',
+      ],
+    },
     verification: '完成向导后运行 hermes，在会话中用 /model 检查当前模型，然后发送「当前时间」。回复正常后，去控制台核对用量记录。',
     troubleshooting: '自定义端点应通过 hermes model 保存，或配置 config.yaml 的 model.base_url。不要依赖旧的 LLM_MODEL 环境变量。启动异常可运行 hermes doctor；工具本身的额外服务可能需要单独配置。',
     screenshots: {
@@ -247,6 +314,7 @@ export function quoteShell(value: string, platform: GuidePlatform): string {
 export function getInstallCommand(id: ClientId, platform: GuidePlatform): string | null {
   switch (id) {
     case 'claude-code': return platform === 'windows' ? 'irm https://claude.ai/install.ps1 | iex' : 'curl -fsSL https://claude.ai/install.sh | bash'
+    case 'claude-desktop': return null
     case 'codex': return 'npm install -g @openai/codex'
     case 'pi': return 'npm install -g --ignore-scripts @earendil-works/pi-coding-agent'
     case 'hermes': return platform === 'windows' ? 'iex (irm https://hermes-agent.nousresearch.com/install.ps1)' : 'curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash'
@@ -274,6 +342,7 @@ export function getConfigExample(id: ClientId, baseURL: string, model: string, p
           : `export ${key}=${quoteShell(value, platform)}`).join('\n'),
       }
     }
+    case 'claude-desktop': return { language: '界面填写参考', code: JSON.stringify({ inferenceProvider: 'gateway', inferenceGatewayBaseUrl: baseURL, inferenceGatewayAuthScheme: 'bearer', inferenceGatewayApiKey: apiKey, model }, null, 2) }
     case 'paseo': return null
     case 'codex': return {
       language: 'TOML',
@@ -294,6 +363,7 @@ export function getConfigExample(id: ClientId, baseURL: string, model: string, p
 export function getVerifyCommand(id: ClientId, model: string, platform: GuidePlatform): string | null {
   switch (id) {
     case 'claude-code': return 'claude'
+    case 'claude-desktop': return null
     case 'codex': return 'codex'
     case 'pi': return `pi --provider gateway --model ${quoteShell(model, platform)}`
     case 'hermes': return 'hermes'

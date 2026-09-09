@@ -169,6 +169,7 @@ func TestHomepageConfigService_SaveNormalizesPartnersAndLinks(t *testing.T) {
 
 	saved, err := svc.Save(context.Background(), HomepageConfig{
 		SiteName:                          " My Sub2API ",
+		SystemDomain:                      " https://gateway.example.com/ ",
 		SiteLogoURL:                       "https://example.com/logo.svg",
 		HeroLabel:                         " 生产级网关 ",
 		HeroTitle:                         "新的首页标题",
@@ -200,6 +201,7 @@ func TestHomepageConfigService_SaveNormalizesPartnersAndLinks(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "生产级网关", saved.HeroLabel)
 	assert.Equal(t, "My Sub2API", saved.SiteName)
+	assert.Equal(t, "https://gateway.example.com/", saved.SystemDomain)
 	assert.Equal(t, "https://example.com/logo.svg", saved.SiteLogoURL)
 	assert.Equal(t, "99.95%", saved.Availability)
 	assert.Equal(t, "可用性说明", saved.AvailabilityDescription)

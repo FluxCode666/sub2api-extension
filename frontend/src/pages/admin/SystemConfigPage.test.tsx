@@ -68,4 +68,17 @@ describe('SystemConfigPage', () => {
     })))
     expect(input).toHaveValue('Example Cloud')
   })
+
+  it('allows configuring the default API domain for client guides', async () => {
+    getConfig.mockResolvedValue({ code: 0, data: { siteName: 'Sub2API', systemDomain: 'https://gateway.example.com', model: 'gpt-6-astra' } })
+    putConfig.mockResolvedValue({ code: 0, data: { siteName: 'Sub2API', systemDomain: 'https://api.example.com', model: 'gpt-6-astra' } })
+    render(<SystemConfigPage />)
+
+    const input = await screen.findByRole('textbox', { name: 'Sub2API 系统域名' })
+    expect(input).toHaveValue('https://gateway.example.com')
+    fireEvent.change(input, { target: { value: 'https://api.example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存配置' }))
+
+    await waitFor(() => expect(putConfig).toHaveBeenCalledWith('/admin/homepage/config', expect.objectContaining({ systemDomain: 'https://api.example.com' })))
+  })
 })
