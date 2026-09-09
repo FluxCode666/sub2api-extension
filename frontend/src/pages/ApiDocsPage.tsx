@@ -421,7 +421,7 @@ export default function ApiDocsPage() {
     return () => { active = false }
   }, [])
 
-  const documentName = systemName ? `${systemName} API 文档` : 'API 文档'
+  const documentName = 'API 文档'
   const clientDocsParams = new URLSearchParams({ api_base: baseURL })
   for (const key of ['embed', 'ui_mode', 'theme']) {
     const value = searchParams.get(key)
@@ -493,7 +493,7 @@ export default function ApiDocsPage() {
         <div className="aux-api-header-inner">
           <a className="aux-api-brand" href="#top" aria-label={`${documentName}首页`}>
             <span className="aux-api-brand-mark"><Code2 aria-hidden="true" /></span>
-            <span><strong>{systemName || 'API 文档'}</strong><small>配置你的模型接口</small></span>
+            <span><strong>API 文档</strong><small>配置你的模型接口</small></span>
           </a>
           <div className="aux-api-header-tools">
             <Link className="aux-api-header-home" to="/sub2api-home" aria-label="返回官网"><Home aria-hidden="true" /><span>官网</span></Link>
@@ -626,6 +626,7 @@ export default function ApiDocsPage() {
           <span>{systemName ? `${systemName} · API 文档` : 'API 文档'}</span>
         </div>
         <span className="aux-api-footer-status">{endpoints.length} 个接口 · {systemDomain || configuredDomain(baseURL) || '当前页面服务地址'}</span>
+        <span className="aux-api-footer-copyright">© 2026 {systemName || 'API 文档'}. All rights reserved.</span>
         <nav className="aux-api-footer-nav" aria-label="相关文档">
           <Link to={`/client-docs?${clientDocsParams}`}>客户端接入 <ArrowUpRight aria-hidden="true" /></Link>
           <a {...siteHrefProps('/sub2api-home')}><Home aria-hidden="true" />官网首页</a>

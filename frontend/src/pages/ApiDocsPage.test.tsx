@@ -96,8 +96,10 @@ describe('ApiDocsPage', () => {
 
     renderPage()
 
+    expect(screen.getByRole('link', { name: 'API 文档首页' })).toBeInTheDocument()
     const footer = screen.getByRole('contentinfo')
     await waitFor(() => expect(footer).toHaveTextContent('TERALEMO · API 文档'))
+    expect(footer).toHaveTextContent('© 2026 TERALEMO. All rights reserved.')
     expect(footer.querySelector('img')).toHaveAttribute('src', 'https://cdn.example.com/logo.svg')
     expect(footer).toHaveTextContent('gateway.example.com')
     expect(within(footer).getByRole('link', { name: /客户端接入/ })).toHaveAttribute('href', expect.stringContaining('/client-docs'))
