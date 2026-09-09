@@ -478,6 +478,14 @@ func TestSetupRouter_FrontendStaticServesIndexForSPARoutes(t *testing.T) {
 	assetsDir := filepath.Join(distDir, "assets")
 	require.NoError(t, os.MkdirAll(assetsDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(assetsDir, "app.js"), []byte("console.log(1)"), 0o644))
+	clientDocsDir := filepath.Join(distDir, "client-docs", "claude-code")
+	require.NoError(t, os.MkdirAll(clientDocsDir, 0o755))
+	png := []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a}
+	require.NoError(t, os.WriteFile(filepath.Join(clientDocsDir, "cc-switch.png"), png, 0o644))
+	clientIconsDir := filepath.Join(distDir, "client-icons")
+	require.NoError(t, os.MkdirAll(clientIconsDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(clientIconsDir, "claude-code.svg"), []byte("<svg></svg>"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(distDir, "favicon.svg"), []byte("<svg></svg>"), 0o644))
 	t.Setenv("SUB2API_EXTENSION_FRONTEND_DIST", distDir)
 
 	cfg := newTestConfig()
@@ -496,8 +504,33 @@ func TestSetupRouter_FrontendStaticServesIndexForSPARoutes(t *testing.T) {
 	req2 := httptest.NewRequest(http.MethodGet, "/assets/app.js", nil)
 	w2 := httptest.NewRecorder()
 	r.ServeHTTP(w2, req2)
-	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, http.StatusOK, w2.Code)
 	assert.Contains(t, w2.Body.String(), "console.log")
+
+	// 文档截图、客户端图标和网站图标应返回真实静态文件，而不是 SPA index.html。
+	req5 := httptest.NewRequest(http.MethodGet, "/client-docs/claude-code/cc-switch.png", nil)
+	w5 := httptest.NewRecorder()
+	r.ServeHTTP(w5, req5)
+	require.Equal(t, http.StatusOK, w5.Code)
+	assert.Equal(t, "image/png", w5.Header().Get("Content-Type"))
+	assert.Equal(t, png, w5.Body.Bytes())
+
+	req6 := httptest.NewRequest(http.MethodGet, "/client-icons/claude-code.svg", nil)
+	w6 := httptest.NewRecorder()
+	r.ServeHTTP(w6, req6)
+	require.Equal(t, http.StatusOK, w6.Code)
+	assert.Equal(t, "image/svg+xml", w6.Header().Get("Content-Type"))
+
+	req7 := httptest.NewRequest(http.MethodGet, "/favicon.svg", nil)
+	w7 := httptest.NewRecorder()
+	r.ServeHTTP(w7, req7)
+	require.Equal(t, http.StatusOK, w7.Code)
+	assert.Equal(t, "image/svg+xml", w7.Header().Get("Content-Type"))
+
+	missingStatic := httptest.NewRequest(http.MethodGet, "/client-docs/claude-code/missing.png", nil)
+	missingStaticResponse := httptest.NewRecorder()
+	r.ServeHTTP(missingStaticResponse, missingStatic)
+	require.Equal(t, http.StatusNotFound, missingStaticResponse.Code)
 
 	// /health 仍正常(不受静态托管影响)
 	req3 := httptest.NewRequest(http.MethodGet, "/health", nil)

@@ -78,6 +78,11 @@ func SetupRouter(cfg *config.Config, healthHandler *web.HealthHandler, authHandl
 			response.Error(c, http.StatusNotFound, "not found")
 			return
 		}
+		// 已知静态资源路径找不到文件时返回 404，不能被 SPA fallback 覆盖成 index.html。
+		if isFrontendStaticPath(path) {
+			c.Status(http.StatusNotFound)
+			return
+		}
 		// 非 API 路径: 若有前端 index.html 则 fallback(SPA history), 否则标准 404。
 		if indexHandler != nil {
 			indexHandler(c)
@@ -89,6 +94,13 @@ func SetupRouter(cfg *config.Config, healthHandler *web.HealthHandler, authHandl
 	return r
 }
 
+func isFrontendStaticPath(path string) bool {
+	return strings.HasPrefix(path, "/assets/") ||
+		strings.HasPrefix(path, "/client-docs/") ||
+		strings.HasPrefix(path, "/client-icons/") ||
+		path == "/favicon.svg"
+}
+
 // indexHandler 由 registerFrontendStatic 设置, 指向 dist/index.html 的 SPA fallback;
 // 为 nil 时表示未配置前端静态托管。
 var indexHandler gin.HandlerFunc
@@ -96,7 +108,8 @@ var indexHandler gin.HandlerFunc
 // registerFrontendStatic 注册前端 SPA 静态托管。
 //
 // 当 SUB2API_EXTENSION_FRONTEND_DIST 指向存在的目录时：
-//   - /assets/* 直接映射到 dist/assets/*
+//   - /assets/*、/client-docs/*、/client-icons/* 直接映射到 dist 对应目录
+//   - favicon.svg 等根目录静态文件直接映射到 dist 文件
 //   - 其余非 /health、非 /api/ 路径返回 index.html（SPA history fallback, 经 NoRoute）
 //
 // 环境变量未设置或目录不存在时静默跳过（不影响 API 与健康检查）。
@@ -116,6 +129,9 @@ func registerFrontendStatic(r *gin.Engine) {
 
 	// 静态资源（JS/CSS/图片等）
 	r.Static("/assets", filepath.Join(abs, "assets"))
+	r.Static("/client-docs", filepath.Join(abs, "client-docs"))
+	r.Static("/client-icons", filepath.Join(abs, "client-icons"))
+	r.StaticFile("/favicon.svg", filepath.Join(abs, "favicon.svg"))
 
 	// SPA history fallback 由外层 NoRoute 调用: 设置 indexHandler 指向 index.html。
 	indexHandler = func(c *gin.Context) {
