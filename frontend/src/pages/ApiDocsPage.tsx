@@ -7,7 +7,6 @@ import {
   ChevronRight,
   Clipboard,
   Code2,
-  ExternalLink,
   FileText,
   Home,
   Monitor,
@@ -376,7 +375,6 @@ export default function ApiDocsPage() {
   const [systemName, setSystemName] = useState('')
   const [siteLogoUrl, setSiteLogoUrl] = useState('')
   const [systemDomain, setSystemDomain] = useState('')
-  const [documentationUrl, setDocumentationUrl] = useState('')
   const [consoleHref, setConsoleHref] = useState('')
   const [termsUrl, setTermsUrl] = useState('')
   const [privacyUrl, setPrivacyUrl] = useState('')
@@ -402,7 +400,7 @@ export default function ApiDocsPage() {
 
   useEffect(() => {
     let active = true
-    void apiClient.get<AuxEnvelope<{ model?: string; systemName?: string; siteName?: string; heroTitle?: string; siteLogoUrl?: string; systemDomain?: string; consoleHref?: string; documentationUrl?: string; termsUrl?: string; privacyUrl?: string }>>('/homepage/config').then((envelope) => {
+    void apiClient.get<AuxEnvelope<{ model?: string; systemName?: string; siteName?: string; heroTitle?: string; siteLogoUrl?: string; systemDomain?: string; consoleHref?: string; termsUrl?: string; privacyUrl?: string }>>('/homepage/config').then((envelope) => {
       const model = envelope.data?.model?.trim()
       const name = configuredDocumentName(envelope.data)
       if (active && envelope.code === 0) {
@@ -411,7 +409,6 @@ export default function ApiDocsPage() {
         if (envelope.data?.siteLogoUrl?.trim()) setSiteLogoUrl(envelope.data.siteLogoUrl.trim())
         if (envelope.data?.systemDomain?.trim()) setSystemDomain(configuredDomain(envelope.data.systemDomain))
         if (envelope.data?.consoleHref?.trim()) setConsoleHref(envelope.data.consoleHref.trim())
-        if (envelope.data?.documentationUrl?.trim()) setDocumentationUrl(envelope.data.documentationUrl.trim())
         if (envelope.data?.termsUrl?.trim()) setTermsUrl(envelope.data.termsUrl.trim())
         if (envelope.data?.privacyUrl?.trim()) setPrivacyUrl(envelope.data.privacyUrl.trim())
       }
@@ -630,7 +627,6 @@ export default function ApiDocsPage() {
         <nav className="aux-api-footer-nav" aria-label="相关文档">
           <Link to={`/client-docs?${clientDocsParams}`}>客户端接入 <ArrowUpRight aria-hidden="true" /></Link>
           <a {...siteHrefProps('/sub2api-home')}><Home aria-hidden="true" />官网首页</a>
-          {documentationUrl ? <a {...siteHrefProps(documentationUrl)}><ExternalLink aria-hidden="true" />使用文档</a> : null}
           {termsUrl ? <a {...siteHrefProps(termsUrl)}>服务条款</a> : null}
           {privacyUrl ? <a {...siteHrefProps(privacyUrl)}>隐私协议</a> : null}
           <a href="#top">回到顶部 <ArrowUp aria-hidden="true" /></a>

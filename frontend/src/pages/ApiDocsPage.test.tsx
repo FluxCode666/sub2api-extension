@@ -88,7 +88,6 @@ describe('ApiDocsPage', () => {
         siteLogoUrl: 'https://cdn.example.com/logo.svg',
         systemDomain: 'https://gateway.example.com/',
         consoleHref: 'https://console.example.com/dashboard',
-        documentationUrl: 'https://docs.example.com',
         termsUrl: 'https://example.com/terms',
         privacyUrl: '/privacy',
       },
@@ -104,7 +103,7 @@ describe('ApiDocsPage', () => {
     expect(footer).toHaveTextContent('gateway.example.com')
     expect(within(footer).getByRole('link', { name: /客户端接入/ })).toHaveAttribute('href', expect.stringContaining('/client-docs'))
     expect(within(footer).getByRole('link', { name: /官网/ })).toHaveAttribute('href', '/sub2api-home')
-    expect(within(footer).getByRole('link', { name: /使用文档/ })).toHaveAttribute('target', '_blank')
+    expect(within(footer).queryByRole('link', { name: /使用文档/ })).not.toBeInTheDocument()
     expect(within(footer).getByRole('link', { name: /服务条款/ })).toHaveAttribute('target', '_blank')
     expect(within(footer).getByRole('link', { name: /隐私协议/ })).toHaveAttribute('href', '/privacy')
     getConfig.mockRestore()
