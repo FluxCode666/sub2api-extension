@@ -21,6 +21,32 @@
   background: var(--console-accent-soft);
 }
 
+.aux-admin-version-button--update {
+  color: var(--console-warm);
+  font-weight: 600;
+}
+
+.aux-admin-version-update-badge {
+  border-radius: 999px;
+  padding: 1px 5px;
+  background: var(--console-warm);
+  color: #fff;
+  font-family: "Geist Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.aux-admin-version-update-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--console-warm);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--console-warm) 18%, transparent);
+}
+
 .aux-admin-version-button:focus-visible,
 .aux-admin-version-compact:focus-visible {
   outline: 2px solid var(--console-accent);

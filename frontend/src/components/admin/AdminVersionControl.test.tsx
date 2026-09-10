@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AdminVersionControl, { AdminVersionButton } from './AdminVersionControl'
 
@@ -34,6 +34,29 @@ describe('administrator version control', () => {
     expect(dialog.querySelector('script')).toBeNull()
     expect(within(dialog).getByRole('link', { name: 'GitHub Release' })).toHaveAttribute('rel', 'noopener noreferrer')
     expect(within(dialog).getByRole('button', { name: '更新到最新版本' })).toBeEnabled()
+  })
+
+  it('checks for releases hourly and marks the version when an update is available', async () => {
+    vi.useFakeTimers()
+    try {
+      render(<AdminVersionControl><AdminVersionButton /></AdminVersionControl>)
+
+      await act(async () => { await Promise.resolve() })
+      const versionButton = screen.getByRole('button', { name: '查看版本与更新，当前 v0.5.0' })
+      expect(versionButton).toHaveClass('aux-admin-version-button--update')
+      expect(versionButton).toHaveAttribute('title', '有新版本可更新')
+      expect(screen.getByText('有新版本')).toBeInTheDocument()
+      const releaseChecks = get.mock.calls.filter(([path]) => path === '/admin/system/release').length
+
+      await act(async () => {
+        vi.advanceTimersByTime(60 * 60 * 1000)
+        await Promise.resolve()
+      })
+
+      expect(get.mock.calls.filter(([path]) => path === '/admin/system/release').length).toBeGreaterThan(releaseChecks)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('explains disabled updates when the helper is not installed', async () => {

@@ -22,7 +22,8 @@ interface UpdateResponse extends Job {
 }
 
 const finished = new Set(['succeeded', 'failed', 'rolled_back', 'rollback_failed'])
-const VersionContext = createContext<{ version?: string; open: () => void }>({ open: () => {} })
+const RELEASE_CHECK_INTERVAL_MS = 60 * 60 * 1000
+const VersionContext = createContext<{ version?: string; updateAvailable?: boolean; open: () => void }>({ open: () => {} })
 const message = (error: unknown) => error instanceof Error ? error.message : '请求失败，请稍后重试'
 
 function escapeHtml(value: string): string {
@@ -49,10 +50,12 @@ function renderReleaseNotes(notes: string): string {
 }
 
 export function AdminVersionButton({ compact = false }: { compact?: boolean }) {
-  const { version, open } = useContext(VersionContext)
+  const { version, updateAvailable, open } = useContext(VersionContext)
+  const buttonClass = compact ? 'aux-admin-version-compact' : 'aux-admin-version-button'
+  const updateClass = updateAvailable ? ' aux-admin-version-button--update' : ''
   return (
-    <button type="button" onClick={open} className={compact ? 'aux-admin-version-compact' : 'aux-admin-version-button'} aria-label={`查看版本与更新${version ? `，当前 ${version}` : ''}`}>
-      {compact ? <RefreshCw className="h-4 w-4" aria-hidden="true" /> : <>{version || '版本信息'}<ChevronDown className="h-3 w-3" aria-hidden="true" /></>}
+    <button type="button" onClick={open} className={`${buttonClass}${updateClass}`} aria-label={`查看版本与更新${version ? `，当前 ${version}` : ''}`} title={updateAvailable ? '有新版本可更新' : undefined}>
+      {compact ? <><RefreshCw className="h-4 w-4" aria-hidden="true" />{updateAvailable && <span className="aux-admin-version-update-dot" aria-label="有新版本可更新" />}</> : <><span>{version || '版本信息'}</span>{updateAvailable && <span className="aux-admin-version-update-badge">有新版本</span>}<ChevronDown className="h-3 w-3" aria-hidden="true" /></>}
     </button>
   )
 }
@@ -79,11 +82,23 @@ export default function AdminVersionControl({ children }: PropsWithChildren) {
     if (mounted.current && response.data) setBuild(response.data)
   }, [])
 
+  const checkLatestRelease = useCallback(async () => {
+    try {
+      const response = await apiClient.get<AuxEnvelope<ReleaseInfo>>('/admin/system/release', { timeout: 35000 })
+      if (response.code !== 0 || !response.data) return
+      if (mounted.current) setRelease(response.data)
+    } catch {
+      // Background checks are best-effort; the manual dialog check reports errors.
+    }
+  }, [])
+
   useEffect(() => {
     mounted.current = true
     void loadBuild().catch(() => {})
-    return () => { mounted.current = false; generation.current++ }
-  }, [loadBuild])
+    void checkLatestRelease()
+    const timer = window.setInterval(() => { void checkLatestRelease() }, RELEASE_CHECK_INTERVAL_MS)
+    return () => { mounted.current = false; generation.current++; window.clearInterval(timer) }
+  }, [checkLatestRelease, loadBuild])
 
   const check = useCallback(async () => {
     const request = ++generation.current
@@ -209,7 +224,7 @@ export default function AdminVersionControl({ children }: PropsWithChildren) {
   }
 
   return (
-    <VersionContext.Provider value={{ version: build?.version, open: () => setOpen(true) }}>
+    <VersionContext.Provider value={{ version: build?.version, updateAvailable: release?.updateAvailable, open: () => setOpen(true) }}>
       {children}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[85svh] w-[calc(100%-2rem)] max-w-2xl gap-5 overflow-y-auto rounded-xl p-5 sm:p-6">
