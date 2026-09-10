@@ -35,6 +35,16 @@ export default defineConfig(({ mode }) => {
           target: backendTarget,
           changeOrigin: true,
         },
+        // 客户端接入文档截图与客户端图标已挪到后端统一资源目录(assets.dir)，
+        // dev 下 public 目录不再包含它们，转由后端从资源目录提供。
+        '/client-docs/': {
+          target: backendTarget,
+          changeOrigin: true,
+        },
+        '/client-icons/': {
+          target: backendTarget,
+          changeOrigin: true,
+        },
       },
     },
     build: {

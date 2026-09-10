@@ -68,7 +68,7 @@ func SetupRouter(cfg *config.Config, healthHandler *web.HealthHandler, authHandl
 	// 由后端托管 SPA。前端 api-client 使用相对路径 /api/aux，同源托管避免 CORS。
 	// 不设置环境变量时跳过（开发模式前后端分离运行）。
 	// 不影响 /health 与 /api/aux/* 路由。
-	registerFrontendStatic(r)
+	registerFrontendStatic(r, cfg)
 
 	// NoRoute: 始终注册, 保证未匹配的 API/health 路径返回标准错误 envelope(#11),
 	// 不依赖是否设置了前端静态托管。
@@ -107,63 +107,105 @@ var indexHandler gin.HandlerFunc
 
 // registerFrontendStatic 注册前端 SPA 静态托管。
 //
-// 当 SUB2API_EXTENSION_FRONTEND_DIST 指向存在的目录时：
-//   - /assets/*、/client-docs/*、/client-icons/* 直接映射到 dist 对应目录
-//   - favicon.svg 等根目录静态文件直接映射到 dist 文件
-//   - 其余非 /health、非 /api/ 路径返回 index.html（SPA history fallback, 经 NoRoute）
+// 前端构建产物(/assets/*、favicon.svg)在 embed 构建中随二进制内嵌，在源码构建中
+// 从 SUB2API_EXTENSION_FRONTEND_DIST 指向的 dist 目录托管。
+// 客户端接入文档截图(/client-docs/*)与客户端图标(/client-icons/*)属于系统统一
+// 资源目录(assets.dir)，两种构建模式都经 registerClientAssetRoutes 从资源目录提供，
+// 不随前端 dist 打包，可由管理员在持久卷上直接更新。
 //
 // 环境变量未设置或目录不存在时静默跳过（不影响 API 与健康检查）。
-func registerFrontendStatic(r *gin.Engine) {
+func registerFrontendStatic(r *gin.Engine, cfg *config.Config) {
 	// Release builds embed the frontend in aux-server so an in-process binary
 	// update replaces API and UI together. Source builds keep the existing
 	// directory-based mode for local frontend development.
 	if web.RegisterEmbeddedFrontend(r) {
 		indexHandler = web.EmbeddedFrontendIndex
-		return
+	} else {
+		distDir := strings.TrimSpace(os.Getenv("SUB2API_EXTENSION_FRONTEND_DIST"))
+		if distDir != "" {
+			if info, err := os.Stat(distDir); err == nil && info.IsDir() {
+				if abs, err := filepath.Abs(distDir); err == nil {
+					indexPath := filepath.Join(abs, "index.html")
+					// 静态资源（JS/CSS 等构建产物）
+					r.Static("/assets", filepath.Join(abs, "assets"))
+					r.StaticFile("/favicon.svg", filepath.Join(abs, "favicon.svg"))
+					// SPA history fallback 由外层 NoRoute 调用。
+					indexHandler = func(c *gin.Context) {
+						c.File(indexPath)
+					}
+				}
+			}
+		}
 	}
-	distDir := strings.TrimSpace(os.Getenv("SUB2API_EXTENSION_FRONTEND_DIST"))
-	if distDir == "" {
-		return
-	}
-	if info, err := os.Stat(distDir); err != nil || !info.IsDir() {
-		return
-	}
-	abs, err := filepath.Abs(distDir)
-	if err != nil {
-		return
-	}
-	indexPath := filepath.Join(abs, "index.html")
 
-	// 静态资源（JS/CSS/图片等）
-	r.Static("/assets", filepath.Join(abs, "assets"))
-	r.Static("/client-icons", filepath.Join(abs, "client-icons"))
-	r.StaticFile("/favicon.svg", filepath.Join(abs, "favicon.svg"))
+	// 客户端接入文档截图与客户端图标统一从资源目录提供。
+	registerClientAssetRoutes(r, cfg.Assets.Dir)
+}
 
-	// /client-docs 是前端 React 路由入口，刷新时需要返回 SPA index.html。
-	// 同时 /client-docs/* 子路径需要提供静态文件（SDK 资源等）。
-	// Gin 不允许同时注册精确路由和通配符路由，因此使用 StaticFS 手动处理：
-	// - /client-docs 和 /client-docs/ 返回 index.html
-	// - /client-docs/* 返回静态文件
-	clientDocsFS := http.Dir(filepath.Join(abs, "client-docs"))
+// registerClientAssetRoutes 从系统统一资源目录提供客户端接入文档截图与客户端图标。
+//
+// 公开路径保持不变(/client-docs/* 与 /client-icons/*)，前端无需改引用。
+// 资源位于 assets.dir 对应子目录，生产持久卷可独立更新，不依赖前端重新构建。
+func registerClientAssetRoutes(r *gin.Engine, assetDir string) {
+	docsRoot := filepath.Join(assetDir, "client-docs")
+	iconsRoot := filepath.Join(assetDir, "client-icons")
+
 	r.GET("/client-docs/*filepath", func(c *gin.Context) {
-		filepath := c.Param("filepath")
-		// 空路径或根路径返回 SPA index
-		if filepath == "" || filepath == "/" {
-			c.File(indexPath)
+		serveClientAsset(c, docsRoot, c.Param("filepath"), true)
+	})
+	// /client-docs（无尾斜杠）是 React 路由入口，返回 SPA index。
+	r.GET("/client-docs", func(c *gin.Context) {
+		serveClientDocsIndex(c)
+	})
+	r.GET("/client-icons/*filepath", func(c *gin.Context) {
+		serveClientAsset(c, iconsRoot, c.Param("filepath"), false)
+	})
+}
+
+// serveClientDocsIndex 返回 SPA 入口；静态托管未配置时返回标准 404 envelope。
+func serveClientDocsIndex(c *gin.Context) {
+	if indexHandler != nil {
+		indexHandler(c)
+		return
+	}
+	response.Error(c, http.StatusNotFound, "not found")
+}
+
+// serveClientAsset 从资源子目录安全地提供单个文件，绝不输出目录列表。
+//
+// spaEntry 为 true 时(客户端接入文档)，根路径 /client-docs/ 返回 SPA index；
+// 为 false 时(客户端图标)，根路径直接 404。
+func serveClientAsset(c *gin.Context, root, rel string, spaEntry bool) {
+	// 根路径(/client-docs/、/client-icons/)不列出目录内容。
+	if rel == "" || rel == "/" {
+		if spaEntry {
+			serveClientDocsIndex(c)
 			return
 		}
-		// 其他路径返回静态文件
-		c.FileFromFS(filepath, clientDocsFS)
-	})
-	// /client-docs（无尾斜杠）也返回 index
-	r.GET("/client-docs", func(c *gin.Context) {
-		c.File(indexPath)
-	})
-
-	// SPA history fallback 由外层 NoRoute 调用: 设置 indexHandler 指向 index.html。
-	indexHandler = func(c *gin.Context) {
-		c.File(indexPath)
+		c.Status(http.StatusNotFound)
+		return
 	}
+	rel = strings.TrimPrefix(rel, "/")
+	cleaned := filepath.Clean(rel)
+	if cleaned == "." || cleaned == ".." || strings.HasPrefix(cleaned, ".."+string(filepath.Separator)) {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	root = filepath.Clean(root)
+	abs := filepath.Join(root, cleaned)
+	// 校验拼接结果仍位于 root 内，防路径穿越。
+	if relPath, err := filepath.Rel(root, abs); err != nil ||
+		relPath == ".." || strings.HasPrefix(relPath, ".."+string(filepath.Separator)) {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	info, err := os.Stat(abs)
+	if err != nil || info.IsDir() {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	c.Header("Cache-Control", "public, max-age=31536000, immutable")
+	c.File(abs)
 }
 
 // registerCommonRoutes 注册通用路由（健康检查等）。

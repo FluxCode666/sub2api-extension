@@ -210,6 +210,10 @@ docker compose -f docker-compose.yml --env-file .env up -d
 `image_assets.original_name` / `image_assets.note` 与
 `invoice_requests.invoice_file_name` / `invoice_requests.invoice_file_note`。
 
+客户端接入文档截图与客户端图标同样位于统一资源目录（`/app/data/assets/client-docs`、
+`/app/data/assets/client-icons`），发布镜像首启自动灌入持久卷，之后可直接在卷上替换文件，
+无需重建前端。
+
 生产环境建议由宿主机 NGINX 对外提供 HTTPS，Compose 中的 aux-backend 默认只绑定
 `127.0.0.1:8787`，避免公网绕过 TLS 直接访问应用端口。NGINX 配置和安装步骤见
 [deploy/nginx/README.md](deploy/nginx/README.md)。

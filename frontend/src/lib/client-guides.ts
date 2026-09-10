@@ -33,7 +33,9 @@ export interface ClientGuide {
   screenshots: { configure: GuideScreenshot; verify: GuideScreenshot }
 }
 
-// 补图：随文档发布的截图放在 public/client-docs/；后台上传的截图填写完整 HTTP(S) URL。
+// 补图：随文档发布的截图与客户端图标统一存放在后端资源目录(assets.dir 的
+// client-docs/ 与 client-icons/ 子目录)，公开路径 /client-docs/* 与 /client-icons/* 不变；
+// 后台上传的截图填写完整 HTTP(S) URL。
 // 留空时显示截图占位；新客户端的文案与图片统一在此登记。
 export const CLIENT_GUIDES: readonly ClientGuide[] = [
   {

@@ -80,6 +80,10 @@ RUN --mount=type=cache,id=aux-gomod,target=/go/pkg/mod \
 COPY backend/ ./
 # 将生产前端放入 Go 包目录，由 release 构建以 embed 标签编译进单一二进制。
 COPY --from=frontend-builder /app/frontend/dist ./internal/web/dist
+# 客户端接入文档截图与客户端图标是统一资源目录(assets.dir)的种子资源：
+# embed 构建时随二进制内嵌，运行时首启复制进持久卷，不依赖前端重新构建。
+COPY backend/data/assets/client-docs ./internal/web/seed/client-docs
+COPY backend/data/assets/client-icons ./internal/web/seed/client-icons
 
 # 构建二进制（纯 Go，交叉编译）
 RUN --mount=type=cache,id=aux-gomod,target=/go/pkg/mod \

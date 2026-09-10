@@ -29,26 +29,26 @@
 
 ## 补充截图
 
-随静态文档发布的截图放在 `frontend/public/client-docs/<客户端>/`，在 `frontend/src/lib/client-guides.ts` 对应客户端的 `screenshots.configure.src` 和 `screenshots.verify.src` 中填写 `/client-docs/<客户端>/<文件名>`。后台管理的截图则在 `/admin/files` 上传并复制完整 HTTP(S) 图片 URL 填入。10 个客户端各有「配置」与「验证」两个位置，共 20 个；Claude Code、Codex、Pi、Hermes 的 CC Switch 快捷配置另各预留一张图，在 `ccSwitch.screenshot.src` 中填写路径（例如 `/client-docs/codex/cc-switch.png`）。Claude Desktop 的配置图直接展示 CC Switch。根据实际截图调整 `alt` 和 `caption`，截图中的密钥应遮盖。
+随静态文档发布的截图放在系统统一资源目录的 `client-docs/<客户端>/`（默认 `backend/data/assets/client-docs/<客户端>/`，生产镜像首启自动灌入持久卷），在 `frontend/src/lib/client-guides.ts` 对应客户端的 `screenshots.configure.src` 和 `screenshots.verify.src` 中填写 `/client-docs/<客户端>/<文件名>`。后台管理的截图则在 `/admin/files` 上传并复制完整 HTTP(S) 图片 URL 填入。10 个客户端各有「配置」与「验证」两个位置，共 20 个；Claude Code、Codex、Pi、Hermes 的 CC Switch 快捷配置另各预留一张图，在 `ccSwitch.screenshot.src` 中填写路径（例如 `/client-docs/codex/cc-switch.png`）。Claude Desktop 的配置图直接展示 CC Switch。根据实际截图调整 `alt` 和 `caption`，截图中的密钥应遮盖。
 
 Claude Code、ZCode、Codex、DeepSeek Harness 与 Paseo 已各补齐用户提供的两张原图，共 10 张；Pi 已补齐 4 张配置与验证原图；其余位置继续保留占位。截图中的域名、供应商名称与模型为示例，实际接入使用用户自己的配置。
 
-- `frontend/public/client-docs/claude-code/configure.png` 展示 `~/.claude/settings.json` 的 `env` 持久化配置，密钥已遮盖；`verify.png` 展示 Claude Code 使用 Opus 5 发送「当前时间」后的回复。
-- `frontend/public/client-docs/claude-code/cc-switch.png` 展示 CC Switch 编辑 Claude Code 供应商：网关地址、API Key、Anthropic Messages 格式与模型映射，密钥已遮盖。
-- `frontend/public/client-docs/zcode/configure.png` 展示 Anthropic Messages 供应商配置，`verify.png` 展示发送「当前时间」后的回复。
-- `frontend/public/client-docs/codex/configure.png` 并排展示 `auth.json` 密钥文件与 `config.toml` 提供方配置，`verify.png` 展示 Codex 桌面客户端发送「当前时间」后的回复。
-- `frontend/public/client-docs/codex/cc-switch.png` 展示 CC Switch 编辑 Codex 供应商时填写完整 API 请求地址、API Key 和保存操作，密钥已遮盖。
-- `frontend/public/client-docs/pi/models.png` 展示 Pi 的 `models.json` 配置，`verify.png` 展示发送「当前时间」后的工具调用和回复；`cc-switch-provider.png` 与 `cc-switch-models.png` 展示 CC Switch 中配置 Pi 供应商和模型列表。
-- `frontend/public/client-docs/deepseek-harness/configure.png` 展示内置 DeepSeek 提供方的 API 密钥、自定义 API 地址与模型目录，`verify.png` 展示在工作区发送「当前时间」后的回复。
-- `frontend/public/client-docs/paseo/configure.png` 展示当前主机的 Providers 设置，Claude、Codex 与 Pi 显示可用；`verify.png` 展示通过 Codex 提供方发送「当前时间」后的回复，前置指南仍可按所选客户端进入。
+- `backend/data/assets/client-docs/claude-code/configure.png` 展示 `~/.claude/settings.json` 的 `env` 持久化配置，密钥已遮盖；`verify.png` 展示 Claude Code 使用 Opus 5 发送「当前时间」后的回复。
+- `backend/data/assets/client-docs/claude-code/cc-switch.png` 展示 CC Switch 编辑 Claude Code 供应商：网关地址、API Key、Anthropic Messages 格式与模型映射，密钥已遮盖。
+- `backend/data/assets/client-docs/zcode/configure.png` 展示 Anthropic Messages 供应商配置，`verify.png` 展示发送「当前时间」后的回复。
+- `backend/data/assets/client-docs/codex/configure.png` 并排展示 `auth.json` 密钥文件与 `config.toml` 提供方配置，`verify.png` 展示 Codex 桌面客户端发送「当前时间」后的回复。
+- `backend/data/assets/client-docs/codex/cc-switch.png` 展示 CC Switch 编辑 Codex 供应商时填写完整 API 请求地址、API Key 和保存操作，密钥已遮盖。
+- `backend/data/assets/client-docs/pi/models.png` 展示 Pi 的 `models.json` 配置，`verify.png` 展示发送「当前时间」后的工具调用和回复；`cc-switch-provider.png` 与 `cc-switch-models.png` 展示 CC Switch 中配置 Pi 供应商和模型列表。
+- `backend/data/assets/client-docs/deepseek-harness/configure.png` 展示内置 DeepSeek 提供方的 API 密钥、自定义 API 地址与模型目录，`verify.png` 展示在工作区发送「当前时间」后的回复。
+- `backend/data/assets/client-docs/paseo/configure.png` 展示当前主机的 Providers 设置，Claude、Codex 与 Pi 显示可用；`verify.png` 展示通过 Codex 提供方发送「当前时间」后的回复，前置指南仍可按所选客户端进入。
 
-`src` 留空或加载失败时显示紧凑的图示待补充提示，不会出现破图或大块空白。填写 URL 后自动渲染图片，保留原图比例，支持点击放大、Escape 关闭与返回原按钮。此页面作为静态页面随前端发布，修改截图配置后需要重新构建部署。
+`src` 留空或加载失败时显示紧凑的图示待补充提示，不会出现破图或大块空白。填写 URL 后自动渲染图片，保留原图比例，支持点击放大、Escape 关闭与返回原按钮。截图文件本身位于资源目录，替换文件即可生效无需重建；修改 `client-guides.ts` 中的路径或文案才需要重新构建部署。
 
 ## 新增客户端
 
 在 `frontend/src/lib/client-guides.ts` 的 `ClientId` 和 `CLIENT_GUIDES` 中登记客户端，补齐 `getInstallCommand`、`getConfigExample`、`getVerifyCommand`。桌面搜索目录、移动端下拉选择、步骤、截图、页尾数量与下一个客户端入口由数据生成，无需按客户端数量修改布局。
 
-客户端 `icon` 字段引用 `frontend/public/client-icons/` 下的本地品牌图标，供选择区、目录和标题共用。图标来源与许可记录在该目录的 `README.md`，新增时补齐实际品牌图标，不使用字母占位。黑白图标需同时检查深浅主题。
+客户端 `icon` 字段引用系统统一资源目录 `client-icons/`（默认 `backend/data/assets/client-icons/`）下的本地品牌图标，供选择区、目录和标题共用。图标来源与许可记录在该目录的 `README.md`，新增时补齐实际品牌图标，不使用字母占位。黑白图标需同时检查深浅主题。
 
 桌面应用或插件可通过 `installSteps` 提供自身的下载链接与安装步骤，`installTitle` 标明安装或启动命令的用途，`configSteps` 提供界面操作步骤。依赖另一个客户端时，通过 `prerequisiteClients` 登记可选客户端并链接到各自的配置指南，在 `prerequisite` 中说明前置要求，不把底层 CLI 的安装命令当作当前客户端的安装方法。链接保留网关地址与嵌入、主题参数。没有终端安装、配置或验证命令时返回 `null`，页面自动隐藏相应命令块；完全沿用其他客户端配置时，`endpoint` 设为 `null`，准备步骤展示前置指南入口。所有客户端统一提供可复制的「当前时间」验证消息，不要求输入 `/status`。
 

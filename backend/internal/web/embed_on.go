@@ -24,10 +24,11 @@ func RegisterEmbeddedFrontend(r *gin.Engine) bool {
 	if _, err := fs.Stat(dist, "index.html"); err != nil {
 		return false
 	}
+	// 只内嵌前端构建产物(/assets/*、favicon.svg)。
+	// 客户端接入文档截图与客户端图标属于系统统一资源目录(assets.dir)，
+	// 由 internal/server.registerClientAssetRoutes 从资源目录提供，不在此注册。
 	serve := gin.WrapH(http.FileServer(http.FS(dist)))
 	r.GET("/assets/*filepath", serve)
-	r.GET("/client-docs/*filepath", serve)
-	r.GET("/client-icons/*filepath", serve)
 	r.GET("/favicon.svg", gin.WrapH(http.FileServer(http.FS(dist))))
 	return true
 }

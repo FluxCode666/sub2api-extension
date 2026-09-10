@@ -471,24 +471,29 @@ func TestSetupRouter_FrontendStaticSkippedWithoutEnv(t *testing.T) {
 
 func TestSetupRouter_FrontendStaticServesIndexForSPARoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	// 创建临时 dist 目录(含 index.html 与 assets)
+	// 创建临时 dist 目录(含 index.html 与 assets)——前端构建产物仍由 dist 托管。
 	distDir := t.TempDir()
 	indexPath := filepath.Join(distDir, "index.html")
 	require.NoError(t, os.WriteFile(indexPath, []byte("<!doctype html><html><body>SPA</body></html>"), 0o644))
 	assetsDir := filepath.Join(distDir, "assets")
 	require.NoError(t, os.MkdirAll(assetsDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(assetsDir, "app.js"), []byte("console.log(1)"), 0o644))
-	clientDocsDir := filepath.Join(distDir, "client-docs", "claude-code")
-	require.NoError(t, os.MkdirAll(clientDocsDir, 0o755))
-	png := []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a}
-	require.NoError(t, os.WriteFile(filepath.Join(clientDocsDir, "cc-switch.png"), png, 0o644))
-	clientIconsDir := filepath.Join(distDir, "client-icons")
-	require.NoError(t, os.MkdirAll(clientIconsDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(clientIconsDir, "claude-code.svg"), []byte("<svg></svg>"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(distDir, "favicon.svg"), []byte("<svg></svg>"), 0o644))
 	t.Setenv("SUB2API_EXTENSION_FRONTEND_DIST", distDir)
 
+	// 客户端接入文档截图与客户端图标位于系统统一资源目录(assets.dir)，
+	// 而不是 dist 目录。
+	resourceDir := t.TempDir()
+	clientDocsDir := filepath.Join(resourceDir, "client-docs", "claude-code")
+	require.NoError(t, os.MkdirAll(clientDocsDir, 0o755))
+	png := []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a}
+	require.NoError(t, os.WriteFile(filepath.Join(clientDocsDir, "cc-switch.png"), png, 0o644))
+	clientIconsDir := filepath.Join(resourceDir, "client-icons")
+	require.NoError(t, os.MkdirAll(clientIconsDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(clientIconsDir, "claude-code.svg"), []byte("<svg></svg>"), 0o644))
+
 	cfg := newTestConfig()
+	cfg.Assets.Dir = resourceDir
 	healthHandler := web.NewHealthHandler()
 	authHandler, authService := newTestAuthDeps()
 	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler(), nil, nil)
@@ -501,7 +506,6 @@ func TestSetupRouter_FrontendStaticServesIndexForSPARoutes(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "SPA", "SPA 路由应 fallback 到 index.html")
 
 	// 客户端接入文档是 SPA 路由，直接访问或刷新带尾斜杠的入口都应返回 index.html。
-	// 修复后两个路径都明确注册为 GET 路由返回 index，不再重定向。
 	for _, path := range []string{"/client-docs", "/client-docs/"} {
 		reqClientDocs := httptest.NewRequest(http.MethodGet, path, nil)
 		wClientDocs := httptest.NewRecorder()
@@ -537,10 +541,20 @@ func TestSetupRouter_FrontendStaticServesIndexForSPARoutes(t *testing.T) {
 	require.Equal(t, http.StatusOK, w7.Code)
 	assert.Equal(t, "image/svg+xml", w7.Header().Get("Content-Type"))
 
+	// 缺失的静态文件返回 404，而不是 SPA index.html。
 	missingStatic := httptest.NewRequest(http.MethodGet, "/client-docs/claude-code/missing.png", nil)
 	missingStaticResponse := httptest.NewRecorder()
 	r.ServeHTTP(missingStaticResponse, missingStatic)
 	require.Equal(t, http.StatusNotFound, missingStaticResponse.Code)
+
+	// 子目录路径绝不输出目录列表(修复生产 embed 模式 /client-docs/ 显示资源目录的问题)。
+	for _, dirPath := range []string{"/client-docs/claude-code/", "/client-icons/"} {
+		reqDir := httptest.NewRequest(http.MethodGet, dirPath, nil)
+		wDir := httptest.NewRecorder()
+		r.ServeHTTP(wDir, reqDir)
+		require.Equal(t, http.StatusNotFound, wDir.Code, dirPath)
+		require.NotContains(t, wDir.Body.String(), "<pre>", dirPath+" 不应返回目录列表")
+	}
 
 	// /health 仍正常(不受静态托管影响)
 	req3 := httptest.NewRequest(http.MethodGet, "/health", nil)

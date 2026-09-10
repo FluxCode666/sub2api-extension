@@ -69,6 +69,12 @@ func main() {
 
 	log.Printf("sub2api-extension %s starting in %s mode", Version, cfg.Server.Mode)
 
+	// 生产 embed 构建首次启动时，将客户端接入文档截图与客户端图标种子资源
+	// 复制进统一资源目录(持久卷)。失败不阻断启动——缺失文件只会让对应请求 404。
+	if err := web.SeedClientAssets(cfg.Assets.Dir); err != nil {
+		log.Printf("[main] seed client assets into %q failed: %v", cfg.Assets.Dir, err)
+	}
+
 	// 初始化 Ent 客户端（连接 PostgreSQL）
 	entClient, err := initEnt(cfg)
 	if err != nil {

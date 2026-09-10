@@ -1,0 +1,5 @@
+This directory is populated by the release image build:
+COPY backend/data/assets/client-docs ./internal/web/seed/client-docs
+COPY backend/data/assets/client-icons ./internal/web/seed/client-icons
+This placeholder only keeps //go:embed seed valid for source builds; it is
+skipped by SeedClientAssets at runtime.

@@ -12,6 +12,11 @@ pnpm-lock.yaml.bak
 /backend/sub2api-extension
 /backend/bin/
 /backend/data/
+# 客户端接入文档截图与客户端图标是随仓库发布的种子资源，纳入版本管理；
+# 其余运行时文件(photos/、invoices/ 等)仍被忽略。
+!/backend/data/assets/
+!/backend/data/assets/client-docs/
+!/backend/data/assets/client-icons/
 *.exe
 *.exe~
 *.dll
