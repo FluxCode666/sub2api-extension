@@ -28,32 +28,10 @@ name: sub2api-extension
 
 services:
   # ===========================================================================
-  # Database schema migration (one-shot)
+  # Main application service
   # ===========================================================================
-  # 后端启动不会自动迁移。该服务在 aux-system 启动前创建/补齐本系统所需
-  # 的 pages、page_views、feature_clicks、system_meta、image_assets、
-  # invoice_requests、notification_channels、notification_deliveries 表及其新增字段。
-  # 它只操作本系统使用的表，不会修改 sub2api 自有表。
-  aux-migrate:
-    image: ${SUB2API_EXTENSION_IMAGE_REF:-${SUB2API_EXTENSION_IMAGE:?SUB2API_EXTENSION_IMAGE is required}:${SUB2API_EXTENSION_IMAGE_TAG:?SUB2API_EXTENSION_IMAGE_TAG is required}}
-    restart: "no"
-    command: ["-migrate"]
-    environment:
-      # ---- 数据库连接 ----
-      - DATABASE_HOST=${DATABASE_HOST:?DATABASE_HOST is required}
-      - DATABASE_PORT=${DATABASE_PORT:-5432}
-      - DATABASE_USER=${DATABASE_USER:?DATABASE_USER is required}
-      - DATABASE_PASSWORD=${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
-      - DATABASE_DBNAME=${DATABASE_DBNAME:?DATABASE_DBNAME is required}
-      - DATABASE_SSLMODE=${DATABASE_SSLMODE:-disable}
-
-      # config.Load 在 -migrate 模式下仍要求这两个配置存在。
-      - SUB2API_BASE_URL=${SUB2API_BASE_URL:?SUB2API_BASE_URL is required}
-      - JWT_SECRET=${SUB2API_EXTENSION_JWT_SECRET:?SUB2API_EXTENSION_JWT_SECRET is required}
-      - TZ=${TZ:-Asia/Shanghai}
-    networks:
-      - sub2api-network
-
+  # 应用启动时自动执行数据库迁移（Ent Schema.Create 幂等），
+  # 无需独立的迁移容器。如需禁用自动迁移，设置 AUTO_MIGRATE=false。
   aux-system:
     image: ${SUB2API_EXTENSION_IMAGE_REF:-${SUB2API_EXTENSION_IMAGE:?SUB2API_EXTENSION_IMAGE is required}:${SUB2API_EXTENSION_IMAGE_TAG:?SUB2API_EXTENSION_IMAGE_TAG is required}}
     container_name: ${SUB2API_EXTENSION_CONTAINER_NAME:-aux-system}
@@ -122,10 +100,7 @@ services:
     networks:
       - sub2api-network
     volumes:
-      - sub2api-extension-data:/app/data
-    depends_on:
-      aux-migrate:
-        condition: service_completed_successfully
+      - /root/docker-data/aux:/app/data
     healthcheck:
       test:
         [

@@ -21,6 +21,7 @@ func (j *Job) Active() bool {
 type Status struct {
 	Enabled bool   `json:"enabled"`
 	Reason  string `json:"reason,omitempty"`
+	Warning string `json:"warning,omitempty"` // 非阻断性提示（如容器内更新的持久性警告）
 	Job     *Job   `json:"job,omitempty"`
 }
 

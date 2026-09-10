@@ -35,6 +35,9 @@ type Manager struct {
 	job            *Job
 	running        bool
 	executable     func() (string, error)
+	ephemeralCheck func(string) bool // 可注入的临时环境检测，默认为 isEphemeralRuntime
+	ephemeralOnce  bool               // 缓存检测结果（首次调用后锁定）
+	ephemeralCache bool
 }
 
 func NewManager(source ReleaseSource, downloader BinaryReleaseClient, currentVersion string) *Manager {

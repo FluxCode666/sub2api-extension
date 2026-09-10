@@ -16,6 +16,10 @@ interface ReleaseInfo {
   reason?: string
 }
 
+interface UpdateResponse extends Job {
+  need_restart?: boolean
+}
+
 const finished = new Set(['succeeded', 'failed', 'rolled_back', 'rollback_failed'])
 const VersionContext = createContext<{ version?: string; open: () => void }>({ open: () => {} })
 const message = (error: unknown) => error instanceof Error ? error.message : '请求失败，请稍后重试'
@@ -62,6 +66,7 @@ export default function AdminVersionControl({ children }: PropsWithChildren) {
   const [reconnecting, setReconnecting] = useState(false)
   const [confirm, setConfirm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [needRestart, setNeedRestart] = useState(false)
   const mounted = useRef(true)
   const generation = useRef(0)
   const job = status?.job
@@ -118,7 +123,13 @@ export default function AdminVersionControl({ children }: PropsWithChildren) {
         if (!result.data) throw new Error('更新状态暂不可用')
         setStatus(result.data)
         setReconnecting(false)
-        if (result.data.job) setError('')
+        if (result.data.job) {
+          setError('')
+          // 检查任务是否刚完成且匹配当前 release 版本
+          if (finished.has(result.data.job.phase) && result.data.job.phase === 'succeeded' && release?.release.version === result.data.job.version) {
+            setNeedRestart(true)
+          }
+        }
         if (result.data.job && finished.has(result.data.job.phase)) {
           void loadBuild().catch(() => {})
           return
@@ -130,7 +141,7 @@ export default function AdminVersionControl({ children }: PropsWithChildren) {
     }
     timer = setTimeout(poll, 3000)
     return () => { cancelled = true; clearTimeout(timer) }
-  }, [open, active, reconnecting, submitting, loadBuild])
+  }, [open, active, reconnecting, submitting, loadBuild, release])
 
   const startUpdate = async () => {
     if (!release || submitting) return
@@ -142,9 +153,12 @@ export default function AdminVersionControl({ children }: PropsWithChildren) {
       // 15 minutes, matching Sub2API's in-process updater.
       // The server resolves the latest formal release itself, matching
       // Sub2API's synchronous PerformUpdate contract.
-      const response = await apiClient.post<AuxEnvelope<Job>>('/admin/system/update', undefined, { timeout: 15 * 60 * 1000 })
+      const response = await apiClient.post<AuxEnvelope<UpdateResponse>>('/admin/system/update', undefined, { timeout: 15 * 60 * 1000 })
       if (!response.data) throw new Error('更新任务响应为空，请检查任务状态')
-      if (mounted.current) setStatus({ enabled: true, job: response.data })
+      if (mounted.current) {
+        setStatus({ enabled: true, job: response.data })
+        if (response.data.need_restart) setNeedRestart(true)
+      }
     } catch (failure) {
       if (mounted.current) {
         setError(message(failure))
@@ -158,6 +172,12 @@ export default function AdminVersionControl({ children }: PropsWithChildren) {
 
   const justUpdated = job?.phase === 'succeeded' && job.version === release?.release.version
   const canUpdate = release?.canUpdate && status?.enabled && !active && !submitting && !loading && !error && !reconnecting && job?.phase !== 'rollback_failed' && !justUpdated
+
+  const handleRestartConfirmed = () => {
+    setNeedRestart(false)
+    void check()
+  }
+
   return (
     <VersionContext.Provider value={{ version: build?.version, open: () => setOpen(true) }}>
       {children}
@@ -173,6 +193,17 @@ export default function AdminVersionControl({ children }: PropsWithChildren) {
           </div>
           {loading && <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />正在检查发布信息…</p>}
           {error && <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p>}
+          {needRestart && justUpdated && (
+            <div role="alert" className="space-y-3 rounded-lg border-2 border-amber-500/30 bg-amber-50 p-4 dark:bg-amber-950/20">
+              <p className="font-medium text-amber-900 dark:text-amber-100">🎉 更新已完成</p>
+              <p className="text-sm leading-relaxed text-amber-800 dark:text-amber-200">
+                新版本二进制已原子替换到磁盘，但当前进程仍在运行旧版本。请重启服务以加载新版本：
+              </p>
+              <pre className="overflow-x-auto rounded bg-amber-100 p-2 text-xs dark:bg-amber-900/30">docker restart aux-system</pre>
+              <p className="text-xs text-amber-700 dark:text-amber-300">或使用 Docker Compose 重启（不要用 up -d，会重建容器）：</p>
+              <pre className="overflow-x-auto rounded bg-amber-100 p-2 text-xs dark:bg-amber-900/30">docker compose -f deploy/docker-compose.yml restart aux-system</pre>
+            </div>
+          )}
           {release && (
             <section aria-label="发布说明" className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -193,8 +224,8 @@ export default function AdminVersionControl({ children }: PropsWithChildren) {
           )}
           {confirm && <p className="rounded-lg border p-4 text-sm leading-6">确认更新到 <strong>{release?.release.version}</strong>？更新会下载并原子替换应用二进制，完成后需要重启服务。数据库迁移不会自动撤销，请先备份数据。</p>}
           <DialogFooter className="flex-wrap gap-2">
-            <Button variant="outline" disabled={loading || submitting || active} onClick={() => void check()}><RefreshCw className="mr-2 h-4 w-4" />重新检查</Button>
-            {justUpdated ? <Button onClick={() => window.location.reload()}>刷新控制台</Button> : confirm ? <>
+            {!needRestart && <Button variant="outline" disabled={loading || submitting || active} onClick={() => void check()}><RefreshCw className="mr-2 h-4 w-4" />重新检查</Button>}
+            {needRestart && justUpdated ? <Button onClick={handleRestartConfirmed}>我已重启，重新检查</Button> : confirm ? <>
               <Button variant="ghost" onClick={() => setConfirm(false)}>取消</Button>
               <Button disabled={!canUpdate} onClick={() => void startUpdate()}>确认更新</Button>
             </> : <Button disabled={!canUpdate} onClick={() => setConfirm(true)}>{submitting || active ? <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Download className="mr-2 h-4 w-4" />}{submitting ? '正在创建任务…' : active ? '更新进行中' : '更新到最新版本'}</Button>}

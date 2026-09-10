@@ -58,8 +58,7 @@ func main() {
 	}
 
 	// -migrate: 建表后退出, 不启动 HTTP 服务。
-	// 后端启动时不会自动迁移(避免生产环境意外改 schema),
-	// 开发环境用 `go run ./cmd/server -migrate` 或 `make migrate` 一次性建表。
+	// 保留此入口用于手动迁移和测试环境。
 	if *migrateOnly {
 		if err := runMigration(cfg); err != nil {
 			log.Fatalf("Migration failed: %v", err)
@@ -80,6 +79,21 @@ func main() {
 			log.Printf("Failed to close ent client: %v", err)
 		}
 	}()
+
+	// 启动时自动迁移（除非明确禁用）。Ent Schema.Create 是幂等的，
+	// 多次执行不会破坏已有数据。这简化了部署流程，消除独立迁移容器的需要。
+	if os.Getenv("AUTO_MIGRATE") != "false" {
+		log.Println("[migration] running automatic schema migration")
+		migrationCtx, migrationCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		if err := entClient.Schema.Create(migrationCtx); err != nil {
+			migrationCancel()
+			log.Fatalf("Automatic migration failed: %v", err)
+		}
+		migrationCancel()
+		log.Println("[migration] schema migration completed")
+	} else {
+		log.Println("[migration] automatic migration disabled by AUTO_MIGRATE=false")
+	}
 
 	// 页面上架需要直接修改 sub2api 的 settings.custom_menu_items。
 	// 未配置 SUB2API_DATABASE_HOST 时保持兼容：页面 CRUD 可用，但上架功能不可用。

@@ -45,7 +45,7 @@ describe('administrator version control', () => {
 
   it('confirms the version, starts once, and recovers job status when reopened', async () => {
     const job = { id: '1', version: 'v0.6.0', phase: 'queued', message: '更新任务已创建' }
-    post.mockImplementation(async () => { status = { enabled: true, job }; return { code: 0, data: job } })
+    post.mockImplementation(async () => { status = { enabled: true, job }; return { code: 0, data: { ...job, need_restart: true } } })
     await openDialog()
     await waitFor(() => expect(screen.getByRole('button', { name: '更新到最新版本' })).toBeEnabled())
     fireEvent.click(screen.getByRole('button', { name: '更新到最新版本' }))
@@ -58,7 +58,7 @@ describe('administrator version control', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     status = { enabled: true, job: { ...job, phase: 'succeeded', message: '更新完成，新版本已通过健康检查' } }
     fireEvent.click(screen.getByRole('button', { name: '查看版本与更新，当前 v0.5.0' }))
-    expect(await screen.findByRole('button', { name: '刷新控制台' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: '我已重启，重新检查' })).toBeInTheDocument()
   })
 
   it('polls after a lost POST response without sending a second update', async () => {
@@ -71,9 +71,9 @@ describe('administrator version control', () => {
     fireEvent.click(screen.getByRole('button', { name: '更新到最新版本' }))
     fireEvent.click(screen.getByRole('button', { name: '确认更新' }))
     expect(await screen.findByText(/连接暂时中断/)).toBeInTheDocument()
-    await waitFor(() => expect(screen.getByRole('button', { name: '刷新控制台' })).toBeInTheDocument(), { timeout: 4500 })
+    await waitFor(() => expect(screen.getByRole('button', { name: '我已重启，重新检查' })).toBeInTheDocument(), { timeout: 4500 })
     expect(post).toHaveBeenCalledTimes(1)
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('🎉 更新已完成')
   })
 
   it('keeps the current version and offers retry when GitHub is unavailable', async () => {
