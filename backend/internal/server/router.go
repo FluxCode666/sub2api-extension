@@ -134,18 +134,19 @@ func registerFrontendStatic(r *gin.Engine) {
 	}
 	indexPath := filepath.Join(abs, "index.html")
 
-	// /client-docs 是前端路由入口，不是静态目录页面。Gin 的静态目录路由
-	// 会优先处理带尾斜杠的目录请求，因此在路由匹配前拦截两个入口形式，
-	// 让刷新时返回 SPA index，而 /client-docs/<asset> 继续走静态文件服务。
-	r.Use(func(c *gin.Context) {
-		if c.Request.URL.Path == "/client-docs" || c.Request.URL.Path == "/client-docs/" {
-			c.File(indexPath)
-			c.Abort()
-		}
+	// /client-docs 是前端 React 路由入口，刷新时需要返回 SPA index.html。
+	// 明确注册这两个路径返回 index（包括带查询参数的情况如 ?client=codex），
+	// 而 /client-docs/* 子路径继续走静态文件服务（SDK 资源等）。
+	r.GET("/client-docs", func(c *gin.Context) {
+		c.File(indexPath)
+	})
+	r.GET("/client-docs/", func(c *gin.Context) {
+		c.File(indexPath)
 	})
 
 	// 静态资源（JS/CSS/图片等）
 	r.Static("/assets", filepath.Join(abs, "assets"))
+	// /client-docs/* 子路径映射到静态目录，但 /client-docs 本身已被上面的路由拦截
 	r.Static("/client-docs", filepath.Join(abs, "client-docs"))
 	r.Static("/client-icons", filepath.Join(abs, "client-icons"))
 	r.StaticFile("/favicon.svg", filepath.Join(abs, "favicon.svg"))
