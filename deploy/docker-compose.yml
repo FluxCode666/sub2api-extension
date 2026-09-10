@@ -135,7 +135,3 @@ networks:
     external: true
     name: sub2api_sub2api-network
 
-# 与系统数据共用的持久卷；图片位于 /app/data/assets/photos，发票位于 /app/data/assets/invoices。
-volumes:
-  sub2api-extension-data:
-    driver: local
