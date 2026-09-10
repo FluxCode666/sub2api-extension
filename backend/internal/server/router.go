@@ -134,22 +134,31 @@ func registerFrontendStatic(r *gin.Engine) {
 	}
 	indexPath := filepath.Join(abs, "index.html")
 
+	// 静态资源（JS/CSS/图片等）
+	r.Static("/assets", filepath.Join(abs, "assets"))
+	r.Static("/client-icons", filepath.Join(abs, "client-icons"))
+	r.StaticFile("/favicon.svg", filepath.Join(abs, "favicon.svg"))
+
 	// /client-docs 是前端 React 路由入口，刷新时需要返回 SPA index.html。
-	// 明确注册这两个路径返回 index（包括带查询参数的情况如 ?client=codex），
-	// 而 /client-docs/* 子路径继续走静态文件服务（SDK 资源等）。
+	// 同时 /client-docs/* 子路径需要提供静态文件（SDK 资源等）。
+	// Gin 不允许同时注册精确路由和通配符路由，因此使用 StaticFS 手动处理：
+	// - /client-docs 和 /client-docs/ 返回 index.html
+	// - /client-docs/* 返回静态文件
+	clientDocsFS := http.Dir(filepath.Join(abs, "client-docs"))
+	r.GET("/client-docs/*filepath", func(c *gin.Context) {
+		filepath := c.Param("filepath")
+		// 空路径或根路径返回 SPA index
+		if filepath == "" || filepath == "/" {
+			c.File(indexPath)
+			return
+		}
+		// 其他路径返回静态文件
+		c.FileFromFS(filepath, clientDocsFS)
+	})
+	// /client-docs（无尾斜杠）也返回 index
 	r.GET("/client-docs", func(c *gin.Context) {
 		c.File(indexPath)
 	})
-	r.GET("/client-docs/", func(c *gin.Context) {
-		c.File(indexPath)
-	})
-
-	// 静态资源（JS/CSS/图片等）
-	r.Static("/assets", filepath.Join(abs, "assets"))
-	// /client-docs/* 子路径映射到静态目录，但 /client-docs 本身已被上面的路由拦截
-	r.Static("/client-docs", filepath.Join(abs, "client-docs"))
-	r.Static("/client-icons", filepath.Join(abs, "client-icons"))
-	r.StaticFile("/favicon.svg", filepath.Join(abs, "favicon.svg"))
 
 	// SPA history fallback 由外层 NoRoute 调用: 设置 indexHandler 指向 index.html。
 	indexHandler = func(c *gin.Context) {
