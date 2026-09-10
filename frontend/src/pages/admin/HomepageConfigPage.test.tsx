@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import HomepageConfigPage from './HomepageConfigPage'
 import { apiClient } from '@/lib/api-client'
@@ -63,13 +63,19 @@ describe('HomepageConfigPage', () => {
 
   it('allows configuring the website logo URL', async () => {
     const user = userEvent.setup()
+    const config = { ...DEFAULT_HOMEPAGE_CONFIG, siteLogoUrl: '' }
+    const siteLogoUrl = 'https://example.com/logo.svg'
+    vi.mocked(apiClient.get).mockResolvedValue({ code: 0, data: config })
+    vi.mocked(apiClient.put).mockResolvedValue({ code: 0, data: { ...config, siteLogoUrl } })
 
     render(<HomepageConfigPage />)
 
     const logoInput = await screen.findByRole('textbox', { name: '官网 Logo URL' })
-    await user.type(logoInput, 'https://example.com/logo.svg')
+    await user.type(logoInput, siteLogoUrl)
+    await user.click(screen.getByRole('button', { name: '保存配置' }))
 
-    expect(logoInput).toHaveValue('https://example.com/logo.svg')
+    await waitFor(() => expect(apiClient.put).toHaveBeenCalledWith('/admin/homepage/config', expect.objectContaining({ siteLogoUrl })))
+    expect(logoInput).toHaveValue(siteLogoUrl)
   })
 
   it('allows configuring service metrics and descriptions', async () => {

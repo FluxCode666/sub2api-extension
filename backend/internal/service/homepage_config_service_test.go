@@ -228,3 +228,28 @@ func TestHomepageConfigService_SaveNormalizesPartnersAndLinks(t *testing.T) {
 	assert.Empty(t, saved.Integrations[1].DocumentationURL)
 	assert.Equal(t, &saved, store.config)
 }
+
+func TestHomepageConfigService_PersistsSiteLogoURL(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		value string
+		want  string
+	}{
+		{name: "external", value: " https://cdn.example.com/logo.svg ", want: "https://cdn.example.com/logo.svg"},
+		{name: "uploaded asset", value: "/api/aux/assets/2", want: "/api/aux/assets/2"},
+		{name: "protocol relative", value: "//cdn.example.com/logo.svg"},
+		{name: "unsafe scheme", value: "javascript:alert(1)"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			store := &memoryHomepageConfigStore{}
+			svc := NewHomepageConfigService(store)
+			saved, err := svc.Save(context.Background(), HomepageConfig{SiteLogoURL: test.value})
+			require.NoError(t, err)
+			assert.Equal(t, test.want, saved.SiteLogoURL)
+
+			loaded, err := svc.Get(context.Background())
+			require.NoError(t, err)
+			assert.Equal(t, test.want, loaded.SiteLogoURL)
+		})
+	}
+}

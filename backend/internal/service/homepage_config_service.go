@@ -287,6 +287,18 @@ func safeAssetURL(value string) string {
 	if value == "" {
 		return ""
 	}
+	// Uploaded image assets are exposed at same-origin paths such as
+	// /api/aux/assets/2. Keep those paths usable while rejecting protocol-
+	// relative URLs and control characters that could escape the site origin.
+	if strings.HasPrefix(value, "/") {
+		if strings.HasPrefix(value, "//") || strings.ContainsAny(value, "\\\r\n\t") {
+			return ""
+		}
+		if _, err := url.Parse(value); err != nil {
+			return ""
+		}
+		return value
+	}
 	parsed, err := url.Parse(value)
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
 		return ""

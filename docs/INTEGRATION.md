@@ -384,7 +384,7 @@ Sub2API 官网的运营配置位于管理端 `/admin/homepage`，不影响当前
 - 官网页面：`/sub2api-home`
 - 通用嵌入页面：`/embed`
 
-配置支持 `siteName` 网站名称、`siteLogoUrl` 官网 Logo、`showDevelopersSection` 开关、`showQuickstartSection` 开关、`trustedPartners` 合作伙伴列表和 `integrations` 接入生态列表。`showDevelopersSection` 控制「从代码，到增长」开发者板块及其导航入口，`showQuickstartSection` 控制「START IN MINUTES」快速接入板块，两个开关默认开启；每个接入生态项包含 `name`、`logoUrl`、`documentationUrl`，官网会将其展示为可点击的应用节点；同时支持 `documentationUrl` 使用文档、`termsUrl` 服务条款、`userTermsUrl` 用户条款、`privacyUrl` 隐私协议等链接。链接会在后端保存前清洗，仅允许站内路径、锚点和 `http(s)` URL；合作伙伴最多 24 个，接入生态最多 12 个，Logo 仅接受 `http(s)` URL。
+配置支持 `siteName` 网站名称、`siteLogoUrl` 官网 Logo、`showDevelopersSection` 开关、`showQuickstartSection` 开关、`trustedPartners` 合作伙伴列表和 `integrations` 接入生态列表。`showDevelopersSection` 控制「从代码，到增长」开发者板块及其导航入口，`showQuickstartSection` 控制「START IN MINUTES」快速接入板块，两个开关默认开启；每个接入生态项包含 `name`、`logoUrl`、`documentationUrl`，官网会将其展示为可点击的应用节点；同时支持 `documentationUrl` 使用文档、`termsUrl` 服务条款、`userTermsUrl` 用户条款、`privacyUrl` 隐私协议等链接。链接会在后端保存前清洗，仅允许站内路径、锚点和 `http(s)` URL；所有 Logo 字段支持 `http(s)` URL 或站内绝对路径（例如文件管理页生成的 `/api/aux/assets/2`）。
 
 `developersDocsUrl` 单独配置「BUILT FOR BUILDERS」板块的「接入文档」按钮链接，在后台「品牌与 Hero → 接入文档 URL」中维护。留空时沿用 `documentationUrl`，两者均为空时隐藏按钮；外部文档在新标签页打开。此配置同时适用于独立官网和嵌入页面。
 
