@@ -9,6 +9,7 @@
 package server
 
 import (
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -151,14 +152,14 @@ func registerClientAssetRoutes(r *gin.Engine, assetDir string) {
 	iconsRoot := filepath.Join(assetDir, "client-icons")
 
 	r.GET("/client-docs/*filepath", func(c *gin.Context) {
-		serveClientAsset(c, docsRoot, c.Param("filepath"), true)
+		serveClientAsset(c, docsRoot, "client-docs", c.Param("filepath"), true)
 	})
 	// /client-docs（无尾斜杠）是 React 路由入口，返回 SPA index。
 	r.GET("/client-docs", func(c *gin.Context) {
 		serveClientDocsIndex(c)
 	})
 	r.GET("/client-icons/*filepath", func(c *gin.Context) {
-		serveClientAsset(c, iconsRoot, c.Param("filepath"), false)
+		serveClientAsset(c, iconsRoot, "client-icons", c.Param("filepath"), false)
 	})
 }
 
@@ -175,7 +176,9 @@ func serveClientDocsIndex(c *gin.Context) {
 //
 // spaEntry 为 true 时(客户端接入文档)，根路径 /client-docs/ 返回 SPA index；
 // 为 false 时(客户端图标)，根路径直接 404。
-func serveClientAsset(c *gin.Context, root, rel string, spaEntry bool) {
+// 资源目录缺失文件时回退到内嵌种子(embed 构建)，保证生产持久卷未灌入种子时
+// 图标与截图仍可渲染；持久卷上的文件始终优先，管理员可直接覆盖。
+func serveClientAsset(c *gin.Context, root, seedPrefix, rel string, spaEntry bool) {
 	// 根路径(/client-docs/、/client-icons/)不列出目录内容。
 	if rel == "" || rel == "/" {
 		if spaEntry {
@@ -199,13 +202,27 @@ func serveClientAsset(c *gin.Context, root, rel string, spaEntry bool) {
 		c.Status(http.StatusNotFound)
 		return
 	}
-	info, err := os.Stat(abs)
-	if err != nil || info.IsDir() {
-		c.Status(http.StatusNotFound)
+	if info, err := os.Stat(abs); err == nil && !info.IsDir() {
+		c.Header("Cache-Control", "public, max-age=31536000, immutable")
+		c.File(abs)
 		return
 	}
-	c.Header("Cache-Control", "public, max-age=31536000, immutable")
-	c.File(abs)
+
+	// 资源目录无此文件：回退到内嵌种子(非 embed 构建无内容，直接 404)。
+	if data, ok := web.OpenSeededClientAsset(filepath.ToSlash(filepath.Join(seedPrefix, cleaned))); ok {
+		c.Header("Cache-Control", "public, max-age=31536000, immutable")
+		c.Data(http.StatusOK, contentTypeByName(cleaned), data)
+		return
+	}
+	c.Status(http.StatusNotFound)
+}
+
+// contentTypeByName 按文件扩展名推断 Content-Type，无法识别时退回 octet-stream。
+func contentTypeByName(name string) string {
+	if ct := mime.TypeByExtension(filepath.Ext(name)); ct != "" {
+		return ct
+	}
+	return "application/octet-stream"
 }
 
 // registerCommonRoutes 注册通用路由（健康检查等）。

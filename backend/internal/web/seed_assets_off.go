@@ -7,3 +7,8 @@ package web
 func SeedClientAssets(assetDir string) error {
 	return nil
 }
+
+// OpenSeededClientAsset 在非 embed 构建中始终无内容：本地开发资源直接来自 assets.dir。
+func OpenSeededClientAsset(rel string) ([]byte, bool) {
+	return nil, false
+}

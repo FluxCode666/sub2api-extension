@@ -19,6 +19,19 @@ import (
 //go:embed seed
 var seedFS embed.FS
 
+// OpenSeededClientAsset 从内嵌种子读取单个客户端资源(相对 seed 的路径，
+// 如 "client-icons/claude-code.svg" 或 "client-docs/claude-code/cc-switch.png")。
+//
+// 用于资源目录缺失文件时的回退：持久卷上的文件优先，内嵌种子兜底，
+// 保证生产环境即使首启种子写入失败，图标与截图仍可渲染。
+func OpenSeededClientAsset(rel string) ([]byte, bool) {
+	data, err := seedFS.ReadFile(filepath.ToSlash(filepath.Join("seed", filepath.FromSlash(rel))))
+	if err != nil {
+		return nil, false
+	}
+	return data, true
+}
+
 func SeedClientAssets(assetDir string) error {
 	dir := strings.TrimSpace(assetDir)
 	if dir == "" {
