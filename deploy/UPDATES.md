@@ -5,7 +5,7 @@
 ## 首次安装或从旧版本升级
 
 1. 备份 PostgreSQL 数据和 `/app/data` 上传资源。保留既有端口、数据库、JWT 和数据卷配置。
-2. 从目标正式 Release 下载 `deploy/docker-compose.yml`、`deploy/UPDATES.md` 和对应应用镜像。生产 Compose 只包含 `aux-migrate` 与 `aux-backend`，不需要 `docker-compose.update.yml`、`aux-updater` 或 Docker socket。
+2. 从目标正式 Release 下载 `deploy/docker-compose.yml`、`deploy/UPDATES.md` 和对应应用镜像。生产 Compose 只包含 `aux-system` 一个服务（应用启动时自动迁移），不需要 `docker-compose.update.yml`、`aux-updater`、`aux-migrate` 或 Docker socket。
 3. 在部署目录的 `.env` 中配置应用镜像、外部 PostgreSQL、Sub2API 地址和固定 JWT 密钥：
 
 ```dotenv
