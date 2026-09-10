@@ -21,7 +21,7 @@ jobs:
     uses: ./.github/workflows/ci.yml
 
   release:
-    name: 构建镜像并发布 Release
+    name: 构建镜像、更新包并发布 Release
     needs: quality-gate
     runs-on: ubuntu-latest
     permissions:
@@ -62,26 +62,16 @@ jobs:
           cache-from: type=gha,scope=sub2api-extension-release
           cache-to: type=gha,mode=max,scope=sub2api-extension-release
 
-      - name: 构建独立更新服务镜像
-        id: updater
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          target: updater
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.image }}:${{ github.ref_name }}-updater
-          build-args: |
-            VERSION=${{ github.ref_name }}
-            COMMIT=${{ github.sha }}
-            DATE=${{ steps.meta.outputs.date }}
-          cache-from: type=gha,scope=sub2api-extension-release
+      - name: 构建当前平台二进制更新包
+        env:
+          RELEASE_IMAGE: ${{ steps.meta.outputs.image }}
+          RELEASE_DATE: ${{ steps.meta.outputs.date }}
+        run: bash .github/scripts/build-release-assets.sh
 
       - name: 发布中文 Release 与更新清单
         env:
           RELEASE_IMAGE: ${{ steps.meta.outputs.image }}
           APP_DIGEST: ${{ steps.app.outputs.digest }}
-          UPDATER_DIGEST: ${{ steps.updater.outputs.digest }}
           IS_LATEST: ${{ steps.meta.outputs.latest }}
           IS_PRERELEASE: ${{ steps.meta.outputs.prerelease }}
         run: python3 .github/scripts/publish-release.py
@@ -91,7 +81,5 @@ jobs:
         env:
           RELEASE_IMAGE: ${{ steps.meta.outputs.image }}
           APP_DIGEST: ${{ steps.app.outputs.digest }}
-          UPDATER_DIGEST: ${{ steps.updater.outputs.digest }}
         run: |
           docker buildx imagetools create --tag "$RELEASE_IMAGE:latest" "$RELEASE_IMAGE@$APP_DIGEST"
-          docker buildx imagetools create --tag "$RELEASE_IMAGE:latest-updater" "$RELEASE_IMAGE@$UPDATER_DIGEST"

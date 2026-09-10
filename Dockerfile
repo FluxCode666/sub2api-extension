@@ -8,14 +8,14 @@
 # Stage 3: 最终运行时镜像（后端内嵌前端 dist，单进程同源托管）
 #
 # 镜像风格参考 sub2api/Dockerfile（多阶段 + 缓存挂载 + 非根用户）。
-# 后端在运行时通过 SUB2API_EXTENSION_FRONTEND_DIST 环境变量指向 /app/frontend/dist，
-# 由 router.go 的 registerFrontendStatic 托管 SPA（同源，避免 CORS）。
+# Release 二进制通过 embed 标签内嵌前端；SUB2API_EXTENSION_FRONTEND_DIST
+# 仅作为源码/开发构建的目录托管回退，由 router.go 的 registerFrontendStatic
+# 托管 SPA（同源，避免 CORS）。
 # =============================================================================
 
 ARG NODE_IMAGE=node:24-alpine
 ARG GOLANG_IMAGE=golang:1.26.5-alpine
 ARG ALPINE_IMAGE=alpine:3.21
-ARG DOCKER_CLI_IMAGE=docker:28-cli
 ARG GOPROXY=https://goproxy.cn,direct
 ARG GOSUMDB=sum.golang.google.cn
 ARG NPM_CONFIG_REGISTRY=
@@ -78,27 +78,23 @@ RUN --mount=type=cache,id=aux-gomod,target=/go/pkg/mod \
 
 # 复制后端源码
 COPY backend/ ./
+# 将生产前端放入 Go 包目录，由 release 构建以 embed 标签编译进单一二进制。
+COPY --from=frontend-builder /app/frontend/dist ./internal/web/dist
 
 # 构建二进制（纯 Go，交叉编译）
 RUN --mount=type=cache,id=aux-gomod,target=/go/pkg/mod \
     --mount=type=cache,id=aux-gobuild,target=/root/.cache/go-build \
     DATE_VALUE="${DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}" && \
     CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build \
+    -tags embed \
     -ldflags="-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.Date=${DATE_VALUE}" \
     -trimpath \
     -o /app/aux-server \
-    ./cmd/server && \
-    CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build \
-    -ldflags="-s -w" -trimpath -o /app/aux-updater ./cmd/updater
+    ./cmd/server
 
 # -----------------------------------------------------------------------------
 # Stage 3: Final Runtime Image
 # -----------------------------------------------------------------------------
-# 独立更新镜像：只有此服务持有 Docker socket，应用镜像保持非 root。
-FROM ${DOCKER_CLI_IMAGE} AS updater
-COPY --from=backend-builder /app/aux-updater /usr/local/bin/aux-updater
-ENTRYPOINT ["/usr/local/bin/aux-updater"]
-
 FROM ${ALPINE_IMAGE} AS app
 ARG VERSION=0.1.0-dev
 ARG COMMIT=docker
@@ -128,8 +124,9 @@ COPY --from=backend-builder --chown=aux:aux /app/aux-server /app/aux-server
 # 复制前端构建产物（后端同源托管）
 COPY --from=frontend-builder --chown=aux:aux /app/frontend/dist /app/frontend/dist
 
-# 创建图片数据目录（数据库只存资源相对路径）
-RUN mkdir -p /app/data/assets/photos && chown -R aux:aux /app/data
+# 创建图片数据目录（数据库只存资源相对路径）。/app 目录也必须由运行用户
+# 可写，因为原地更新会在此目录内创建临时文件并原子替换当前二进制。
+RUN mkdir -p /app/data/assets/photos && chown -R aux:aux /app
 
 # 暴露端口（默认 8787，与 config 默认一致）
 EXPOSE 8787

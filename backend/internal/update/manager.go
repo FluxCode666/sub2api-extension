@@ -1,269 +1,340 @@
 package update
 
 import (
+	"archive/tar"
+	"bufio"
+	"compress/gzip"
 	"context"
-	"encoding/json"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
-	"log"
-	"net/http"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
 
-type Installed struct {
-	Image   string `json:"image"`
-	Version string `json:"version"`
+var ErrNoUpdateAvailable = errors.New("当前已是最新版本，无需更新")
+
+type BinaryReleaseClient interface {
+	DownloadFile(context.Context, string, string) error
+	FetchChecksumFile(context.Context, string) ([]byte, error)
 }
 
-type Engine interface {
-	Current(context.Context) (Installed, error)
-	Pull(context.Context, string) error
-	Migrate(context.Context, string) error
-	Restart(context.Context, string) error
-	Healthy(context.Context, string) error
-	Commit(string, string) error
-	Cleanup(context.Context) error
-}
-
-type savedJob struct {
-	Job      *Job      `json:"job"`
-	Previous Installed `json:"previous"`
-}
-
+// Manager applies releases inside the running process. The process keeps the
+// old executable open while a new file is downloaded, then atomically swaps
+// the path and leaves a .backup beside it for rollback after restart.
 type Manager struct {
-	mu        sync.Mutex
-	releases  ReleaseSource
-	engine    Engine
-	statePath string
-	saved     savedJob
-	running   bool
+	mu             sync.Mutex
+	releases       ReleaseSource
+	downloader     BinaryReleaseClient
+	currentVersion string
+	job            *Job
+	running        bool
+	executable     func() (string, error)
 }
 
-func NewManager(source ReleaseSource, engine Engine, statePath string) (*Manager, error) {
-	m := &Manager{releases: source, engine: engine, statePath: statePath}
-	data, err := os.ReadFile(statePath)
-	if err == nil {
-		if err := json.Unmarshal(data, &m.saved); err != nil {
-			return nil, errors.New("更新状态文件损坏，请检查后恢复")
-		}
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return nil, err
+func NewManager(source ReleaseSource, downloader BinaryReleaseClient, currentVersion string) *Manager {
+	return &Manager{
+		releases:       source,
+		downloader:     downloader,
+		currentVersion: strings.TrimSpace(currentVersion),
+		executable:     executablePath,
 	}
-	if m.saved.Job.Active() {
-		// 上一轮进程退出时任务可能已替换应用，先恢复旧镜像再接受新任务。
-		if !digestPattern.MatchString(m.saved.Previous.Image) || !ValidVersion(m.saved.Previous.Version) {
-			return nil, errors.New("未完成任务缺少回退信息，需要人工检查")
-		}
-		m.running = true
-		go m.rollback("更新服务曾中断，正在恢复原版本")
-	}
-	return m, nil
-}
-
-func atomicWrite(path string, data []byte, mode os.FileMode) error {
-	f, err := os.CreateTemp(filepath.Dir(path), ".update-*")
-	if err != nil {
-		return err
-	}
-	name := f.Name()
-	defer func() { _ = os.Remove(name) }()
-	if err = f.Chmod(mode); err == nil {
-		_, err = f.Write(data)
-	}
-	if err == nil {
-		err = f.Sync()
-	}
-	closeErr := f.Close()
-	if err != nil {
-		return err
-	}
-	if closeErr != nil {
-		return closeErr
-	}
-	return os.Rename(name, path)
-}
-
-func (m *Manager) saveLocked() error {
-	data, err := json.Marshal(m.saved)
-	if err != nil {
-		return err
-	}
-	return atomicWrite(m.statePath, data, 0600)
-}
-
-func (m *Manager) phase(phase, message string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.saved.Job.Phase, m.saved.Job.Message, m.saved.Job.UpdatedAt = phase, message, time.Now().UTC()
-	log.Printf("更新 %s [%s]: %s", m.saved.Job.Version, phase, message)
-	return m.saveLocked()
 }
 
 func (m *Manager) Status(_ context.Context) Status {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	s := Status{Enabled: true}
-	if m.saved.Job != nil {
-		job := *m.saved.Job
-		s.Job = &job
-		if job.Phase == "rollback_failed" {
-			s.Enabled = false
-			s.Reason = "上次自动回退未完成，请先人工恢复服务并检查更新状态文件"
+	status := Status{Enabled: true}
+	if m.downloader == nil || m.releases == nil {
+		status.Enabled = false
+		status.Reason = "更新客户端未配置"
+	}
+	if status.Enabled {
+		path, err := m.executable()
+		if err != nil {
+			status.Enabled = false
+			status.Reason = "无法定位当前可执行文件"
+		} else if info, err := os.Stat(filepath.Dir(path)); err != nil || info.Mode().Perm()&0222 == 0 {
+			status.Enabled = false
+			status.Reason = "当前运行环境不支持原地更新，请检查可执行文件目录权限"
 		}
 	}
-	return s
+	if m.job != nil {
+		job := *m.job
+		status.Job = &job
+	}
+	if m.running {
+		status.Enabled = false
+		status.Reason = "已有更新任务正在执行"
+	}
+	return status
 }
 
 func (m *Manager) Start(ctx context.Context, version string) (*Job, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.running || m.saved.Job.Active() {
-		return nil, errors.New("已有更新任务正在执行")
+	if ctx == nil {
+		ctx = context.Background()
 	}
-	if m.saved.Job != nil && m.saved.Job.Phase == "rollback_failed" {
-		return nil, errors.New("上次回退失败，请先人工恢复服务并检查更新状态文件")
-	}
-	if !ValidVersion(version) {
+	version = strings.TrimSpace(version)
+	if version != "" && !ValidVersion(version) {
 		return nil, errors.New("版本号无效")
 	}
+
+	m.mu.Lock()
+	if m.running {
+		m.mu.Unlock()
+		return nil, errors.New("已有更新任务正在执行")
+	}
+	if m.downloader == nil || m.releases == nil {
+		m.mu.Unlock()
+		return nil, errors.New("更新客户端未配置")
+	}
+	m.mu.Unlock()
+
+	// Resolve the target from the server-side latest Release. An optional
+	// requested version is only a stale-page guard; it never controls a URL.
 	release, err := m.releases.Latest(ctx, true)
 	if err != nil {
 		return nil, err
 	}
-	if release.Version != version {
+	if release == nil {
+		return nil, errors.New("最新发布信息为空")
+	}
+	if version == "" {
+		version = release.Version
+	} else if release.Version != version {
 		return nil, errors.New("最新版本已变化，请重新检查更新")
 	}
-	if release.Manifest == nil {
-		return nil, errors.New("此版本不支持自动更新")
+	if !ValidVersion(version) {
+		return nil, errors.New("最新发布版本号无效")
 	}
-	previous, err := m.engine.Current(ctx)
-	if err != nil {
-		return nil, err
+
+	m.mu.Lock()
+	if m.running {
+		m.mu.Unlock()
+		return nil, errors.New("已有更新任务正在执行")
 	}
-	if !Newer(version, previous.Version) {
-		return nil, errors.New("当前已是此版本或更新版本，无需更新")
+	if !Newer(version, m.currentVersion) {
+		m.mu.Unlock()
+		return nil, ErrNoUpdateAvailable
 	}
 	now := time.Now().UTC()
-	m.saved = savedJob{Job: &Job{ID: fmt.Sprintf("%d", now.UnixNano()), Version: version, Phase: "queued", Message: "更新任务已创建", StartedAt: now, UpdatedAt: now}, Previous: previous}
-	if err := m.saveLocked(); err != nil {
-		m.saved.Job = nil
-		return nil, errors.New("无法保存更新任务，请检查更新卷权限和磁盘空间")
-	}
 	m.running = true
-	job := *m.saved.Job
-	go m.run(release)
+	m.job = &Job{ID: fmt.Sprintf("%d", now.UnixNano()), Version: version, Phase: "queued", Message: "更新任务已创建", StartedAt: now, UpdatedAt: now}
+	job := *m.job
+	m.mu.Unlock()
+
+	err = m.perform(ctx, version, release)
+	m.mu.Lock()
+	m.running = false
+	if err != nil {
+		m.job.Phase = "failed"
+		m.job.Message = "更新失败：" + err.Error()
+		m.job.UpdatedAt = time.Now().UTC()
+		m.mu.Unlock()
+		return nil, err
+	}
+	m.currentVersion = strings.TrimPrefix(version, "v")
+	m.job.Phase = "succeeded"
+	m.job.Message = "更新完成，请重启应用"
+	m.job.UpdatedAt = time.Now().UTC()
+	job = *m.job
+	m.mu.Unlock()
 	return &job, nil
 }
 
-func (m *Manager) finish(phase, message string) {
-	if err := m.phase(phase, message); err != nil {
-		log.Printf("保存更新状态失败: %v", err)
-	}
-	m.mu.Lock()
-	m.running = false
-	m.mu.Unlock()
+// PerformUpdate mirrors Sub2API's synchronous update service API. The handler
+// can call Start when it needs the compatibility job payload, while callers
+// that only need the operation result can use this method.
+func (m *Manager) PerformUpdate(ctx context.Context) error {
+	_, err := m.Start(ctx, "")
+	return err
 }
 
-func (m *Manager) run(release *Release) {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
-	defer cancel()
-	ref := release.Manifest.Image + "@" + release.Manifest.Digest
-	steps := []struct {
-		phase, message string
-		run            func() error
-	}{
-		{"pulling", "正在下载并校验新版本镜像", func() error { return m.engine.Pull(ctx, ref) }},
-		{"migrating", "正在执行数据库迁移", func() error { return m.engine.Migrate(ctx, ref) }},
-		{"restarting", "正在重启应用，控制台将自动重连", func() error { return m.engine.Restart(ctx, ref) }},
-		{"checking", "正在检查新版本健康状态", func() error { return m.engine.Healthy(ctx, ref) }},
-		{"recording", "正在保存已安装版本", func() error { return m.engine.Commit(release.Version, ref) }},
+func (m *Manager) perform(ctx context.Context, version string, release *Release) error {
+	if release == nil || release.Version != version {
+		return errors.New("最新版本已变化，请重新检查更新")
 	}
-	replaced := false
-	for _, step := range steps {
-		err := m.phase(step.phase, step.message)
-		if err == nil {
-			if step.phase == "restarting" {
-				replaced = true
-			}
-			err = step.run()
+	m.mu.Lock()
+	current := m.currentVersion
+	m.mu.Unlock()
+	if !Newer(version, current) {
+		return ErrNoUpdateAvailable
+	}
+	asset, ok := m.findBinaryAsset(release)
+	if !ok {
+		return fmt.Errorf("此版本没有适用于当前平台的更新包（%s）", archiveName())
+	}
+	path, err := m.executable()
+	if err != nil {
+		return fmt.Errorf("无法定位当前可执行文件：%w", err)
+	}
+	dir := filepath.Dir(path)
+	tempDir, err := os.MkdirTemp(dir, ".sub2api-extension-update-")
+	if err != nil {
+		return fmt.Errorf("无法创建更新临时目录：%w", err)
+	}
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	archivePath := filepath.Join(tempDir, filepath.Base(asset.Name))
+	if err := m.updatePhase("downloading", "正在下载当前平台更新包"); err != nil {
+		return err
+	}
+	if err := m.downloader.DownloadFile(ctx, asset.DownloadURL, archivePath); err != nil {
+		return fmt.Errorf("下载失败：%w", err)
+	}
+	if checksum := checksumAsset(release); checksum != nil {
+		if err := m.updatePhase("checking", "正在校验更新包"); err != nil {
+			return err
 		}
-		if err == nil {
+		data, err := m.downloader.FetchChecksumFile(ctx, checksum.DownloadURL)
+		if err != nil {
+			return fmt.Errorf("下载校验文件失败：%w", err)
+		}
+		if err := verifyChecksum(archivePath, data); err != nil {
+			return fmt.Errorf("校验失败：%w", err)
+		}
+	}
+
+	newBinary := filepath.Join(tempDir, "aux-server")
+	if err := extractBinary(archivePath, newBinary); err != nil {
+		return fmt.Errorf("解压失败：%w", err)
+	}
+	if err := os.Chmod(newBinary, 0755); err != nil {
+		return fmt.Errorf("设置可执行权限失败：%w", err)
+	}
+	if err := m.updatePhase("replacing", "正在原子替换应用二进制"); err != nil {
+		return err
+	}
+	backup := path + ".backup"
+	_ = os.Remove(backup)
+	if err := os.Rename(path, backup); err != nil {
+		return fmt.Errorf("备份当前二进制失败：%w", err)
+	}
+	if err := os.Rename(newBinary, path); err != nil {
+		if restoreErr := os.Rename(backup, path); restoreErr != nil {
+			return fmt.Errorf("替换失败且无法恢复旧二进制：%w（恢复错误：%v）", err, restoreErr)
+		}
+		return fmt.Errorf("替换失败（已恢复旧二进制）：%w", err)
+	}
+	return nil
+}
+
+func (m *Manager) updatePhase(phase, message string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.job == nil {
+		return errors.New("更新任务不存在")
+	}
+	m.job.Phase, m.job.Message, m.job.UpdatedAt = phase, message, time.Now().UTC()
+	return nil
+}
+
+func (m *Manager) findBinaryAsset(release *Release) (Asset, bool) {
+	name := archiveName()
+	for _, asset := range release.Assets {
+		if asset.Name == name && asset.DownloadURL != "" {
+			return asset, true
+		}
+	}
+	return Asset{}, false
+}
+
+func checksumAsset(release *Release) *Asset {
+	for i := range release.Assets {
+		if release.Assets[i].Name == checksumsAssetName && release.Assets[i].DownloadURL != "" {
+			return &release.Assets[i]
+		}
+	}
+	return nil
+}
+
+func executablePath() (string, error) {
+	path, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	return filepath.EvalSymlinks(path)
+}
+
+func verifyChecksum(path string, checksums []byte) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = f.Close() }()
+	hash := sha256.New()
+	if _, err := io.Copy(hash, f); err != nil {
+		return err
+	}
+	actual := hex.EncodeToString(hash.Sum(nil))
+	name := filepath.Base(path)
+	scanner := bufio.NewScanner(strings.NewReader(string(checksums)))
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+		if len(fields) == 2 && strings.TrimPrefix(fields[1], "*") == name {
+			if !strings.EqualFold(fields[0], actual) {
+				return fmt.Errorf("SHA-256 不匹配：期望 %s，实际 %s", fields[0], actual)
+			}
+			return nil
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+	return fmt.Errorf("校验文件中没有 %s", name)
+}
+
+func extractBinary(archivePath, destPath string) error {
+	f, err := os.Open(archivePath)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = f.Close() }()
+	var reader io.Reader = f
+	if strings.HasSuffix(archivePath, ".gz") || strings.HasSuffix(archivePath, ".tgz") {
+		gz, err := gzip.NewReader(f)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = gz.Close() }()
+		reader = gz
+	}
+	tr := tar.NewReader(reader)
+	for {
+		header, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		if header.Typeflag != tar.TypeReg || header.Size < 0 || header.Size > maxDownloadSize {
 			continue
 		}
-		if replaced {
-			m.rollback("更新失败：" + err.Error())
-			return
+		if strings.Contains(header.Name, "..") || filepath.Base(header.Name) != "aux-server" {
+			continue
 		}
-		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), time.Minute)
-		cleanupErr := m.engine.Cleanup(cleanupCtx)
-		cleanupCancel()
-		message := "更新失败：" + err.Error() + "。应用仍使用原版本；数据库迁移不会自动撤销。"
-		if cleanupErr != nil {
-			m.finish("rollback_failed", message+" 迁移容器清理失败，请人工检查。")
-			return
-		}
-		m.finish("failed", message)
-		return
-	}
-	if err := m.phase("succeeded", "更新完成，新版本已通过健康检查"); err != nil {
-		m.rollback("无法持久化更新结果")
-		return
-	}
-	m.mu.Lock()
-	m.running = false
-	m.mu.Unlock()
-}
-
-func (m *Manager) rollback(reason string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
-	defer cancel()
-	_ = m.phase("rolling_back", reason+"，正在回退应用")
-	m.mu.Lock()
-	previous := m.saved.Previous
-	m.mu.Unlock()
-	err := m.engine.Cleanup(ctx)
-	if err == nil {
-		err = m.engine.Restart(ctx, previous.Image)
-	}
-	if err == nil {
-		err = m.engine.Healthy(ctx, previous.Image)
-	}
-	if err == nil {
-		err = m.engine.Commit(previous.Version, previous.Image)
-	}
-	if err != nil {
-		m.finish("rollback_failed", "自动回退未完成，请人工检查 aux-updater 日志和应用健康状态。数据库迁移不会自动撤销。")
-		return
-	}
-	m.finish("rolled_back", reason+"。已恢复原应用镜像；数据库迁移不会自动撤销。")
-}
-
-// Handler 只能绑定 Unix socket，不开放公网监听端口。
-func (m *Manager) Handler() http.Handler {
-	mux := http.NewServeMux()
-	write := func(w http.ResponseWriter, status int, data any) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(status)
-		_ = json.NewEncoder(w).Encode(data)
-	}
-	mux.HandleFunc("GET /status", func(w http.ResponseWriter, r *http.Request) { write(w, 200, m.Status(r.Context())) })
-	mux.HandleFunc("POST /update", func(w http.ResponseWriter, r *http.Request) {
-		var request UpdateRequest
-		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024))
-		decoder.DisallowUnknownFields()
-		if decoder.Decode(&request) != nil {
-			write(w, 400, map[string]string{"message": "更新请求无效"})
-			return
-		}
-		job, err := m.Start(r.Context(), request.Version)
+		out, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 		if err != nil {
-			write(w, 409, map[string]string{"message": err.Error()})
-			return
+			return err
 		}
-		write(w, 202, job)
-	})
-	return mux
+		written, copyErr := io.Copy(out, io.LimitReader(tr, header.Size+1))
+		closeErr := out.Close()
+		if copyErr != nil {
+			return copyErr
+		}
+		if closeErr != nil {
+			return closeErr
+		}
+		if written != header.Size {
+			return fmt.Errorf("更新包中的 aux-server 不完整")
+		}
+		return nil
+	}
+	return errors.New("更新包中没有 aux-server 二进制")
 }

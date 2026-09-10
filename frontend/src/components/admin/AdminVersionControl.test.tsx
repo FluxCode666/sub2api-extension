@@ -37,9 +37,9 @@ describe('administrator version control', () => {
   })
 
   it('explains disabled updates when the helper is not installed', async () => {
-    status = { enabled: false, reason: '尚未启用更新服务' }
+    status = { enabled: false, reason: '当前运行环境不支持原地更新' }
     await openDialog()
-    expect(await screen.findByText('尚未启用更新服务')).toBeInTheDocument()
+    expect(await screen.findByText('当前运行环境不支持原地更新')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '更新到最新版本' })).toBeDisabled()
   })
 
@@ -53,7 +53,7 @@ describe('administrator version control', () => {
     fireEvent.click(screen.getByRole('button', { name: '确认更新' }))
     expect(await screen.findByText('更新任务已创建')).toBeInTheDocument()
     expect(post).toHaveBeenCalledTimes(1)
-    expect(post).toHaveBeenCalledWith('/admin/system/update', { version: 'v0.6.0' }, { timeout: 35000 })
+    expect(post).toHaveBeenCalledWith('/admin/system/update', undefined, { timeout: 15 * 60 * 1000 })
     expect(screen.getByRole('button', { name: '更新进行中' })).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     status = { enabled: true, job: { ...job, phase: 'succeeded', message: '更新完成，新版本已通过健康检查' } }

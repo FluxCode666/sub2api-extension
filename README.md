@@ -73,7 +73,7 @@
 - **分析仪表盘** —— 聚合当前注册页面的访问量与功能使用度，历史已删除页面的数据保留但不展示
 - **标准 API 信封** —— `{code, message, data?}` 成功 / `{code, message, reason?}` 错误
 - **单镜像部署** —— 多阶段 Docker 构建，后端同源托管前端 dist，无 CORS
-- **CI/CD 流水线** —— GitHub Actions 四条工作流（CI / 安全扫描 / 测试部署 / Release 发布），多架构镜像构建推送 GHCR，中文 Release、管理员主动更新、健康检查与应用回退
+- **CI/CD 流水线** —— GitHub Actions 四条工作流（CI / 安全扫描 / 测试部署 / Release 发布），多架构镜像和二进制更新包发布到 GitHub/GHCR，管理员主动更新与原子回退
 
 ## 管理员动态页面编写能力
 
@@ -214,7 +214,7 @@ docker compose -f docker-compose.yml --env-file .env up -d
 `127.0.0.1:8787`，避免公网绕过 TLS 直接访问应用端口。NGINX 配置和安装步骤见
 [deploy/nginx/README.md](deploy/nginx/README.md)。
 
-测试部署仍由 `test` 分支 push 触发。推送新的版本 tag 后，Release 工作流会先执行完整 CI，再构建 amd64/arm64 应用及独立更新服务镜像，发布中文 GitHub Release；不会连接或部署生产服务器。管理员可点击控制台左上角版本号查看最新发布并主动更新，健康检查失败时回退应用镜像。首次使用需启用更新服务，见 [安装与更新指南](deploy/UPDATES.md)；流水线与测试环境配置见 [.github/CICD.md](.github/CICD.md)。
+测试部署仍由 `test` 分支 push 触发。推送新的版本 tag 后，Release 工作流会先执行完整 CI，再构建 amd64/arm64 应用镜像和二进制更新包，发布中文 GitHub Release；不会连接或部署生产服务器。管理员可点击控制台左上角版本号查看最新发布并主动更新，应用会原子替换自身二进制，完成后按部署方式重启。安装与更新见 [安装与更新指南](deploy/UPDATES.md)；流水线与测试环境配置见 [.github/CICD.md](.github/CICD.md)。
 
 ## 本地开发
 

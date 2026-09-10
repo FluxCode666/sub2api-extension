@@ -1,84 +1,56 @@
 # 安装、发布与控制台更新
 
-推送新版本 tag 后，GitHub Actions 只进行质量检查、Docker 构建和 Release 发布。生产服务器继续运行原版本；管理员在控制台点击左上角版本号，查看发布说明后选择更新。
+推送新版本 tag 后，GitHub Actions 只做质量检查、Docker 镜像构建、二进制更新包构建和 Release 发布。生产服务器继续运行当前版本；管理员在控制台点击左上角版本号后主动更新。
 
-## 首次安装或从旧版本启用更新服务
+## 首次安装或从旧版本升级
 
-旧版本没有更新接口，首次需要手动安装带更新服务的新版本。此步骤只做一次，之后可在控制台更新应用。
-
-1. 备份 PostgreSQL 数据及上传文件数据卷。保留既有 `COMPOSE_PROJECT_NAME`、容器名称、网络、端口、数据库、JWT 与 `/app/data` 数据卷配置。可用 `docker inspect <当前容器> --format '{{index .Config.Labels "com.docker.compose.project"}}'` 确认既有 project。
-2. 从目标正式 Release 下载 `docker-compose.yml`、`docker-compose.update.yml` 和本指南，放到同一个部署目录。合并既有网络和挂载定制；不要盲目覆盖自定义 Compose。
-3. 在此目录的 `.env` 填写下列配置。示例 `v0.6.0` 需替换为实际已发布的版本；现有安装必须填写原 project 名。
+1. 备份 PostgreSQL 数据和 `/app/data` 上传资源。保留既有端口、数据库、JWT 和数据卷配置。
+2. 从目标正式 Release 下载 `deploy/docker-compose.yml`、`deploy/UPDATES.md` 和对应应用镜像。生产 Compose 只包含 `aux-migrate` 与 `aux-backend`，不需要 `docker-compose.update.yml`、`aux-updater` 或 Docker socket。
+3. 在部署目录的 `.env` 中配置应用镜像、外部 PostgreSQL、Sub2API 地址和固定 JWT 密钥：
 
 ```dotenv
-COMPOSE_PROJECT_NAME=sub2api-extension
 SUB2API_EXTENSION_IMAGE=ghcr.io/fluxcode666/sub2api-extension
-SUB2API_EXTENSION_IMAGE_TAG=v0.6.0
-SUB2API_EXTENSION_IMAGE_REF=
-SUB2API_EXTENSION_UPDATER_TAG=v0.6.0
-SUB2API_EXTENSION_DEPLOY_PATH=/opt/sub2api-extension
+SUB2API_EXTENSION_IMAGE_TAG=v0.7.0
 SUB2API_EXTENSION_RELEASE_REPOSITORY=FluxCode666/sub2api-extension
 SUB2API_EXTENSION_GITHUB_TOKEN=
 ```
 
-`SUB2API_EXTENSION_DEPLOY_PATH` 必须是宿主机实际部署目录的绝对路径。更新服务将其挂载到容器内的同一路径，让 Compose 正确解析已有宿主机挂载。使用自定义 project 时写入 `.env`，不要仅在启动命令中临时传 `-p`。当前更新服务支持单机 Docker Compose、上述两个 Compose 文件和 `.env`；多副本、Swarm、Kubernetes 或额外的 Compose 配置文件应由自己的部署系统更新。
+私有仓库只需填写 Release 查询令牌；令牌只在服务端使用，不会发送给浏览器。
 
-4. 准备镜像凭据目录。公开镜像只需空目录；私有镜像需登录，凭据会写在此目录中，不要提交到 Git。
-
-```bash
-cd /opt/sub2api-extension
-mkdir -p docker-config
-chmod 700 docker-config
-# 仅私有镜像需要：交互式输入具有 read:packages 权限的令牌
-docker --config ./docker-config login ghcr.io
-```
-
-私有 GitHub 仓库需在 `.env` 配置可读取此仓库 Releases 的 `SUB2API_EXTENSION_GITHUB_TOKEN`。GitHub API 令牌与 Docker Registry 凭据用途不同，查询发布成功不代表镜像一定可拉取。令牌不发送给浏览器；不应把真实 `.env` 或 `docker-config/config.json` 加入仓库。
-
-5. 验证并启动。以下命令适用于部署目录内操作，`.env` 中的其他必填字段沿用 `deploy/.env.example`。
+4. 验证并启动：
 
 ```bash
-docker compose --env-file .env -f docker-compose.yml -f docker-compose.update.yml config -q
-docker --config ./docker-config compose --env-file .env -f docker-compose.yml -f docker-compose.update.yml pull
-docker compose --env-file .env -f docker-compose.yml -f docker-compose.update.yml run --rm --no-deps aux-migrate
-docker compose --env-file .env -f docker-compose.yml -f docker-compose.update.yml up -d --no-deps aux-backend aux-updater
-docker compose --env-file .env -f docker-compose.yml -f docker-compose.update.yml ps
+docker compose --env-file .env -f docker-compose.yml config -q
+docker compose --env-file .env -f docker-compose.yml pull
+docker compose --env-file .env -f docker-compose.yml up -d
 curl --fail http://127.0.0.1:8004/health
 ```
 
-端口若已定制，请替换健康检查命令。确认页面、图片、发票资源正常，再进入控制台检查版本。正式镜像通过构建参数提供版本号；源码开发运行默认显示开发版本。
+首次从旧版本升级时，若旧部署目录还有 `docker-compose.update.yml`，可以停止并移除该 override；它不再参与启动，也不会删除应用数据卷。
 
 ## 管理员更新
 
-1. 点击控制台左上角的版本号。弹窗显示当前构建版本、最新正式 Release、发布时间和中文说明；点击“重新检查”可重试查询，GitHub 查询有五分钟缓存。
-2. 确认发布说明与备份后，点击“更新到最新版本”并确认。服务端会重新查询正式 Release，拒绝过期目标、降级和重复任务。
-3. 更新服务按 Release 中 `release-manifest.json` 的固定镜像摘要下载镜像，先执行一次性 `aux-migrate`，再只重建 `aux-backend`。数据库服务、上传资源卷、更新服务和其他应用不会被重建。
-4. 应用重启期间可能短暂断开，弹窗会自动重新获取任务状态。关闭弹窗或刷新页面不会取消更新，重新打开即可恢复查看。
-5. 新容器使用预期镜像并通过 Docker 健康检查后，写回 `.env` 的镜像版本和摘要引用，点击“刷新控制台”加载新的前端资源。
+1. 点击控制台左上角版本号，查看当前版本、最新正式 Release 和中文发布说明。
+2. 确认备份后点击“更新到最新版本”。服务端会重新读取正式 Release，拒绝过期目标、降级目标和无效版本。
+3. 应用进程下载当前平台的 `sub2api-extension_linux_amd64.tar.gz` 或 `sub2api-extension_linux_arm64.tar.gz`，验证 GitHub 下载地址和 `checksums.txt` 的 SHA-256，然后在可执行文件同一目录原子替换 `aux-server`，并保留 `aux-server.backup`。
+4. 更新完成后重启应用。Docker 部署使用 `docker compose restart aux-backend`；二进制部署按 systemd 或进程管理器的方式重启。重启前不要执行 `docker compose down -v`，否则会删除持久数据卷。
 
-如果没有启用 `aux-updater`，仍可查询发布说明，但更新按钮不可用。较早的 Release 没有更新清单时需手动安装。预发布版本不会作为控制台更新目标，也不覆盖 `latest`。
+Release 中没有当前平台更新包时，只能按发布说明手动更新。较早的只含镜像摘要的 Release 仍可查看说明，但不会显示可更新按钮。
 
-## 失败恢复
+## 回退与失败处理
 
-- 镜像拉取或迁移失败：不切换应用。检查私有镜像凭据、数据库连接、迁移状态和磁盘空间。
-- 应用重建或健康检查失败：用记录的本地旧镜像 ID 重建应用并检查健康，不依赖可变的 `latest` 标签。成功回退后会在 `.env` 中保存原版本和旧镜像引用。
-- 更新服务中断：任务保存在独立命名卷中；重新启动后先恢复未完成任务的原镜像，再接受新任务。
-- 自动回退失败：停止接受新更新，管理员需检查应用与迁移容器。修复并确认原版本正常后，可停止更新服务，备份其状态卷内 `job.json`，移走该状态文件，再启动更新服务。
+- 下载、校验或替换失败时，当前进程继续使用旧二进制，不会修改数据库。
+- 替换成功后若新版本启动异常，停止应用，将 `aux-server.backup` 原子移回 `aux-server`，再启动旧版本。数据库迁移是前向的，二进制回退不会撤销迁移。
+- 更新请求可能因代理超时而断开，但服务端使用独立的 15 分钟上下文继续执行；不要重复点击更新。重新打开版本弹窗查看任务状态。
+- 运行用户必须对当前可执行文件所在目录有写权限。Docker 镜像已将 `/app` 授权给 `aux` 用户；自定义镜像或 bind mount 需保持相同权限。
 
-**回退仅覆盖应用镜像，不撤销数据库迁移。** 跨版本迁移必须保持向后兼容；涉及不兼容 schema、网络、必填环境变量或 Compose 变更的版本，应说明维护步骤并更新发布清单协议，不能通过当前清单自动升级。旧镜像在确认新版本稳定前不得被外部清理任务删除。
+## 手动镜像升级
+
+控制台原地更新只影响当前容器的可写层。若要让下一次容器重建也使用新版本，请同步修改 `.env` 的 `SUB2API_EXTENSION_IMAGE_TAG`，然后执行：
 
 ```bash
-docker compose --env-file .env -f docker-compose.yml -f docker-compose.update.yml logs --tail=100 aux-updater aux-backend
-docker logs <project>-aux-update-migrate
-docker compose --env-file .env -f docker-compose.yml -f docker-compose.update.yml ps
+docker compose --env-file .env -f docker-compose.yml pull
+docker compose --env-file .env -f docker-compose.yml up -d
 ```
 
-迁移容器在完成或可清理的失败后会删除，若已不存在，请检查数据库状态后再重试。更新服务不向控制台返回 Docker 原始输出，避免泄露凭据。
-
-手动切换版本时，先停用更新服务避免并发。修改 `.env` 的 `SUB2API_EXTENSION_IMAGE_TAG`，并清空优先级更高的 `SUB2API_EXTENSION_IMAGE_REF`，随后显式拉取镜像、执行迁移、重建应用并验证健康状态。不要运行 `down -v`，这会删除持久数据卷。
-
-## 更新服务本身
-
-`SUB2API_EXTENSION_UPDATER_TAG` 固定更新服务版本，更新应用时不改变它，避免执行者在更新中途被替换。后续若发布说明要求更新服务升级，在没有活动任务时修改此值并单独拉取、重建 `aux-updater`；保留其状态卷与相同部署目录。
-
-更新服务需要 Docker socket 和部署目录写权限，因此具备管理该宿主机 Docker 的能力。该权限仅授予独立更新容器，主应用仍以非 root 身份运行；两者通过组权限为 `1000` 的 Unix socket 通信，不公开更新服务的 TCP 端口。部署目录由可信运维人员管理，避免同时从终端和控制台修改部署。
+不要使用可变的 `latest` 作为长期回退依据，生产环境建议固定正式 tag，并在升级前保留数据库和上传资源备份。

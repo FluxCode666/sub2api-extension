@@ -28,11 +28,15 @@ class ReleaseTests(unittest.TestCase):
             'GITHUB_REPOSITORY': 'FluxCode666/sub2api-extension',
             'GITHUB_OUTPUT': 'output', 'GITHUB_STEP_SUMMARY': 'summary',
             'RELEASE_IMAGE': 'ghcr.io/fluxcode666/sub2api-extension',
-            'APP_DIGEST': 'sha256:' + 'a' * 64, 'UPDATER_DIGEST': 'sha256:' + 'b' * 64,
+            'APP_DIGEST': 'sha256:' + 'a' * 64,
             'GITHUB_SHA': 'c' * 40, 'IS_LATEST': 'true', 'IS_PRERELEASE': 'false',
         })
         self.env.start()
         Path('CHANGELOG.md').write_text('# Changelog\n\n## [0.6.0] - 2026-09-09\n\n新增管理员更新功能。\n\n## [0.5.0]\n旧内容\n')
+        Path('release-assets').mkdir()
+        for arch in ('amd64', 'arm64'):
+            Path(f'release-assets/sub2api-extension_linux_{arch}.tar.gz').write_bytes(b'archive')
+        Path('release-assets/checksums.txt').write_text('checksums\n')
 
     def tearDown(self):
         self.env.stop()

@@ -9,16 +9,16 @@
 | `ci.yml` | main push、Pull Request、可复用调用 | Go race test、golangci-lint v2.9、前端 typecheck / test / build |
 | `security-scan.yml` | Pull Request、定时 | Go 漏洞扫描、前端依赖审计 |
 | `deploy-test.yml` | test push、手动 | 完整 CI、多架构测试镜像、测试服务器 SSH 部署 |
-| `release.yml` | 新 semver tag、选择 tag 手动重试 | 完整 CI、多架构应用与更新镜像、中文 GitHub Release |
+| `release.yml` | 新 semver tag、选择 tag 手动重试 | 完整 CI、多架构应用镜像与二进制更新包、中文 GitHub Release |
 
 ```text
 push test ── CI ── test-<sha7> / test-latest ── 测试环境
-push vX.Y.Z ── CI ── 应用与更新服务镜像 ── GitHub Release
-                                               │
-                                    管理员查看说明并点击更新
-                                               │
-                                    迁移 → 重启 → 健康检查
-                                               └─ 失败时回退应用镜像
+push vX.Y.Z ── CI ── 应用镜像 + 二进制更新包 ── GitHub Release
+                                                   │
+                                        管理员查看说明并点击更新
+                                                   │
+                                      下载 → 校验 → 原子替换二进制
+                                                   └─ 重启后按 .backup 回退
 ```
 
 ## 发布正式版本
@@ -35,10 +35,12 @@ git push origin v0.6.0
 
 ```text
 ghcr.io/<owner>/sub2api-extension:<tag>
-ghcr.io/<owner>/sub2api-extension:<tag>-updater
+sub2api-extension_linux_amd64.tar.gz
+sub2api-extension_linux_arm64.tar.gz
+checksums.txt
 ```
 
-4. 两个镜像都完成后发布中文 GitHub Release，附件包括镜像摘要清单、两个生产 Compose 文件和 `UPDATES.md`。最新正式版才更新 `latest` / `latest-updater`；`vX.Y.Z-rc.N` 等预发布不会成为最新正式版。
+4. 应用镜像和两个平台二进制更新包都完成后发布中文 GitHub Release，附件包括 `checksums.txt`、镜像摘要清单、生产 Compose 文件和 `UPDATES.md`。`vX.Y.Z-rc.N` 等预发布不会成为最新正式版。
 5. 服务器此时仍保持原版本。在管理员控制台点击版本号查看发布，再决定更新时间。
 
 已公开的版本不可覆盖。构建失败时可在 Actions 中重跑失败任务，或选择同一个 tag 手动执行 Release；手动选择分支会被拒绝。预先创建的 draft Release 可以继续发布；不要在构建前手工公开 Release。工作流使用 `GITHUB_TOKEN` 的 `contents: write` 和 `packages: write` 权限，不读取生产 SSH Secrets，也不使用 production Environment 审批或部署 job。
@@ -47,11 +49,11 @@ ghcr.io/<owner>/sub2api-extension:<tag>-updater
 
 ## 生产安装与更新
 
-详细步骤见 [deploy/UPDATES.md](../deploy/UPDATES.md)，包括旧版本首次启用、私有镜像凭据、管理员更新、进度重连、故障恢复与手动更新。
+详细步骤见 [deploy/UPDATES.md](../deploy/UPDATES.md)，包括旧版本升级、私有仓库令牌、管理员更新、故障恢复与手动镜像更新。
 
-生产基础 Compose 运行 `aux-migrate` 和 `aux-backend`，使用外部 PostgreSQL。可选 `docker-compose.update.yml` 增加独立 `aux-updater`。配置示例见 [deploy/.env.example](../deploy/.env.example)。更新服务不修改已有端口、JWT、数据库和数据卷；不要在启用时更换已有 Compose project。
+生产 Compose 运行 `aux-migrate` 和 `aux-backend`，使用外部 PostgreSQL。应用自身负责下载和原子替换二进制，不需要额外 Compose 文件、更新容器或 Docker socket。配置示例见 [deploy/.env.example](../deploy/.env.example)。
 
-运行时不会自动迁移。控制台更新由独立更新服务显式运行一次性迁移，迁移成功后才重启应用。应用回退不撤销数据库变更；发布迁移须考虑旧版兼容性。
+运行时不会自动迁移。二进制更新不会执行数据库迁移；发布包含 schema 变化时，仍需先按部署流程运行 `aux-migrate`，并考虑旧版兼容性。应用回退不撤销数据库变更。
 
 ## 测试环境部署
 

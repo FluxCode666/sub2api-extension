@@ -25,7 +25,7 @@ func (systemReleaseSource) Latest(context.Context, bool) (*update.Release, error
 func TestSystemEndpointsRequireAdministrator(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	authHandler, authService := newTestAuthDeps()
-	handler := adminhandler.NewSystemHandler(update.Build{Version: "v0.5.0"}, systemReleaseSource{}, update.NewClient(""))
+	handler := adminhandler.NewSystemHandler(update.Build{Version: "v0.5.0"}, systemReleaseSource{}, update.NewManager(systemReleaseSource{}, nil, "v0.5.0"))
 	router := SetupRouter(newTestConfig(), web.NewHealthHandler(), authHandler, authService, nil, nil, nil, nil, handler)
 	for _, request := range []struct{ method, path string }{
 		{"GET", "/system/version"}, {"GET", "/system/release"}, {"GET", "/system/update"}, {"POST", "/system/update"},

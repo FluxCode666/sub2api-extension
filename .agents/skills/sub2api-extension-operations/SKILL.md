@@ -18,16 +18,14 @@ description: 修改或排查 sub2api-extension 的 Docker、Compose、GitHub Act
 - `ci.yml`：main push、PR 与复用调用，执行 Go race test、lint、前端 typecheck/test/build。
 - `security-scan.yml`：PR 和定时安全扫描。
 - `deploy-test.yml`：test 分支或手动，CI 后构建测试镜像并 SSH 部署测试环境，保留 `test` Environment 的 `TEST_*` Secrets。
-- `release.yml`：semver tag 触发，CI 后构建 amd64/arm64 应用与更新服务镜像，再发布中文 GitHub Release、镜像摘要清单和部署附件。不连接生产服务器，不使用生产 SSH Secrets 或 deployment job。
+- `release.yml`：semver tag 触发，CI 后构建 amd64/arm64 应用镜像和二进制更新包，再发布中文 GitHub Release、镜像摘要清单和部署附件。不连接生产服务器，不使用生产 SSH Secrets 或 deployment job。
 - 已公开 tag 不允许覆盖；预发布不覆盖 latest。发布说明从 CHANGELOG.md 中与 tag 对应的中文章节提取。
 
-生产使用基础 `deploy/docker-compose.yml`（aux-migrate、aux-backend、外部 PostgreSQL）。`deploy/docker-compose.update.yml` 是可选更新服务配置，首次启用后管理员才能在控制台主动更新。详细安装与故障恢复步骤遵循 `deploy/UPDATES.md`，不要绕过鉴权、版本校验和质量门禁。
+生产使用基础 `deploy/docker-compose.yml`（aux-migrate、aux-backend、外部 PostgreSQL）。应用进程从固定仓库的最新正式 Release 下载当前平台二进制，校验后原子替换自身并在重启后生效；不需要额外更新容器、Compose override 或 Docker socket。详细安装与故障恢复步骤遵循 `deploy/UPDATES.md`，不要绕过鉴权、版本校验和质量门禁。
 
-更新服务必须独立于主应用执行，仅通过共享卷 Unix socket 接收请求。Docker socket 只挂给更新服务，不公开 TCP 端口；主应用保持非 root。按固定仓库的最新正式 Release 清单核对版本和镜像摘要，不接受浏览器传入任意镜像、URL 或 shell 命令。
+更新请求只接受可选的旧页面版本校验，目标版本、下载 URL 和校验文件全部由服务端从 Release 元数据解析；不接受浏览器传入任意镜像、URL 或 shell 命令。应用使用 15 分钟操作上下文、并发互斥、SHA-256 校验和同目录原子替换，失败时恢复旧二进制并保留 `.backup`。更新不会执行数据库迁移；schema 变化仍需通过 `aux-migrate` 发布和部署。
 
-更新前拉取镜像，显式运行一次性 aux-migrate，随后只重建 aux-backend，验证预期镜像和 healthy 状态后持久化版本。任务必须可恢复、拒绝并发更新，失败回退旧应用镜像；数据库迁移不会回退。更新服务自身通过独立的 SUB2API_EXTENSION_UPDATER_TAG 固定，不在执行应用更新时重建。
-
-必须保留部署目录的 .env、既有 Compose project、容器名称、网络、端口、数据库、JWT 和资源卷。部署目录以相同绝对路径挂载到更新服务内。已有 aux-system 部署要先核对实际 project 和卷，不可擅自改成新的默认名。测试与生产各使用独立配置和数据；开发 Compose 的 PostgreSQL 不带入生产。
+必须保留部署目录的 .env、既有 Compose project、容器名称、网络、端口、数据库、JWT 和资源卷。已有 aux-system 部署要先核对实际 project 和卷，不可擅自改成新的默认名。测试与生产各使用独立配置和数据；开发 Compose 的 PostgreSQL 不带入生产。
 
 ## 文件资源持久化
 
@@ -83,10 +81,10 @@ docker network inspect sub2api-network
 
 - [ ] 代码在 `test` 环境验证通过
 - [ ] 发布 tag 不可变且符合 semver，CHANGELOG.md 包含对应中文版本说明
-- [ ] 镜像构建成功后才发布 Release；生产更新由管理员主动发起
+- [ ] 镜像和 amd64/arm64 二进制包构建成功后才发布 Release；生产更新由管理员主动发起
 - [ ] 数据库、JWT、sub2api 和数据卷没有跨环境复用
 - [ ] Compose config、容器健康检查和公网 `/health`、`/p/home` 均通过
-- [ ] 失败时保留日志并确认自动回滚结果
+- [ ] 失败时保留日志并确认 `.backup` 二进制回退结果
 - [ ] 升级后图片资源仍能通过 `/api/aux/assets/:id` 访问
 
 ## 相关文档

@@ -114,6 +114,13 @@ var indexHandler gin.HandlerFunc
 //
 // 环境变量未设置或目录不存在时静默跳过（不影响 API 与健康检查）。
 func registerFrontendStatic(r *gin.Engine) {
+	// Release builds embed the frontend in aux-server so an in-process binary
+	// update replaces API and UI together. Source builds keep the existing
+	// directory-based mode for local frontend development.
+	if web.RegisterEmbeddedFrontend(r) {
+		indexHandler = web.EmbeddedFrontendIndex
+		return
+	}
 	distDir := strings.TrimSpace(os.Getenv("SUB2API_EXTENSION_FRONTEND_DIST"))
 	if distDir == "" {
 		return

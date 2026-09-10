@@ -1,17 +1,17 @@
 # =============================================================================
 # Sub2API Extension - 生产环境 Docker Compose（单机，不含数据库）
 # =============================================================================
-# 生产部署用。运行一次性 schema 迁移服务和 aux-backend（后端 + 内嵌前端），从 GHCR 拉取镜像。
+# 生产部署用。运行一次性 schema 迁移服务和 aux-system（后端 + 内嵌前端），从 GHCR 拉取镜像。
 # 不包含 PostgreSQL 镜像——数据库由外部提供（sub2api 的 postgres / 独立 RDS / 自建实例）。
 #
 # 与 deploy/docker-compose.dev.yml（开发用，含 postgres、从源码 build）的区别：
-#   - aux-migrate 迁移完成后启动 aux-backend
+#   - aux-migrate 迁移完成后启动 aux-system
 #   - image 从 GHCR 拉取（${SUB2API_EXTENSION_IMAGE}:${SUB2API_EXTENSION_IMAGE_TAG}），不 build
 #   - DATABASE_* 指向外部 PostgreSQL
 #
 # 网络互联：
 #   加入 sub2api 的 sub2api-network（external）。
-#   - sub2api 经此网络以 iframe URL 访问附属系统（同网络用 http://aux-backend:8004）
+#   - sub2api 经此网络以 iframe URL 访问附属系统（同网络用 http://aux-system:8004）
 #   - 公网访问建议通过宿主机 NGINX 反代到 127.0.0.1:8004，不直接暴露应用端口
 #   - 附属系统经此网络访问 sub2api（http://sub2api:8080）
 #   若 sub2api 与本系统不在同一 Docker 网络，将 SUB2API_BASE_URL 改为 sub2api 公网域名，
@@ -20,7 +20,7 @@
 # 快速开始：
 #   1. cp .env.example .env  并填写实际值
 #   2. docker compose -f docker-compose.yml --env-file .env up -d
-#   3. 查看日志: docker compose -f docker-compose.yml --env-file .env logs -f aux-backend
+#   3. 查看日志: docker compose -f docker-compose.yml --env-file .env logs -f aux-system
 #   4. 健康检查: curl http://127.0.0.1:${SUB2API_EXTENSION_SERVER_PORT:-8004}/health
 # =============================================================================
 
@@ -30,7 +30,7 @@ services:
   # ===========================================================================
   # Database schema migration (one-shot)
   # ===========================================================================
-  # 后端启动不会自动迁移。该服务在 aux-backend 启动前创建/补齐本系统所需
+  # 后端启动不会自动迁移。该服务在 aux-system 启动前创建/补齐本系统所需
   # 的 pages、page_views、feature_clicks、system_meta、image_assets、
   # invoice_requests、notification_channels、notification_deliveries 表及其新增字段。
   # 它只操作本系统使用的表，不会修改 sub2api 自有表。
@@ -54,7 +54,7 @@ services:
     networks:
       - sub2api-network
 
-  aux-backend:
+  aux-system:
     image: ${SUB2API_EXTENSION_IMAGE_REF:-${SUB2API_EXTENSION_IMAGE:?SUB2API_EXTENSION_IMAGE is required}:${SUB2API_EXTENSION_IMAGE_TAG:?SUB2API_EXTENSION_IMAGE_TAG is required}}
     container_name: ${SUB2API_EXTENSION_CONTAINER_NAME:-aux-system}
     restart: unless-stopped
@@ -71,7 +71,7 @@ services:
         hard: 100000
     ports:
       # 生产默认只绑定本机，由 deploy/nginx 目录中的 NGINX 对外提供 HTTPS。
-      # 同一 Docker 网络内的 sub2api 仍直接访问 aux-backend:8004，不受此映射影响。
+      # 同一 Docker 网络内的 sub2api 仍直接访问 aux-system:8004，不受此映射影响。
       - "${BIND_HOST:-127.0.0.1}:${SUB2API_EXTENSION_SERVER_PORT:-8004}:8004"
     environment:
       # ---- 服务器配置 ----

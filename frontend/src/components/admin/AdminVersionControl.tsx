@@ -138,7 +138,11 @@ export default function AdminVersionControl({ children }: PropsWithChildren) {
     setConfirm(false)
     setError('')
     try {
-      const response = await apiClient.post<AuxEnvelope<Job>>('/admin/system/update', { version: release.release.version }, { timeout: 35000 })
+      // Binary packages may be large and the server bounds this operation at
+      // 15 minutes, matching Sub2API's in-process updater.
+      // The server resolves the latest formal release itself, matching
+      // Sub2API's synchronous PerformUpdate contract.
+      const response = await apiClient.post<AuxEnvelope<Job>>('/admin/system/update', undefined, { timeout: 15 * 60 * 1000 })
       if (!response.data) throw new Error('更新任务响应为空，请检查任务状态')
       if (mounted.current) setStatus({ enabled: true, job: response.data })
     } catch (failure) {
@@ -187,7 +191,7 @@ export default function AdminVersionControl({ children }: PropsWithChildren) {
               {reconnecting && <p className="flex items-start gap-2 text-muted-foreground"><Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin motion-reduce:animate-none" />连接暂时中断，正在重新获取更新状态。任务在后台继续；请勿重复更新。</p>}
             </div>
           )}
-          {confirm && <p className="rounded-lg border p-4 text-sm leading-6">确认更新到 <strong>{release?.release.version}</strong>？更新会执行数据库迁移并短暂重启应用。健康检查失败时会回退应用镜像，数据库迁移不会自动撤销，请先备份数据。</p>}
+          {confirm && <p className="rounded-lg border p-4 text-sm leading-6">确认更新到 <strong>{release?.release.version}</strong>？更新会下载并原子替换应用二进制，完成后需要重启服务。数据库迁移不会自动撤销，请先备份数据。</p>}
           <DialogFooter className="flex-wrap gap-2">
             <Button variant="outline" disabled={loading || submitting || active} onClick={() => void check()}><RefreshCw className="mr-2 h-4 w-4" />重新检查</Button>
             {justUpdated ? <Button onClick={() => window.location.reload()}>刷新控制台</Button> : confirm ? <>

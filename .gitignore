@@ -68,6 +68,6 @@ coverage/
 *.sln
 *.sw?
 
-# Docker Registry 登录凭据（控制台更新服务）
+# 历史部署凭据目录（不应提交）
 /deploy/**/docker-config/
 __pycache__/

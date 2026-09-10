@@ -1,154 +1,122 @@
 package update
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"context"
-	"encoding/json"
-	"errors"
+	"crypto/sha256"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
-	"strings"
-	"sync"
+	"runtime"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 )
 
-type fakeSource struct{ release *Release }
+type fakeReleaseSource struct{ release *Release }
 
-func (f fakeSource) Latest(context.Context, bool) (*Release, error) { return f.release, nil }
+func (f fakeReleaseSource) Latest(context.Context, bool) (*Release, error) { return f.release, nil }
 
-var oldImage = "sha256:" + strings.Repeat("a", 64)
-
-type fakeEngine struct {
-	mu            sync.Mutex
-	calls         []string
-	fail          string
-	rollbackFails bool
-	pullGate      chan struct{}
+type fakeBinaryClient struct {
+	archive   string
+	checksums []byte
 }
 
-func (e *fakeEngine) call(name string) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.calls = append(e.calls, name)
-	if name == e.fail || (e.rollbackFails && name == "restart-old") {
-		return errors.New("操作失败")
+func (f fakeBinaryClient) DownloadFile(_ context.Context, _ string, dest string) error {
+	in, err := os.Open(f.archive)
+	if err != nil {
+		return err
 	}
-	return nil
-}
-func (e *fakeEngine) Current(context.Context) (Installed, error) {
-	return Installed{Image: oldImage, Version: "v0.5.0"}, nil
-}
-func (e *fakeEngine) Pull(context.Context, string) error {
-	if e.pullGate != nil {
-		<-e.pullGate
+	defer func() { _ = in.Close() }()
+	out, err := os.Create(dest)
+	if err != nil {
+		return err
 	}
-	return e.call("pull")
-}
-func (e *fakeEngine) Migrate(context.Context, string) error { return e.call("migrate") }
-func (e *fakeEngine) Restart(_ context.Context, ref string) error {
-	if ref == oldImage {
-		return e.call("restart-old")
+	_, copyErr := io.Copy(out, in)
+	closeErr := out.Close()
+	if copyErr != nil {
+		return copyErr
 	}
-	return e.call("restart")
-}
-func (e *fakeEngine) Healthy(_ context.Context, ref string) error {
-	if ref == oldImage {
-		return e.call("healthy-old")
-	}
-	return e.call("healthy")
-}
-func (e *fakeEngine) Commit(version, _ string) error {
-	if version == "v0.5.0" {
-		return e.call("commit-old")
-	}
-	return e.call("commit")
-}
-func (e *fakeEngine) Cleanup(context.Context) error { return e.call("cleanup") }
-
-func releaseFixture() *Release {
-	return &Release{Version: "v0.6.0", Manifest: &Manifest{Schema: 1, Version: "v0.6.0", Image: DefaultImage, Digest: "sha256:" + strings.Repeat("b", 64)}}
+	return closeErr
 }
 
-func waitJob(t *testing.T, m *Manager, phase string) {
+func (f fakeBinaryClient) FetchChecksumFile(context.Context, string) ([]byte, error) {
+	return f.checksums, nil
+}
+
+func makeArchive(t *testing.T, content []byte) (string, []byte) {
 	t.Helper()
-	require.Eventually(t, func() bool { s := m.Status(context.Background()); return s.Job != nil && !s.Job.Active() }, 3*time.Second, time.Millisecond)
-	require.Equal(t, phase, m.Status(context.Background()).Job.Phase)
-}
-
-func TestUpdateSuccessAndFailurePaths(t *testing.T) {
-	for _, tc := range []struct {
-		name, fail, phase string
-		rollbackFails     bool
-		expected          []string
-	}{
-		{"success", "", "succeeded", false, []string{"pull", "migrate", "restart", "healthy", "commit"}},
-		{"pull failure", "pull", "failed", false, []string{"pull", "cleanup"}},
-		{"migration failure", "migrate", "failed", false, []string{"pull", "migrate", "cleanup"}},
-		{"restart failure", "restart", "rolled_back", false, []string{"pull", "migrate", "restart", "cleanup", "restart-old", "healthy-old", "commit-old"}},
-		{"health failure", "healthy", "rolled_back", false, []string{"pull", "migrate", "restart", "healthy", "cleanup", "restart-old", "healthy-old", "commit-old"}},
-		{"commit failure", "commit", "rolled_back", false, []string{"pull", "migrate", "restart", "healthy", "commit", "cleanup", "restart-old", "healthy-old", "commit-old"}},
-		{"rollback failure", "healthy", "rollback_failed", true, []string{"pull", "migrate", "restart", "healthy", "cleanup", "restart-old"}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			engine := &fakeEngine{fail: tc.fail, rollbackFails: tc.rollbackFails}
-			path := filepath.Join(t.TempDir(), "job.json")
-			m, err := NewManager(fakeSource{releaseFixture()}, engine, path)
-			require.NoError(t, err)
-			_, err = m.Start(context.Background(), "v0.6.0")
-			require.NoError(t, err)
-			waitJob(t, m, tc.phase)
-			engine.mu.Lock()
-			require.Equal(t, tc.expected, engine.calls)
-			engine.mu.Unlock()
-			reloaded, err := NewManager(fakeSource{releaseFixture()}, engine, path)
-			require.NoError(t, err)
-			require.Equal(t, tc.phase, reloaded.Status(context.Background()).Job.Phase)
-		})
-	}
-}
-
-func TestUpdateRejectsConcurrentAndChangedTarget(t *testing.T) {
-	engine := &fakeEngine{pullGate: make(chan struct{})}
-	m, err := NewManager(fakeSource{releaseFixture()}, engine, filepath.Join(t.TempDir(), "job.json"))
+	path := filepath.Join(t.TempDir(), "release.tar.gz")
+	f, err := os.Create(path)
 	require.NoError(t, err)
-	_, err = m.Start(context.Background(), "v0.7.0")
+	gz := gzip.NewWriter(f)
+	tarWriter := tar.NewWriter(gz)
+	require.NoError(t, tarWriter.WriteHeader(&tar.Header{Name: "aux-server", Mode: 0755, Size: int64(len(content))}))
+	_, err = tarWriter.Write(content)
+	require.NoError(t, err)
+	require.NoError(t, tarWriter.Close())
+	require.NoError(t, gz.Close())
+	require.NoError(t, f.Close())
+	hash := sha256.Sum256(mustRead(t, path))
+	return path, []byte(fmt.Sprintf("%x  %s\n", hash, filepath.Base(path)))
+}
+
+func mustRead(t *testing.T, path string) []byte {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	return data
+}
+
+func testArchiveName() string {
+	return fmt.Sprintf("sub2api-extension_%s_%s.tar.gz", runtime.GOOS, runtime.GOARCH)
+}
+
+func TestManagerAtomicallyReplacesBinaryAndKeepsBackup(t *testing.T) {
+	oldPath := filepath.Join(t.TempDir(), "aux-server")
+	require.NoError(t, os.WriteFile(oldPath, []byte("old"), 0755))
+	archive, _ := makeArchive(t, []byte("new"))
+	checksums := sha256.Sum256(mustRead(t, archive))
+	checksumData := []byte(fmt.Sprintf("%x  %s\n", checksums, testArchiveName()))
+	release := &Release{Version: "v0.6.0", Assets: []Asset{
+		{Name: testArchiveName(), DownloadURL: "https://github.com/FluxCode666/sub2api-extension/releases/download/v0.6.0/" + testArchiveName()},
+		{Name: checksumsAssetName, DownloadURL: "https://github.com/FluxCode666/sub2api-extension/releases/download/v0.6.0/checksums.txt"},
+	}}
+	m := NewManager(fakeReleaseSource{release}, fakeBinaryClient{archive: archive, checksums: checksumData}, "v0.5.0")
+	m.executable = func() (string, error) { return oldPath, nil }
+	job, err := m.Start(context.Background(), "v0.6.0")
+	require.NoError(t, err)
+	require.Equal(t, "succeeded", job.Phase)
+	require.Equal(t, []byte("new"), mustRead(t, oldPath))
+	require.Equal(t, []byte("old"), mustRead(t, oldPath+".backup"))
+	require.Equal(t, "v0.6.0", m.Status(context.Background()).Job.Version)
+}
+
+func TestManagerRejectsMissingCompatibleAsset(t *testing.T) {
+	m := NewManager(fakeReleaseSource{&Release{Version: "v0.6.0"}}, fakeBinaryClient{}, "v0.5.0")
+	_, err := m.Start(context.Background(), "v0.6.0")
+	require.ErrorContains(t, err, "没有适用于当前平台")
+	require.Equal(t, "failed", m.Status(context.Background()).Job.Phase)
+}
+
+func TestManagerRejectsConcurrentAndStaleVersions(t *testing.T) {
+	release := &Release{Version: "v0.6.0", Assets: []Asset{{Name: testArchiveName(), DownloadURL: "https://github.com/example/release"}}}
+	m := NewManager(fakeReleaseSource{release}, fakeBinaryClient{}, "v0.5.0")
+	_, err := m.Start(context.Background(), "v0.7.0")
 	require.ErrorContains(t, err, "最新版本已变化")
-	_, err = m.Start(context.Background(), "v0.6.0; curl attacker")
+	_, err = m.Start(context.Background(), "v0.6.0;id")
 	require.ErrorContains(t, err, "版本号无效")
+	m.currentVersion = "v0.6.0"
 	_, err = m.Start(context.Background(), "v0.6.0")
-	require.NoError(t, err)
-	_, err = m.Start(context.Background(), "v0.6.0")
-	require.ErrorContains(t, err, "已有更新任务")
-	close(engine.pullGate)
-	waitJob(t, m, "succeeded")
+	require.ErrorIs(t, err, ErrNoUpdateAvailable)
 }
 
-func TestInterruptedUpdateRollsBackBeforeNewRequests(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "job.json")
-	data, err := json.Marshal(savedJob{Job: &Job{ID: "1", Version: "v0.6.0", Phase: "restarting"}, Previous: Installed{Image: oldImage, Version: "v0.5.0"}})
-	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(path, data, 0600))
-	engine := &fakeEngine{}
-	m, err := NewManager(fakeSource{releaseFixture()}, engine, path)
-	require.NoError(t, err)
-	waitJob(t, m, "rolled_back")
-	engine.mu.Lock()
-	defer engine.mu.Unlock()
-	require.Equal(t, []string{"cleanup", "restart-old", "healthy-old", "commit-old"}, engine.calls)
-}
-
-func TestCommitPreservesOtherEnvironmentAndPinsImage(t *testing.T) {
-	dir := t.TempDir()
-	before := "# credentials\nDATABASE_PASSWORD='test$with#symbols'\nCOMPOSE_PROJECT_NAME=existing\nSUB2API_EXTENSION_IMAGE_TAG=v0.5.0\nSUB2API_EXTENSION_IMAGE_REF=\n"
-	require.NoError(t, os.WriteFile(filepath.Join(dir, ".env"), []byte(before), 0600))
-	d := &DockerEngine{Directory: dir}
-	require.NoError(t, d.Commit("v0.6.0", DefaultImage+"@sha256:"+strings.Repeat("b", 64)))
-	after, err := os.ReadFile(filepath.Join(dir, ".env"))
-	require.NoError(t, err)
-	require.Contains(t, string(after), "DATABASE_PASSWORD='test$with#symbols'")
-	require.Contains(t, string(after), "COMPOSE_PROJECT_NAME=existing")
-	require.Contains(t, string(after), "SUB2API_EXTENSION_IMAGE_TAG=v0.6.0")
-	require.Contains(t, string(after), "SUB2API_EXTENSION_IMAGE_REF="+DefaultImage+"@sha256:")
+func TestVerifyChecksumAcceptsGNUForms(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "archive.tar.gz")
+	require.NoError(t, os.WriteFile(path, []byte("payload"), 0600))
+	hash := sha256.Sum256([]byte("payload"))
+	require.NoError(t, verifyChecksum(path, []byte(fmt.Sprintf("%x *%s\n", hash, filepath.Base(path)))))
+	require.Error(t, verifyChecksum(path, []byte("not-a-checksum")))
 }

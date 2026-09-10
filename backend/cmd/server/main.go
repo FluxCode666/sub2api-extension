@@ -206,7 +206,12 @@ func main() {
 		log.Printf("cost account sync failed: %v", syncErr)
 	})
 
-	systemHandler := adminhandler.NewSystemHandler(update.Build{Version: Version, Commit: Commit, BuildTime: Date}, update.NewGitHubFromEnv(), update.NewClient(os.Getenv("SUB2API_EXTENSION_UPDATE_SOCKET")))
+	releaseSource := update.NewGitHubFromEnv()
+	systemHandler := adminhandler.NewSystemHandler(
+		update.Build{Version: Version, Commit: Commit, BuildTime: Date},
+		releaseSource,
+		update.NewManager(releaseSource, releaseSource, Version),
+	)
 	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, imageAssetHandler, fileAssetHandler, ttftHandler, costHandler, invoiceUserHandler, invoiceAdminHandler, notificationAdminHandler, logService, logHandler, systemHandler)
 
 	// 启动 HTTP 服务器
