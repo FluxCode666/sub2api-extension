@@ -4,6 +4,8 @@
 
 ### 改进
 
+- 控制台更新完成后服务自动重启并加载新版本（对齐 sub2api：进程优雅退出，由 Docker `restart: unless-stopped` / systemd `Restart=always` 自动拉起），管理员无需登录服务器操作。
+- 前端在更新成功后自动轮询健康检查，服务恢复后刷新页面显示新版本号。
 - 客户端接入文档截图与客户端图标挪入系统统一资源目录（`assets.dir` 的 `client-docs/`、`client-icons/` 子目录），不再随前端构建产物打包，可在持久卷上独立更新。
 
 ### 修复

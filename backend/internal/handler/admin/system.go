@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"sub2api-extension/internal/pkg/response"
+	"sub2api-extension/internal/pkg/sysutil"
 	"sub2api-extension/internal/update"
 
 	"github.com/gin-gonic/gin"
@@ -17,10 +18,11 @@ type SystemHandler struct {
 	build    update.Build
 	releases update.ReleaseSource
 	updater  update.Controller
+	restart  func()
 }
 
 func NewSystemHandler(build update.Build, releases update.ReleaseSource, updater update.Controller) *SystemHandler {
-	return &SystemHandler{build: build, releases: releases, updater: updater}
+	return &SystemHandler{build: build, releases: releases, updater: updater, restart: sysutil.RestartServiceAsync}
 }
 
 func (h *SystemHandler) Version(c *gin.Context) { response.Success(c, h.build) }
@@ -96,9 +98,11 @@ func (h *SystemHandler) Start(c *gin.Context) {
 		response.InternalError(c, "更新服务返回了空任务")
 		return
 	}
-	// The update is complete when this handler returns. The old process keeps
-	// serving requests until the operator restarts it, just like Sub2API's
-	// in-process updater. Keep the job fields in the payload for old clients.
+	// The update is complete when this handler returns. The service then
+	// restarts itself via the process manager (Docker restart policy or
+	// systemd Restart=always), mirroring sub2api's update flow. The restart
+	// is scheduled in the background so this response reaches the browser
+	// first, and no operator action is required.
 	response.SuccessWithReason(c, gin.H{
 		"id":           job.ID,
 		"version":      job.Version,
@@ -106,6 +110,16 @@ func (h *SystemHandler) Start(c *gin.Context) {
 		"message":      job.Message,
 		"startedAt":    job.StartedAt,
 		"updatedAt":    job.UpdatedAt,
-		"need_restart": true,
-	}, "更新完成，请重启应用", "二进制已原子替换，重启后加载新版本")
+		"need_restart": false,
+		"restarting":   true,
+	}, "更新完成，服务即将自动重启", "新版本二进制已原子替换，服务将通过进程管理器自动重启并加载新版本")
+	// Schedule service restart in the background after sending the response.
+	// This ensures the client receives the success response before the service
+	// exits, relying on the process manager to bring it back automatically.
+	if h.restart != nil {
+		go func() {
+			time.Sleep(500 * time.Millisecond)
+			h.restart()
+		}()
+	}
 }

@@ -60,6 +60,7 @@ coverage/
 /.pi/
 /.hallmark/
 /.playwright-cli/
+/.zcode/
 /output/playwright/
 
 # ============ 编辑器 / OS ============

@@ -33,8 +33,11 @@ func (s *updateControllerStub) Start(_ context.Context, version string) (*update
 func TestSystemHandlerStartAllowsEmptyBodyAndReturnsRestartSignal(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	controller := &updateControllerStub{}
+	handler := NewSystemHandler(update.Build{}, nil, controller)
+	// 测试中禁用自动重启，避免 os.Exit 终止测试进程。
+	handler.restart = nil
 	router := gin.New()
-	router.POST("/system/update", NewSystemHandler(update.Build{}, nil, controller).Start)
+	router.POST("/system/update", handler.Start)
 
 	req := httptest.NewRequest(http.MethodPost, "/system/update", nil)
 	resp := httptest.NewRecorder()
@@ -45,12 +48,12 @@ func TestSystemHandlerStartAllowsEmptyBodyAndReturnsRestartSignal(t *testing.T) 
 	var envelope struct {
 		Code int `json:"code"`
 		Data struct {
-			Phase       string `json:"phase"`
-			NeedRestart bool   `json:"need_restart"`
+			Phase      string `json:"phase"`
+			Restarting bool   `json:"restarting"`
 		} `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &envelope))
 	require.Equal(t, 0, envelope.Code)
 	require.Equal(t, "succeeded", envelope.Data.Phase)
-	require.True(t, envelope.Data.NeedRestart)
+	require.True(t, envelope.Data.Restarting)
 }

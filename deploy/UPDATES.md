@@ -33,7 +33,10 @@ curl --fail http://127.0.0.1:8004/health
 1. 点击控制台左上角版本号，查看当前版本、最新正式 Release 和中文发布说明。
 2. 确认备份后点击“更新到最新版本”。服务端会重新读取正式 Release，拒绝过期目标、降级目标和无效版本。
 3. 应用进程下载当前平台的 `sub2api-extension_linux_amd64.tar.gz` 或 `sub2api-extension_linux_arm64.tar.gz`，验证 GitHub 下载地址和 `checksums.txt` 的 SHA-256，然后在可执行文件同一目录原子替换 `aux-server`，并保留 `aux-server.backup`。
-4. 更新完成后重启应用。Docker 部署使用 `docker compose restart aux-backend`；二进制部署按 systemd 或进程管理器的方式重启。重启前不要执行 `docker compose down -v`，否则会删除持久数据卷。
+4. 替换成功后服务自动重启并加载新版本（与 sub2api 一致：进程优雅退出，由进程管理器自动拉起），管理员无需登录服务器操作，页面会自动检测服务恢复并刷新。
+   - Docker 部署依赖 `restart: unless-stopped` / `always` 策略；请勿删除该配置，否则服务退出后不会自动拉起。
+   - systemd 部署依赖单元文件中的 `Restart=always`。
+   - 如果部署环境没有任何自动重启策略，更新会完成二进制替换但服务不会自动恢复，此时需手动重启进程。
 
 Release 中没有当前平台更新包时，只能按发布说明手动更新。较早的只含镜像摘要的 Release 仍可查看说明，但不会显示可更新按钮。
 

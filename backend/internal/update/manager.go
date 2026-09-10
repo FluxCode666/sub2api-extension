@@ -140,7 +140,7 @@ func (m *Manager) Start(ctx context.Context, version string) (*Job, error) {
 	}
 	m.currentVersion = strings.TrimPrefix(version, "v")
 	m.job.Phase = "succeeded"
-	m.job.Message = "更新完成，请重启应用"
+	m.job.Message = "更新完成，服务即将自动重启"
 	m.job.UpdatedAt = time.Now().UTC()
 	job = *m.job
 	m.mu.Unlock()

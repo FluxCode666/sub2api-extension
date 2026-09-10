@@ -76,6 +76,24 @@ describe('administrator version control', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('🎉 更新已完成')
   })
 
+  it('restarts automatically and reloads once the service is healthy again', async () => {
+    const job = { id: '3', version: 'v0.6.0', phase: 'succeeded', message: '更新完成，服务即将自动重启' }
+    post.mockImplementation(async () => { status = { enabled: true, job }; return { code: 0, data: { ...job, restarting: true } } })
+    const reload = vi.fn()
+    Object.defineProperty(window, 'location', { writable: true, value: { ...window.location, reload } })
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce({ ok: false })
+      .mockResolvedValueOnce({ ok: true }))
+    await openDialog()
+    await waitFor(() => expect(screen.getByRole('button', { name: '更新到最新版本' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: '更新到最新版本' }))
+    fireEvent.click(screen.getByRole('button', { name: '确认更新' }))
+    expect(await screen.findByText(/服务正在自动重启/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /服务重启中/ })).toBeDisabled()
+    await waitFor(() => expect(reload).toHaveBeenCalled(), { timeout: 5000 })
+    vi.unstubAllGlobals()
+  })
+
   it('keeps the current version and offers retry when GitHub is unavailable', async () => {
     get.mockImplementation(async (path: string) => {
       if (path.endsWith('/release')) throw new Error('GitHub 访问受限')

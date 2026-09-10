@@ -18,6 +18,7 @@ interface ReleaseInfo {
 
 interface UpdateResponse extends Job {
   need_restart?: boolean
+  restarting?: boolean
 }
 
 const finished = new Set(['succeeded', 'failed', 'rolled_back', 'rollback_failed'])
@@ -67,6 +68,7 @@ export default function AdminVersionControl({ children }: PropsWithChildren) {
   const [confirm, setConfirm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [needRestart, setNeedRestart] = useState(false)
+  const [restarting, setRestarting] = useState(false)
   const mounted = useRef(true)
   const generation = useRef(0)
   const job = status?.job
@@ -143,6 +145,29 @@ export default function AdminVersionControl({ children }: PropsWithChildren) {
     return () => { cancelled = true; clearTimeout(timer) }
   }, [open, active, reconnecting, submitting, loadBuild, release])
 
+  // 更新成功后服务通过进程管理器自动重启；轮询健康检查，恢复后刷新页面加载新版本。
+  useEffect(() => {
+    if (!restarting) return
+    let cancelled = false
+    let retries = 0
+    const pollHealth = async () => {
+      try {
+        const response = await fetch('/health', { method: 'GET', cache: 'no-cache' })
+        if (cancelled) return
+        if (response.ok) {
+          window.location.reload()
+          return
+        }
+      } catch {
+        // 服务仍在重启中，静默等待下一轮。
+      }
+      retries++
+      if (!cancelled && retries < 120) setTimeout(pollHealth, 1000)
+    }
+    const timer = setTimeout(pollHealth, 1000)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [restarting])
+
   const startUpdate = async () => {
     if (!release || submitting) return
     setSubmitting(true)
@@ -157,7 +182,12 @@ export default function AdminVersionControl({ children }: PropsWithChildren) {
       if (!response.data) throw new Error('更新任务响应为空，请检查任务状态')
       if (mounted.current) {
         setStatus({ enabled: true, job: response.data })
-        if (response.data.need_restart) setNeedRestart(true)
+        if (response.data.restarting) {
+          // 服务已通过进程管理器自动重启；开始轮询健康状态，恢复后刷新页面。
+          setRestarting(true)
+        } else if (response.data.need_restart) {
+          setNeedRestart(true)
+        }
       }
     } catch (failure) {
       if (mounted.current) {
@@ -193,6 +223,16 @@ export default function AdminVersionControl({ children }: PropsWithChildren) {
           </div>
           {loading && <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />正在检查发布信息…</p>}
           {error && <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p>}
+          {restarting && (
+            <div role="alert" className="space-y-3 rounded-lg border-2 border-amber-500/30 bg-amber-50 p-4 dark:bg-amber-950/20">
+              <p className="flex items-center gap-2 font-medium text-amber-900 dark:text-amber-100">🎉 更新已完成，服务正在自动重启</p>
+              <p className="text-sm leading-relaxed text-amber-800 dark:text-amber-200">
+                新版本二进制已原子替换到磁盘，服务正通过进程管理器（Docker restart 策略 / systemd Restart=always）自动重启。
+                页面会自动检测服务恢复并刷新，无需手动操作。
+              </p>
+              <p className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300"><Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />正在等待服务恢复…</p>
+            </div>
+          )}
           {needRestart && justUpdated && (
             <div role="alert" className="space-y-3 rounded-lg border-2 border-amber-500/30 bg-amber-50 p-4 dark:bg-amber-950/20">
               <p className="font-medium text-amber-900 dark:text-amber-100">🎉 更新已完成</p>
@@ -222,10 +262,10 @@ export default function AdminVersionControl({ children }: PropsWithChildren) {
               {reconnecting && <p className="flex items-start gap-2 text-muted-foreground"><Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin motion-reduce:animate-none" />连接暂时中断，正在重新获取更新状态。任务在后台继续；请勿重复更新。</p>}
             </div>
           )}
-          {confirm && <p className="rounded-lg border p-4 text-sm leading-6">确认更新到 <strong>{release?.release.version}</strong>？更新会下载并原子替换应用二进制，完成后需要重启服务。数据库迁移不会自动撤销，请先备份数据。</p>}
+          {confirm && <p className="rounded-lg border p-4 text-sm leading-6">确认更新到 <strong>{release?.release.version}</strong>？更新会下载并原子替换应用二进制，完成后服务自动重启并加载新版本。数据库迁移不会自动撤销，请先备份数据。</p>}
           <DialogFooter className="flex-wrap gap-2">
-            {!needRestart && <Button variant="outline" disabled={loading || submitting || active} onClick={() => void check()}><RefreshCw className="mr-2 h-4 w-4" />重新检查</Button>}
-            {needRestart && justUpdated ? <Button onClick={handleRestartConfirmed}>我已重启，重新检查</Button> : confirm ? <>
+            {!needRestart && !restarting && <Button variant="outline" disabled={loading || submitting || active} onClick={() => void check()}><RefreshCw className="mr-2 h-4 w-4" />重新检查</Button>}
+            {needRestart && justUpdated ? <Button onClick={handleRestartConfirmed}>我已重启，重新检查</Button> : restarting ? <Button disabled><Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />服务重启中，即将自动刷新…</Button> : confirm ? <>
               <Button variant="ghost" onClick={() => setConfirm(false)}>取消</Button>
               <Button disabled={!canUpdate} onClick={() => void startUpdate()}>确认更新</Button>
             </> : <Button disabled={!canUpdate} onClick={() => setConfirm(true)}>{submitting || active ? <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Download className="mr-2 h-4 w-4" />}{submitting ? '正在创建任务…' : active ? '更新进行中' : '更新到最新版本'}</Button>}
