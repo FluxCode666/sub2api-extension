@@ -2,7 +2,9 @@
 
 [![Go](https://img.shields.io/badge/Go-1.26.5-00ADD8?logo=go)]() [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)]() [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript)]()
 
-`sub2api-extension` 是 [sub2api](../sub2api) 的附属系统，不是独立官网，也不提供内置官网首页。它以独立 Web 应用运行，通过 sub2api 现有的 iframe 和菜单配置接入，**无需修改 sub2api 代码**。
+`sub2api-extension` 是 [sub2api](https://github.com/Wei-Shaw/sub2api) 的附属系统，不是独立官网，也不提供内置官网首页。它以独立 Web 应用运行，通过 sub2api 现有的 iframe 和菜单配置接入，**无需修改 sub2api 代码**。
+
+sub2api本地项目路径：`/Users/duegin/project/sub2api`
 
 系统的默认入口是管理端：访问 `/` 会跳转到 `/admin/dashboard`。公开页面不是固定的官网首页，而是由管理员创建和维护的数据库动态页面；需要公开内容时，使用 `/p/:slug` 访问对应页面。
 
