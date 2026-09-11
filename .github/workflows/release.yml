@@ -83,3 +83,46 @@ jobs:
           APP_DIGEST: ${{ steps.app.outputs.digest }}
         run: |
           docker buildx imagetools create --tag "$RELEASE_IMAGE:latest" "$RELEASE_IMAGE@$APP_DIGEST"
+
+  notify-release:
+    name: 通知飞书与邮件
+    needs: [quality-gate, release]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      FEISHU_RELEASE_WEBHOOK_URL: ${{ secrets.FEISHU_RELEASE_WEBHOOK_URL }}
+      FEISHU_RELEASE_WEBHOOK_SECRET: ${{ secrets.FEISHU_RELEASE_WEBHOOK_SECRET }}
+      RELEASE_RESULT: ${{ needs.release.result }}
+      QUALITY_GATE_RESULT: ${{ needs.quality-gate.result }}
+      RELEASE_TAG: ${{ github.ref_name }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_RUN_ID: ${{ github.run_id }}
+      RELEASE_URL: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}
+      ACTIONS_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            .github/scripts/notify-feishu.py
+            .github/scripts/notify-email.py
+          sparse-checkout-cone-mode: false
+
+      - name: 发送飞书 Release 通知
+        run: |
+          if ! python3 .github/scripts/notify-feishu.py; then
+            echo "::warning::飞书机器人通知发送失败，未影响 Release 结果"
+          fi
+
+      - name: 发送邮件 Release 通知
+        env:
+          RELEASE_EMAIL_TO: ${{ vars.RELEASE_EMAIL_TO }}
+          RELEASE_SMTP_HOST: ${{ secrets.RELEASE_SMTP_HOST }}
+          RELEASE_SMTP_PORT: ${{ secrets.RELEASE_SMTP_PORT }}
+          RELEASE_SMTP_USERNAME: ${{ secrets.RELEASE_SMTP_USERNAME }}
+          RELEASE_SMTP_PASSWORD: ${{ secrets.RELEASE_SMTP_PASSWORD }}
+          RELEASE_SMTP_FROM: ${{ secrets.RELEASE_SMTP_FROM }}
+        run: |
+          if ! python3 .github/scripts/notify-email.py; then
+            echo "::warning::邮件通知发送失败，未影响 Release 结果"
+          fi

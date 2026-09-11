@@ -9,7 +9,7 @@
 | `ci.yml` | main push、Pull Request、可复用调用 | Go race test、golangci-lint v2.9、前端 typecheck / test / build |
 | `security-scan.yml` | Pull Request、定时 | Go 漏洞扫描、前端依赖审计 |
 | `deploy-test.yml` | test push、手动 | 完整 CI、多架构测试镜像、测试服务器 SSH 部署 |
-| `release.yml` | 新 semver tag、选择 tag 手动重试 | 完整 CI、多架构应用镜像与二进制更新包、中文 GitHub Release |
+| `release.yml` | 新 semver tag、选择 tag 手动重试 | 完整 CI、多架构应用镜像与二进制更新包、中文 GitHub Release、飞书与邮件结果通知 |
 
 ```text
 push test ── CI ── test-<sha7> / test-latest ── 测试环境
@@ -46,6 +46,41 @@ checksums.txt
 已公开的版本不可覆盖。构建失败时可在 Actions 中重跑失败任务，或选择同一个 tag 手动执行 Release；手动选择分支会被拒绝。预先创建的 draft Release 可以继续发布；不要在构建前手工公开 Release。工作流使用 `GITHUB_TOKEN` 的 `contents: write` 和 `packages: write` 权限，不读取生产 SSH Secrets，也不使用 production Environment 审批或部署 job。
 
 如果 Release 已成功发布但镜像别名更新失败，带版本号和摘要的镜像仍可用于控制台更新；维护者修复别名即可，不应覆盖已发布版本。
+
+### 飞书 Release 通知
+
+Release 工作流最后会执行通知 job，即使质量检查或发布任务失败也会尝试发送结果。通知发送失败只记录 GitHub Actions warning，不会改变 Release 任务本身的结果。
+
+在仓库或组织的 **Settings → Secrets and variables → Actions** 中配置：
+
+| Secret | 必需 | 说明 |
+|---|:---:|---|
+| `FEISHU_RELEASE_WEBHOOK_URL` | 是 | 飞书群机器人 Webhook URL |
+| `FEISHU_RELEASE_WEBHOOK_SECRET` | 否 | 飞书机器人安全设置中的签名密钥；不填写则使用 Webhook URL 直接发送 |
+
+通知使用飞书机器人 `text` 消息，包含仓库、版本、质量检查结果、发布任务结果、Release 地址和 Actions 运行地址。未配置 Webhook URL 时会自动跳过通知。
+
+### 邮件 Release 通知
+
+Release 工作流同时支持 SMTP 邮件通知。未配置收件人时自动跳过；收件人可以使用逗号、分号、空格或换行分隔，所有地址会收到同一封结果邮件。邮件发送失败只记录 warning，不会改变 Release 任务本身的结果。
+
+在仓库或组织的 **Settings → Secrets and variables → Actions → Variables** 中配置收件人列表：
+
+| Variable | 必需 | 说明 |
+|---|:---:|---|
+| `RELEASE_EMAIL_TO` | 是 | 收件人列表，多个邮箱用逗号、分号、空格或换行分隔 |
+
+SMTP 凭据在同一页面的 **Secrets** 中配置：
+
+| Secret | 必需 | 说明 |
+|---|:---:|---|
+| `RELEASE_SMTP_HOST` | 是 | SMTP 服务器地址 |
+| `RELEASE_SMTP_PORT` | 否 | SMTP 端口，默认 `587`；端口 `465` 自动使用 SSL |
+| `RELEASE_SMTP_USERNAME` | 否 | SMTP 用户名；不需要认证时留空 |
+| `RELEASE_SMTP_PASSWORD` | 否 | SMTP 密码或授权码 |
+| `RELEASE_SMTP_FROM` | 是 | 发件人邮箱 |
+
+587 端口默认使用 STARTTLS，465 端口使用 SMTPS。SMTP 用户名和密码由邮件服务商要求决定；QQ、163 等邮箱通常需要填写 SMTP 授权码而不是登录密码。
 
 ## 生产安装与更新
 
