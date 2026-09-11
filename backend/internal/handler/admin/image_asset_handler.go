@@ -54,12 +54,10 @@ func (h *ImageAssetHandler) Upload(c *gin.Context) {
 		response.InternalError(c, "image asset store is unavailable")
 		return
 	}
-	// Header 及 multipart 边界也占用少量空间，额外预留 1 MiB；服务层继续严格检查文件本体 10 MiB。
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, service.MaxImageAssetBytes+1024*1024)
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
 		log.Printf("[ImageAssetHandler.Upload] invalid multipart upload: %v", err)
-		response.BadRequest(c, "image file is required and must not exceed 10MB")
+		response.BadRequest(c, "image file is required")
 		return
 	}
 	defer func() {
@@ -145,6 +143,10 @@ func publicImageAssetURL(_ *gin.Context, id int) string {
 func handleImageAssetError(c *gin.Context, err error) {
 	if isImageAssetValidationError(err) {
 		response.BadRequest(c, err.Error())
+		return
+	}
+	if errors.Is(err, os.ErrPermission) {
+		response.InternalError(c, "上传目录不可写，请检查服务器挂载目录权限。")
 		return
 	}
 	response.InternalError(c, "image upload failed")

@@ -2,6 +2,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -18,9 +19,6 @@ import (
 	"sub2api-extension/ent"
 	"sub2api-extension/ent/imageasset"
 )
-
-// MaxImageAssetBytes 限制单张上传图片大小，避免无界占用磁盘与内存。
-const MaxImageAssetBytes int64 = 10 * 1024 * 1024
 
 // ImageAsset 是管理端需要展示的图片资源记录。
 // Path 是相对于配置上传目录的安全相对路径，不是公开 URL。
@@ -67,18 +65,16 @@ func (s *ImageAssetService) Upload(ctx context.Context, originalName string, sou
 		return nil, errors.New("image file is required")
 	}
 
-	contents, err := io.ReadAll(io.LimitReader(source, MaxImageAssetBytes+1))
-	if err != nil {
-		return nil, fmt.Errorf("read image file: %w", err)
+	header := make([]byte, 512)
+	headerSize, err := io.ReadFull(source, header)
+	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+		return nil, fmt.Errorf("read image header: %w", err)
 	}
-	if len(contents) == 0 {
+	if headerSize == 0 {
 		return nil, errors.New("image file is required")
 	}
-	if int64(len(contents)) > MaxImageAssetBytes {
-		return nil, fmt.Errorf("image file exceeds %d bytes", MaxImageAssetBytes)
-	}
 
-	mimeType, extension, ok := allowedImageType(contents)
+	mimeType, extension, ok := allowedImageType(header[:headerSize])
 	if !ok {
 		return nil, errors.New("invalid image file: only PNG, JPEG, GIF, or WebP images are allowed")
 	}
@@ -90,28 +86,45 @@ func (s *ImageAssetService) Upload(ctx context.Context, originalName string, sou
 	if err := os.MkdirAll(s.storageDir, 0o750); err != nil {
 		return nil, fmt.Errorf("create image asset directory: %w", err)
 	}
-	absolutePath := filepath.Join(s.storageDir, fileName)
-	file, err := os.OpenFile(absolutePath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o640)
+	temporaryFile, err := os.CreateTemp(s.storageDir, ".image-upload-*")
 	if err != nil {
-		return nil, fmt.Errorf("create image file: %w", err)
+		return nil, fmt.Errorf("create temporary image file: %w", err)
 	}
-	_, writeErr := file.Write(contents)
-	closeErr := file.Close()
-	if writeErr != nil || closeErr != nil {
-		if removeErr := os.Remove(absolutePath); removeErr != nil {
-			log.Printf("[ImageAssetService.Upload] failed to remove incomplete file path=%q: %v", absolutePath, removeErr)
+	temporaryPath := temporaryFile.Name()
+	removeTemporaryFile := true
+	defer func() {
+		if !removeTemporaryFile {
+			return
 		}
-		if writeErr != nil {
-			return nil, fmt.Errorf("write image file: %w", writeErr)
+		if removeErr := os.Remove(temporaryPath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			log.Printf("[ImageAssetService.Upload] failed to remove temporary file path=%q: %v", temporaryPath, removeErr)
 		}
+	}()
+	if err := temporaryFile.Chmod(0o640); err != nil {
+		_ = temporaryFile.Close()
+		return nil, fmt.Errorf("set image file permissions: %w", err)
+	}
+
+	size, writeErr := io.Copy(temporaryFile, io.MultiReader(bytes.NewReader(header[:headerSize]), source))
+	closeErr := temporaryFile.Close()
+	if writeErr != nil {
+		return nil, fmt.Errorf("write image file: %w", writeErr)
+	}
+	if closeErr != nil {
 		return nil, fmt.Errorf("close image file: %w", closeErr)
 	}
+
+	absolutePath := filepath.Join(s.storageDir, fileName)
+	if err := os.Rename(temporaryPath, absolutePath); err != nil {
+		return nil, fmt.Errorf("store image file: %w", err)
+	}
+	removeTemporaryFile = false
 
 	asset, err := s.store.Create(ctx, ImageAsset{
 		OriginalName: normalizedOriginalName(originalName),
 		Path:         fileName,
 		MimeType:     mimeType,
-		Size:         int64(len(contents)),
+		Size:         size,
 	})
 	if err != nil {
 		if removeErr := os.Remove(absolutePath); removeErr != nil {

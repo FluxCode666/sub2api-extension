@@ -110,10 +110,12 @@ LABEL maintainer="sub2api-extension"
 LABEL description="Sub2API Extension - sub2api auxiliary content carrier"
 
 # 运行时依赖：ca-certificates + tzdata + libpq（后端用 lib/pq 连 PostgreSQL）
+# su-exec 仅用于入口脚本修正挂载目录权限后降权运行服务。
 RUN apk add --no-cache \
     ca-certificates \
     tzdata \
     libpq \
+    su-exec \
     && rm -rf /var/cache/apk/*
 
 # 创建非根用户
@@ -128,6 +130,8 @@ COPY --from=backend-builder --chown=aux:aux /app/aux-server /app/aux-server
 # 复制前端构建产物（后端同源托管）
 COPY --from=frontend-builder --chown=aux:aux /app/frontend/dist /app/frontend/dist
 
+COPY --chmod=0755 deploy/docker-entrypoint.sh /app/docker-entrypoint.sh
+
 # 创建图片数据目录（数据库只存资源相对路径）。/app 目录也必须由运行用户
 # 可写，因为原地更新会在此目录内创建临时文件并原子替换当前二进制。
 RUN mkdir -p /app/data/assets/photos && chown -R aux:aux /app
@@ -139,10 +143,7 @@ EXPOSE 8787
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD wget -q -T 5 -O /dev/null http://localhost:${SERVER_PORT:-8787}/health || exit 1
 
-# 切换非根用户
-USER aux
-
 # 运行时环境变量：后端静态托管前端 dist
 ENV SUB2API_EXTENSION_FRONTEND_DIST=/app/frontend/dist
 
-ENTRYPOINT ["/app/aux-server"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

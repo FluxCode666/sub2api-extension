@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Check, Copy, File, FileDown, Loader2, Pencil, RefreshCw, Save, Upload } from 'lucide-react'
-import { apiClient, type AuxEnvelope } from '@/lib/api-client'
+import { apiClient, AuxApiError, type AuxEnvelope } from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
@@ -24,7 +24,7 @@ interface FileAssetListResponse {
   items: FileAsset[]
 }
 
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024
+const ALLOWED_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
 
 export default function FileManagementPage() {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -73,14 +73,8 @@ export default function FileManagementPage() {
 
   const uploadFile = async (file: File) => {
     setError('')
-    if (!file.type.startsWith('image/')) {
+    if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
       const message = '只能上传 PNG、JPEG、GIF 或 WebP 图片。'
-      setError(message)
-      toast.error(message)
-      return
-    }
-    if (file.size > MAX_IMAGE_BYTES) {
-      const message = '单张图片不能超过 10MB。'
       setError(message)
       toast.error(message)
       return
@@ -90,12 +84,12 @@ export default function FileManagementPage() {
     try {
       const formData = new FormData()
       formData.append('file', file)
-      await apiClient.upload<AuxEnvelope<FileAsset>>('/admin/assets', formData, { timeout: 60_000 })
+      await apiClient.upload<AuxEnvelope<FileAsset>>('/admin/assets', formData, { timeout: 0 })
       toast.success('图片上传成功')
       await loadFiles()
     } catch (error) {
       console.error('[FileManagementPage] failed to upload asset', error)
-      const message = '上传失败。请确认文件格式正确、大小不超过 10MB，并已执行数据库迁移。'
+      const message = error instanceof AuxApiError ? error.message : '上传失败，请稍后重试。'
       setError(message)
       toast.error(message)
     } finally {
@@ -198,7 +192,7 @@ export default function FileManagementPage() {
       </div>
 
       <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/70 px-5 py-4 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-400">
-        当前支持上传 PNG、JPEG、GIF、WebP 图片，单张不超过 10MB；发票文件会自动出现在此列表中。
+        当前支持上传 PNG、JPEG、GIF、WebP 图片；发票文件会自动出现在此列表中。
       </div>
 
       {error && (

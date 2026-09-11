@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,6 +12,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type zeroReader struct{}
+
+func (zeroReader) Read(buffer []byte) (int, error) {
+	clear(buffer)
+	return len(buffer), nil
+}
 
 type memoryImageAssetStore struct {
 	created *ImageAsset
@@ -78,6 +86,27 @@ func TestImageAssetServiceUploadRejectsNonImage(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid image file")
 	assert.Nil(t, store.created)
+}
+
+func TestImageAssetServiceUploadHasNoTenMegabyteLimit(t *testing.T) {
+	storageDir := t.TempDir()
+	store := &memoryImageAssetStore{}
+	svc := NewImageAssetService(store, storageDir)
+	pngHeader := []byte{
+		0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+		0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+	}
+	contentBytes := int64(11 * 1024 * 1024)
+	source := io.MultiReader(bytes.NewReader(pngHeader), io.LimitReader(zeroReader{}, contentBytes))
+
+	asset, err := svc.Upload(context.Background(), "large.png", source)
+	require.NoError(t, err)
+	require.NotNil(t, asset)
+	assert.Equal(t, int64(len(pngHeader))+contentBytes, asset.Size)
+
+	info, err := os.Stat(filepath.Join(storageDir, asset.Path))
+	require.NoError(t, err)
+	assert.Equal(t, asset.Size, info.Size())
 }
 
 func TestImageAssetServiceUploadRemovesFileWhenDatabaseWriteFails(t *testing.T) {
