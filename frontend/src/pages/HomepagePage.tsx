@@ -220,7 +220,9 @@ export default function HomepagePage() {
 
       if (config.showQuickstartSection) reveal('.sub2api-steps-heading > *', '.sub2api-steps', { y: 28, stagger: 0.1 })
       reveal('.sub2api-security .sub2api-section-heading > *', '.sub2api-security', { y: 30, stagger: 0.08 })
-      reveal('.sub2api-story-copy > *', '.sub2api-story', { x: -34, y: 0, stagger: 0.1 })
+      // Keep the CTA anchored to the copy column; only opacity should change
+      // when the section enters, even if the browser restores a deep scroll.
+      reveal('.sub2api-story-copy > *', '.sub2api-story', { x: 0, y: 0, stagger: 0.1 })
       reveal('.sub2api-final-cta > *', '.sub2api-final-cta', { y: 28, stagger: 0.1 })
       reveal('.sub2api-footer > *', '.sub2api-footer', {
         y: 20,
