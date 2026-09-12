@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { trackFeatureClick } from '@/lib/telemetry-sdk'
 import gsap from 'gsap'
 import {
   Check,
@@ -435,6 +436,7 @@ export default function ApiDocsPage() {
       next.set('theme', preference)
       return next
     }, { replace: true })
+    trackFeatureClick('api-docs', `theme-${preference}`)
   }
 
   useEffect(() => {
@@ -466,6 +468,7 @@ export default function ApiDocsPage() {
   }, [])
 
   function toggleEndpoint(endpointId: string) {
+    trackFeatureClick('api-docs', `${expandedEndpoints.has(endpointId) ? 'collapse' : 'expand'}-${endpointId}`)
     setExpandedEndpoints((current) => {
       const next = new Set(current)
       if (next.has(endpointId)) next.delete(endpointId)
@@ -478,6 +481,7 @@ export default function ApiDocsPage() {
     try {
       await navigator.clipboard.writeText(value)
       setCopied(id)
+      trackFeatureClick('api-docs', `copy-${id}`)
       window.setTimeout(() => setCopied((current) => current === id ? null : current), 1600)
     } catch {
       setCopied(null)
@@ -493,8 +497,8 @@ export default function ApiDocsPage() {
             <span><strong>API 文档</strong><small>配置你的模型接口</small></span>
           </a>
           <div className="aux-api-header-tools">
-            <Link className="aux-api-header-home" to="/sub2api-home" aria-label="返回官网"><Home aria-hidden="true" /><span>官网</span></Link>
-            <Link className="aux-api-header-api" to={`/client-docs?${clientDocsParams}`} aria-label="查看客户端接入文档">客户端接入 <ArrowUpRight aria-hidden="true" /></Link>
+            <Link className="aux-api-header-home" to="/sub2api-home" aria-label="返回官网" onClick={() => trackFeatureClick('api-docs', 'open-home')}><Home aria-hidden="true" /><span>官网</span></Link>
+            <Link className="aux-api-header-api" to={`/client-docs?${clientDocsParams}`} onClick={() => trackFeatureClick('api-docs', 'open-client-docs')} aria-label="查看客户端接入文档">客户端接入 <ArrowUpRight aria-hidden="true" /></Link>
             <div className="aux-api-theme-picker">
               <ThemeIcon size={15} aria-hidden="true" />
               <select aria-label="外观主题" value={themePreference} onChange={event => selectTheme(event.target.value)}>
@@ -502,7 +506,7 @@ export default function ApiDocsPage() {
               </select>
               <ChevronDown size={12} className="aux-api-theme-chevron" aria-hidden="true" />
             </div>
-            {consoleHref ? <a {...siteHrefProps(consoleHref)} className="aux-api-header-console"><span>控制台</span> <ArrowUpRight aria-hidden="true" /></a> : null}
+            {consoleHref ? <a {...siteHrefProps(consoleHref)} onClick={() => trackFeatureClick('api-docs', 'open-console')} className="aux-api-header-console"><span>控制台</span> <ArrowUpRight aria-hidden="true" /></a> : null}
           </div>
         </div>
       </header>
@@ -517,8 +521,8 @@ export default function ApiDocsPage() {
             </h1>
             <p className="aux-api-hero-lede"><span>一套兼容 OpenAI 与 Anthropic SDK 的统一接口。</span><span>使用 API Key 接入模型、流式响应、向量和图片能力，</span><span>无需改动现有业务代码。</span></p>
             <div className="aux-api-hero-actions">
-              <a className="aux-api-primary-button" href="#quickstart">开始接入 <ChevronRight aria-hidden="true" /></a>
-              <a className="aux-api-secondary-button" href="#endpoint-chat-completions">查看端点</a>
+              <a className="aux-api-primary-button" href="#quickstart" onClick={() => trackFeatureClick('api-docs', 'section-quickstart')}>开始接入 <ChevronRight aria-hidden="true" /></a>
+              <a className="aux-api-secondary-button" href="#endpoint-chat-completions" onClick={() => trackFeatureClick('api-docs', 'section-endpoint-chat-completions')}>查看端点</a>
             </div>
           </div>
           <div className="aux-api-hero-visual">
@@ -532,21 +536,21 @@ export default function ApiDocsPage() {
         <section className="aux-api-interest" aria-label="接口能力概览">
           <div className="aux-api-section-heading aux-api-interest-heading">
             <div><p className="aux-api-kicker">接口索引</p><h2>常用能力，按需组合。</h2><p>先选一类能力，再进入对应端点；每个端点都附带完整参数契约与可复制示例。</p></div>
-            <a className="aux-api-index-link" href="#endpoint-list">浏览全部端点 <ChevronRight aria-hidden="true" /></a>
+            <a className="aux-api-index-link" href="#endpoint-list" onClick={() => trackFeatureClick('api-docs', 'section-endpoint-list')}>浏览全部端点 <ChevronRight aria-hidden="true" /></a>
           </div>
           <div className="aux-api-capability-index">
-            <a href="#endpoint-models"><span className="aux-api-capability-method">GET</span><span><strong>发现模型</strong><small>先读取当前密钥可用的模型列表</small></span><code>/v1/models</code><ChevronRight aria-hidden="true" /></a>
-            <a href="#endpoint-chat-completions"><span className="aux-api-capability-method">POST</span><span><strong>生成对话</strong><small>OpenAI 兼容消息、流式响应与多轮上下文</small></span><code>/v1/chat/completions</code><ChevronRight aria-hidden="true" /></a>
-            <a href="#endpoint-responses"><span className="aux-api-capability-method">POST</span><span><strong>统一响应</strong><small>面向工具调用和新客户端的响应工作流</small></span><code>/v1/responses</code><ChevronRight aria-hidden="true" /></a>
-            <a href="#endpoint-embeddings"><span className="aux-api-capability-method">POST</span><span><strong>语义检索</strong><small>将文本转换为向量，用于搜索与 RAG</small></span><code>/v1/embeddings</code><ChevronRight aria-hidden="true" /></a>
+            <a href="#endpoint-models" onClick={() => trackFeatureClick('api-docs', 'section-endpoint-models')}><span className="aux-api-capability-method">GET</span><span><strong>发现模型</strong><small>先读取当前密钥可用的模型列表</small></span><code>/v1/models</code><ChevronRight aria-hidden="true" /></a>
+            <a href="#endpoint-chat-completions" onClick={() => trackFeatureClick('api-docs', 'section-endpoint-chat-completions')}><span className="aux-api-capability-method">POST</span><span><strong>生成对话</strong><small>OpenAI 兼容消息、流式响应与多轮上下文</small></span><code>/v1/chat/completions</code><ChevronRight aria-hidden="true" /></a>
+            <a href="#endpoint-responses" onClick={() => trackFeatureClick('api-docs', 'section-endpoint-responses')}><span className="aux-api-capability-method">POST</span><span><strong>统一响应</strong><small>面向工具调用和新客户端的响应工作流</small></span><code>/v1/responses</code><ChevronRight aria-hidden="true" /></a>
+            <a href="#endpoint-embeddings" onClick={() => trackFeatureClick('api-docs', 'section-endpoint-embeddings')}><span className="aux-api-capability-method">POST</span><span><strong>语义检索</strong><small>将文本转换为向量，用于搜索与 RAG</small></span><code>/v1/embeddings</code><ChevronRight aria-hidden="true" /></a>
           </div>
         </section>
 
         <div className="aux-api-doc-layout">
           <aside className={`aux-api-sidebar${sidebarPinned ? ' is-pinned' : ''}`} aria-label="文档与接口端点目录">
             <div className="aux-api-sidebar-label">ON THIS PAGE</div>
-            <a className={activeSection === 'quickstart' ? 'is-active' : ''} href="#quickstart">快速开始</a>
-            <a className={activeSection === 'authentication' ? 'is-active' : ''} href="#authentication">认证方式</a>
+            <a className={activeSection === 'quickstart' ? 'is-active' : ''} href="#quickstart" onClick={() => trackFeatureClick('api-docs', 'section-quickstart')}>快速开始</a>
+            <a className={activeSection === 'authentication' ? 'is-active' : ''} href="#authentication" onClick={() => trackFeatureClick('api-docs', 'section-authentication')}>认证方式</a>
             <div className="aux-api-sidebar-section-label">接口端点</div>
             {endpointGroups.map((group) => {
               const groupEndpoints = endpoints.filter((endpoint) => endpoint.group === group)
@@ -557,6 +561,7 @@ export default function ApiDocsPage() {
                     <a
                       className={`aux-api-sidebar-endpoint${activeSection === `endpoint-${endpoint.id}` ? ' is-active' : ''}`}
                       href={`#endpoint-${endpoint.id}`}
+                      onClick={() => trackFeatureClick('api-docs', `section-endpoint-${endpoint.id}`)}
                       key={endpoint.id}
                       aria-label={`${endpoint.method} ${endpoint.path}`}
                     >
@@ -567,7 +572,7 @@ export default function ApiDocsPage() {
                 </div>
               )
             })}
-            <a className={activeSection === 'errors' ? 'is-active' : ''} href="#errors">错误处理</a>
+            <a className={activeSection === 'errors' ? 'is-active' : ''} href="#errors" onClick={() => trackFeatureClick('api-docs', 'section-errors')}>错误处理</a>
           </aside>
 
           <div className="aux-api-content">
@@ -625,8 +630,8 @@ export default function ApiDocsPage() {
         <span className="aux-api-footer-status">{endpoints.length} 个接口 · {systemDomain || configuredDomain(baseURL) || '当前页面服务地址'}</span>
         <span className="aux-api-footer-copyright">© 2026 {systemName || 'API 文档'}. All rights reserved.</span>
         <nav className="aux-api-footer-nav" aria-label="相关文档">
-          <a {...siteHrefProps('/sub2api-home')}><Home aria-hidden="true" />官网首页</a>
-          <Link to={`/client-docs?${clientDocsParams}`}>客户端接入 <ArrowUpRight aria-hidden="true" /></Link>
+          <a {...siteHrefProps('/sub2api-home')} onClick={() => trackFeatureClick('api-docs', 'open-home')}><Home aria-hidden="true" />官网首页</a>
+          <Link to={`/client-docs?${clientDocsParams}`} onClick={() => trackFeatureClick('api-docs', 'open-client-docs')}>客户端接入 <ArrowUpRight aria-hidden="true" /></Link>
           {termsUrl ? <a {...siteHrefProps(termsUrl)}>服务条款</a> : null}
           {privacyUrl ? <a {...siteHrefProps(privacyUrl)}>隐私协议</a> : null}
           <a href="#top">回到顶部 <ArrowUp aria-hidden="true" /></a>
@@ -858,6 +863,6 @@ function EndpointCard({ endpoint, baseURL, exampleModel, copied, onCopy, expande
     { id: 'examples', label: '调用示例' },
   ]
   return <article id={`endpoint-${endpoint.id}`} className={`aux-api-endpoint-card${expanded ? ' is-expanded' : ''}`}><div className="aux-api-endpoint-summary"><div className="aux-api-endpoint-topline"><div className="aux-api-method-path"><span className={`aux-api-method aux-api-method--${endpoint.method.toLowerCase()}`}>{endpoint.method}</span><code>{endpoint.path}</code></div><span className="aux-api-auth-badge"><ShieldCheck aria-hidden="true" /> {endpoint.auth}</span></div><h4>{endpoint.title}</h4><p>{endpoint.description}</p><div className="aux-api-endpoint-meta"><span>{endpoint.requestParams.length} 个请求参数</span><span>{endpoint.responseParams.length} 个响应参数</span><div className="aux-api-endpoint-actions"><button className="aux-api-markdown-button" type="button" aria-label={markdownCopied ? '已复制 Markdown' : `复制 ${endpoint.title} Markdown 文档`} onClick={() => onCopy(markdownCopyId, buildMarkdownDocument(endpoint, baseURL, exampleModel))}>{markdownCopied ? <Check aria-hidden="true" /> : <FileText aria-hidden="true" />}<span>{markdownCopied ? '已复制 Markdown' : '复制 Markdown'}</span></button><button className="aux-api-expand-button" type="button" aria-expanded={expanded} aria-controls={detailId} onClick={onToggle}>{expanded ? '收起详情' : '查看参数与示例'} <ChevronDown aria-hidden="true" /></button></div></div></div>{expanded && <div className="aux-api-endpoint-details" id={detailId}><div className="aux-api-detail-tabs" role="tablist" aria-label={`${endpoint.title}详情`}>
-    {panelTabs.map((tab) => <button key={tab.id} type="button" role="tab" aria-selected={panel === tab.id} className={panel === tab.id ? 'is-active' : ''} onClick={() => setPanel(tab.id)}>{tab.label}{tab.count !== undefined && <span>{tab.count}</span>}</button>)}
-  </div>{panel === 'request' && <ParameterTable parameters={endpoint.requestParams} emptyLabel="此接口不接收请求参数。" />}{panel === 'response' && <ParameterTable parameters={endpoint.responseParams} emptyLabel="暂无结构化响应参数说明。" />}{panel === 'examples' && <div className="aux-api-examples-panel"><div className="aux-api-language-tabs" role="tablist" aria-label={`${endpoint.title}示例语言`}>{exampleLanguages.map((item) => <button key={item.id} type="button" role="tab" aria-selected={language === item.id} className={language === item.id ? 'is-active' : ''} onClick={() => setLanguage(item.id)}>{item.label}</button>)}</div><CodeBlock id={`${endpoint.id}-${language}`} code={requestCode} language={language === 'curl' ? 'shell' : language} copied={copied} onCopy={onCopy} /><div className="aux-api-example-response"><div className="aux-api-example-label">响应示例</div><CodeBlock id={`${endpoint.id}-response-example`} code={endpoint.response} language="json" copied={copied} onCopy={onCopy} /></div></div>}</div>}</article>
+    {panelTabs.map((tab) => <button key={tab.id} type="button" role="tab" aria-selected={panel === tab.id} className={panel === tab.id ? 'is-active' : ''} onClick={() => { if (panel === tab.id) return; setPanel(tab.id); trackFeatureClick('api-docs', `panel-${endpoint.id}-${tab.id}`) }}>{tab.label}{tab.count !== undefined && <span>{tab.count}</span>}</button>)}
+  </div>{panel === 'request' && <ParameterTable parameters={endpoint.requestParams} emptyLabel="此接口不接收请求参数。" />}{panel === 'response' && <ParameterTable parameters={endpoint.responseParams} emptyLabel="暂无结构化响应参数说明。" />}{panel === 'examples' && <div className="aux-api-examples-panel"><div className="aux-api-language-tabs" role="tablist" aria-label={`${endpoint.title}示例语言`}>{exampleLanguages.map((item) => <button key={item.id} type="button" role="tab" aria-selected={language === item.id} className={language === item.id ? 'is-active' : ''} onClick={() => { if (language === item.id) return; setLanguage(item.id); trackFeatureClick('api-docs', `language-${endpoint.id}-${item.id}`) }}>{item.label}</button>)}</div><CodeBlock id={`${endpoint.id}-${language}`} code={requestCode} language={language === 'curl' ? 'shell' : language} copied={copied} onCopy={onCopy} /><div className="aux-api-example-response"><div className="aux-api-example-label">响应示例</div><CodeBlock id={`${endpoint.id}-response-example`} code={endpoint.response} language="json" copied={copied} onCopy={onCopy} /></div></div>}</div>}</article>
 }

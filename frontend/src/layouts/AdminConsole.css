@@ -634,6 +634,19 @@ html.dark .aux-admin-shell {
 .aux-account-panel-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 9px; }
 .aux-account-search { display: inline-flex; min-width: min(100%, 280px); min-height: 36px; align-items: center; gap: 8px; padding: 0 11px; border: 1px solid var(--console-line-strong); border-radius: 10px; background: var(--console-surface-strong); color: var(--console-subtle); }
 .aux-account-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--console-ink); font: inherit; font-size: 12px; }
+.aux-account-search:focus-within { outline: 2px solid var(--console-accent); outline-offset: 2px; }
+.aux-account-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-top: 18px; }
+.aux-account-filters .aux-account-search { flex: 1 1 260px; }
+.aux-account-filter-field { display: grid; min-width: 0; gap: 6px; color: var(--console-muted); font-size: 11px; }
+.aux-account-filter-control { min-width: 120px; height: 36px; font-size: 12px; }
+.aux-account-date-range-filter { width: 300px; max-width: 100%; }
+.aux-account-filter-hint { margin-top: 9px; color: var(--console-subtle); font-size: 11px; line-height: 1.5; }
+.aux-account-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-top: 16px; color: var(--console-muted); font-size: 12px; }
+.aux-account-pagination-controls, .aux-account-pagination nav, .aux-account-page-size { display: flex; align-items: center; gap: 8px; }
+.aux-account-pagination-controls { flex-wrap: wrap; gap: 16px; }
+.aux-account-pagination nav button { width: 32px; height: 32px; border-color: var(--console-line-strong); background: var(--console-surface-strong); color: var(--console-ink); }
+.aux-account-pagination nav button:hover:not(:disabled) { color: var(--console-accent); }
+.aux-account-pagination nav svg { width: 16px; height: 16px; }
 .aux-account-merge-action { min-height: 36px; gap: 7px; padding-inline: 13px; border-radius: 9px; background: var(--console-ink); color: var(--console-bg); font-size: 11px; }
 .aux-account-merge-action:hover { background: var(--console-accent); color: #fff; }
 .aux-account-merge-action svg { width: 15px; height: 15px; }
@@ -718,6 +731,9 @@ html.dark .aux-admin-shell {
   .aux-account-config-panel { padding: 17px; }
   .aux-account-panel-actions { width: 100%; align-items: stretch; flex-direction: column; }
   .aux-account-search { width: 100%; }
+  .aux-account-filter-field { flex: 1 1 150px; }
+  .aux-account-date-range-filter { flex-basis: 300px; }
+  .aux-account-pagination-controls { width: 100%; justify-content: space-between; }
   .aux-account-merge-action { width: 100%; }
   .aux-account-merge-dialog-header { padding: 18px 46px 16px 17px; }
   .aux-account-merge-form { padding: 17px; }

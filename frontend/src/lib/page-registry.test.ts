@@ -19,6 +19,7 @@ const expectedPages = [
     id: 'api-docs',
     title: 'API 文档',
     path: '/api-docs',
+    aliases: ['/docs'],
     visibility: 'public',
   },
   {
@@ -66,7 +67,7 @@ describe('page-registry', () => {
 
   it('every entry has a unique id and path', () => {
     const ids = PAGE_REGISTRY.map((page) => page.id)
-    const paths = PAGE_REGISTRY.map((page) => page.path)
+    const paths = PAGE_REGISTRY.flatMap((page) => [page.path, ...(page.aliases ?? [])])
 
     expect(new Set(ids).size).toBe(ids.length)
     expect(new Set(paths).size).toBe(paths.length)
@@ -79,6 +80,7 @@ describe('page-registry', () => {
   })
 
   it('finds current pages by id and path', () => {
+    expect(getPageByPath('/docs')).toBe(getPageById('api-docs'))
     expect(getPageById('example-content')).toBeUndefined()
     expect(getPageByPath('/admin/examples/interaction')).toBeUndefined()
     expect(getPageByPath('/admin/examples/api')).toBeUndefined()

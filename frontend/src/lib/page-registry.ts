@@ -30,6 +30,8 @@ export interface PageEntry {
   title: string
   /** 路由路径(与 App.tsx 路由 path 一致)。 */
   path: string
+  /** 同一页面的兼容路由，共用页面 id，不在仪表盘重复列出。 */
+  aliases?: readonly string[]
   /** 可见性: public 无需认证; admin 需管理员会话。 */
   visibility: PageVisibility
   /** 动态管理员菜单图标名，来自 metadata.menu_icon。静态页通常不设置。 */
@@ -56,6 +58,7 @@ export const STATIC_PAGE_REGISTRY: readonly PageEntry[] = [
     id: 'api-docs',
     title: 'API 文档',
     path: '/api-docs',
+    aliases: ['/docs'],
     visibility: 'public',
   },
   {
@@ -122,7 +125,7 @@ export function getPageById(id: string): PageEntry | undefined {
  * 动态页查找见 dynamic-pages.ts 的 getMergedPageByPath。
  */
 export function getPageByPath(path: string): PageEntry | undefined {
-  return STATIC_PAGE_REGISTRY.find((p) => p.path === path)
+  return STATIC_PAGE_REGISTRY.find((p) => p.path === path || p.aliases?.includes(path))
 }
 
 /**

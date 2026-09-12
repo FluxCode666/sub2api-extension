@@ -1,8 +1,15 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiClient } from '@/lib/api-client'
+import { trackFeatureClick } from '@/lib/telemetry-sdk'
 import ApiDocsPage from './ApiDocsPage'
+
+vi.mock('@/lib/telemetry-sdk', () => ({ trackFeatureClick: vi.fn() }))
+
+beforeEach(() => {
+  vi.mocked(trackFeatureClick).mockClear()
+})
 
 function renderPage(entry = '/api-docs') {
   return render(
@@ -17,6 +24,83 @@ afterEach(() => {
 })
 
 describe('ApiDocsPage', () => {
+  it('tracks endpoint navigation, expansion, panels and languages without counting default state', () => {
+    renderPage('/api-docs?embed=1')
+    expect(trackFeatureClick).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('link', { name: 'GET /v1/models' }))
+    const card = document.querySelector('#endpoint-models') as HTMLElement
+    fireEvent.click(within(card).getByRole('button', { name: '查看参数与示例' }))
+    fireEvent.click(within(card).getByRole('tab', { name: /响应参数/ }))
+    fireEvent.click(within(card).getByRole('tab', { name: '调用示例' }))
+    fireEvent.click(within(card).getByRole('tab', { name: 'Python' }))
+    fireEvent.click(within(card).getByRole('tab', { name: 'Python' }))
+    fireEvent.click(within(card).getByRole('button', { name: '收起详情' }))
+    expect(vi.mocked(trackFeatureClick).mock.calls).toEqual([
+      ['api-docs', 'section-endpoint-models'],
+      ['api-docs', 'expand-models'],
+      ['api-docs', 'panel-models-response'],
+      ['api-docs', 'panel-models-examples'],
+      ['api-docs', 'language-models-python'],
+      ['api-docs', 'collapse-models'],
+    ])
+  })
+
+  it.each([
+    ['quickstart', 'quickstart-curl'],
+    ['errors', 'error-response'],
+  ])('tracks successful %s code copies without sending code or input', async (section, feature) => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.assign(navigator, { clipboard: { writeText } })
+    renderPage('/api-docs?token=private-token&api_base=https%3A%2F%2Fprivate-gateway.test')
+    fireEvent.change(screen.getByLabelText('API 基础地址'), { target: { value: 'https://private-input.test' } })
+    expect(trackFeatureClick).not.toHaveBeenCalled()
+    fireEvent.click(within(document.getElementById(section)!).getAllByRole('button', { name: '复制代码' })[0])
+    await waitFor(() => expect(vi.mocked(trackFeatureClick).mock.calls).toEqual([['api-docs', `copy-${feature}`]]))
+    expect(writeText).toHaveBeenCalledTimes(1)
+    expect(JSON.stringify(vi.mocked(trackFeatureClick).mock.calls)).not.toContain('private-')
+  })
+
+  it('does not count failed copies and allows a later successful retry', async () => {
+    const writeText = vi.fn().mockRejectedValueOnce(new Error('clipboard blocked')).mockResolvedValue(undefined)
+    Object.assign(navigator, { clipboard: { writeText } })
+    renderPage()
+    const button = within(document.getElementById('quickstart')!).getAllByRole('button', { name: '复制代码' })[0]
+    fireEvent.click(button)
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1))
+    expect(trackFeatureClick).not.toHaveBeenCalled()
+    fireEvent.click(button)
+    await waitFor(() => expect(vi.mocked(trackFeatureClick).mock.calls).toEqual([['api-docs', 'copy-quickstart-curl']]))
+  })
+
+  it('attributes request and response copies to their endpoint and selected language', async () => {
+    Object.assign(navigator, { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } })
+    renderPage()
+    const card = document.getElementById('endpoint-chat-completions')!
+    fireEvent.click(within(card).getByRole('tab', { name: '调用示例' }))
+    fireEvent.click(within(card).getByRole('tab', { name: 'Python' }))
+    const buttons = within(card).getAllByRole('button', { name: '复制代码' })
+    fireEvent.click(buttons[0])
+    await waitFor(() => expect(trackFeatureClick).toHaveBeenLastCalledWith('api-docs', 'copy-chat-completions-python'))
+    fireEvent.click(buttons[1])
+    await waitFor(() => expect(trackFeatureClick).toHaveBeenLastCalledWith('api-docs', 'copy-chat-completions-response-example'))
+    expect(navigator.clipboard.writeText).toHaveBeenCalledTimes(2)
+    expect(trackFeatureClick).toHaveBeenCalledTimes(4)
+  })
+
+  it('tracks section links, theme choices and cross-document navigation', () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('link', { name: '开始接入' }))
+    fireEvent.click(screen.getByRole('link', { name: '认证方式' }))
+    fireEvent.change(screen.getByLabelText('外观主题'), { target: { value: 'dark' } })
+    fireEvent.click(screen.getByRole('link', { name: '查看客户端接入文档' }))
+    expect(vi.mocked(trackFeatureClick).mock.calls).toEqual([
+      ['api-docs', 'section-quickstart'],
+      ['api-docs', 'section-authentication'],
+      ['api-docs', 'theme-dark'],
+      ['api-docs', 'open-client-docs'],
+    ])
+  })
+
   it('renders the public API reference and endpoint cards', () => {
     renderPage()
 
@@ -220,6 +304,7 @@ describe('ApiDocsPage', () => {
     expect(markdown).not.toContain('SUB2API_API_KEY')
 
     await waitFor(() => expect(copyButton).toHaveTextContent('已复制 Markdown'))
+    expect(vi.mocked(trackFeatureClick).mock.calls).toEqual([['api-docs', 'copy-chat-completions-markdown']])
   })
 
   it('renders valid provider-neutral examples with syntax tokens in every language', () => {

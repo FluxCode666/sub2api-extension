@@ -10,6 +10,8 @@ vi.mock('@/lib/api-client', () => ({
 }))
 
 const currentPages = [
+  { id: 'client-docs', title: '客户端接入', path: '/client-docs', visibility: 'public' },
+  { id: 'api-docs', title: 'API 文档', path: '/api-docs', visibility: 'public' },
   { id: 'dashboard', title: '分析仪表盘', path: '/admin/dashboard', visibility: 'admin' },
   { id: 'example-content', title: '静态内容示例', path: '/admin/examples/content', visibility: 'admin' },
   { id: 'example-interaction', title: '交互与埋点示例', path: '/admin/examples/interaction', visibility: 'admin' },
@@ -70,10 +72,9 @@ describe('DashboardPage', () => {
     await screen.findByRole('link', { name: '静态内容示例' })
 
     for (const page of currentPages) {
-      expect(screen.getByRole('link', { name: page.title })).toHaveAttribute(
-        'href',
-        page.path,
-      )
+      for (const link of screen.getAllByRole('link', { name: page.title })) {
+        expect(link).toHaveAttribute('href', page.path)
+      }
       expect(screen.getByRole('link', { name: page.path })).toHaveAttribute(
         'href',
         page.path,
@@ -99,7 +100,7 @@ describe('DashboardPage', () => {
     expect(screen.queryByText('孤儿')).not.toBeInTheDocument()
     expect(screen.queryByText('(孤儿)')).not.toBeInTheDocument()
 
-    expect(summaryCard('页面总数')).toHaveTextContent('4')
+    expect(summaryCard('页面总数')).toHaveTextContent('6')
     expect(summaryCard('总访问量')).toHaveTextContent('11')
     expect(summaryCard('功能点击')).toHaveTextContent('5')
   })
@@ -117,6 +118,29 @@ describe('DashboardPage', () => {
     const row = apiLink.closest('tr')
     expect(row).not.toBeNull()
     expect(within(row as HTMLTableRowElement).getByText('0')).toBeInTheDocument()
+  })
+
+  it('includes documentation visits and feature counts in the overview', async () => {
+    vi.mocked(apiClient.get).mockResolvedValueOnce({
+      code: 0,
+      message: 'success',
+      data: {
+        page_views: [{ page_id: 'client-docs', count: 12 }, { page_id: 'api-docs', count: 9 }],
+        feature_clicks: [
+          { page_id: 'client-docs', feature_id: 'copy-codex-config', count: 6 },
+          { page_id: 'api-docs', feature_id: 'copy-chat-completions-markdown', count: 4 },
+        ],
+      },
+    })
+    renderPage()
+    const clientLink = await screen.findByRole('link', { name: '客户端接入' })
+    expect(within(clientLink.closest('tr')!).getByText('12')).toBeInTheDocument()
+    const apiLink = screen.getAllByRole('link', { name: 'API 文档' }).find(link => link.closest('tr'))!
+    expect(within(apiLink.closest('tr')!).getByText('9')).toBeInTheDocument()
+    expect(screen.getByText('copy-codex-config')).toBeInTheDocument()
+    expect(screen.getByText('copy-chat-completions-markdown')).toBeInTheDocument()
+    expect(summaryCard('总访问量')).toHaveTextContent('21')
+    expect(summaryCard('功能点击')).toHaveTextContent('10')
   })
 
   it('does not expose a fixed /p/home shortcut', async () => {

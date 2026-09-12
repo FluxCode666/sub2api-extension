@@ -136,6 +136,30 @@ describe('telemetry-sdk', () => {
       })
     })
 
+    it.each([
+      ['/client-docs', 'client-docs'],
+      ['/api-docs', 'api-docs'],
+      ['/docs', 'api-docs'],
+    ])('counts anonymous visits to %s without collecting query parameters or fragment changes', (path, pageId) => {
+      vi.mocked(getAdminSession).mockReturnValue(null)
+      window.history.replaceState({}, '', `${path}?embed=1&client=codex&token=private-token&api_base=https%3A%2F%2Fprivate-gateway.test#configure`)
+      initTelemetry()
+      initTelemetry()
+      window.history.pushState({}, '', `${path}?client=pi&theme=dark#verify`)
+      window.history.replaceState({}, '', `${path}?theme=light#install`)
+      window.dispatchEvent(new PopStateEvent('popstate'))
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      const [url, options] = fetchMock.mock.calls[0]
+      expect(url).toBe('/api/aux/telemetry/page-view')
+      expect(JSON.parse(options.body)).toEqual({ page_id: pageId, visitor_id: expect.any(String), is_admin: false })
+      expect(options.headers).toEqual({ 'Content-Type': 'application/json' })
+
+      window.history.pushState({}, '', '/unknown')
+      window.history.pushState({}, '', path)
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      expect(JSON.parse(fetchMock.mock.calls[1][1].body).page_id).toBe(pageId)
+    })
+
     it('does not report a guarded route before authentication', () => {
       vi.mocked(getAdminSession).mockReturnValue(null)
       window.history.replaceState({}, '', '/admin/dashboard')

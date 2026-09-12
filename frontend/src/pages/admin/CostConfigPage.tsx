@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, ChevronDown, CircleHelp, Coins, RefreshCw, Search, SlidersHorizontal, UsersRound } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Coins, RefreshCw, Search, SlidersHorizontal, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { AccountCreatedDateRangePicker } from "@/components/admin/AccountCreatedDateRangePicker";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { apiClient, type AuxEnvelope } from "@/lib/api-client";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Pagination, PaginationContent, PaginationItem } from "@/components/ui/pagination";
 
 interface CostConfig {
   oauth_account_cost: number;
@@ -42,6 +45,11 @@ export default function CostConfigPage() {
   const [global, setGlobal] = useState<CostConfig>({ oauth_account_cost: 0, api_cost_multiplier: 1, tax_rate: 0, currency: "CNY" });
   const [draftAccounts, setDraftAccounts] = useState<AccountCostConfig[]>([]);
   const [search, setSearch] = useState("");
+  const [accountType, setAccountType] = useState("all");
+  const [createdFrom, setCreatedFrom] = useState("");
+  const [createdTo, setCreatedTo] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [savingGlobal, setSavingGlobal] = useState(false);
@@ -71,11 +79,37 @@ export default function CostConfigPage() {
 
   useEffect(() => { void load(); }, []);
 
+  const hasFilters = Boolean(search.trim() || accountType !== "all" || createdFrom || createdTo);
   const filteredAccounts = useMemo(() => {
     const needle = search.trim().toLowerCase();
-    if (!needle) return draftAccounts;
-    return draftAccounts.filter((account) => [String(account.account_id), account.name, account.platform, account.account_type, account.billing_group].join(" ").toLowerCase().includes(needle));
-  }, [draftAccounts, search]);
+    const start = createdFrom ? new Date(`${createdFrom}T00:00:00`).getTime() : null;
+    const end = createdTo ? new Date(`${createdTo}T00:00:00`) : null;
+    // 用本地日历的次日零点作为开区间，包含结束当天，也兼容夏令时切换。
+    if (end) end.setDate(end.getDate() + 1);
+    return draftAccounts.filter((account) => {
+      if (accountType !== "all" && account.account_type !== accountType) return false;
+      if (needle && ![String(account.account_id), account.name, account.platform, account.account_type, account.billing_group].join(" ").toLowerCase().includes(needle)) return false;
+      if (start !== null || end !== null) {
+        const createdAt = account.account_created_at ? new Date(account.account_created_at).getTime() : NaN;
+        if (!Number.isFinite(createdAt) || (start !== null && createdAt < start) || (end !== null && createdAt >= end.getTime())) return false;
+      }
+      return true;
+    });
+  }, [draftAccounts, search, accountType, createdFrom, createdTo]);
+  const pageCount = Math.max(1, Math.ceil(filteredAccounts.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const pageOffset = (currentPage - 1) * pageSize;
+  const visibleAccounts = filteredAccounts.slice(pageOffset, pageOffset + pageSize);
+
+  useEffect(() => { setPage((current) => Math.min(current, pageCount)); }, [pageCount]);
+
+  const resetFilters = () => {
+    setSearch("");
+    setAccountType("all");
+    setCreatedFrom("");
+    setCreatedTo("");
+    setPage(1);
+  };
 
   const selectedMergeAccounts = useMemo(() => draftAccounts.filter((account) => mergeAccountIDs.includes(account.account_id)), [draftAccounts, mergeAccountIDs]);
   const selectedMergeTypes = useMemo(() => new Set(selectedMergeAccounts.map((account) => account.account_type)), [selectedMergeAccounts]);
@@ -233,7 +267,6 @@ export default function CostConfigPage() {
         <div className="aux-cost-panel-head">
           <div><p className="aux-cost-panel-kicker">Per account</p><h2>账号独立成本与合并计费</h2></div>
           <div className="aux-account-panel-actions">
-            <label className="aux-account-search"><Search size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索账号名、平台、计费组或 ID" aria-label="搜索账号" /></label>
             <Dialog open={mergeDialogOpen} onOpenChange={handleMergeDialogOpenChange}>
               <DialogTrigger asChild>
                 <Button type="button" className="aux-account-merge-action"><UsersRound aria-hidden="true" />账号合并计费</Button>
@@ -309,8 +342,21 @@ export default function CostConfigPage() {
             </Dialog>
           </div>
         </div>
+        <div className="aux-account-filters" role="search" aria-label="账号筛选">
+          <Label className="aux-account-search"><Search size={15} aria-hidden="true" /><Input className="px-0 shadow-none focus-visible:ring-0" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="搜索账号名、平台、计费组或 ID" aria-label="搜索账号" /></Label>
+          <div className="aux-account-filter-field">
+            <Label htmlFor="account-type-filter" className="text-xs font-normal">账号类型</Label>
+            <Select value={accountType} onValueChange={(value) => { setAccountType(value); setPage(1); }}>
+              <SelectTrigger id="account-type-filter" className="aux-account-filter-control"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="all">全部类型</SelectItem><SelectItem value="oauth">OAuth</SelectItem><SelectItem value="api">API</SelectItem></SelectContent>
+            </Select>
+          </div>
+          <AccountCreatedDateRangePicker from={createdFrom} to={createdTo} onChange={(from, to) => { setCreatedFrom(from); setCreatedTo(to); setPage(1); }} />
+          <Button type="button" variant="ghost" size="sm" onClick={resetFilters} disabled={!hasFilters}>重置筛选</Button>
+        </div>
+        <p id="account-date-hint" className="aux-account-filter-hint">按本地日期筛选，包含结束当天；设置日期范围后，不显示创建时间未知的账号。</p>
         <div className="aux-account-table-scroll"><table className="aux-account-table"><thead><tr><th>账号 / 创建时间</th><th>类型 / 平台</th><th>OAuth 单号成本</th><th>API 成本倍率</th><th>同步倍率</th><th>合并计费组</th><th>操作</th></tr></thead><tbody>
-          {filteredAccounts.length === 0 ? <tr><td colSpan={7} className="aux-cost-empty-cell">暂无账号。点击“立即同步倍率”读取 Sub2API accounts。</td></tr> : filteredAccounts.map((account) => <tr key={account.account_id}>
+          {visibleAccounts.length === 0 ? <tr><td colSpan={7} className="aux-cost-empty-cell">{hasFilters ? "没有符合筛选条件的账号，请调整或重置筛选。" : "暂无账号。点击“立即同步倍率”读取 Sub2API accounts。"}</td></tr> : visibleAccounts.map((account) => <tr key={account.account_id}>
             <td><strong>{account.name || `账号 ${account.account_id}`}</strong><small>#{account.account_id}</small>{account.account_created_at && <small>创建于 {formatAccountCreatedAt(account.account_created_at)}</small>}</td>
             <td><span className={`aux-account-type aux-account-type--${account.account_type}`}>{account.account_type === "oauth" ? "OAuth" : "API"}</span><small>{account.platform || "—"}</small></td>
             <td>{account.account_type === "oauth" ? <input className="aux-account-number" type="number" min="0" step="0.01" value={account.oauth_account_cost ?? ""} placeholder={`默认 ${global.oauth_account_cost}`} onChange={(event) => updateAccount(setDraftAccounts, account.account_id, { oauth_account_cost: event.target.value === "" ? null : Number(event.target.value) })} /> : <span className="aux-account-muted">不适用</span>}</td>
@@ -320,6 +366,27 @@ export default function CostConfigPage() {
             <td><button type="button" className="aux-account-save" disabled={savingAccount === account.account_id} onClick={() => void saveAccount(account)}>{savingAccount === account.account_id ? "保存中…" : "保存"}</button></td>
           </tr>)}
         </tbody></table></div>
+        <footer className="aux-account-pagination">
+          <span role="status">共 {filteredAccounts.length} 个账号{filteredAccounts.length > 0 ? `，显示 ${pageOffset + 1}–${Math.min(pageOffset + pageSize, filteredAccounts.length)} 条` : ""}</span>
+          <div className="aux-account-pagination-controls">
+            <div className="aux-account-page-size">
+              <Label htmlFor="account-page-size" className="shrink-0 text-xs font-normal">每页</Label>
+              <Select value={String(pageSize)} onValueChange={(value) => { setPageSize(Number(value)); setPage(1); }}>
+                <SelectTrigger id="account-page-size" aria-label="每页条数" className="w-20 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>{[10, 20, 50, 100].map((size) => <SelectItem key={size} value={String(size)}>{size} 条</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <TooltipProvider>
+              <Pagination aria-label="账号列表分页" className="mx-0 w-auto">
+                <PaginationContent>
+                  <PaginationItem><Tooltip><TooltipTrigger asChild><Button type="button" variant="outline" size="icon" aria-label="上一页" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}><ChevronLeft aria-hidden="true" /></Button></TooltipTrigger><TooltipContent>上一页</TooltipContent></Tooltip></PaginationItem>
+                  <PaginationItem><span>第 {currentPage} / {pageCount} 页</span></PaginationItem>
+                  <PaginationItem><Tooltip><TooltipTrigger asChild><Button type="button" variant="outline" size="icon" aria-label="下一页" disabled={currentPage >= pageCount} onClick={() => setPage(currentPage + 1)}><ChevronRight aria-hidden="true" /></Button></TooltipTrigger><TooltipContent>下一页</TooltipContent></Tooltip></PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </TooltipProvider>
+          </div>
+        </footer>
       </section>
     </div>
   );

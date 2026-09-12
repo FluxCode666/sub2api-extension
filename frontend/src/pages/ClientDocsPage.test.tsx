@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ClientDocsPage from './ClientDocsPage'
 import { CLIENT_GUIDES } from '@/lib/client-guides'
 import { apiClient } from '@/lib/api-client'
+import { trackFeatureClick } from '@/lib/telemetry-sdk'
 
 vi.mock('@gsap/react', () => ({ useGSAP: vi.fn() }))
 vi.mock('gsap', () => ({ default: { registerPlugin: vi.fn() } }))
@@ -34,6 +35,7 @@ function mockSystemTheme(initialDark: boolean) {
 }
 
 beforeEach(() => {
+  vi.mocked(trackFeatureClick).mockClear()
   window.localStorage.removeItem('aux-client-docs-theme')
   vi.mocked(apiClient.get).mockResolvedValue({ code: 0, data: {} })
   Element.prototype.scrollIntoView = vi.fn()
@@ -44,6 +46,71 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('ClientDocsPage', () => {
+  it('tracks guide actions once across desktop, mobile and keyboard controls', () => {
+    renderPage('/client-docs?client=codex&embed=1')
+    expect(trackFeatureClick).not.toHaveBeenCalled()
+
+    fireEvent.click(within(screen.getByRole('navigation', { name: '本页内容' })).getByRole('link', { name: '配置连接' }))
+    fireEvent.click(within(screen.getByRole('navigation', { name: '当前指南章节' })).getByRole('link', { name: '安装客户端' }))
+    fireEvent.click(screen.getByRole('link', { name: '直接配置' }))
+    const windowsTab = screen.getByRole('tab', { name: 'Windows PowerShell' })
+    fireEvent.click(windowsTab)
+    fireEvent.click(windowsTab)
+    fireEvent.keyDown(windowsTab, { key: 'ArrowLeft' })
+
+    expect(vi.mocked(trackFeatureClick).mock.calls).toEqual([
+      ['client-docs', 'section-codex-configure'],
+      ['client-docs', 'section-codex-install'],
+      ['client-docs', 'section-codex-configure'],
+      ['client-docs', 'platform-codex-windows'],
+      ['client-docs', 'platform-codex-unix'],
+    ])
+    expect(screen.getByRole('tab', { name: 'macOS / Linux' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('tracks downloads and screenshots without including input or link contents', () => {
+    renderPage('/client-docs?client=claude-desktop&token=private-token&api_base=https%3A%2F%2Fprivate-gateway.test')
+    fireEvent.change(screen.getByLabelText('模型名称'), { target: { value: 'private-model' } })
+    fireEvent.change(screen.getByRole('searchbox', { name: '搜索客户端' }), { target: { value: 'private-search' } })
+    expect(trackFeatureClick).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('link', { name: '下载 Claude Desktop' }))
+    fireEvent.click(screen.getByRole('link', { name: '官方文档' }))
+    fireEvent.click(screen.getByRole('link', { name: '下载 CC Switch' }))
+    fireEvent.click(screen.getByRole('link', { name: '配置说明' }))
+    expect(vi.mocked(trackFeatureClick).mock.calls).toEqual([
+      ['client-docs', 'open-claude-desktop-install'],
+      ['client-docs', 'open-claude-desktop-official'],
+      ['client-docs', 'open-claude-desktop-cc-switch-download'],
+      ['client-docs', 'open-claude-desktop-cc-switch-docs'],
+    ])
+
+    fireEvent.change(screen.getByLabelText('选择客户端'), { target: { value: 'codex' } })
+    expect(trackFeatureClick).toHaveBeenLastCalledWith('client-docs', 'select-codex')
+    fireEvent.click(screen.getByRole('button', { name: `放大查看：${CLIENT_GUIDES.find(client => client.id === 'codex')!.screenshots.configure.caption}` }))
+    expect(trackFeatureClick).toHaveBeenLastCalledWith('client-docs', 'screenshot-codex-configure')
+    const count = vi.mocked(trackFeatureClick).mock.calls.length
+    fireEvent.click(screen.getByRole('button', { name: '关闭大图' }))
+    expect(trackFeatureClick).toHaveBeenCalledTimes(count)
+    expect(JSON.stringify(vi.mocked(trackFeatureClick).mock.calls)).not.toContain('private-')
+  })
+
+  it('tracks prerequisite guide links and cross-document navigation', () => {
+    renderPage('/client-docs?client=paseo')
+    fireEvent.click(screen.getAllByRole('link', { name: '查看 Codex 接入指南' })[0])
+    expect(vi.mocked(trackFeatureClick).mock.calls).toEqual([['client-docs', 'select-codex']])
+    expect(screen.getByRole('heading', { name: 'Codex 接入指南' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('link', { name: '查看 API 文档' }))
+    expect(trackFeatureClick).toHaveBeenLastCalledWith('client-docs', 'open-api-docs')
+  })
+
+  it('counts a successful configuration copy without collecting its contents', async () => {
+    renderPage('/client-docs?client=codex&api_base=https%3A%2F%2Fprivate-gateway.test')
+    fireEvent.change(screen.getByLabelText('模型名称'), { target: { value: 'private-model' } })
+    fireEvent.click(screen.getByRole('button', { name: '复制~/.codex/config.toml' }))
+    await waitFor(() => expect(vi.mocked(trackFeatureClick).mock.calls).toEqual([['client-docs', 'copy-codex-config']]))
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(expect.stringContaining('private-model'))
+  })
+
   it('links back to the public website from the top navigation', () => {
     renderPage()
     expect(screen.getByRole('link', { name: '返回官网' })).toHaveAttribute('href', '/sub2api-home')
@@ -329,6 +396,7 @@ describe('ClientDocsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: '复制~/.codex/config.toml' }))
     await screen.findByText('自动复制不可用，代码已选中，请按 Ctrl+C 或 ⌘C 复制。')
     expect(window.getSelection()?.toString()).toContain('wire_api = "responses"')
+    expect(trackFeatureClick).not.toHaveBeenCalled()
   })
 
   it('preserves presentation parameters without forwarding credentials to documentation links', () => {

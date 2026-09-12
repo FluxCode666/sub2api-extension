@@ -121,7 +121,7 @@ function CodeBlock({ title, language, code, feature }: { title: string; language
   </div>
 }
 
-function Screenshot({ screenshot, clientName }: { screenshot: GuideScreenshot; clientName: string }) {
+function Screenshot({ screenshot, clientName, feature }: { screenshot: GuideScreenshot; clientName: string; feature: string }) {
   const [failed, setFailed] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -166,7 +166,7 @@ function Screenshot({ screenshot, clientName }: { screenshot: GuideScreenshot; c
   }, { scope: figureRef, dependencies: [dialogOpen], revertOnUpdate: true })
 
   return <figure ref={figureRef} className="client-screenshot">
-    {hasImage ? <button type="button" className="client-screenshot-image" onClick={() => setExpanded(true)} aria-label={`放大查看：${screenshot.caption}`}>
+    {hasImage ? <button type="button" className="client-screenshot-image" onClick={() => { setExpanded(true); trackFeatureClick('client-docs', `screenshot-${feature}`) }} aria-label={`放大查看：${screenshot.caption}`}>
       <img src={screenshot.src} alt={screenshot.alt} loading="lazy" onError={() => setFailed(true)} />
       <span><ImageIcon size={14} aria-hidden="true" /> 点击放大</span>
     </button> : <div className="client-screenshot-placeholder" role="img" aria-label={`${clientName}：${screenshot.caption}（截图待补充）`}>
@@ -226,7 +226,7 @@ export default function ClientDocsPage() {
     <div className="client-prerequisite-links">{prerequisiteGuides.map(client => {
       const linkParams = new URLSearchParams(apiParams)
       linkParams.set('client', client.id)
-      return <Link key={client.id} className="client-inline-link" to={`/client-docs?${linkParams}`} onClick={() => { scrollRequested.current = true; setActiveSection('prepare') }}>查看 {client.name} 接入指南 <ArrowRight size={14} aria-hidden="true" /></Link>
+      return <Link key={client.id} className="client-inline-link" to={`/client-docs?${linkParams}`} onClick={() => { scrollRequested.current = true; setActiveSection('prepare'); trackFeatureClick('client-docs', `select-${client.id}`) }}>查看 {client.name} 接入指南 <ArrowRight size={14} aria-hidden="true" /></Link>
     })}</div>
   </div>
 
@@ -260,11 +260,22 @@ export default function ClientDocsPage() {
     searchRef.current?.focus({ preventScroll: true })
   }
 
+  function selectSection(sectionId: string) {
+    setActiveSection(sectionId)
+    trackFeatureClick('client-docs', `section-${guide.id}-${sectionId}`)
+  }
+
+  function selectPlatform(next: GuidePlatform) {
+    if (next === platform) return
+    setPlatform(next)
+    trackFeatureClick('client-docs', `platform-${guide.id}-${next}`)
+  }
+
   function onPlatformKey(event: KeyboardEvent<HTMLButtonElement>) {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
     event.preventDefault()
     const next = event.key === 'Home' ? 'unix' : event.key === 'End' ? 'windows' : platform === 'unix' ? 'windows' : 'unix'
-    setPlatform(next)
+    selectPlatform(next)
     pageRef.current?.querySelector<HTMLButtonElement>(`#platform-${next}`)?.focus({ preventScroll: true })
   }
 
@@ -427,8 +438,8 @@ export default function ClientDocsPage() {
       <div className="client-header-inner client-shell">
         <a className="client-brand" href="#top" aria-label="客户端接入文档首页" onClick={event => { event.preventDefault(); scrollTopRef.current() }}><BookOpen size={22} aria-hidden="true" /><strong>接入文档</strong><span className="client-brand-caption">配置你的工作方式</span></a>
         <div className="client-header-tools">
-          <Link className="client-header-home" to="/sub2api-home" aria-label="返回官网"><Home size={17} aria-hidden="true" /><span>官网</span></Link>
-          <Link className="client-header-api" to={apiDocsHref} aria-label="查看 API 文档">API 参考 <ArrowUpRight size={16} aria-hidden="true" /></Link>
+          <Link className="client-header-home" to="/sub2api-home" aria-label="返回官网" onClick={() => trackFeatureClick('client-docs', 'open-home')}><Home size={17} aria-hidden="true" /><span>官网</span></Link>
+          <Link className="client-header-api" to={apiDocsHref} onClick={() => trackFeatureClick('client-docs', 'open-api-docs')} aria-label="查看 API 文档">API 参考 <ArrowUpRight size={16} aria-hidden="true" /></Link>
           <div className="client-theme-picker">
             <ThemeIcon size={16} aria-hidden="true" />
             <select aria-label="外观主题" value={themePreference} onChange={event => selectTheme(event.target.value)}>
@@ -452,7 +463,7 @@ export default function ClientDocsPage() {
         <nav aria-label="客户端目录">{visibleGuides.map(client => <button key={client.id} type="button" className={guide.id === client.id ? 'is-current' : ''} aria-current={guide.id === client.id ? 'page' : undefined} onClick={() => selectClient(client.id)}><ClientMark id={client.id} small /><span>{client.name}</span>{guide.id === client.id && <ArrowRight size={15} aria-hidden="true" />}</button>)}</nav>
         {visibleGuides.length === 0 && <div className="client-search-empty" role="status"><p>未找到匹配的客户端</p><button type="button" className="client-inline-link" onClick={clearSearch}>显示全部客户端</button></div>}
         <p className="client-sidebar-note">选择你正在使用的工具，<br />从安装、配置到第一次对话。</p>
-        <Link className="client-sidebar-reference" to={apiDocsHref}>查阅 API 参考 <ArrowUpRight size={15} aria-hidden="true" /></Link>
+        <Link className="client-sidebar-reference" to={apiDocsHref} onClick={() => trackFeatureClick('client-docs', 'open-api-docs')}>查阅 API 参考 <ArrowUpRight size={15} aria-hidden="true" /></Link>
       </div></aside>
 
       <article id="guide" ref={articleRef} className="client-article" aria-labelledby="guide-title" tabIndex={-1}>
@@ -464,10 +475,10 @@ export default function ClientDocsPage() {
         <div className="client-article-heading">
           <div className="client-guide-title-row"><ClientMark id={guide.id} /><h1 id="guide-title">{guide.name} 接入指南</h1></div>
           <p>{guide.description}</p>
-          <div className="client-guide-meta"><span>{guide.protocol}</span><a href={guide.officialUrl} target="_blank" rel="noreferrer">官方文档 <ExternalLink size={14} aria-hidden="true" /></a></div>
-          <div className="client-quick-links"><span>已安装客户端？</span><a href="#configure" onClick={() => setActiveSection('configure')}>直接配置 <ArrowDown size={14} aria-hidden="true" /></a><a href="#verify" onClick={() => setActiveSection('verify')}>验证接入 <ArrowDown size={14} aria-hidden="true" /></a></div>
+          <div className="client-guide-meta"><span>{guide.protocol}</span><a href={guide.officialUrl} onClick={() => trackFeatureClick('client-docs', `open-${guide.id}-official`)} target="_blank" rel="noreferrer">官方文档 <ExternalLink size={14} aria-hidden="true" /></a></div>
+          <div className="client-quick-links"><span>已安装客户端？</span><a href="#configure" onClick={() => selectSection('configure')}>直接配置 <ArrowDown size={14} aria-hidden="true" /></a><a href="#verify" onClick={() => selectSection('verify')}>验证接入 <ArrowDown size={14} aria-hidden="true" /></a></div>
         </div>
-        <details className="client-mobile-toc" key={`toc-${guide.id}`}><summary>本页内容 <ChevronDown size={16} aria-hidden="true" /></summary><nav aria-label="当前指南章节">{GUIDE_SECTIONS.map(section => <a key={section.id} href={`#${section.id}`} onClick={event => { setActiveSection(section.id); event.currentTarget.closest('details')?.removeAttribute('open') }}>{section.title}</a>)}</nav></details>
+        <details className="client-mobile-toc" key={`toc-${guide.id}`}><summary>本页内容 <ChevronDown size={16} aria-hidden="true" /></summary><nav aria-label="当前指南章节">{GUIDE_SECTIONS.map(section => <a key={section.id} href={`#${section.id}`} onClick={event => { selectSection(section.id); event.currentTarget.closest('details')?.removeAttribute('open') }}>{section.title}</a>)}</nav></details>
 
           <section id="prepare" className="client-guide-section">
             <div className="client-step-heading"><h2>准备接入信息</h2></div>
@@ -481,10 +492,10 @@ export default function ClientDocsPage() {
 
           <section id="install" className="client-guide-section">
             <div className="client-step-heading"><h2>安装客户端</h2></div>
-            {guide.endpoint && (prerequisiteGuides.length ? prerequisites : <p>{guide.prerequisite} <a className="client-inline-link" href={guide.installUrl} target="_blank" rel="noreferrer">安装说明 <ArrowUpRight size={13} aria-hidden="true" /></a></p>)}
-            {guide.installSteps && <ol className="client-instructions">{guide.installSteps.map(step => <li key={step.text}>{step.text}{step.href && <> <a className="client-inline-link" href={step.href} target="_blank" rel="noreferrer">{step.linkLabel} <ArrowUpRight size={13} aria-hidden="true" /></a></>}</li>)}</ol>}
+            {guide.endpoint && (prerequisiteGuides.length ? prerequisites : <p>{guide.prerequisite} <a className="client-inline-link" href={guide.installUrl} onClick={() => trackFeatureClick('client-docs', `open-${guide.id}-install`)} target="_blank" rel="noreferrer">安装说明 <ArrowUpRight size={13} aria-hidden="true" /></a></p>)}
+            {guide.installSteps && <ol className="client-instructions">{guide.installSteps.map(step => <li key={step.text}>{step.text}{step.href && <> <a className="client-inline-link" href={step.href} onClick={() => trackFeatureClick('client-docs', `open-${guide.id}-install`)} target="_blank" rel="noreferrer">{step.linkLabel} <ArrowUpRight size={13} aria-hidden="true" /></a></>}</li>)}</ol>}
             {installCommand && <>
-              <div className="client-platform-tabs" role="tablist" aria-label="操作系统">{([{ id: 'unix', label: 'macOS / Linux' }, { id: 'windows', label: 'Windows PowerShell' }] as const).map(option => <button type="button" role="tab" id={`platform-${option.id}`} aria-selected={platform === option.id} aria-controls="client-platform-panel" tabIndex={platform === option.id ? 0 : -1} key={option.id} onClick={() => setPlatform(option.id)} onKeyDown={onPlatformKey}>{option.label}</button>)}</div>
+              <div className="client-platform-tabs" role="tablist" aria-label="操作系统">{([{ id: 'unix', label: 'macOS / Linux' }, { id: 'windows', label: 'Windows PowerShell' }] as const).map(option => <button type="button" role="tab" id={`platform-${option.id}`} aria-selected={platform === option.id} aria-controls="client-platform-panel" tabIndex={platform === option.id ? 0 : -1} key={option.id} onClick={() => selectPlatform(option.id)} onKeyDown={onPlatformKey}>{option.label}</button>)}</div>
               <div id="client-platform-panel" role="tabpanel" aria-labelledby={`platform-${platform}`}><CodeBlock title={guide.installTitle ?? `安装 ${guide.name}`} language={platform === 'windows' ? 'PowerShell' : 'Bash / Zsh'} code={installCommand} feature={`${guide.id}-install`} /></div>
             </>}
             {guide.installAlternatives?.map((method, index) => <div key={method.title}>
@@ -500,13 +511,13 @@ export default function ClientDocsPage() {
               <h3 id="client-quick-config-title">CC Switch 快捷配置</h3>
               <p>{guide.ccSwitch.description}</p>
               <div className="client-quick-config-links">
-                <a className="client-inline-link" href={CC_SWITCH_DOWNLOAD_URL} target="_blank" rel="noreferrer">下载 CC Switch <ArrowUpRight size={14} aria-hidden="true" /></a>
-                <a className="client-inline-link" href={`${CC_SWITCH_DOCS_URL}${guide.id === 'claude-desktop' ? '2.6-claude-desktop.md' : '2.1-add.md'}`} target="_blank" rel="noreferrer">配置说明 <ArrowUpRight size={14} aria-hidden="true" /></a>
+                <a className="client-inline-link" href={CC_SWITCH_DOWNLOAD_URL} onClick={() => trackFeatureClick('client-docs', `open-${guide.id}-cc-switch-download`)} target="_blank" rel="noreferrer">下载 CC Switch <ArrowUpRight size={14} aria-hidden="true" /></a>
+                <a className="client-inline-link" href={`${CC_SWITCH_DOCS_URL}${guide.id === 'claude-desktop' ? '2.6-claude-desktop.md' : '2.1-add.md'}`} onClick={() => trackFeatureClick('client-docs', `open-${guide.id}-cc-switch-docs`)} target="_blank" rel="noreferrer">配置说明 <ArrowUpRight size={14} aria-hidden="true" /></a>
               </div>
               <ol className="client-instructions">{guide.ccSwitch.steps.map(step => <li key={step}>{step}</li>)}</ol>
               {quickExample ? <CodeBlock title={`${guide.name} · CC Switch 填写参考`} language={quickExample.language} code={quickExample.code} feature={`${guide.id}-cc-switch`} /> : <div className="client-config-error" role="status">填写有效的 API 基础地址和模型后，即可查看快捷配置参数。</div>}
-              {(guide.ccSwitch.screenshots ?? (guide.ccSwitch.screenshot ? [guide.ccSwitch.screenshot] : [])).map((screenshot, index) => <Screenshot key={`${guide.id}-cc-switch-${index}`} screenshot={screenshot} clientName={guide.name} />)}
-              <p className="client-quick-config-next">{guide.id !== 'claude-desktop' && '快捷配置与下方手动配置任选一种。'}完成后，<a className="client-inline-link" href="#verify" onClick={() => setActiveSection('verify')}>验证接入 <ArrowDown size={14} aria-hidden="true" /></a>。</p>
+              {(guide.ccSwitch.screenshots ?? (guide.ccSwitch.screenshot ? [guide.ccSwitch.screenshot] : [])).map((screenshot, index) => <Screenshot key={`${guide.id}-cc-switch-${index}`} screenshot={screenshot} clientName={guide.name} feature={`${guide.id}-cc-switch-${index}`} />)}
+              <p className="client-quick-config-next">{guide.id !== 'claude-desktop' && '快捷配置与下方手动配置任选一种。'}完成后，<a className="client-inline-link" href="#verify" onClick={() => selectSection('verify')}>验证接入 <ArrowDown size={14} aria-hidden="true" /></a>。</p>
             </div>}
             {guide.id !== 'claude-desktop' && <>
             {guide.ccSwitch && <h3 className="client-config-method-title">手动配置</h3>}
@@ -517,7 +528,7 @@ export default function ClientDocsPage() {
             {guide.authFile && <><p>{guide.authFile.description}</p><CodeBlock title={guide.authFile.path} language="JSON" code={guide.authFile.code} feature={`${guide.id}-auth`} /></>}
             </>}
             {guide.endpoint && <div className="client-protocol-note"><span>请求端点</span><code>{guide.id === 'zcode' || guide.id === 'pi' ? '/v1/messages · /v1/chat/completions · /v1/responses' : guide.endpoint}</code><span>{guide.id === 'zcode' || guide.id === 'pi' ? '按所选 API 格式使用对应端点，基础地址不加 /v1。' : guide.endpoint === '/v1/messages' ? '由客户端自动添加，基础地址不加 /v1。' : '示例已自动补齐 /v1，无需添加完整端点。'}</span></div>}
-            <Screenshot key={`${guide.id}-configure`} screenshot={guide.screenshots.configure} clientName={guide.name} />
+            <Screenshot key={`${guide.id}-configure`} screenshot={guide.screenshots.configure} clientName={guide.name} feature={`${guide.id}-configure`} />
           </section>
 
           <section id="verify" className="client-guide-section">
@@ -525,7 +536,7 @@ export default function ClientDocsPage() {
             {verifyCommand && <CodeBlock title={`启动并验证 ${guide.name}`} language={platform === 'windows' ? 'PowerShell' : 'Bash / Zsh'} code={verifyCommand} feature={`${guide.id}-verify`} />}
             <CodeBlock title="发送验证消息" language="对话内容" code="当前时间" feature={`${guide.id}-prompt`} />
             <div className="client-verification-note"><Check size={18} aria-hidden="true" /><div><strong>收到回复，再核对用量</strong><p>客户端正常回复，且平台控制台出现对应请求记录，即可确认本次接入。</p></div></div>
-            <Screenshot key={`${guide.id}-verify`} screenshot={guide.screenshots.verify} clientName={guide.name} />
+            <Screenshot key={`${guide.id}-verify`} screenshot={guide.screenshots.verify} clientName={guide.name} feature={`${guide.id}-verify`} />
           </section>
 
           <section id="troubleshooting" className="client-guide-section client-faq-section">
@@ -538,10 +549,10 @@ export default function ClientDocsPage() {
 
       <aside className="client-reading-rail" aria-label="阅读导航"><div>
         <p className="client-toc-title">本页内容</p>
-        <nav className="client-toc" aria-label="本页内容">{GUIDE_SECTIONS.map(section => <a key={section.id} href={`#${section.id}`} aria-current={activeSection === section.id ? 'location' : undefined} onClick={() => setActiveSection(section.id)}>{section.title}</a>)}</nav>
+        <nav className="client-toc" aria-label="本页内容">{GUIDE_SECTIONS.map(section => <a key={section.id} href={`#${section.id}`} aria-current={activeSection === section.id ? 'location' : undefined} onClick={() => selectSection(section.id)}>{section.title}</a>)}</nav>
         <div className="client-reading-note"><Check size={18} aria-hidden="true" /><p>接入完成后<br />发送「当前时间」<br />确认收到正常回复。</p></div>
       </div></aside>
     </main>
-    <footer className="client-footer client-shell"><div className="client-footer-brand"><Terminal size={18} aria-hidden="true" /><span>{systemName ? `${systemName} · 客户端接入文档` : '客户端接入文档'}</span></div><span>{CLIENT_GUIDES.length} 种客户端 · 持续更新</span><span className="client-footer-copyright">© 2026 {systemName || 'TERALEMO'}. All rights reserved.</span><nav aria-label="相关文档"><Link to={apiDocsHref}>API 参考 <ArrowUpRight size={16} aria-hidden="true" /></Link><a href="#top" onClick={event => { event.preventDefault(); scrollTopRef.current() }}>回到顶部 <ArrowUp size={16} aria-hidden="true" /></a></nav></footer>
+    <footer className="client-footer client-shell"><div className="client-footer-brand"><Terminal size={18} aria-hidden="true" /><span>{systemName ? `${systemName} · 客户端接入文档` : '客户端接入文档'}</span></div><span>{CLIENT_GUIDES.length} 种客户端 · 持续更新</span><span className="client-footer-copyright">© 2026 {systemName || 'TERALEMO'}. All rights reserved.</span><nav aria-label="相关文档"><Link to={apiDocsHref} onClick={() => trackFeatureClick('client-docs', 'open-api-docs')}>API 参考 <ArrowUpRight size={16} aria-hidden="true" /></Link><a href="#top" onClick={event => { event.preventDefault(); scrollTopRef.current() }}>回到顶部 <ArrowUp size={16} aria-hidden="true" /></a></nav></footer>
   </div>
 }
