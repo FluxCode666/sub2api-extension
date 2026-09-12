@@ -6,8 +6,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
-	"time"
 
 	"sub2api-extension/internal/pkg/response"
 	"sub2api-extension/internal/service"
@@ -201,18 +199,4 @@ func promotionID(c *gin.Context) (int, bool) {
 		return 0, false
 	}
 	return id, true
-}
-
-// Keep the parser close to the handler so the API accepts browser ISO-8601 values.
-func parsePromotionTime(raw string) (*time.Time, error) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return nil, nil
-	}
-	value, err := time.Parse(time.RFC3339, raw)
-	if err != nil {
-		return nil, err
-	}
-	value = value.UTC()
-	return &value, nil
 }
