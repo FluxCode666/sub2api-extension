@@ -40,14 +40,15 @@ func NewSub2APIMenuStore(db *sql.DB, publicURL string) *Sub2APIMenuStore {
 }
 
 type customMenuItem struct {
-	ID         string `json:"id"`
-	Label      string `json:"label"`
-	IconSVG    string `json:"icon_svg"`
-	URL        string `json:"url"`
-	PageSlug   string `json:"page_slug,omitempty"`
-	Visibility string `json:"visibility"`
-	SortOrder  int    `json:"sort_order"`
-	extra      map[string]json.RawMessage
+	ID              string `json:"id"`
+	Label           string `json:"label"`
+	IconSVG         string `json:"icon_svg"`
+	URL             string `json:"url"`
+	PageSlug        string `json:"page_slug,omitempty"`
+	Visibility      string `json:"visibility"`
+	SortOrder       int    `json:"sort_order"`
+	extra           map[string]json.RawMessage
+	pageSlugPresent bool
 }
 
 func (item *customMenuItem) UnmarshalJSON(data []byte) error {
@@ -65,6 +66,10 @@ func (item *customMenuItem) UnmarshalJSON(data []byte) error {
 	}
 	*item = customMenuItem(decoded)
 	item.extra = fields
+	var rawFields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &rawFields); err == nil {
+		_, item.pageSlugPresent = rawFields["page_slug"]
+	}
 	return nil
 }
 
@@ -93,7 +98,7 @@ func (item customMenuItem) MarshalJSON() ([]byte, error) {
 	if err := put("url", item.URL); err != nil {
 		return nil, err
 	}
-	if item.PageSlug != "" {
+	if item.PageSlug != "" || item.pageSlugPresent {
 		if err := put("page_slug", item.PageSlug); err != nil {
 			return nil, err
 		}
@@ -371,7 +376,8 @@ func (s *Sub2APIMenuStore) SetPromotionMenu(ctx context.Context, enabled bool) e
 // Sub2API's customer menu. The menu is admin-only because the target route is
 // protected by the extension's administrator guard.
 func (s *Sub2APIMenuStore) SetHomepageMenu(ctx context.Context, enabled bool, label string) error {
-	const menuID = "aux-homepage"
+	const menuID = "aux-dashboard"
+	const legacyMenuID = "aux-homepage"
 	if s == nil || s.db == nil {
 		return errors.New("sub2api database is unavailable")
 	}
@@ -379,7 +385,7 @@ func (s *Sub2APIMenuStore) SetHomepageMenu(ctx context.Context, enabled bool, la
 		return s.mutate(ctx, func(items []customMenuItem) ([]customMenuItem, error) {
 			filtered := make([]customMenuItem, 0, len(items))
 			for _, item := range items {
-				if item.ID != menuID {
+				if item.ID != menuID && item.ID != legacyMenuID {
 					filtered = append(filtered, item)
 				}
 			}
@@ -390,24 +396,27 @@ func (s *Sub2APIMenuStore) SetHomepageMenu(ctx context.Context, enabled bool, la
 	if err != nil {
 		return err
 	}
-	label = strings.TrimSpace(label)
-	if label == "" {
-		label = "官网"
-	}
+	// Keep this entry recognizable as the extension itself; it is independent
+	// from the configurable Sub2API site name.
+	label = "扩展系统↗"
 	return s.mutate(ctx, func(items []customMenuItem) ([]customMenuItem, error) {
-		for i, item := range items {
-			if item.ID == menuID {
-				items[i] = customMenuItem{ID: menuID, Label: label, IconSVG: homepageMenuIconSVG, URL: menuURL, Visibility: "admin", SortOrder: item.SortOrder, extra: item.extra}
-				return items, nil
-			}
-		}
+		// Reconcile the canonical entry even when an administrator manually
+		// removed or recreated the menu in Sub2API. Remove the previous extension
+		// ID and duplicate entries for this exact dashboard URL before appending
+		// one canonical item.
+		canonicalURL := menuURL
+		filtered := make([]customMenuItem, 0, len(items)+1)
 		maxOrder := -1
 		for _, item := range items {
 			if item.SortOrder > maxOrder {
 				maxOrder = item.SortOrder
 			}
+			if item.ID == menuID || item.ID == legacyMenuID || item.URL == canonicalURL {
+				continue
+			}
+			filtered = append(filtered, item)
 		}
-		return append(items, customMenuItem{ID: menuID, Label: label, IconSVG: homepageMenuIconSVG, URL: menuURL, Visibility: "admin", SortOrder: maxOrder + 1}), nil
+		return append(filtered, customMenuItem{ID: menuID, Label: label, IconSVG: homepageMenuIconSVG, URL: menuURL, PageSlug: "", Visibility: "admin", SortOrder: maxOrder + 1, pageSlugPresent: true}), nil
 	})
 }
 

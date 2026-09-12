@@ -110,3 +110,15 @@ func TestSub2APIMenuStoreInvoiceMenuProvidesDefaultIcon(t *testing.T) {
 	stale := mergeInvoiceMenuItem(customMenuItem{IconSVG: "<svg data-old=\"true\"></svg>", SortOrder: 2}, "https://aux.example.com/invoice")
 	require.Equal(t, invoiceMenuIconSVG, stale.IconSVG)
 }
+
+func TestSub2APIMenuStoreDashboardMenuUsesIframeFields(t *testing.T) {
+	item := customMenuItem{
+		ID: "aux-dashboard", Label: "控制台", IconSVG: homepageMenuIconSVG,
+		URL: "https://aux.example.com/admin/dashboard", Visibility: "admin",
+		SortOrder: 3, pageSlugPresent: true,
+	}
+	raw, err := json.Marshal(item)
+	require.NoError(t, err)
+	require.Contains(t, string(raw), `"page_slug":""`)
+	require.Contains(t, string(raw), `"visibility":"admin"`)
+}
