@@ -22,6 +22,8 @@ import (
 	"sub2api-extension/ent/operationlog"
 	"sub2api-extension/ent/page"
 	"sub2api-extension/ent/pageview"
+	"sub2api-extension/ent/promotion"
+	"sub2api-extension/ent/promotionclaim"
 	"sub2api-extension/ent/systemlog"
 	"sub2api-extension/ent/systemmeta"
 
@@ -57,6 +59,10 @@ type Client struct {
 	Page *PageClient
 	// PageView is the client for interacting with the PageView builders.
 	PageView *PageViewClient
+	// Promotion is the client for interacting with the Promotion builders.
+	Promotion *PromotionClient
+	// PromotionClaim is the client for interacting with the PromotionClaim builders.
+	PromotionClaim *PromotionClaimClient
 	// SystemLog is the client for interacting with the SystemLog builders.
 	SystemLog *SystemLogClient
 	// SystemMeta is the client for interacting with the SystemMeta builders.
@@ -83,6 +89,8 @@ func (c *Client) init() {
 	c.OperationLog = NewOperationLogClient(c.config)
 	c.Page = NewPageClient(c.config)
 	c.PageView = NewPageViewClient(c.config)
+	c.Promotion = NewPromotionClient(c.config)
+	c.PromotionClaim = NewPromotionClaimClient(c.config)
 	c.SystemLog = NewSystemLogClient(c.config)
 	c.SystemMeta = NewSystemMetaClient(c.config)
 }
@@ -188,6 +196,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		OperationLog:         NewOperationLogClient(cfg),
 		Page:                 NewPageClient(cfg),
 		PageView:             NewPageViewClient(cfg),
+		Promotion:            NewPromotionClient(cfg),
+		PromotionClaim:       NewPromotionClaimClient(cfg),
 		SystemLog:            NewSystemLogClient(cfg),
 		SystemMeta:           NewSystemMetaClient(cfg),
 	}, nil
@@ -220,6 +230,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		OperationLog:         NewOperationLogClient(cfg),
 		Page:                 NewPageClient(cfg),
 		PageView:             NewPageViewClient(cfg),
+		Promotion:            NewPromotionClient(cfg),
+		PromotionClaim:       NewPromotionClaimClient(cfg),
 		SystemLog:            NewSystemLogClient(cfg),
 		SystemMeta:           NewSystemMetaClient(cfg),
 	}, nil
@@ -253,8 +265,8 @@ func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.AccountCostConfig, c.FeatureClick, c.ImageAsset, c.InvoiceOrder,
 		c.InvoiceProfile, c.InvoiceRequest, c.NotificationChannel,
-		c.NotificationDelivery, c.OperationLog, c.Page, c.PageView, c.SystemLog,
-		c.SystemMeta,
+		c.NotificationDelivery, c.OperationLog, c.Page, c.PageView, c.Promotion,
+		c.PromotionClaim, c.SystemLog, c.SystemMeta,
 	} {
 		n.Use(hooks...)
 	}
@@ -266,8 +278,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.AccountCostConfig, c.FeatureClick, c.ImageAsset, c.InvoiceOrder,
 		c.InvoiceProfile, c.InvoiceRequest, c.NotificationChannel,
-		c.NotificationDelivery, c.OperationLog, c.Page, c.PageView, c.SystemLog,
-		c.SystemMeta,
+		c.NotificationDelivery, c.OperationLog, c.Page, c.PageView, c.Promotion,
+		c.PromotionClaim, c.SystemLog, c.SystemMeta,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -298,6 +310,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Page.mutate(ctx, m)
 	case *PageViewMutation:
 		return c.PageView.mutate(ctx, m)
+	case *PromotionMutation:
+		return c.Promotion.mutate(ctx, m)
+	case *PromotionClaimMutation:
+		return c.PromotionClaim.mutate(ctx, m)
 	case *SystemLogMutation:
 		return c.SystemLog.mutate(ctx, m)
 	case *SystemMetaMutation:
@@ -1770,6 +1786,272 @@ func (c *PageViewClient) mutate(ctx context.Context, m *PageViewMutation) (Value
 	}
 }
 
+// PromotionClient is a client for the Promotion schema.
+type PromotionClient struct {
+	config
+}
+
+// NewPromotionClient returns a client for the Promotion from the given config.
+func NewPromotionClient(c config) *PromotionClient {
+	return &PromotionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `promotion.Hooks(f(g(h())))`.
+func (c *PromotionClient) Use(hooks ...Hook) {
+	c.hooks.Promotion = append(c.hooks.Promotion, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `promotion.Intercept(f(g(h())))`.
+func (c *PromotionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Promotion = append(c.inters.Promotion, interceptors...)
+}
+
+// Create returns a builder for creating a Promotion entity.
+func (c *PromotionClient) Create() *PromotionCreate {
+	mutation := newPromotionMutation(c.config, OpCreate)
+	return &PromotionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Promotion entities.
+func (c *PromotionClient) CreateBulk(builders ...*PromotionCreate) *PromotionCreateBulk {
+	return &PromotionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *PromotionClient) MapCreateBulk(slice any, setFunc func(*PromotionCreate, int)) *PromotionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &PromotionCreateBulk{err: fmt.Errorf("calling to PromotionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*PromotionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &PromotionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Promotion.
+func (c *PromotionClient) Update() *PromotionUpdate {
+	mutation := newPromotionMutation(c.config, OpUpdate)
+	return &PromotionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PromotionClient) UpdateOne(_m *Promotion) *PromotionUpdateOne {
+	mutation := newPromotionMutation(c.config, OpUpdateOne, withPromotion(_m))
+	return &PromotionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PromotionClient) UpdateOneID(id int) *PromotionUpdateOne {
+	mutation := newPromotionMutation(c.config, OpUpdateOne, withPromotionID(id))
+	return &PromotionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Promotion.
+func (c *PromotionClient) Delete() *PromotionDelete {
+	mutation := newPromotionMutation(c.config, OpDelete)
+	return &PromotionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *PromotionClient) DeleteOne(_m *Promotion) *PromotionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *PromotionClient) DeleteOneID(id int) *PromotionDeleteOne {
+	builder := c.Delete().Where(promotion.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PromotionDeleteOne{builder}
+}
+
+// Query returns a query builder for Promotion.
+func (c *PromotionClient) Query() *PromotionQuery {
+	return &PromotionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePromotion},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Promotion entity by its id.
+func (c *PromotionClient) Get(ctx context.Context, id int) (*Promotion, error) {
+	return c.Query().Where(promotion.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PromotionClient) GetX(ctx context.Context, id int) *Promotion {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *PromotionClient) Hooks() []Hook {
+	return c.hooks.Promotion
+}
+
+// Interceptors returns the client interceptors.
+func (c *PromotionClient) Interceptors() []Interceptor {
+	return c.inters.Promotion
+}
+
+func (c *PromotionClient) mutate(ctx context.Context, m *PromotionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&PromotionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&PromotionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&PromotionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&PromotionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Promotion mutation op: %q", m.Op())
+	}
+}
+
+// PromotionClaimClient is a client for the PromotionClaim schema.
+type PromotionClaimClient struct {
+	config
+}
+
+// NewPromotionClaimClient returns a client for the PromotionClaim from the given config.
+func NewPromotionClaimClient(c config) *PromotionClaimClient {
+	return &PromotionClaimClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `promotionclaim.Hooks(f(g(h())))`.
+func (c *PromotionClaimClient) Use(hooks ...Hook) {
+	c.hooks.PromotionClaim = append(c.hooks.PromotionClaim, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `promotionclaim.Intercept(f(g(h())))`.
+func (c *PromotionClaimClient) Intercept(interceptors ...Interceptor) {
+	c.inters.PromotionClaim = append(c.inters.PromotionClaim, interceptors...)
+}
+
+// Create returns a builder for creating a PromotionClaim entity.
+func (c *PromotionClaimClient) Create() *PromotionClaimCreate {
+	mutation := newPromotionClaimMutation(c.config, OpCreate)
+	return &PromotionClaimCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of PromotionClaim entities.
+func (c *PromotionClaimClient) CreateBulk(builders ...*PromotionClaimCreate) *PromotionClaimCreateBulk {
+	return &PromotionClaimCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *PromotionClaimClient) MapCreateBulk(slice any, setFunc func(*PromotionClaimCreate, int)) *PromotionClaimCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &PromotionClaimCreateBulk{err: fmt.Errorf("calling to PromotionClaimClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*PromotionClaimCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &PromotionClaimCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for PromotionClaim.
+func (c *PromotionClaimClient) Update() *PromotionClaimUpdate {
+	mutation := newPromotionClaimMutation(c.config, OpUpdate)
+	return &PromotionClaimUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PromotionClaimClient) UpdateOne(_m *PromotionClaim) *PromotionClaimUpdateOne {
+	mutation := newPromotionClaimMutation(c.config, OpUpdateOne, withPromotionClaim(_m))
+	return &PromotionClaimUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PromotionClaimClient) UpdateOneID(id int) *PromotionClaimUpdateOne {
+	mutation := newPromotionClaimMutation(c.config, OpUpdateOne, withPromotionClaimID(id))
+	return &PromotionClaimUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for PromotionClaim.
+func (c *PromotionClaimClient) Delete() *PromotionClaimDelete {
+	mutation := newPromotionClaimMutation(c.config, OpDelete)
+	return &PromotionClaimDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *PromotionClaimClient) DeleteOne(_m *PromotionClaim) *PromotionClaimDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *PromotionClaimClient) DeleteOneID(id int) *PromotionClaimDeleteOne {
+	builder := c.Delete().Where(promotionclaim.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PromotionClaimDeleteOne{builder}
+}
+
+// Query returns a query builder for PromotionClaim.
+func (c *PromotionClaimClient) Query() *PromotionClaimQuery {
+	return &PromotionClaimQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePromotionClaim},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a PromotionClaim entity by its id.
+func (c *PromotionClaimClient) Get(ctx context.Context, id int) (*PromotionClaim, error) {
+	return c.Query().Where(promotionclaim.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PromotionClaimClient) GetX(ctx context.Context, id int) *PromotionClaim {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *PromotionClaimClient) Hooks() []Hook {
+	return c.hooks.PromotionClaim
+}
+
+// Interceptors returns the client interceptors.
+func (c *PromotionClaimClient) Interceptors() []Interceptor {
+	return c.inters.PromotionClaim
+}
+
+func (c *PromotionClaimClient) mutate(ctx context.Context, m *PromotionClaimMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&PromotionClaimCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&PromotionClaimUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&PromotionClaimUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&PromotionClaimDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown PromotionClaim mutation op: %q", m.Op())
+	}
+}
+
 // SystemLogClient is a client for the SystemLog schema.
 type SystemLogClient struct {
 	config
@@ -2041,11 +2323,11 @@ type (
 	hooks struct {
 		AccountCostConfig, FeatureClick, ImageAsset, InvoiceOrder, InvoiceProfile,
 		InvoiceRequest, NotificationChannel, NotificationDelivery, OperationLog, Page,
-		PageView, SystemLog, SystemMeta []ent.Hook
+		PageView, Promotion, PromotionClaim, SystemLog, SystemMeta []ent.Hook
 	}
 	inters struct {
 		AccountCostConfig, FeatureClick, ImageAsset, InvoiceOrder, InvoiceProfile,
 		InvoiceRequest, NotificationChannel, NotificationDelivery, OperationLog, Page,
-		PageView, SystemLog, SystemMeta []ent.Interceptor
+		PageView, Promotion, PromotionClaim, SystemLog, SystemMeta []ent.Interceptor
 	}
 )

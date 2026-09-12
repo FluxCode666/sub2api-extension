@@ -16,13 +16,22 @@ type homepageConfigProvider interface {
 	Save(ctx context.Context, config service.HomepageConfig) (service.HomepageConfig, error)
 }
 
-// HomepageConfigHandler 同时提供公开读取和管理员写入。
-type HomepageConfigHandler struct {
-	provider homepageConfigProvider
+type homepageMenuPublisher interface {
+	SetHomepageMenu(context.Context, bool, string) error
 }
 
-func NewHomepageConfigHandler(svc *service.HomepageConfigService) *HomepageConfigHandler {
-	return &HomepageConfigHandler{provider: svc}
+// HomepageConfigHandler 同时提供公开读取和管理员写入。
+type HomepageConfigHandler struct {
+	provider  homepageConfigProvider
+	publisher homepageMenuPublisher
+}
+
+func NewHomepageConfigHandler(svc *service.HomepageConfigService, publishers ...homepageMenuPublisher) *HomepageConfigHandler {
+	var publisher homepageMenuPublisher
+	if len(publishers) > 0 {
+		publisher = publishers[0]
+	}
+	return &HomepageConfigHandler{provider: svc, publisher: publisher}
 }
 
 func (h *HomepageConfigHandler) GetPublicConfig(c *gin.Context) {
@@ -49,6 +58,9 @@ func (h *HomepageConfigHandler) get(c *gin.Context, fallbackToDefaults bool) {
 		response.InternalError(c, "failed to fetch homepage config")
 		return
 	}
+	if fallbackToDefaults {
+		config.Sub2APIPublished = false
+	}
 	response.Success(c, config)
 }
 
@@ -68,6 +80,13 @@ func (h *HomepageConfigHandler) UpdateConfig(c *gin.Context) {
 		log.Printf("[HomepageConfigHandler.UpdateConfig] save failed: %v", err)
 		response.InternalError(c, "failed to save homepage config")
 		return
+	}
+	if h.publisher != nil {
+		if err := h.publisher.SetHomepageMenu(c.Request.Context(), saved.Sub2APIPublished, saved.SiteName); err != nil {
+			log.Printf("[HomepageConfigHandler.UpdateConfig] menu sync failed published=%t: %v", saved.Sub2APIPublished, err)
+			response.SuccessWithReason(c, saved, "homepage config saved with warning", "系统配置已保存，但 Sub2API 菜单同步失败，请检查数据库连接和公开域名")
+			return
+		}
 	}
 	response.Success(c, saved)
 }

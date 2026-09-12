@@ -639,6 +639,10 @@ html.dark .aux-admin-shell {
 .aux-account-filters .aux-account-search { flex: 1 1 260px; }
 .aux-account-filter-field { display: grid; min-width: 0; gap: 6px; color: var(--console-muted); font-size: 11px; }
 .aux-account-filter-control { min-width: 120px; height: 36px; font-size: 12px; }
+.aux-account-name { display: flex; min-width: 160px; align-items: baseline; gap: 6px; }
+.aux-account-name strong { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aux-account-id { flex-shrink: 0; color: var(--console-subtle); font-size: 11px; }
+.aux-account-created-at { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .aux-account-date-range-filter { width: 300px; max-width: 100%; }
 .aux-account-filter-hint { margin-top: 9px; color: var(--console-subtle); font-size: 11px; line-height: 1.5; }
 .aux-account-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-top: 16px; color: var(--console-muted); font-size: 12px; }
@@ -688,8 +692,8 @@ html.dark .aux-admin-shell {
 .aux-account-merge-submit:hover:not(:disabled) { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
 .aux-account-merge-submit:disabled { cursor: not-allowed; background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); box-shadow: none; opacity: 1; }
 .aux-account-table-scroll { margin-top: 18px; overflow-x: auto; }
-.aux-account-table { width: 100%; min-width: 1120px; border-collapse: collapse; color: var(--console-muted); font-size: 12px; }
-.aux-account-table th { padding: 0 12px 12px; border-bottom: 1px solid var(--console-line); color: var(--console-subtle); font-size: 10px; font-weight: 700; text-align: left; }
+.aux-account-table { width: 100%; min-width: 1280px; border-collapse: collapse; color: var(--console-muted); font-size: 12px; }
+.aux-account-table th { padding: 0 12px 12px; border-bottom: 1px solid var(--console-line); color: var(--console-subtle); font-size: 10px; font-weight: 700; text-align: left; white-space: nowrap; }
 .aux-account-table td { padding: 14px 12px; border-bottom: 1px solid var(--console-line); vertical-align: middle; }
 .aux-account-table tr:hover td { background: color-mix(in srgb, var(--console-accent) 4%, transparent); }
 .aux-account-table td strong, .aux-account-table td small { display: block; }

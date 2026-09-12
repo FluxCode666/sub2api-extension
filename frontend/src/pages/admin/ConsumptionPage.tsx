@@ -10,6 +10,7 @@ import {
   WalletCards,
 } from "lucide-react";
 import { apiClient, type AuxEnvelope } from "@/lib/api-client";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface CostConfig {
   oauth_account_cost: number;
@@ -22,15 +23,23 @@ interface DailyConsumption {
   date: string;
   requests: number;
   total_tokens: number;
+  api_requests: number;
+  api_tokens: number;
   revenue: number;
+  api_revenue: number;
+  oauth_revenue: number;
   api_cost: number;
   oauth_cost: number;
   total_cost: number;
   gross_profit: number;
+  api_gross_profit: number;
   tax_amount: number;
   profit: number;
   net_profit: number;
   net_margin: number;
+  api_tax_amount: number;
+  api_net_profit: number;
+  api_net_margin: number;
   oauth_account_count: number;
   api_account_count: number;
 }
@@ -182,13 +191,22 @@ export default function ConsumptionPage() {
   const data = view.data;
   const currency = data?.config.currency ?? "CNY";
   const days = data?.days ?? [];
+  const dailyDetails = useMemo(
+    () => [...(data?.days ?? [])]
+      .filter((day) => day.api_requests > 0 || day.api_revenue !== 0 || day.api_cost !== 0)
+      .sort((left, right) => Date.parse(right.date) - Date.parse(left.date)),
+    [data?.days],
+  );
+  const hasApiActivity = days.some(
+    (day) => day.api_requests > 0 || day.api_revenue !== 0 || day.api_cost !== 0,
+  );
   const maxChartValue = Math.max(
     1,
     ...days.flatMap((day) => [
-      day.revenue,
-      day.total_cost,
-      Math.max(0, day.gross_profit),
-      Math.max(0, day.net_profit),
+      day.api_revenue,
+      day.api_cost,
+      Math.max(0, day.api_gross_profit),
+      Math.max(0, day.api_net_profit),
     ]),
   );
   const chart = useMemo(
@@ -219,8 +237,8 @@ export default function ConsumptionPage() {
           </p>
           <h1>消费核算</h1>
           <p>
-            按天追踪收入、API 用量成本与 OAuth
-            账号采购成本，并按可配置税点计算税前、税后利润。
+            按天追踪 API 账号收入与用量成本；OAuth
+            账号采购成本按账号一次性核算，并按可配置税点计算利润。
           </p>
         </div>
         <button
@@ -346,38 +364,38 @@ export default function ConsumptionPage() {
               <div className="aux-cost-panel-head">
                 <div>
                   <p className="aux-cost-panel-kicker">Daily economics</p>
-                  <h2>收入与成本走势</h2>
+                  <h2>API 账号收入与成本走势</h2>
                 </div>
                 <div className="aux-cost-legend">
                   <span>
                     <i className="is-revenue" />
-                    收入
+                    API 收入
                   </span>
                   <span>
                     <i className="is-cost" />
-                    成本
+                    API 成本
                   </span>
                   <span>
                     <i className="is-profit" />
-                    税前利润
+                    API 税前利润
                   </span>
                   <span>
                     <i className="is-net-profit" />
-                    税后利润
+                    API 税后利润
                   </span>
                 </div>
               </div>
               <div className="aux-cost-chart-wrap">
-                {days.length === 0 ? (
+                {!hasApiActivity ? (
                   <div className="aux-cost-empty">
-                    当前区间暂无 usage_logs 数据
+                    当前区间暂无 API 账号 usage_logs 数据
                   </div>
                 ) : (
                   <svg
                     className="aux-cost-chart"
                     viewBox="0 0 760 280"
                     role="img"
-                    aria-label="按天收入、成本和毛利趋势图"
+                    aria-label="按天 API 账号收入、成本和利润趋势图"
                   >
                     <defs>
                       <linearGradient
@@ -434,7 +452,7 @@ export default function ConsumptionPage() {
                           r="3.5"
                           className="aux-chart-point aux-chart-point--revenue"
                         >
-                          <title>{`${point.label} 收入 ${formatMoney(point.revenue, currency)}`}</title>
+                          <title>{`${point.label} API 收入 ${formatMoney(point.revenue, currency)}`}</title>
                         </circle>
                         <circle
                           cx={point.x}
@@ -476,7 +494,7 @@ export default function ConsumptionPage() {
               </div>
               <div className="aux-cost-formula">
                 <span>毛利</span>
-                <strong>收入 − API 成本 − OAuth 成本 = {formatMoney(data.gross_profit, currency)}</strong>
+                <strong>区间总收入 − API 成本 − OAuth 采购成本 = {formatMoney(data.gross_profit, currency)}</strong>
               </div>
               <div className="aux-cost-formula">
                 <span>税前利润</span>
@@ -489,8 +507,8 @@ export default function ConsumptionPage() {
                 </strong>
               </div>
               <p className="aux-cost-note">
-                成本配置可在“成本配置”页调整。OAuth
-                账号按区间内独立账号计入，并归集到首次使用日；税点可在成本配置页动态调整。
+                成本配置可在“成本配置”页调整。图表和每日明细只展示 API
+                账号口径；OAuth 采购成本按区间内账号总账计入，不归集到某个使用日。
               </p>
             </aside>
           </section>
@@ -506,71 +524,60 @@ export default function ConsumptionPage() {
               </span>
             </div>
             <div className="aux-cost-table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>日期</th>
-                    <th>请求数</th>
-                    <th>Token</th>
-                    <th>收入</th>
-                    <th>API 成本</th>
-                    <th>OAuth 成本</th>
-                    <th>毛利 / 税前利润</th>
-                    <th>税额</th>
-                    <th>税后利润</th>
-                    <th>税后利润率</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {days.length === 0 ? (
-                    <tr>
-                      <td colSpan={10} className="aux-cost-empty-cell">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead aria-sort="descending">日期</TableHead>
+                    <TableHead>API 请求数</TableHead>
+                    <TableHead>API Token</TableHead>
+                    <TableHead>API 收入</TableHead>
+                    <TableHead>API 成本</TableHead>
+                    <TableHead>API 毛利</TableHead>
+                    <TableHead>API 税额</TableHead>
+                    <TableHead>API 税后利润</TableHead>
+                    <TableHead>API 税后利润率</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dailyDetails.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="aux-cost-empty-cell">
                         没有可展示的明细
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ) : (
-                    days.map((day) => (
-                      <tr key={day.date}>
-                        <td>
+                    dailyDetails.map((day) => (
+                      <TableRow key={day.date}>
+                        <TableCell>
                           <strong>{formatDay(day.date)}</strong>
-                        </td>
-                        <td>{day.requests.toLocaleString("zh-CN")}</td>
-                        <td>{day.total_tokens.toLocaleString("zh-CN")}</td>
-                        <td>{formatMoney(day.revenue, currency)}</td>
-                        <td>{formatMoney(day.api_cost, currency)}</td>
-                        <td>
-                          {formatMoney(day.oauth_cost, currency)}{" "}
-                          <small>
-                            {day.oauth_account_count
-                              ? `· ${day.oauth_account_count} 号`
-                              : ""}
-                          </small>
-                        </td>
-                        <td
+                        </TableCell>
+                        <TableCell>{day.api_requests.toLocaleString("zh-CN")}</TableCell>
+                        <TableCell>{day.api_tokens.toLocaleString("zh-CN")}</TableCell>
+                        <TableCell>{formatMoney(day.api_revenue, currency)}</TableCell>
+                        <TableCell>{formatMoney(day.api_cost, currency)}</TableCell>
+                        <TableCell
                           className={
-                            day.profit >= 0
+                            day.api_gross_profit >= 0
                               ? "is-positive"
                               : "is-negative"
                           }
                         >
-                          {formatMoney(day.profit, currency)}
-                        </td>
-                        <td>
-                          {formatMoney(day.tax_amount, currency)}
-                        </td>
-                        <td
-                          className={day.net_profit >= 0 ? "is-positive" : "is-negative"}
+                          {formatMoney(day.api_gross_profit, currency)}
+                        </TableCell>
+                        <TableCell>{formatMoney(day.api_tax_amount, currency)}</TableCell>
+                        <TableCell
+                          className={day.api_net_profit >= 0 ? "is-positive" : "is-negative"}
                         >
-                          {formatMoney(day.net_profit, currency)}
-                        </td>
-                        <td>
-                          {day.revenue > 0 ? `${(day.net_margin * 100).toFixed(1)}%` : "—"}
-                        </td>
-                      </tr>
+                          {formatMoney(day.api_net_profit, currency)}
+                        </TableCell>
+                        <TableCell>
+                          {day.api_revenue > 0 ? `${(day.api_net_margin * 100).toFixed(1)}%` : "—"}
+                        </TableCell>
+                      </TableRow>
                     ))
                   )}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </section>
 
@@ -580,7 +587,7 @@ export default function ConsumptionPage() {
                 <p className="aux-cost-panel-kicker">By account</p>
                 <h2>账号成本明细</h2>
               </div>
-              <span className="aux-cost-range-caption">历史倍率优先使用 usage log 快照</span>
+              <span className="aux-cost-range-caption">OAuth 采购成本按账号一次性计入</span>
             </div>
             <div className="aux-cost-table-scroll">
               <table>
@@ -665,19 +672,19 @@ function buildChart(days: DailyConsumption[], max: number) {
           `${index === 0 ? "M" : "L"} ${x(index).toFixed(1)} ${y(value).toFixed(1)}`,
       )
       .join(" ");
-  const revenueLine = line(days.map((day) => day.revenue));
+  const revenueLine = line(days.map((day) => day.api_revenue));
   return {
     revenueLine,
-    costLine: line(days.map((day) => day.total_cost)),
-    profitLine: line(days.map((day) => Math.max(0, day.gross_profit))),
-    netProfitLine: line(days.map((day) => Math.max(0, day.net_profit))),
+    costLine: line(days.map((day) => day.api_cost)),
+    profitLine: line(days.map((day) => Math.max(0, day.api_gross_profit))),
+    netProfitLine: line(days.map((day) => Math.max(0, day.api_net_profit))),
     revenueArea: `${revenueLine} L ${x(days.length - 1).toFixed(1)} 248 L ${x(0).toFixed(1)} 248 Z`,
     points: days.map((day, index) => ({
       key: day.date,
       x: x(index),
-      revenueY: y(day.revenue),
-      costY: y(day.total_cost),
-      revenue: day.revenue,
+      revenueY: y(day.api_revenue),
+      costY: y(day.api_cost),
+      revenue: day.api_revenue,
       label: formatDay(day.date),
     })),
     labels: days

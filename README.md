@@ -19,8 +19,8 @@ sub2api本地项目路径：`/Users/duegin/project/sub2api`
 - **页面分析与埋点** —— 统计当前页面的访问量和功能点击，在分析仪表盘中查看使用情况。
   - 客户端接入页与 API 文档页统计章节导航、客户端/平台选择、安装下载、截图查看、端点展开、参数/语言切换及成功复制；兼容入口 `/docs` 的访问归入 `api-docs`。统计口径和事件 ID 见 [文档页埋点与统计](docs/DOCS_TELEMETRY.md)。
 - **首字延迟火焰图** —— 运维看板直接读取 Sub2API PostgreSQL 的 `usage_logs.first_token_ms`，支持日期、时间段、分组、账号筛选，以及分钟/小时/天三种时间粒度。
-- **运营中心** —— 消费核算按天展示收入、API 成本、OAuth 账号采购成本、毛利/税前利润、税额、税后利润与利润率，支持日期范围筛选；成本配置页支持动态配置税点、每个 OAuth 账号独立采购成本、每个 API 账号独立倍率，以及从 Sub2API 定时同步账号倍率。税点按收入计提：税后利润 = 收入 − 总成本 − 收入 × 税点。
-  - 「账号独立成本与合并计费」列表先组合搜索、OAuth/API 类型与账号创建日期筛选，再按每页 10/20/50/100 条展示（默认 20 条）。创建时间使用 shadcn/ui 单按钮范围日历（桌面双月、移动端单月），在同一弹层选择起止日期，支持同日、跨月、反向选择和清除；按浏览器本地时间计算，包含结束当天；设置日期条件时排除创建时间未知的账号。修改筛选或每页条数会回到第一页，翻页和筛选保留未保存的账号编辑，合并弹窗仍可选择全部账号。分页在前端完成，首次加载仍读取完整账号列表。
+- **运营中心** —— 消费核算的趋势图和每日明细按 API 账号展示收入、成本与利润；OAuth 账号采购成本按账号一次性计入区间总账和账号明细，不归集到某个使用日。支持日期范围筛选，每日明细按日期倒序展示（最新日期置顶）；成本配置页支持动态配置税点、每个 OAuth 账号独立采购成本、每个 API 账号独立倍率，以及从 Sub2API 定时同步账号倍率。区间总账仍合并 API 成本与 OAuth 采购成本，税点按收入计提：税后利润 = 收入 − 总成本 − 收入 × 税点。
+  - 「账号独立成本与合并计费」列表默认仅显示未删除账号，输入账号名或 ID 时可检索匹配的已删除账号（带“已删除”标记）；支持可搜索的平台下拉、OAuth/API 类型与账号创建日期组合筛选，按创建时间倒序（同一时间按 ID 倒序、未知时间置后），再按每页 10/20/50/100 条展示（默认 20 条）。账号 ID 紧跟名称，创建时间独占一列并显示到秒。创建时间使用 shadcn/ui 单按钮范围日历（桌面双月、移动端单月），在同一弹层选择起止日期，支持同日、跨月、反向选择和清除；按浏览器本地时间计算，包含结束当天；设置日期条件时排除创建时间未知的账号。修改筛选或每页条数会回到第一页，翻页和筛选保留未保存的账号编辑，合并弹窗仍可选择全部账号。筛选和分页在前端完成，首次加载仍读取完整账号列表；删除状态由 `accounts.deleted_at` 同步到附属库 `account_cost_configs.account_deleted_at`，以最近成功同步为准。升级时需完成 Ent 迁移并同步账号，旧版上游无删除字段时按未删除处理，历史成本与计费组配置继续保留。
 - **系统日志与操作审计** —— 请求、运行错误和管理员变更分别持久化到日志页，支持级别/结果筛选、搜索和分页；错误同时输出到服务端日志。
 - **身份转发验证** —— 管理端接收 sub2api iframe token，换取附属系统自己的管理员会话。
 
@@ -168,6 +168,7 @@ SUB2API_EXTENSION_JWT_SECRET=$(openssl rand -hex 32) # 附属系统会话签名�
 SUB2API_DOCKER_NETWORK=deploy_sub2api-network          # Sub2API Compose 外部网络
 SUB2API_DATABASE_HOST=postgres                          # Sub2API PostgreSQL 服务
 SUB2API_DATABASE_PASSWORD=<与 sub2api 的 POSTGRES_PASSWORD 一致>
+SUB2API_REDIS_HOST=redis                                 # 返利入账后立即失效 Sub2API 余额缓存
 ```
 
 启动并验证：
@@ -375,6 +376,10 @@ pnpm build           # tsc -b && vite build
 | `SUB2API_DATABASE_PORT` | Sub2API PostgreSQL 端口 | `5432` |
 | `SUB2API_DATABASE_USER` / `SUB2API_DATABASE_PASSWORD` | Sub2API PostgreSQL 凭据（密码不提交） | — |
 | `SUB2API_DATABASE_DBNAME` | Sub2API 数据库名 | `sub2api` |
+| `SUB2API_REDIS_HOST` | Sub2API Redis 主机；用于返利入账后的余额缓存失效 | `redis`（Compose） |
+| `SUB2API_REDIS_PORT` / `SUB2API_REDIS_DB` | Sub2API Redis 端口和库编号 | `6379` / `0` |
+| `SUB2API_REDIS_USERNAME` / `SUB2API_REDIS_PASSWORD` | Sub2API Redis 凭据（密码不提交） | — |
+| `SUB2API_REDIS_ENABLE_TLS` | 是否使用 TLS 连接 Redis | `false` |
 | `SUB2API_EXTENSION_COST_SYNC_INTERVAL_SECONDS` | API 账号倍率同步间隔（秒） | `300` |
 | `SUB2API_EXTENSION_JWT_SECRET` | 会话签名密钥（**必需**） | — |
 | `SUB2API_EXTENSION_JWT_EXPIRE_HOUR` | 会话有效期（小时） | `24` |

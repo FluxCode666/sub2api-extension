@@ -41,6 +41,7 @@ export interface HomepageConfig {
   termsUrl: string
   userTermsUrl: string
   privacyUrl: string
+  sub2apiPublished: boolean
   showDevelopersSection: boolean
   showQuickstartSection: boolean
   navigationItems: HomepageNavigationItem[]
@@ -72,6 +73,7 @@ export const DEFAULT_HOMEPAGE_CONFIG: HomepageConfig = {
   termsUrl: '',
   userTermsUrl: '',
   privacyUrl: '',
+  sub2apiPublished: false,
   showDevelopersSection: true,
   showQuickstartSection: true,
   navigationItems: [

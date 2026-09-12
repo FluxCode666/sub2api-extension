@@ -27,6 +27,7 @@ func (AccountCostConfig) Fields() []ent.Field {
 		field.String("api_multiplier_mode").MaxLen(16).Default("sync"),
 		field.Time("last_synced_at").Optional().Nillable(),
 		field.Time("account_created_at").Optional().Nillable().Comment("Sub2API account creation time"),
+		field.Time("account_deleted_at").Optional().Nillable().Comment("Sub2API 账号软删除时间，仅同步写入，保留历史成本配置"),
 		field.Time("created_at").Default(time.Now),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now),
 	}

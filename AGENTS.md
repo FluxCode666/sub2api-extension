@@ -42,6 +42,7 @@ rg --files -g '!node_modules' -g '!frontend/dist' -g '!backend/ent/*.go'
 
 - 根路径 `/` 永远跳转 `/admin/dashboard`，不是官网首页。
 - 官网内容是数据库动态页，约定首页 slug 为 `/p/home`（其他站点可使用已存在的 slug，如 `/p/sub2api-home`）。不要重新硬编码一个官网 React 首页。
+- Sub2API 系统名称统一从管理端「系统配置」页读取，使用公开配置中的 `siteName`（兼容旧配置 `heroTitle`）；页面标题、文档页眉/页脚、示例和其他对外文案不得另行硬编码产品名称。
 - `pages`、埋点、日志、资源索引、发票申请、通知配置等数据逻辑上归附属系统所有；Sub2API 数据库连接仅用于明确的集成读取或受控同步。
 - 公开页面不能包含管理员密钥、Sub2API token、密码、内部凭据或仅登录用户可见的数据。
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { CircleCheck, Info, RefreshCw, Save, Settings2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiClient, type AuxEnvelope } from '@/lib/api-client'
+import { Switch } from '@/components/ui/switch'
 import './SystemConfigPage.css'
 
 const DEFAULT_MODEL = 'gpt-6-astra'
@@ -20,6 +21,7 @@ interface HomepageConfig {
   docsHref?: string
   consoleHref?: string
   trustedPartners?: unknown[]
+  sub2apiPublished?: boolean
   [key: string]: unknown
 }
 
@@ -35,6 +37,7 @@ const DEFAULT_CONFIG: HomepageConfig = {
   docsHref: '#developers',
   consoleHref: '/admin',
   trustedPartners: [],
+  sub2apiPublished: false,
 }
 
 function mergeConfig(value?: HomepageConfig): HomepageConfig {
@@ -46,6 +49,7 @@ export default function SystemConfigPage() {
   const [draftSystemName, setDraftSystemName] = useState(DEFAULT_CONFIG.heroTitle ?? '')
   const [draftSystemDomain, setDraftSystemDomain] = useState(DEFAULT_CONFIG.systemDomain ?? '')
   const [draftModel, setDraftModel] = useState(DEFAULT_MODEL)
+  const [draftSub2APIPublished, setDraftSub2APIPublished] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -63,6 +67,7 @@ export default function SystemConfigPage() {
       setDraftSystemName(nextConfig.siteName ?? nextConfig.heroTitle ?? DEFAULT_CONFIG.heroTitle ?? '')
       setDraftSystemDomain(nextConfig.systemDomain ?? DEFAULT_CONFIG.systemDomain ?? '')
       setDraftModel(nextConfig.model)
+      setDraftSub2APIPublished(nextConfig.sub2apiPublished === true)
       if (showToast) toast.success('系统配置已刷新')
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : '无法读取系统配置'
@@ -122,6 +127,7 @@ export default function SystemConfigPage() {
         [config.siteName !== undefined ? 'siteName' : 'heroTitle']: systemName,
         systemDomain,
         model,
+        sub2apiPublished: draftSub2APIPublished,
       })
       if (response.code !== 0 || !response.data) throw new Error(response.message || '系统配置保存失败')
       const savedConfig = mergeConfig(response.data)
@@ -129,6 +135,7 @@ export default function SystemConfigPage() {
       setDraftSystemName(savedConfig.siteName ?? savedConfig.heroTitle ?? DEFAULT_CONFIG.heroTitle ?? '')
       setDraftSystemDomain(savedConfig.systemDomain ?? DEFAULT_CONFIG.systemDomain ?? '')
       setDraftModel(savedConfig.model)
+      setDraftSub2APIPublished(savedConfig.sub2apiPublished === true)
       toast.success('系统配置已保存', { description: 'Sub2API 系统名称和 API 文档中的调用示例会立即更新。' })
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : '系统配置保存失败'
@@ -143,6 +150,7 @@ export default function SystemConfigPage() {
     setDraftSystemName(DEFAULT_CONFIG.heroTitle ?? '')
     setDraftSystemDomain(DEFAULT_CONFIG.systemDomain ?? '')
     setDraftModel(DEFAULT_MODEL)
+    setDraftSub2APIPublished(false)
     setError('')
   }
 
@@ -221,6 +229,18 @@ export default function SystemConfigPage() {
             />
             <small>填写当前可用的模型 ID，例如 <code>gpt-6-astra</code>。</small>
           </label>
+          <div className="aux-system-config-publication">
+            <div>
+              <span>上架到 Sub2API</span>
+              <small>开启后会将当前系统入口添加到 Sub2API 用户菜单，关闭后会移除该菜单项。</small>
+            </div>
+            <Switch
+              checked={draftSub2APIPublished}
+              onCheckedChange={setDraftSub2APIPublished}
+              disabled={saving}
+              aria-label="上架到 Sub2API"
+            />
+          </div>
           <div className="aux-system-config-actions">
             <button type="button" className="aux-system-config-secondary" onClick={restoreDefault} disabled={saving || (draftSystemName === (DEFAULT_CONFIG.heroTitle ?? '') && draftSystemDomain === (DEFAULT_CONFIG.systemDomain ?? '') && draftModel === DEFAULT_MODEL)}>恢复默认</button>
             <button type="button" className="aux-system-config-primary" onClick={() => void saveConfig()} disabled={saving || !draftSystemName.trim() || !draftModel.trim()}>

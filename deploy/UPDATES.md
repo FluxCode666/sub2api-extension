@@ -28,6 +28,14 @@ curl --fail http://127.0.0.1:8004/health
 
 首次从旧版本升级时，若旧部署目录还有 `docker-compose.update.yml`，可以停止并移除该 override；它不再参与启动，也不会删除应用数据卷。
 
+## 成本账号删除状态迁移
+
+成本配置筛选使用附属库新增可空列 `account_cost_configs.account_deleted_at`。默认启动通过 Ent 幂等添加；若禁用自动迁移（`AUTO_MIGRATE=false`），需先在相同附属库配置下使用新版本执行 `cd backend && make migrate`。该变更不修改 Sub2API 表结构，也不删除历史成本配置。
+
+升级后等待启动同步完成，或在成本配置点击“立即同步倍率”，回填 `accounts.deleted_at`；检查默认列表排除已删除账号、名称/ID 搜索可找到它们且带删除标记，同时核验平台、类型、日期和分页。删除状态以最近成功同步为准；同步失败时修复 Sub2API 数据库连接后重试。上游无 `deleted_at` 列时按未删除处理。
+
+回退旧版本无需删除新增列，原成本与计费组数据仍可用。可在隔离 PostgreSQL 测试库设置 `COST_TEST_DATABASE_URL`，运行 `go test -race -tags=integration -run '^TestCostAccountSyncDeletionAndMigration$' ./internal/service` 验证迁移、删除/恢复同步和历史核算。
+
 ## 管理员更新
 
 1. 点击控制台左上角版本号，查看当前版本、最新正式 Release 和中文发布说明。

@@ -252,6 +252,26 @@ func (_u *AccountCostConfigUpdate) ClearAccountCreatedAt() *AccountCostConfigUpd
 	return _u
 }
 
+// SetAccountDeletedAt sets the "account_deleted_at" field.
+func (_u *AccountCostConfigUpdate) SetAccountDeletedAt(v time.Time) *AccountCostConfigUpdate {
+	_u.mutation.SetAccountDeletedAt(v)
+	return _u
+}
+
+// SetNillableAccountDeletedAt sets the "account_deleted_at" field if the given value is not nil.
+func (_u *AccountCostConfigUpdate) SetNillableAccountDeletedAt(v *time.Time) *AccountCostConfigUpdate {
+	if v != nil {
+		_u.SetAccountDeletedAt(*v)
+	}
+	return _u
+}
+
+// ClearAccountDeletedAt clears the value of the "account_deleted_at" field.
+func (_u *AccountCostConfigUpdate) ClearAccountDeletedAt() *AccountCostConfigUpdate {
+	_u.mutation.ClearAccountDeletedAt()
+	return _u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_u *AccountCostConfigUpdate) SetCreatedAt(v time.Time) *AccountCostConfigUpdate {
 	_u.mutation.SetCreatedAt(v)
@@ -420,6 +440,12 @@ func (_u *AccountCostConfigUpdate) sqlSave(ctx context.Context) (_node int, err 
 	}
 	if _u.mutation.AccountCreatedAtCleared() {
 		_spec.ClearField(accountcostconfig.FieldAccountCreatedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.AccountDeletedAt(); ok {
+		_spec.SetField(accountcostconfig.FieldAccountDeletedAt, field.TypeTime, value)
+	}
+	if _u.mutation.AccountDeletedAtCleared() {
+		_spec.ClearField(accountcostconfig.FieldAccountDeletedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(accountcostconfig.FieldCreatedAt, field.TypeTime, value)
@@ -671,6 +697,26 @@ func (_u *AccountCostConfigUpdateOne) ClearAccountCreatedAt() *AccountCostConfig
 	return _u
 }
 
+// SetAccountDeletedAt sets the "account_deleted_at" field.
+func (_u *AccountCostConfigUpdateOne) SetAccountDeletedAt(v time.Time) *AccountCostConfigUpdateOne {
+	_u.mutation.SetAccountDeletedAt(v)
+	return _u
+}
+
+// SetNillableAccountDeletedAt sets the "account_deleted_at" field if the given value is not nil.
+func (_u *AccountCostConfigUpdateOne) SetNillableAccountDeletedAt(v *time.Time) *AccountCostConfigUpdateOne {
+	if v != nil {
+		_u.SetAccountDeletedAt(*v)
+	}
+	return _u
+}
+
+// ClearAccountDeletedAt clears the value of the "account_deleted_at" field.
+func (_u *AccountCostConfigUpdateOne) ClearAccountDeletedAt() *AccountCostConfigUpdateOne {
+	_u.mutation.ClearAccountDeletedAt()
+	return _u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_u *AccountCostConfigUpdateOne) SetCreatedAt(v time.Time) *AccountCostConfigUpdateOne {
 	_u.mutation.SetCreatedAt(v)
@@ -869,6 +915,12 @@ func (_u *AccountCostConfigUpdateOne) sqlSave(ctx context.Context) (_node *Accou
 	}
 	if _u.mutation.AccountCreatedAtCleared() {
 		_spec.ClearField(accountcostconfig.FieldAccountCreatedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.AccountDeletedAt(); ok {
+		_spec.SetField(accountcostconfig.FieldAccountDeletedAt, field.TypeTime, value)
+	}
+	if _u.mutation.AccountDeletedAtCleared() {
+		_spec.ClearField(accountcostconfig.FieldAccountDeletedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(accountcostconfig.FieldCreatedAt, field.TypeTime, value)

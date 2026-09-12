@@ -23,6 +23,8 @@ func (s *Sub2APICostStore) ListAccounts(ctx context.Context) ([]ops.Sub2APIAccou
 	if s == nil || s.db == nil {
 		return nil, ttft.ErrSub2APIDatabaseUnavailable
 	}
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 	columns, err := s.columns(ctx, "accounts")
 	if err != nil {
 		return nil, fmt.Errorf("inspect accounts: %w", err)
@@ -35,14 +37,12 @@ func (s *Sub2APICostStore) ListAccounts(ctx context.Context) ([]ops.Sub2APIAccou
 	typeExpr := textColumnExpression("a", columns, "type")
 	rate := numericColumnExpression("a", columns, []string{"rate_multiplier"})
 	created := nullableTimeColumnExpression("a", columns, "created_at")
+	deleted := nullableTimeColumnExpression("a", columns, "deleted_at")
 	updated := timeColumnExpression("a", columns, "updated_at")
-	// Include soft-deleted accounts as well: they can still own historical
-	// usage_logs and therefore still need a stable name and cost policy for
-	// audit/reconciliation. The UI can distinguish current usage separately.
-	where := "1=1"
+	// 同步保留软删除账号及删除时间，用于名称/ID 检索与历史对账；列表默认隐藏它们。
 	statement := fmt.Sprintf(`
-		SELECT a."id"::bigint, %s, %s, %s, %s::double precision, %s, %s
-		FROM accounts a WHERE %s ORDER BY a."id" ASC`, name, typeExpr, platform, rate, created, updated, where)
+		SELECT a."id"::bigint, %s, %s, %s, %s::double precision, %s, %s, %s
+		FROM accounts a ORDER BY %s DESC NULLS LAST, a."id" DESC`, name, typeExpr, platform, rate, created, updated, deleted, created)
 	rows, err := s.db.QueryContext(ctx, statement)
 	if err != nil {
 		return nil, err
@@ -52,12 +52,15 @@ func (s *Sub2APICostStore) ListAccounts(ctx context.Context) ([]ops.Sub2APIAccou
 	for rows.Next() {
 		var account ops.Sub2APIAccount
 		var rawType string
-		var createdAt sql.NullTime
-		if err := rows.Scan(&account.ID, &account.Name, &rawType, &account.Platform, &account.RateMultiplier, &createdAt, &account.UpdatedAt); err != nil {
+		var createdAt, deletedAt sql.NullTime
+		if err := rows.Scan(&account.ID, &account.Name, &rawType, &account.Platform, &account.RateMultiplier, &createdAt, &account.UpdatedAt, &deletedAt); err != nil {
 			return nil, err
 		}
 		if createdAt.Valid {
 			account.CreatedAt = &createdAt.Time
+		}
+		if deletedAt.Valid {
+			account.DeletedAt = &deletedAt.Time
 		}
 		account.Type = classifyAccountType(rawType, account.Platform)
 		if account.RateMultiplier <= 0 {
@@ -183,6 +186,9 @@ func (s *Sub2APICostStore) QueryConsumption(ctx context.Context, query ops.Consu
 		result.TotalRequests += requests
 		result.TotalTokens += tokenCount
 		if kindValue != "oauth" {
+			item.APIRequests += requests
+			item.APITokens += tokenCount
+			item.APIRevenue += rawRevenue
 			item.APICost += apiCost
 			item.TotalCost += apiCost
 			if _, ok := apiDayAccounts[key]; !ok {
@@ -196,7 +202,10 @@ func (s *Sub2APICostStore) QueryConsumption(ctx context.Context, query ops.Consu
 			if accountIDValue != 0 {
 				addAccountBreakdown(result, accountIndex, accountConfig, accountIDValue, kindValue, rawRevenue, apiCost, requests, multiplier, multiplierSource(accountConfig, snapshotRateMultiplier, accountRateMultiplier))
 			}
-		} else if accountIDValue != 0 {
+		} else {
+			item.OAuthRevenue += rawRevenue
+		}
+		if kindValue == "oauth" && accountIDValue != 0 {
 			addAccountBreakdown(result, accountIndex, accountConfig, accountIDValue, kindValue, rawRevenue, 0, requests, 0, "purchase cost")
 		}
 	}
@@ -204,14 +213,14 @@ func (s *Sub2APICostStore) QueryConsumption(ctx context.Context, query ops.Consu
 		return nil, err
 	}
 
-	oauthUses, err := s.queryOAuthFirstUses(ctx, usageColumns, accountColumns, join, kind, accountID, query.StartTime, query.EndTime)
+	oauthAccounts, err := s.queryOAuthAccounts(ctx, usageColumns, accountColumns, join, kind, accountID, query.StartTime, query.EndTime)
 	if err != nil {
 		return nil, fmt.Errorf("query oauth account costs: %w", err)
 	}
 	oauthGroups := make(map[string]bool)
-	for _, use := range oauthUses {
-		accountConfig := configs[use.AccountID]
-		groupKey := billingGroupKey(accountConfig, use.AccountID, "oauth")
+	for _, accountIDValue := range oauthAccounts {
+		accountConfig := configs[accountIDValue]
+		groupKey := billingGroupKey(accountConfig, accountIDValue, "oauth")
 		if oauthGroups[groupKey] {
 			// Multiple Sub2API rows can represent the same purchased OAuth account
 			// after a re-login. The group is charged once, while usage remains
@@ -220,20 +229,10 @@ func (s *Sub2APICostStore) QueryConsumption(ctx context.Context, query ops.Consu
 		}
 		oauthGroups[groupKey] = true
 		cost := accountConfig.EffectiveOAuthCost(config.OAuthAccountCost)
-		key := use.Day.Format("2006-01-02")
-		idx, ok := dayIndex[key]
-		if !ok {
-			idx = len(result.Days)
-			dayIndex[key] = idx
-			result.Days = append(result.Days, ops.DailyConsumption{Date: use.Day})
-		}
-		result.Days[idx].OAuthAccountCount++
-		result.Days[idx].OAuthCost += cost
-		result.Days[idx].TotalCost += cost
 		result.TotalOAuthCost += cost
 		result.OAuthAccountCount++
-		if use.AccountID != 0 {
-			addAccountBreakdown(result, accountIndex, accountConfig, use.AccountID, "oauth", 0, cost, 0, 0, "purchase cost")
+		if accountIDValue != 0 {
+			addAccountBreakdown(result, accountIndex, accountConfig, accountIDValue, "oauth", 0, cost, 0, 0, "purchase cost")
 		}
 	}
 	applyProfitMetrics(result, config)
@@ -258,6 +257,12 @@ func applyProfitMetrics(result *ops.ConsumptionResponse, config ops.CostConfig) 
 		result.Days[i].NetProfit = result.Days[i].Profit - result.Days[i].TaxAmount
 		if result.Days[i].Revenue > 0 {
 			result.Days[i].NetMargin = result.Days[i].NetProfit / result.Days[i].Revenue
+		}
+		result.Days[i].APIGrossProfit = result.Days[i].APIRevenue - result.Days[i].APICost
+		result.Days[i].APITaxAmount = result.Days[i].APIRevenue * config.TaxRate / 100
+		result.Days[i].APINetProfit = result.Days[i].APIGrossProfit - result.Days[i].APITaxAmount
+		if result.Days[i].APIRevenue > 0 {
+			result.Days[i].APINetMargin = result.Days[i].APINetProfit / result.Days[i].APIRevenue
 		}
 	}
 	result.TotalCost = result.TotalAPICost + result.TotalOAuthCost
@@ -377,33 +382,27 @@ func multiplierSource(config ops.AccountCostConfig, snapshotMultiplier, accountR
 	return "global default"
 }
 
-type oauthFirstUse struct {
-	AccountID int64
-	Day       time.Time
-}
-
-func (s *Sub2APICostStore) queryOAuthFirstUses(ctx context.Context, usageColumns, accountColumns map[string]bool, join, kind, accountID string, start, end time.Time) ([]oauthFirstUse, error) {
+func (s *Sub2APICostStore) queryOAuthAccounts(ctx context.Context, usageColumns, accountColumns map[string]bool, join, kind, accountID string, start, end time.Time) ([]int64, error) {
 	if !usageColumns["account_id"] || !accountColumns["id"] {
-		return []oauthFirstUse{}, nil
+		return []int64{}, nil
 	}
 	statement := fmt.Sprintf(`
-		SELECT %s::bigint,
-		       MIN(date_trunc('day', u."created_at" AT TIME ZONE 'Asia/Shanghai')::date)
+		SELECT %s::bigint
 		FROM usage_logs u%s
 		WHERE u."created_at" >= $1 AND u."created_at" < $2 AND (%s = 'oauth') AND %s IS NOT NULL
-		GROUP BY %s ORDER BY 2 ASC, 1 ASC`, accountID, join, kind, accountID, accountID)
+		GROUP BY %s ORDER BY 1 ASC`, accountID, join, kind, accountID, accountID)
 	rows, err := s.db.QueryContext(ctx, statement, start, end)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = rows.Close() }()
-	result := make([]oauthFirstUse, 0)
+	result := make([]int64, 0)
 	for rows.Next() {
-		var use oauthFirstUse
-		if err := rows.Scan(&use.AccountID, &use.Day); err != nil {
+		var accountIDValue int64
+		if err := rows.Scan(&accountIDValue); err != nil {
 			return nil, err
 		}
-		result = append(result, use)
+		result = append(result, accountIDValue)
 	}
 	return result, rows.Err()
 }

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Coins, RefreshCw, Search, SlidersHorizontal, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AccountCreatedDateRangePicker } from "@/components/admin/AccountCreatedDateRangePicker";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -27,6 +29,7 @@ interface AccountCostConfig {
   platform: string;
   billing_group?: string;
   account_created_at?: string | null;
+  account_deleted_at?: string | null;
   oauth_account_cost?: number | null;
   api_multiplier_override?: number | null;
   synced_api_multiplier?: number | null;
@@ -46,6 +49,8 @@ export default function CostConfigPage() {
   const [draftAccounts, setDraftAccounts] = useState<AccountCostConfig[]>([]);
   const [search, setSearch] = useState("");
   const [accountType, setAccountType] = useState("all");
+  const [platform, setPlatform] = useState("");
+  const [platformPickerOpen, setPlatformPickerOpen] = useState(false);
   const [createdFrom, setCreatedFrom] = useState("");
   const [createdTo, setCreatedTo] = useState("");
   const [page, setPage] = useState(1);
@@ -79,7 +84,8 @@ export default function CostConfigPage() {
 
   useEffect(() => { void load(); }, []);
 
-  const hasFilters = Boolean(search.trim() || accountType !== "all" || createdFrom || createdTo);
+  const platformOptions = useMemo(() => [...new Set(draftAccounts.map((account) => account.platform).filter(Boolean))].sort(), [draftAccounts]);
+  const hasFilters = Boolean(search.trim() || accountType !== "all" || platform || createdFrom || createdTo);
   const filteredAccounts = useMemo(() => {
     const needle = search.trim().toLowerCase();
     const start = createdFrom ? new Date(`${createdFrom}T00:00:00`).getTime() : null;
@@ -87,15 +93,17 @@ export default function CostConfigPage() {
     // 用本地日历的次日零点作为开区间，包含结束当天，也兼容夏令时切换。
     if (end) end.setDate(end.getDate() + 1);
     return draftAccounts.filter((account) => {
+      if (!needle && account.account_deleted_at) return false;
       if (accountType !== "all" && account.account_type !== accountType) return false;
-      if (needle && ![String(account.account_id), account.name, account.platform, account.account_type, account.billing_group].join(" ").toLowerCase().includes(needle)) return false;
+      if (platform && account.platform !== platform) return false;
+      if (needle && !account.name.toLowerCase().includes(needle) && !String(account.account_id).includes(needle)) return false;
       if (start !== null || end !== null) {
         const createdAt = account.account_created_at ? new Date(account.account_created_at).getTime() : NaN;
         if (!Number.isFinite(createdAt) || (start !== null && createdAt < start) || (end !== null && createdAt >= end.getTime())) return false;
       }
       return true;
-    });
-  }, [draftAccounts, search, accountType, createdFrom, createdTo]);
+    }).sort((left, right) => accountCreatedTimestamp(right) - accountCreatedTimestamp(left) || right.account_id - left.account_id);
+  }, [draftAccounts, search, accountType, platform, createdFrom, createdTo]);
   const pageCount = Math.max(1, Math.ceil(filteredAccounts.length / pageSize));
   const currentPage = Math.min(page, pageCount);
   const pageOffset = (currentPage - 1) * pageSize;
@@ -106,6 +114,7 @@ export default function CostConfigPage() {
   const resetFilters = () => {
     setSearch("");
     setAccountType("all");
+    setPlatform("");
     setCreatedFrom("");
     setCreatedTo("");
     setPage(1);
@@ -256,7 +265,7 @@ export default function CostConfigPage() {
         </div>
         <aside className="aux-cost-panel aux-config-preview-panel">
           <p className="aux-cost-panel-kicker">Sync status</p><h2>同步与历史口径</h2>
-          <div className="aux-config-preview-card"><span className="aux-preview-label"><Coins size={15} />当前账号</span><strong>{data?.accounts.length ?? 0} 个</strong><small>OAuth {data?.accounts.filter((item) => item.account_type === "oauth").length ?? 0} · API {data?.accounts.filter((item) => item.account_type === "api").length ?? 0}</small></div>
+          <div className="aux-config-preview-card"><span className="aux-preview-label"><Coins size={15} />已同步账号</span><strong>{data?.accounts.length ?? 0} 个</strong><small>OAuth {data?.accounts.filter((item) => item.account_type === "oauth").length ?? 0} · API {data?.accounts.filter((item) => item.account_type === "api").length ?? 0}</small></div>
           <div className="aux-config-preview-card"><span className="aux-preview-label"><SlidersHorizontal size={15} />合并计费组</span><strong>{billingGroupCount(data?.accounts ?? [])} 组</strong><small>同组 API / OAuth 账号分别核算成本后汇总</small></div>
           <div className="aux-config-preview-card"><span className="aux-preview-label"><SlidersHorizontal size={15} />最近同步</span><strong>{data?.last_sync_at ? formatSyncTime(data.last_sync_at) : "尚未同步"}</strong></div>
           <div className="aux-config-help"><CircleHelp size={16} /><span>API 手工倍率只影响没有历史快照的记录；已有 usage_logs.account_rate_multiplier 的历史记录永远按发生时倍率核算。</span></div>
@@ -343,7 +352,7 @@ export default function CostConfigPage() {
           </div>
         </div>
         <div className="aux-account-filters" role="search" aria-label="账号筛选">
-          <Label className="aux-account-search"><Search size={15} aria-hidden="true" /><Input className="px-0 shadow-none focus-visible:ring-0" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="搜索账号名、平台、计费组或 ID" aria-label="搜索账号" /></Label>
+          <Label className="aux-account-search"><Search size={15} aria-hidden="true" /><Input className="px-0 shadow-none focus-visible:ring-0" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="搜索账号名或 ID（含已删除）" aria-label="搜索账号" /></Label>
           <div className="aux-account-filter-field">
             <Label htmlFor="account-type-filter" className="text-xs font-normal">账号类型</Label>
             <Select value={accountType} onValueChange={(value) => { setAccountType(value); setPage(1); }}>
@@ -351,21 +360,50 @@ export default function CostConfigPage() {
               <SelectContent><SelectItem value="all">全部类型</SelectItem><SelectItem value="oauth">OAuth</SelectItem><SelectItem value="api">API</SelectItem></SelectContent>
             </Select>
           </div>
+          <div className="aux-account-filter-field">
+            <Label htmlFor="account-platform-filter" className="text-xs font-normal">平台</Label>
+            <Popover open={platformPickerOpen} onOpenChange={setPlatformPickerOpen}>
+              <PopoverTrigger asChild>
+                <Button id="account-platform-filter" type="button" variant="outline" role="combobox" aria-expanded={platformPickerOpen} className="aux-account-filter-control justify-between gap-2">
+                  <span className="max-w-36 truncate">{platform || "全部平台"}</span><ChevronDown className="h-4 w-4 opacity-50" aria-hidden="true" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-56 p-0">
+                <Command label="搜索平台">
+                  <CommandInput placeholder="搜索平台…" aria-label="搜索平台" />
+                  <CommandList>
+                    <CommandEmpty>没有匹配的平台</CommandEmpty>
+                    <CommandGroup>
+                      {["", ...platformOptions].map((option) => (
+                        <CommandItem key={option} value={option || "全部平台"} onSelect={() => { setPlatform(option); setPage(1); setPlatformPickerOpen(false); }}>
+                          <Check className={`mr-2 h-4 w-4 ${platform === option ? "opacity-100" : "opacity-0"}`} aria-hidden="true" />{option || "全部平台"}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
           <AccountCreatedDateRangePicker from={createdFrom} to={createdTo} onChange={(from, to) => { setCreatedFrom(from); setCreatedTo(to); setPage(1); }} />
           <Button type="button" variant="ghost" size="sm" onClick={resetFilters} disabled={!hasFilters}>重置筛选</Button>
         </div>
-        <p id="account-date-hint" className="aux-account-filter-hint">按本地日期筛选，包含结束当天；设置日期范围后，不显示创建时间未知的账号。</p>
-        <div className="aux-account-table-scroll"><table className="aux-account-table"><thead><tr><th>账号 / 创建时间</th><th>类型 / 平台</th><th>OAuth 单号成本</th><th>API 成本倍率</th><th>同步倍率</th><th>合并计费组</th><th>操作</th></tr></thead><tbody>
-          {visibleAccounts.length === 0 ? <tr><td colSpan={7} className="aux-cost-empty-cell">{hasFilters ? "没有符合筛选条件的账号，请调整或重置筛选。" : "暂无账号。点击“立即同步倍率”读取 Sub2API accounts。"}</td></tr> : visibleAccounts.map((account) => <tr key={account.account_id}>
-            <td><strong>{account.name || `账号 ${account.account_id}`}</strong><small>#{account.account_id}</small>{account.account_created_at && <small>创建于 {formatAccountCreatedAt(account.account_created_at)}</small>}</td>
-            <td><span className={`aux-account-type aux-account-type--${account.account_type}`}>{account.account_type === "oauth" ? "OAuth" : "API"}</span><small>{account.platform || "—"}</small></td>
-            <td>{account.account_type === "oauth" ? <input className="aux-account-number" type="number" min="0" step="0.01" value={account.oauth_account_cost ?? ""} placeholder={`默认 ${global.oauth_account_cost}`} onChange={(event) => updateAccount(setDraftAccounts, account.account_id, { oauth_account_cost: event.target.value === "" ? null : Number(event.target.value) })} /> : <span className="aux-account-muted">不适用</span>}</td>
-            <td>{account.account_type === "api" ? <div className="aux-account-multiplier"><input className="aux-account-number" type="number" min="0.01" step="0.01" disabled={account.api_multiplier_mode !== "manual"} value={account.api_multiplier_override ?? ""} placeholder={account.synced_api_multiplier?.toFixed(2) ?? global.api_cost_multiplier.toFixed(2)} onChange={(event) => updateAccount(setDraftAccounts, account.account_id, { api_multiplier_override: event.target.value === "" ? null : Number(event.target.value), api_multiplier_mode: "manual" })} /><button type="button" className={`aux-account-mode ${account.api_multiplier_mode === "manual" ? "is-manual" : ""}`} onClick={() => updateAccount(setDraftAccounts, account.account_id, { api_multiplier_mode: account.api_multiplier_mode === "manual" ? "sync" : "manual", api_multiplier_override: account.api_multiplier_mode === "manual" ? null : account.api_multiplier_override })}>{account.api_multiplier_mode === "manual" ? "手工" : "跟随同步"}</button></div> : <span className="aux-account-muted">不适用</span>}</td>
-            <td>{account.account_type === "api" ? <><strong>{account.synced_api_multiplier?.toFixed(4) ?? "—"}</strong><small>{account.last_synced_at ? formatSyncTime(account.last_synced_at) : "未同步"}</small></> : <span className="aux-account-muted">采购价独立配置</span>}</td>
-            <td><select className="aux-account-group" value={account.billing_group ?? ""} aria-label={`账号 ${account.account_id} 的合并计费组`} onChange={(event) => updateAccount(setDraftAccounts, account.account_id, { billing_group: event.target.value })}><option value="">独立计费</option>{billingGroupOptions(draftAccounts).map((group) => <option key={group} value={group}>{group}</option>)}</select><small>选择已有组，保存后生效</small></td>
-            <td><button type="button" className="aux-account-save" disabled={savingAccount === account.account_id} onClick={() => void saveAccount(account)}>{savingAccount === account.account_id ? "保存中…" : "保存"}</button></td>
-          </tr>)}
-        </tbody></table></div>
+        <p id="account-date-hint" className="aux-account-filter-hint">默认仅显示未删除账号；搜索账号名或 ID 可查询已删除账号。按创建时间倒序排列，日期范围包含本地结束当天，未知创建时间排在最后且不参与日期筛选。</p>
+        <div className="aux-account-table-scroll"><Table className="aux-account-table"><TableHeader><TableRow><TableHead>账号</TableHead><TableHead aria-sort="descending">创建时间 ↓</TableHead><TableHead>类型 / 平台</TableHead><TableHead>OAuth 单号成本</TableHead><TableHead>API 成本倍率</TableHead><TableHead>同步倍率</TableHead><TableHead>合并计费组</TableHead><TableHead>操作</TableHead></TableRow></TableHeader><TableBody>
+          {visibleAccounts.length === 0 ? <TableRow><TableCell colSpan={8} className="aux-cost-empty-cell">{hasFilters ? "没有符合筛选条件的账号，请调整或重置筛选。" : draftAccounts.length ? "暂无未删除账号，输入账号名或 ID 可查询已删除账号。" : "暂无账号。点击“立即同步倍率”读取 Sub2API accounts。"}</TableCell></TableRow> : visibleAccounts.map((account) => <TableRow key={account.account_id}>
+            <TableCell><div className="aux-account-name"><strong>{account.name || "未命名账号"}</strong><span className="aux-account-id">#{account.account_id}</span></div>{account.account_deleted_at && <Badge variant="secondary" className="mt-1">已删除</Badge>}</TableCell>
+            <TableCell className="aux-account-created-at">{account.account_created_at ? formatAccountCreatedAt(account.account_created_at) : "—"}</TableCell>
+            <TableCell><span className={`aux-account-type aux-account-type--${account.account_type}`}>{account.account_type === "oauth" ? "OAuth" : "API"}</span><small>{account.platform || "—"}</small></TableCell>
+            <TableCell>{account.account_type === "oauth" ? <Input aria-label={`账号 ${account.account_id} 的 OAuth 单号成本`} className="aux-account-number" type="number" min="0" step="0.01" value={account.oauth_account_cost ?? ""} placeholder={`默认 ${global.oauth_account_cost}`} onChange={(event) => updateAccount(setDraftAccounts, account.account_id, { oauth_account_cost: event.target.value === "" ? null : Number(event.target.value) })} /> : <span className="aux-account-muted">不适用</span>}</TableCell>
+            <TableCell>{account.account_type === "api" ? <div className="aux-account-multiplier"><Input aria-label={`账号 ${account.account_id} 的 API 成本倍率`} className="aux-account-number" type="number" min="0.01" step="0.01" disabled={account.api_multiplier_mode !== "manual"} value={account.api_multiplier_override ?? ""} placeholder={account.synced_api_multiplier?.toFixed(2) ?? global.api_cost_multiplier.toFixed(2)} onChange={(event) => updateAccount(setDraftAccounts, account.account_id, { api_multiplier_override: event.target.value === "" ? null : Number(event.target.value), api_multiplier_mode: "manual" })} /><Button type="button" size="sm" className={`aux-account-mode ${account.api_multiplier_mode === "manual" ? "is-manual" : ""}`} onClick={() => updateAccount(setDraftAccounts, account.account_id, { api_multiplier_mode: account.api_multiplier_mode === "manual" ? "sync" : "manual", api_multiplier_override: account.api_multiplier_mode === "manual" ? null : account.api_multiplier_override })}>{account.api_multiplier_mode === "manual" ? "手工" : "跟随同步"}</Button></div> : <span className="aux-account-muted">不适用</span>}</TableCell>
+            <TableCell>{account.account_type === "api" ? <><strong>{account.synced_api_multiplier?.toFixed(4) ?? "—"}</strong><small>{account.last_synced_at ? formatSyncTime(account.last_synced_at) : "未同步"}</small></> : <span className="aux-account-muted">采购价独立配置</span>}</TableCell>
+            <TableCell><Select value={account.billing_group ? `group:${account.billing_group}` : "independent"} onValueChange={(value) => updateAccount(setDraftAccounts, account.account_id, { billing_group: value === "independent" ? "" : value.slice(6) })}>
+              <SelectTrigger className="aux-account-group" aria-label={`账号 ${account.account_id} 的合并计费组`}><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="independent">独立计费</SelectItem>{mergeGroupOptions.map((group) => <SelectItem key={group} value={`group:${group}`}>{group}</SelectItem>)}</SelectContent>
+            </Select><small>选择已有组，保存后生效</small></TableCell>
+            <TableCell><Button type="button" size="sm" className="aux-account-save" disabled={savingAccount === account.account_id} onClick={() => void saveAccount(account)}>{savingAccount === account.account_id ? "保存中…" : "保存"}</Button></TableCell>
+          </TableRow>)}
+        </TableBody></Table></div>
         <footer className="aux-account-pagination">
           <span role="status">共 {filteredAccounts.length} 个账号{filteredAccounts.length > 0 ? `，显示 ${pageOffset + 1}–${Math.min(pageOffset + pageSize, filteredAccounts.length)} 条` : ""}</span>
           <div className="aux-account-pagination-controls">
@@ -401,9 +439,14 @@ function formatSyncTime(value: string) {
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).format(date);
 }
 
+function accountCreatedTimestamp(account: AccountCostConfig) {
+  const timestamp = account.account_created_at ? new Date(account.account_created_at).getTime() : NaN;
+  return Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY;
+}
+
 function formatAccountCreatedAt(value: string) {
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+  return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).format(date);
 }
 
 function billingGroupCount(accounts: AccountCostConfig[]) {

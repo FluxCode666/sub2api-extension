@@ -12,6 +12,7 @@ const accounts = Array.from({ length: 25 }, (_, index) => ({
   account_type: index % 2 === 0 ? "oauth" : "api",
   name: `测试账号 ${index + 1}`,
   platform: "openai",
+  account_deleted_at: null as string | null,
   billing_group: index < 2 ? "主账号组" : "",
   account_created_at: new Date(2026, 8, index + 1, 12).toISOString(),
   oauth_account_cost: 10,
@@ -52,6 +53,7 @@ beforeAll(() => {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+  vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date(2026, 8, 12, 12));
   vi.mocked(apiClient.get).mockResolvedValue(response());
@@ -60,21 +62,21 @@ afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe("成本配置列表", () => {
   it("分页显示账号，跨页和筛选保留编辑，并按账号 ID 保存", async () => {
-    vi.mocked(apiClient.put).mockResolvedValue({ code: 0, data: { ...accounts[0], oauth_account_cost: 42 } });
+    vi.mocked(apiClient.put).mockResolvedValue({ code: 0, data: { ...accounts[24], oauth_account_cost: 42 } });
     await openPage();
     expect(visibleRows()).toHaveLength(20);
     expect(screen.getByRole("button", { name: "上一页" })).toBeDisabled();
     fireEvent.change(within(visibleRows()[0]).getByRole("spinbutton"), { target: { value: "42" } });
     await userEvent.click(screen.getByRole("button", { name: "下一页" }));
     expect(visibleRows()).toHaveLength(5);
-    expect(screen.getByText("测试账号 21")).toBeInTheDocument();
+    expect(screen.getByText("测试账号 1")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "下一页" })).toBeDisabled();
     await userEvent.click(screen.getByRole("button", { name: "上一页" }));
-    fireEvent.change(screen.getByLabelText("搜索账号"), { target: { value: "主账号组" } });
-    expect(visibleRows()).toHaveLength(2);
+    fireEvent.change(screen.getByLabelText("搜索账号"), { target: { value: "测试账号 25" } });
+    expect(visibleRows()).toHaveLength(1);
     expect(within(visibleRows()[0]).getByRole("spinbutton")).toHaveValue(42);
     await userEvent.click(within(visibleRows()[0]).getByRole("button", { name: "保存" }));
-    expect(apiClient.put).toHaveBeenCalledWith("/admin/ops/cost-config/accounts/1", expect.objectContaining({ account_id: 1, oauth_account_cost: 42 }));
+    expect(apiClient.put).toHaveBeenCalledWith("/admin/ops/cost-config/accounts/25", expect.objectContaining({ account_id: 25, oauth_account_cost: 42 }));
     await screen.findByRole("button", { name: "重置筛选" });
   });
 
@@ -122,7 +124,7 @@ describe("成本配置列表", () => {
     expect(screen.getByText("测试账号 1")).toBeInTheDocument();
     expect(screen.getByText("测试账号 2")).toBeInTheDocument();
     await chooseOption("账号类型", "API");
-    fireEvent.change(screen.getByLabelText("搜索账号"), { target: { value: "主账号组" } });
+    fireEvent.change(screen.getByLabelText("搜索账号"), { target: { value: "测试账号 2" } });
     expect(visibleRows()).toHaveLength(1);
     expect(screen.getByText("测试账号 2")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "重置筛选" }));
@@ -157,6 +159,69 @@ describe("成本配置列表", () => {
     await screen.findByText("第 1 / 1 页");
     expect(visibleRows()).toHaveLength(3);
     expect(screen.getByRole("button", { name: "下一页" })).toBeDisabled();
+  });
+
+  it("按创建时间倒序排序，同一时间按 ID 倒序，未知时间置后，ID 与名称共用一列", async () => {
+    vi.mocked(apiClient.get).mockResolvedValue(response([
+      { ...accounts[24], account_created_at: "" },
+      accounts[1],
+      { ...accounts[0], account_created_at: accounts[1].account_created_at },
+      { ...accounts[2], account_created_at: "invalid-date" },
+      accounts[4],
+    ]));
+    await openPage();
+    expect(visibleRows().map((row) => within(row).getAllByRole("cell")[0].textContent)).toEqual([
+      "测试账号 5#5", "测试账号 2#2", "测试账号 1#1", "测试账号 25#25", "测试账号 3#3",
+    ]);
+    expect(screen.getByRole("columnheader", { name: "创建时间 ↓" })).toHaveAttribute("aria-sort", "descending");
+    expect(within(visibleRows()[0]).getAllByRole("cell")[1]).toHaveTextContent("2026/09/05 12:00:00");
+    expect(within(visibleRows()[4]).getAllByRole("cell")[1]).toHaveTextContent("—");
+  });
+
+  it("默认排除已删除账号，名称或 ID 搜索包含已删除账号，并组合平台、类型、日期筛选", async () => {
+    const items = accounts.map((account, index) => ({ ...account,
+      platform: index >= 23 ? "anthropic" : "openai",
+      account_deleted_at: index === 23 ? "2026-09-26T00:00:00Z" : null,
+    }));
+    vi.mocked(apiClient.get).mockResolvedValue(response(items));
+    await openPage();
+    expect(screen.queryByText("测试账号 24")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("共 24 个账号");
+    await userEvent.click(screen.getByRole("button", { name: "下一页" }));
+    await userEvent.click(screen.getByRole("combobox", { name: "平台" }));
+    await userEvent.type(screen.getByRole("combobox", { name: "搜索平台" }), "anth");
+    expect(screen.queryByRole("option", { name: "openai" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("option", { name: "anthropic" }));
+    expect(screen.getByText("第 1 / 1 页")).toBeInTheDocument();
+    expect(visibleRows()).toHaveLength(1);
+    expect(screen.getByText("测试账号 25")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("搜索账号"), { target: { value: "  测试账号 24  " } });
+    expect(screen.getByText("已删除")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("搜索账号"), { target: { value: "24" } });
+    expect(screen.getByText("测试账号 24")).toBeInTheDocument();
+    await chooseOption("账号类型", "API");
+    await chooseRange("2026-09-24", "2026-09-24");
+    expect(visibleRows()).toHaveLength(1);
+    expect(screen.getByText("已删除")).toBeInTheDocument();
+    await chooseOption("账号类型", "OAuth");
+    expect(screen.getByRole("status")).toHaveTextContent("共 0 个账号");
+    await userEvent.click(screen.getByRole("button", { name: "重置筛选" }));
+    expect(screen.getByRole("combobox", { name: "平台" })).toHaveTextContent("全部平台");
+    expect(screen.getByRole("status")).toHaveTextContent("共 24 个账号");
+    for (const search of ["   ", "anthropic", "主账号组"]) {
+      fireEvent.change(screen.getByLabelText("搜索账号"), { target: { value: search } });
+      expect(screen.queryByText("已删除")).not.toBeInTheDocument();
+    }
+  });
+
+  it("只有已删除账号时显示搜索提示，清空搜索恢复隐藏", async () => {
+    vi.mocked(apiClient.get).mockResolvedValue(response([{ ...accounts[0], account_deleted_at: "2026-09-26T00:00:00Z" }]));
+    await openPage();
+    expect(screen.getByText("暂无未删除账号，输入账号名或 ID 可查询已删除账号。")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("搜索账号"), { target: { value: "1" } });
+    expect(screen.getByText("已删除")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("搜索账号"), { target: { value: "" } });
+    expect(screen.queryByText("已删除")).not.toBeInTheDocument();
   });
 
   it("没有账号时显示同步引导", async () => {

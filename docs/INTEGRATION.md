@@ -57,12 +57,17 @@ SUB2API_DATABASE_PORT=5432
 SUB2API_DATABASE_USER=sub2api
 SUB2API_DATABASE_PASSWORD=<sub2api 数据库密码>
 SUB2API_DATABASE_DBNAME=sub2api
+SUB2API_REDIS_HOST=redis
+SUB2API_REDIS_PORT=6379
 SUB2API_EXTENSION_PUBLIC_URL=https://aux.example.com
 ```
 
 `SUB2API_DATABASE_PASSWORD` 必须与 Sub2API Compose 使用的
 `POSTGRES_PASSWORD` 完全一致。`SUB2API_DATABASE_*` 是数据库连接参数，不是
 Sub2API HTTP API 配置；扩展不会调用 Sub2API 的首字延迟接口。
+促销返利还应配置 `SUB2API_REDIS_HOST`（及对应凭据），这样入账后会立即删除
+Sub2API 的用户余额缓存；未配置时数据库余额仍会更新，但网关最多可能在余额缓存 TTL
+内显示旧值。
 
 启动并检查：
 
@@ -215,7 +220,7 @@ Dashboard 的规范路径是：
 /admin/dashboard
 ```
 
-运营中心路径为 `/admin/ops/consumption` 与 `/admin/ops/cost-config`。消费核算按天聚合收入、请求量、Token、API 成本、OAuth 账号成本、毛利/税前利润、税额、税后利润和利润率，日期范围最多 93 天；全局默认配置、税点和每个账号的独立成本配置写入扩展自有数据库，不会修改 Sub2API 数据库。税点以百分比配置，例如 `6` 表示 `6%`，并按收入计提：`税额 = 收入 × 税点`，`税前利润 = 收入 − 总成本`，`税后利润 = 税前利润 − 税额`。OAuth 账号按账号 ID 配置采购单价，并在筛选范围内按独立账号计入、归集到首次使用日；同一计费组中的 OAuth 记录只计一次采购成本，因此组内 OAuth 账号必须使用相同的有效采购单价。API 账号按账号 ID 配置倍率，优先级为手工覆盖、已同步倍率、Sub2API 当前 `accounts.rate_multiplier`，都不存在时才使用全局默认倍率；同一计费组中的多个 API 账号分别按各自有效倍率计算后汇总，明细会列出组内全部账号及倍率。API 与 OAuth 账号也可以加入同一计费组，系统会分别套用 API 倍率和 OAuth 采购成本规则后汇总；OAuth 账号的 `account_rate_multiplier` 快照不会被误算为 API 成本。历史 API usage log 优先使用 `account_rate_multiplier` 快照，因此上游倍率后续变化不会改写已经发生的成本。
+运营中心路径为 `/admin/ops/consumption` 与 `/admin/ops/cost-config`。消费核算趋势图和每日明细按天展示 API 账号收入、请求量、Token、API 成本、API 毛利/税前利润、税额、税后利润和利润率；OAuth 账号采购成本按账号一次性计入区间总账和账号明细，不归集到某个使用日。日期范围最多 93 天；全局默认配置、税点和每个账号的独立成本配置写入扩展自有数据库，不会修改 Sub2API 数据库。税点以百分比配置，例如 `6` 表示 `6%`，区间总账仍按 `税前利润 = 总收入 − API 成本 − OAuth 采购成本`、`税后利润 = 税前利润 − 总收入 × 税点` 计算。OAuth 账号按账号 ID 配置采购单价，并在筛选范围内按独立账号计入；同一计费组中的 OAuth 记录只计一次采购成本，因此组内 OAuth 账号必须使用相同的有效采购单价。API 账号按账号 ID 配置倍率，优先级为手工覆盖、已同步倍率、Sub2API 当前 `accounts.rate_multiplier`，都不存在时才使用全局默认倍率；同一计费组中的多个 API 账号分别按各自有效倍率计算后汇总，明细会列出组内全部账号及倍率。API 与 OAuth 账号也可以加入同一计费组，系统会分别套用 API 倍率和 OAuth 采购成本规则后汇总；OAuth 账号的 `account_rate_multiplier` 快照不会被误算为 API 成本。历史 API usage log 优先使用 `account_rate_multiplier` 快照，因此上游倍率后续变化不会改写已经发生的成本。
 
 Dashboard 列出当前注册页面，标题和路径都可点击：
 
@@ -325,7 +330,7 @@ Sub2API 用户下拉选项。管理员还可以调用 `POST /api/aux/admin/invoi
 - [ ] 管理员点击「首字延迟」后，运维看板能从 Sub2API PostgreSQL 读取 `usage_logs.first_token_ms`。
 - [ ] 管理员可在「系统日志」查看请求/运行错误，在「操作日志」查看管理员变更记录。
 - [ ] 首字延迟看板的日期、时间段、分组、账号和分钟/小时/天粒度筛选能正常刷新火焰图。
-- [ ] 管理员点击「消费核算」后，运营中心能按日期范围展示收入、API 成本、OAuth 成本、毛利/税前利润、税额、税后利润与利润率。
+- [ ] 管理员点击「消费核算」后，运营中心能按日期范围展示 API 账号收入、API 成本与 API 利润走势，并在区间总账和账号明细中展示 OAuth 一次性采购成本。
 - [ ] 管理员在「成本配置」修改税点并保存后，刷新页面仍能读取，消费核算按新税点重新计算税额与税后利润。
 - [ ] 管理员在「成本配置」按账号保存 OAuth 单号成本或 API 手工倍率。
 - [ ] 「成本配置」可以立即同步 Sub2API 账号倍率，并显示最近同步时间；定时同步间隔由 `SUB2API_EXTENSION_COST_SYNC_INTERVAL_SECONDS` 配置（默认 300 秒）。

@@ -21,6 +21,7 @@ type Sub2APIAccount struct {
 	Platform       string     `json:"platform"`
 	RateMultiplier float64    `json:"rate_multiplier"`
 	CreatedAt      *time.Time `json:"created_at,omitempty"`
+	DeletedAt      *time.Time `json:"deleted_at,omitempty"`
 	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
@@ -38,6 +39,7 @@ type AccountCostConfig struct {
 	APIMultiplierMode     string     `json:"api_multiplier_mode"`
 	LastSyncedAt          *time.Time `json:"last_synced_at,omitempty"`
 	AccountCreatedAt      *time.Time `json:"account_created_at,omitempty"`
+	AccountDeletedAt      *time.Time `json:"account_deleted_at,omitempty"`
 }
 
 func (c AccountCostConfig) EffectiveAPIMultiplier(fallback float64) float64 {
@@ -87,18 +89,27 @@ type ConsumptionQuery struct {
 }
 
 type DailyConsumption struct {
+	// API* 指标仅按 API 账号的 usage_logs 计算；OAuth 采购成本属于区间级账号总账。
 	Date              time.Time `json:"date"`
 	Requests          int64     `json:"requests"`
 	TotalTokens       int64     `json:"total_tokens"`
+	APIRequests       int64     `json:"api_requests"`
+	APITokens         int64     `json:"api_tokens"`
 	Revenue           float64   `json:"revenue"`
+	APIRevenue        float64   `json:"api_revenue"`
+	OAuthRevenue      float64   `json:"oauth_revenue"`
 	APICost           float64   `json:"api_cost"`
 	OAuthCost         float64   `json:"oauth_cost"`
 	TotalCost         float64   `json:"total_cost"`
 	GrossProfit       float64   `json:"gross_profit"`
+	APIGrossProfit    float64   `json:"api_gross_profit"`
 	TaxAmount         float64   `json:"tax_amount"`
 	Profit            float64   `json:"profit"`
 	NetProfit         float64   `json:"net_profit"`
 	NetMargin         float64   `json:"net_margin"`
+	APITaxAmount      float64   `json:"api_tax_amount"`
+	APINetProfit      float64   `json:"api_net_profit"`
+	APINetMargin      float64   `json:"api_net_margin"`
 	OAuthAccountCount int64     `json:"oauth_account_count"`
 	APIAccountCount   int64     `json:"api_account_count"`
 }

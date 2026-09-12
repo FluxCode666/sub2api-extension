@@ -253,6 +253,8 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 	var logService *service.LogService
 	var invoiceUserHandler *handler.InvoiceUserHandler
 	var invoiceAdminHandler *adminhandler.InvoiceAdminHandler
+	var promotionUserHandler *handler.PromotionUserHandler
+	var promotionAdminHandler *adminhandler.PromotionAdminHandler
 	var notificationAdminHandler *adminhandler.NotificationAdminHandler
 	for _, optionalHandler := range optionalHandlers {
 		switch typed := optionalHandler.(type) {
@@ -276,6 +278,10 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			invoiceUserHandler = typed
 		case *adminhandler.InvoiceAdminHandler:
 			invoiceAdminHandler = typed
+		case *handler.PromotionUserHandler:
+			promotionUserHandler = typed
+		case *adminhandler.PromotionAdminHandler:
+			promotionAdminHandler = typed
 		case *adminhandler.NotificationAdminHandler:
 			notificationAdminHandler = typed
 		}
@@ -310,6 +316,14 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			invoices.GET("/requests", invoiceUserHandler.ListRequests)
 			invoices.POST("/requests", invoiceUserHandler.Create)
 			invoices.GET("/requests/:id/document", invoiceUserHandler.Download)
+		}
+		if promotionUserHandler != nil {
+			promotions := aux.Group("/promotions")
+			promotions.Use(promotionUserHandler.Guard())
+			promotions.GET("", promotionUserHandler.List)
+			promotions.GET("/claims", promotionUserHandler.Claims)
+			promotions.GET("/:id/orders", promotionUserHandler.Orders)
+			promotions.POST("/:id/claim", promotionUserHandler.Claim)
 		}
 
 		// U5: 埋点上报端点(匿名可写,不经 AdminGuard)。
@@ -416,6 +430,17 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 				guarded.PUT("/invoices/:id/status", invoiceAdminHandler.UpdateStatus)
 				guarded.POST("/invoices/:id/document", invoiceAdminHandler.UploadDocument)
 				guarded.GET("/invoices/:id/document", invoiceAdminHandler.Download)
+			}
+			if promotionAdminHandler != nil {
+				guarded.GET("/promotions/config", promotionAdminHandler.GetFeature)
+				guarded.PUT("/promotions/config", promotionAdminHandler.SetFeature)
+				guarded.GET("/promotions", promotionAdminHandler.List)
+				guarded.POST("/promotions", promotionAdminHandler.Create)
+				guarded.GET("/promotions/:id", promotionAdminHandler.Get)
+				guarded.GET("/promotions/:id/stats", promotionAdminHandler.Stats)
+				guarded.PUT("/promotions/:id", promotionAdminHandler.Update)
+				guarded.DELETE("/promotions/:id", promotionAdminHandler.Delete)
+				guarded.PUT("/promotions/:id/publish", promotionAdminHandler.Publish)
 			}
 			if notificationAdminHandler != nil {
 				guarded.GET("/notifications/channels", notificationAdminHandler.ListChannels)

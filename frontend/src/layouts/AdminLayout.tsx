@@ -28,6 +28,7 @@ import {
   LayoutDashboard,
   ReceiptText,
   PanelsTopLeft,
+  Gift,
   SlidersHorizontal,
   Settings2,
   Terminal,
@@ -215,6 +216,14 @@ export default function AdminLayout() {
                     <NavLink to="/admin/invoices" end>
                       <ReceiptText className="h-4 w-4" />
                       <span>发票管理</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink to="/admin/promotions" end>
+                      <Gift className="h-4 w-4" />
+                      <span>促销活动</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

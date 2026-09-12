@@ -22,6 +22,12 @@ const customMenuItemsSettingKey = "custom_menu_items"
 // Sub2API's built-in sidebar icons.
 const invoiceMenuIconSVG = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1 1 0 0 1 20 3v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6A1.3 1.3 0 0 1 4 21V3Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 9h8M8 13h8M8 17h5"/></svg>`
 
+const promotionMenuIconSVG = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14.25 9.75 9.75 14.25 9l.75 4.5-4.5.75L9 14.25Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 7.5h16.5M5.25 4.5h13.5a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V6a1.5 1.5 0 0 1 1.5-1.5Z"/></svg>`
+
+// Blocks conveys the extension's modular capabilities more clearly than a
+// generic home icon while matching Sub2API's currentColor SVG convention.
+const homepageMenuIconSVG = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>`
+
 // Sub2APIMenuStore 直接读写 sub2api settings 表中的 custom_menu_items 设置。
 // 只修改由本扩展创建的菜单项，其余 sub2api 菜单字段会原样保留。
 type Sub2APIMenuStore struct {
@@ -321,6 +327,92 @@ func (s *Sub2APIMenuStore) SetInvoiceMenu(ctx context.Context, enabled bool) err
 		}
 		return append(items, customMenuItem{ID: menuID, Label: "发票管理", IconSVG: invoiceMenuIconSVG, URL: menuURL, Visibility: "user", SortOrder: maxOrder + 1}), nil
 	})
+}
+
+// SetPromotionMenu publishes or removes the customer-facing promotion portal.
+func (s *Sub2APIMenuStore) SetPromotionMenu(ctx context.Context, enabled bool) error {
+	const menuID = "aux-promotions"
+	if s == nil || s.db == nil {
+		return errors.New("sub2api database is unavailable")
+	}
+	if !enabled {
+		return s.mutate(ctx, func(items []customMenuItem) ([]customMenuItem, error) {
+			filtered := make([]customMenuItem, 0, len(items))
+			for _, item := range items {
+				if item.ID != menuID {
+					filtered = append(filtered, item)
+				}
+			}
+			return filtered, nil
+		})
+	}
+	menuURL, err := s.absoluteURL("/promotions")
+	if err != nil {
+		return err
+	}
+	return s.mutate(ctx, func(items []customMenuItem) ([]customMenuItem, error) {
+		for i, item := range items {
+			if item.ID == menuID {
+				items[i] = mergePromotionMenuItem(item, menuURL)
+				return items, nil
+			}
+		}
+		maxOrder := -1
+		for _, item := range items {
+			if item.SortOrder > maxOrder {
+				maxOrder = item.SortOrder
+			}
+		}
+		return append(items, customMenuItem{ID: menuID, Label: "促销活动", IconSVG: promotionMenuIconSVG, URL: menuURL, Visibility: "user", SortOrder: maxOrder + 1}), nil
+	})
+}
+
+// SetHomepageMenu publishes or removes the administrator dashboard in
+// Sub2API's customer menu. The menu is admin-only because the target route is
+// protected by the extension's administrator guard.
+func (s *Sub2APIMenuStore) SetHomepageMenu(ctx context.Context, enabled bool, label string) error {
+	const menuID = "aux-homepage"
+	if s == nil || s.db == nil {
+		return errors.New("sub2api database is unavailable")
+	}
+	if !enabled {
+		return s.mutate(ctx, func(items []customMenuItem) ([]customMenuItem, error) {
+			filtered := make([]customMenuItem, 0, len(items))
+			for _, item := range items {
+				if item.ID != menuID {
+					filtered = append(filtered, item)
+				}
+			}
+			return filtered, nil
+		})
+	}
+	menuURL, err := s.absoluteURL("/admin/dashboard")
+	if err != nil {
+		return err
+	}
+	label = strings.TrimSpace(label)
+	if label == "" {
+		label = "官网"
+	}
+	return s.mutate(ctx, func(items []customMenuItem) ([]customMenuItem, error) {
+		for i, item := range items {
+			if item.ID == menuID {
+				items[i] = customMenuItem{ID: menuID, Label: label, IconSVG: homepageMenuIconSVG, URL: menuURL, Visibility: "admin", SortOrder: item.SortOrder, extra: item.extra}
+				return items, nil
+			}
+		}
+		maxOrder := -1
+		for _, item := range items {
+			if item.SortOrder > maxOrder {
+				maxOrder = item.SortOrder
+			}
+		}
+		return append(items, customMenuItem{ID: menuID, Label: label, IconSVG: homepageMenuIconSVG, URL: menuURL, Visibility: "admin", SortOrder: maxOrder + 1}), nil
+	})
+}
+
+func mergePromotionMenuItem(existing customMenuItem, menuURL string) customMenuItem {
+	return customMenuItem{ID: "aux-promotions", Label: "促销活动", IconSVG: promotionMenuIconSVG, URL: menuURL, Visibility: "user", SortOrder: existing.SortOrder, extra: existing.extra}
 }
 
 func mergeInvoiceMenuItem(existing customMenuItem, menuURL string) customMenuItem {

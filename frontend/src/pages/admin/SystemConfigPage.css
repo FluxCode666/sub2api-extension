@@ -176,6 +176,11 @@
 .aux-system-config-field small { display: block; margin-top: 10px; color: var(--console-subtle); font-size: 12px; line-height: 1.6; }
 .aux-system-config-field small code { color: var(--console-accent); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
 
+.aux-system-config-publication { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 24px; padding: 16px 17px; border: 1px solid var(--console-line-strong); border-radius: 13px; background: color-mix(in srgb, var(--console-surface-strong) 78%, transparent); }
+.aux-system-config-publication > div { display: grid; gap: 7px; }
+.aux-system-config-publication > div > span { font-size: 13px; font-weight: 680; }
+.aux-system-config-publication small { color: var(--console-subtle); font-size: 12px; line-height: 1.55; }
+
 .aux-system-config-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 32px; }
 .aux-system-config-primary { border: 0; background: var(--console-accent); color: #fff; box-shadow: 0 10px 24px color-mix(in srgb, var(--console-accent) 28%, transparent); }
 .aux-system-config-secondary { border: 1px solid var(--console-line-strong); background: transparent; color: var(--console-muted); }

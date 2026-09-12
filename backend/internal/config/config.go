@@ -70,6 +70,22 @@ type Sub2APIConfig struct {
 	PublicURL               string         `mapstructure:"public_url"`                 // 浏览器可访问的扩展公网 URL
 	CostSyncIntervalSeconds int            `mapstructure:"cost_sync_interval_seconds"` // per-account cost sync interval
 	Database                DatabaseConfig `mapstructure:"database"`                   // sub2api PostgreSQL（用于同步 custom_menu_items）
+	Redis                   RedisConfig    `mapstructure:"redis"`                      // 可选：失效 Sub2API 余额缓存
+}
+
+// RedisConfig 是可选的 Redis 连接配置。只有配置 Host 时才启用缓存失效，
+// 不把 Sub2API 的 Redis 凭据写入扩展数据库或日志。
+type RedisConfig struct {
+	Host      string `mapstructure:"host"`
+	Port      int    `mapstructure:"port"`
+	Username  string `mapstructure:"username"`
+	Password  string `mapstructure:"password"`
+	DB        int    `mapstructure:"db"`
+	EnableTLS bool   `mapstructure:"enable_tls"`
+}
+
+func (r RedisConfig) Address() string {
+	return net.JoinHostPort(r.Host, strconv.Itoa(r.Port))
 }
 
 // JWTConfig JWT 签名配置（供 U3 管理员鉴权）。
@@ -162,6 +178,12 @@ func setDefaults() {
 	viper.SetDefault("sub2api.database.password", "")
 	viper.SetDefault("sub2api.database.dbname", "")
 	viper.SetDefault("sub2api.database.sslmode", "disable")
+	viper.SetDefault("sub2api.redis.host", "")
+	viper.SetDefault("sub2api.redis.port", 6379)
+	viper.SetDefault("sub2api.redis.username", "")
+	viper.SetDefault("sub2api.redis.password", "")
+	viper.SetDefault("sub2api.redis.db", 0)
+	viper.SetDefault("sub2api.redis.enable_tls", false)
 
 	viper.SetDefault("jwt.secret", "")
 	viper.SetDefault("jwt.expire_hour", 24)
@@ -192,6 +214,9 @@ func normalize(cfg *Config) {
 	cfg.Sub2API.Database.DBName = strings.TrimSpace(cfg.Sub2API.Database.DBName)
 	cfg.Sub2API.Database.SSLMode = strings.TrimSpace(cfg.Sub2API.Database.SSLMode)
 	cfg.Sub2API.Database.Password = strings.TrimSpace(cfg.Sub2API.Database.Password)
+	cfg.Sub2API.Redis.Host = strings.TrimSpace(cfg.Sub2API.Redis.Host)
+	cfg.Sub2API.Redis.Username = strings.TrimSpace(cfg.Sub2API.Redis.Username)
+	cfg.Sub2API.Redis.Password = strings.TrimSpace(cfg.Sub2API.Redis.Password)
 	cfg.JWT.Secret = strings.TrimSpace(cfg.JWT.Secret)
 	cfg.Assets.Dir = strings.TrimSpace(cfg.Assets.Dir)
 	if cfg.Assets.Dir == "" {
@@ -256,6 +281,14 @@ func LoadFromEnv() (*Config, error) {
 				Password: getEnv("SUB2API_DATABASE_PASSWORD", ""),
 				DBName:   getEnv("SUB2API_DATABASE_DBNAME", ""),
 				SSLMode:  getEnv("SUB2API_DATABASE_SSLMODE", "disable"),
+			},
+			Redis: RedisConfig{
+				Host:      getEnv("SUB2API_REDIS_HOST", ""),
+				Port:      getEnvInt("SUB2API_REDIS_PORT", 6379),
+				Username:  getEnv("SUB2API_REDIS_USERNAME", ""),
+				Password:  getEnv("SUB2API_REDIS_PASSWORD", ""),
+				DB:        getEnvInt("SUB2API_REDIS_DB", 0),
+				EnableTLS: strings.EqualFold(getEnv("SUB2API_REDIS_ENABLE_TLS", "false"), "true"),
 			},
 		},
 		JWT: JWTConfig{

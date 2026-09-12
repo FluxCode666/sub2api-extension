@@ -97,6 +97,19 @@ func TestApplyProfitMetricsWithZeroTax(t *testing.T) {
 	assert.InDelta(t, result.Days[0].Profit, result.Days[0].NetProfit, 0.000001)
 }
 
+func TestApplyProfitMetricsCalculatesAPIOnlyDailyMetrics(t *testing.T) {
+	result := &ops.ConsumptionResponse{
+		Days: []ops.DailyConsumption{{APIRevenue: 400, APICost: 80}},
+	}
+
+	applyProfitMetrics(result, ops.CostConfig{TaxRate: 6})
+
+	assert.InDelta(t, 320, result.Days[0].APIGrossProfit, 0.000001)
+	assert.InDelta(t, 24, result.Days[0].APITaxAmount, 0.000001)
+	assert.InDelta(t, 296, result.Days[0].APINetProfit, 0.000001)
+	assert.InDelta(t, 0.74, result.Days[0].APINetMargin, 0.000001)
+}
+
 func TestAccountAPICostIgnoresOAuthUsageSnapshots(t *testing.T) {
 	if got := accountAPICost("oauth", 12.5, 4, 2); got != 0 {
 		t.Fatalf("OAuth API cost = %v, want 0", got)

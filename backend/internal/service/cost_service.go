@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
+
 	"sub2api-extension/ent"
 	"sub2api-extension/ent/accountcostconfig"
 	"sub2api-extension/ent/systemmeta"
@@ -349,7 +351,10 @@ func (s *EntCostConfigStore) ListAccountCostConfigs(ctx context.Context) ([]ops.
 	if s == nil || s.client == nil {
 		return nil, errors.New("cost config store is unavailable")
 	}
-	entities, err := s.client.AccountCostConfig.Query().Order(ent.Asc(accountcostconfig.FieldAccountID)).All(ctx)
+	entities, err := s.client.AccountCostConfig.Query().Order(
+		accountcostconfig.ByAccountCreatedAt(sql.OrderDesc(), sql.OrderNullsLast()),
+		accountcostconfig.ByAccountID(sql.OrderDesc()),
+	).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -463,11 +468,17 @@ func (s *EntCostConfigStore) SyncAccounts(ctx context.Context, accounts []ops.Su
 				SetSyncedAPIMultiplier(account.RateMultiplier).
 				SetLastSyncedAt(now).
 				SetNillableAccountCreatedAt(account.CreatedAt).
+				SetNillableAccountDeletedAt(account.DeletedAt).
 				Save(ctx)
 		} else if err == nil {
 			update := entity.Update().SetAccountType(account.Type).SetName(account.Name).SetPlatform(account.Platform).SetSyncedAPIMultiplier(account.RateMultiplier).SetLastSyncedAt(now)
 			if account.CreatedAt != nil {
 				update.SetAccountCreatedAt(*account.CreatedAt)
+			}
+			if account.DeletedAt == nil {
+				update.ClearAccountDeletedAt()
+			} else {
+				update.SetAccountDeletedAt(*account.DeletedAt)
 			}
 			_, err = update.Save(ctx)
 		}
@@ -483,5 +494,6 @@ func accountCostConfigFromEntity(entity *ent.AccountCostConfig) ops.AccountCostC
 		AccountID: entity.AccountID, AccountType: entity.AccountType, Name: entity.Name, Platform: entity.Platform, BillingGroup: entity.BillingGroup,
 		OAuthAccountCost: entity.OauthAccountCost, APIMultiplierOverride: entity.APIMultiplierOverride,
 		SyncedAPIMultiplier: entity.SyncedAPIMultiplier, APIMultiplierMode: entity.APIMultiplierMode, LastSyncedAt: entity.LastSyncedAt, AccountCreatedAt: entity.AccountCreatedAt,
+		AccountDeletedAt: entity.AccountDeletedAt,
 	}
 }

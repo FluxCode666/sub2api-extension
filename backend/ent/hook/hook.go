@@ -140,6 +140,30 @@ func (f PageViewFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PageViewMutation", m)
 }
 
+// The PromotionFunc type is an adapter to allow the use of ordinary
+// function as Promotion mutator.
+type PromotionFunc func(context.Context, *ent.PromotionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PromotionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PromotionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PromotionMutation", m)
+}
+
+// The PromotionClaimFunc type is an adapter to allow the use of ordinary
+// function as PromotionClaim mutator.
+type PromotionClaimFunc func(context.Context, *ent.PromotionClaimMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PromotionClaimFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PromotionClaimMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PromotionClaimMutation", m)
+}
+
 // The SystemLogFunc type is an adapter to allow the use of ordinary
 // function as SystemLog mutator.
 type SystemLogFunc func(context.Context, *ent.SystemLogMutation) (ent.Value, error)

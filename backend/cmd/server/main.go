@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"errors"
 	"flag"
@@ -32,6 +33,7 @@ import (
 
 	entsql "entgo.io/ent/dialect/sql"
 	_ "github.com/lib/pq"
+	"github.com/redis/go-redis/v9"
 )
 
 // Build-time variables (can be set by ldflags)
@@ -107,7 +109,14 @@ func main() {
 	var invoiceMenuPublisher interface {
 		SetInvoiceMenu(context.Context, bool) error
 	}
+	var promotionMenuPublisher interface {
+		SetPromotionMenu(context.Context, bool) error
+	}
+	var homepageMenuPublisher interface {
+		SetHomepageMenu(context.Context, bool, string) error
+	}
 	var sub2apiDB *sql.DB
+	var sub2apiRedis *redis.Client
 	if cfg.Sub2API.Database.Host != "" {
 		if strings.TrimSpace(cfg.Sub2API.PublicURL) == "" {
 			// The database connection is still useful for reads (for example the
@@ -133,8 +142,22 @@ func main() {
 		menuStore := integration.NewSub2APIMenuStore(sub2apiDB, cfg.Sub2API.PublicURL)
 		sub2apiMenuPublisher = menuStore
 		invoiceMenuPublisher = menuStore
+		promotionMenuPublisher = menuStore
+		homepageMenuPublisher = menuStore
 	} else {
 		log.Printf("[main] sub2api database integration disabled: SUB2API_DATABASE_HOST is empty; publication and TTFT data access will be unavailable")
+	}
+	if cfg.Sub2API.Redis.Host != "" {
+		sub2apiRedis, err = initSub2APIRedis(cfg)
+		if err != nil {
+			log.Printf("[main] sub2api Redis integration disabled: %v", err)
+		} else {
+			defer func() {
+				if closeErr := sub2apiRedis.Close(); closeErr != nil {
+					log.Printf("[main] failed to close sub2api Redis: %v", closeErr)
+				}
+			}()
+		}
 	}
 
 	// 装配路由
@@ -159,7 +182,7 @@ func main() {
 	// 旧版首页配置 API 兼容链：复用 system_meta 存储；当前官网内容以 pages.home 为准。
 	homepageStore := service.NewEntHomepageConfigStore(entClient)
 	homepageService := service.NewHomepageConfigService(homepageStore)
-	homepageHandler := adminhandler.NewHomepageConfigHandler(homepageService)
+	homepageHandler := adminhandler.NewHomepageConfigHandler(homepageService, homepageMenuPublisher)
 
 	// 动态页面管理链: ent client → page store → page service → handlers(public + admin)
 	pageStore := service.NewEntPageStore(entClient)
@@ -203,6 +226,10 @@ func main() {
 	}
 	invoiceUserHandler := handler.NewInvoiceUserHandler(invoiceService, sub2apiClient)
 	invoiceAdminHandler := adminhandler.NewInvoiceAdminHandler(invoiceService, invoiceMenuPublisher)
+	promotionBalanceStore := integration.NewSub2APIPromotionBalanceStore(sub2apiDB, sub2apiRedis)
+	promotionService := service.NewPromotionService(entClient, invoiceOrderStore, promotionBalanceStore)
+	promotionUserHandler := handler.NewPromotionUserHandler(promotionService, sub2apiClient)
+	promotionAdminHandler := adminhandler.NewPromotionAdminHandler(promotionService, promotionMenuPublisher)
 	notificationService := service.NewNotificationService(entClient)
 	notificationAdminHandler := adminhandler.NewNotificationAdminHandler(notificationService)
 
@@ -232,7 +259,7 @@ func main() {
 		releaseSource,
 		update.NewManager(releaseSource, releaseSource, Version),
 	)
-	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, imageAssetHandler, fileAssetHandler, ttftHandler, costHandler, invoiceUserHandler, invoiceAdminHandler, notificationAdminHandler, logService, logHandler, systemHandler)
+	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, imageAssetHandler, fileAssetHandler, ttftHandler, costHandler, invoiceUserHandler, invoiceAdminHandler, promotionUserHandler, promotionAdminHandler, notificationAdminHandler, logService, logHandler, systemHandler)
 
 	// 启动 HTTP 服务器
 	addr := cfg.Server.Address()
@@ -295,6 +322,31 @@ func initSub2APIDatabase(cfg *config.Config) (*sql.DB, error) {
 	return db, nil
 }
 
+func initSub2APIRedis(cfg *config.Config) (*redis.Client, error) {
+	options := &redis.Options{
+		Addr:         cfg.Sub2API.Redis.Address(),
+		Username:     cfg.Sub2API.Redis.Username,
+		Password:     cfg.Sub2API.Redis.Password,
+		DB:           cfg.Sub2API.Redis.DB,
+		MinIdleConns: 1,
+		DialTimeout:  3 * time.Second,
+		ReadTimeout:  3 * time.Second,
+		WriteTimeout: 3 * time.Second,
+	}
+	if cfg.Sub2API.Redis.EnableTLS {
+		options.TLSConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+	}
+	client := redis.NewClient(options)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := client.Ping(ctx).Err(); err != nil {
+		_ = client.Close()
+		return nil, fmt.Errorf("pinging sub2api Redis: %w", err)
+	}
+	log.Printf("[initSub2APIRedis] connected successfully host=%s db=%d tls=%t", cfg.Sub2API.Redis.Host, cfg.Sub2API.Redis.DB, cfg.Sub2API.Redis.EnableTLS)
+	return client, nil
+}
+
 // initEnt 初始化 Ent 客户端并连接 PostgreSQL，执行一次 ping 确认可达性。
 func initEnt(cfg *config.Config) (*ent.Client, error) {
 	dsn := cfg.Database.DSN()
@@ -349,7 +401,6 @@ func runMigration(cfg *config.Config) error {
 			log.Printf("[runMigration] failed to close database: %v", closeErr)
 		}
 	}()
-
 	drv := entsql.OpenDB("postgres", db)
 	if err := migrate.NewSchema(drv).Create(context.Background()); err != nil {
 		return fmt.Errorf("creating schema: %w", err)

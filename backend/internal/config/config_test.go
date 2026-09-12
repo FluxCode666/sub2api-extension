@@ -22,6 +22,8 @@ func clearEnv(t *testing.T) {
 		"SUB2API_EXTENSION_PUBLIC_URL",
 		"SUB2API_DATABASE_HOST", "SUB2API_DATABASE_PORT", "SUB2API_DATABASE_USER",
 		"SUB2API_DATABASE_PASSWORD", "SUB2API_DATABASE_DBNAME", "SUB2API_DATABASE_SSLMODE",
+		"SUB2API_REDIS_HOST", "SUB2API_REDIS_PORT", "SUB2API_REDIS_USERNAME",
+		"SUB2API_REDIS_PASSWORD", "SUB2API_REDIS_DB", "SUB2API_REDIS_ENABLE_TLS",
 		"JWT_SECRET", "JWT_EXPIRE_HOUR",
 		"SUB2API_EXTENSION_ASSET_DIR",
 	}
@@ -76,6 +78,31 @@ func TestLoadFromEnv_Sub2APIDatabaseAndPublicURL(t *testing.T) {
 	assert.Equal(t, "postgres", cfg.Sub2API.Database.Host)
 	assert.Equal(t, 5433, cfg.Sub2API.Database.Port)
 	assert.Equal(t, "sub2api", cfg.Sub2API.Database.DBName)
+}
+
+func TestLoadFromEnv_Sub2APIRedis(t *testing.T) {
+	clearEnv(t)
+	t.Setenv("DATABASE_HOST", "db.example.com")
+	t.Setenv("DATABASE_USER", "aux")
+	t.Setenv("DATABASE_DBNAME", "auxdb")
+	t.Setenv("JWT_SECRET", "test-secret-key")
+	t.Setenv("SUB2API_BASE_URL", "http://sub2api:8080")
+	t.Setenv("SUB2API_REDIS_HOST", "redis")
+	t.Setenv("SUB2API_REDIS_PORT", "6380")
+	t.Setenv("SUB2API_REDIS_USERNAME", "aux")
+	t.Setenv("SUB2API_REDIS_PASSWORD", "secret")
+	t.Setenv("SUB2API_REDIS_DB", "2")
+	t.Setenv("SUB2API_REDIS_ENABLE_TLS", "true")
+
+	cfg, err := LoadFromEnv()
+	require.NoError(t, err)
+	assert.Equal(t, "redis", cfg.Sub2API.Redis.Host)
+	assert.Equal(t, 6380, cfg.Sub2API.Redis.Port)
+	assert.Equal(t, "redis:6380", cfg.Sub2API.Redis.Address())
+	assert.Equal(t, "aux", cfg.Sub2API.Redis.Username)
+	assert.Equal(t, "secret", cfg.Sub2API.Redis.Password)
+	assert.Equal(t, 2, cfg.Sub2API.Redis.DB)
+	assert.True(t, cfg.Sub2API.Redis.EnableTLS)
 }
 
 // main 使用 Load（Viper），不是 LoadFromEnv。这个测试确保 make dev 导出的

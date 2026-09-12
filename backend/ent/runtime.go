@@ -14,6 +14,8 @@ import (
 	"sub2api-extension/ent/operationlog"
 	"sub2api-extension/ent/page"
 	"sub2api-extension/ent/pageview"
+	"sub2api-extension/ent/promotion"
+	"sub2api-extension/ent/promotionclaim"
 	"sub2api-extension/ent/schema"
 	"sub2api-extension/ent/systemlog"
 	"sub2api-extension/ent/systemmeta"
@@ -53,11 +55,11 @@ func init() {
 	// accountcostconfig.APIMultiplierModeValidator is a validator for the "api_multiplier_mode" field. It is called by the builders before save.
 	accountcostconfig.APIMultiplierModeValidator = accountcostconfigDescAPIMultiplierMode.Validators[0].(func(string) error)
 	// accountcostconfigDescCreatedAt is the schema descriptor for created_at field.
-	accountcostconfigDescCreatedAt := accountcostconfigFields[11].Descriptor()
+	accountcostconfigDescCreatedAt := accountcostconfigFields[12].Descriptor()
 	// accountcostconfig.DefaultCreatedAt holds the default value on creation for the created_at field.
 	accountcostconfig.DefaultCreatedAt = accountcostconfigDescCreatedAt.Default.(func() time.Time)
 	// accountcostconfigDescUpdatedAt is the schema descriptor for updated_at field.
-	accountcostconfigDescUpdatedAt := accountcostconfigFields[12].Descriptor()
+	accountcostconfigDescUpdatedAt := accountcostconfigFields[13].Descriptor()
 	// accountcostconfig.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	accountcostconfig.DefaultUpdatedAt = accountcostconfigDescUpdatedAt.Default.(func() time.Time)
 	// accountcostconfig.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -540,6 +542,70 @@ func init() {
 	pageviewDescCreatedAt := pageviewFields[3].Descriptor()
 	// pageview.DefaultCreatedAt holds the default value on creation for the created_at field.
 	pageview.DefaultCreatedAt = pageviewDescCreatedAt.Default.(func() time.Time)
+	promotionFields := schema.Promotion{}.Fields()
+	_ = promotionFields
+	// promotionDescTitle is the schema descriptor for title field.
+	promotionDescTitle := promotionFields[0].Descriptor()
+	// promotion.TitleValidator is a validator for the "title" field. It is called by the builders before save.
+	promotion.TitleValidator = func() func(string) error {
+		validators := promotionDescTitle.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(title string) error {
+			for _, fn := range fns {
+				if err := fn(title); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// promotionDescDescription is the schema descriptor for description field.
+	promotionDescDescription := promotionFields[1].Descriptor()
+	// promotion.DefaultDescription holds the default value on creation for the description field.
+	promotion.DefaultDescription = promotionDescDescription.Default.(string)
+	// promotionDescRewardType is the schema descriptor for reward_type field.
+	promotionDescRewardType := promotionFields[2].Descriptor()
+	// promotion.RewardTypeValidator is a validator for the "reward_type" field. It is called by the builders before save.
+	promotion.RewardTypeValidator = promotionDescRewardType.Validators[0].(func(string) error)
+	// promotionDescEnabled is the schema descriptor for enabled field.
+	promotionDescEnabled := promotionFields[6].Descriptor()
+	// promotion.DefaultEnabled holds the default value on creation for the enabled field.
+	promotion.DefaultEnabled = promotionDescEnabled.Default.(bool)
+	// promotionDescPublished is the schema descriptor for published field.
+	promotionDescPublished := promotionFields[7].Descriptor()
+	// promotion.DefaultPublished holds the default value on creation for the published field.
+	promotion.DefaultPublished = promotionDescPublished.Default.(bool)
+	// promotionDescCreatedAt is the schema descriptor for created_at field.
+	promotionDescCreatedAt := promotionFields[8].Descriptor()
+	// promotion.DefaultCreatedAt holds the default value on creation for the created_at field.
+	promotion.DefaultCreatedAt = promotionDescCreatedAt.Default.(func() time.Time)
+	// promotionDescUpdatedAt is the schema descriptor for updated_at field.
+	promotionDescUpdatedAt := promotionFields[9].Descriptor()
+	// promotion.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	promotion.DefaultUpdatedAt = promotionDescUpdatedAt.Default.(func() time.Time)
+	// promotion.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	promotion.UpdateDefaultUpdatedAt = promotionDescUpdatedAt.UpdateDefault.(func() time.Time)
+	promotionclaimFields := schema.PromotionClaim{}.Fields()
+	_ = promotionclaimFields
+	// promotionclaimDescOutTradeNo is the schema descriptor for out_trade_no field.
+	promotionclaimDescOutTradeNo := promotionclaimFields[3].Descriptor()
+	// promotionclaim.DefaultOutTradeNo holds the default value on creation for the out_trade_no field.
+	promotionclaim.DefaultOutTradeNo = promotionclaimDescOutTradeNo.Default.(string)
+	// promotionclaim.OutTradeNoValidator is a validator for the "out_trade_no" field. It is called by the builders before save.
+	promotionclaim.OutTradeNoValidator = promotionclaimDescOutTradeNo.Validators[0].(func(string) error)
+	// promotionclaimDescStatus is the schema descriptor for status field.
+	promotionclaimDescStatus := promotionclaimFields[6].Descriptor()
+	// promotionclaim.DefaultStatus holds the default value on creation for the status field.
+	promotionclaim.DefaultStatus = promotionclaimDescStatus.Default.(string)
+	// promotionclaim.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	promotionclaim.StatusValidator = promotionclaimDescStatus.Validators[0].(func(string) error)
+	// promotionclaimDescClaimedAt is the schema descriptor for claimed_at field.
+	promotionclaimDescClaimedAt := promotionclaimFields[7].Descriptor()
+	// promotionclaim.DefaultClaimedAt holds the default value on creation for the claimed_at field.
+	promotionclaim.DefaultClaimedAt = promotionclaimDescClaimedAt.Default.(func() time.Time)
 	systemlogFields := schema.SystemLog{}.Fields()
 	_ = systemlogFields
 	// systemlogDescLevel is the schema descriptor for level field.

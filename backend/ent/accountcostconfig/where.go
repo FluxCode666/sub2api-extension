@@ -109,6 +109,11 @@ func AccountCreatedAt(v time.Time) predicate.AccountCostConfig {
 	return predicate.AccountCostConfig(sql.FieldEQ(FieldAccountCreatedAt, v))
 }
 
+// AccountDeletedAt applies equality check predicate on the "account_deleted_at" field. It's identical to AccountDeletedAtEQ.
+func AccountDeletedAt(v time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldEQ(FieldAccountDeletedAt, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.AccountCostConfig {
 	return predicate.AccountCostConfig(sql.FieldEQ(FieldCreatedAt, v))
@@ -752,6 +757,56 @@ func AccountCreatedAtIsNil() predicate.AccountCostConfig {
 // AccountCreatedAtNotNil applies the NotNil predicate on the "account_created_at" field.
 func AccountCreatedAtNotNil() predicate.AccountCostConfig {
 	return predicate.AccountCostConfig(sql.FieldNotNull(FieldAccountCreatedAt))
+}
+
+// AccountDeletedAtEQ applies the EQ predicate on the "account_deleted_at" field.
+func AccountDeletedAtEQ(v time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldEQ(FieldAccountDeletedAt, v))
+}
+
+// AccountDeletedAtNEQ applies the NEQ predicate on the "account_deleted_at" field.
+func AccountDeletedAtNEQ(v time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldNEQ(FieldAccountDeletedAt, v))
+}
+
+// AccountDeletedAtIn applies the In predicate on the "account_deleted_at" field.
+func AccountDeletedAtIn(vs ...time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldIn(FieldAccountDeletedAt, vs...))
+}
+
+// AccountDeletedAtNotIn applies the NotIn predicate on the "account_deleted_at" field.
+func AccountDeletedAtNotIn(vs ...time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldNotIn(FieldAccountDeletedAt, vs...))
+}
+
+// AccountDeletedAtGT applies the GT predicate on the "account_deleted_at" field.
+func AccountDeletedAtGT(v time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldGT(FieldAccountDeletedAt, v))
+}
+
+// AccountDeletedAtGTE applies the GTE predicate on the "account_deleted_at" field.
+func AccountDeletedAtGTE(v time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldGTE(FieldAccountDeletedAt, v))
+}
+
+// AccountDeletedAtLT applies the LT predicate on the "account_deleted_at" field.
+func AccountDeletedAtLT(v time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldLT(FieldAccountDeletedAt, v))
+}
+
+// AccountDeletedAtLTE applies the LTE predicate on the "account_deleted_at" field.
+func AccountDeletedAtLTE(v time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldLTE(FieldAccountDeletedAt, v))
+}
+
+// AccountDeletedAtIsNil applies the IsNil predicate on the "account_deleted_at" field.
+func AccountDeletedAtIsNil() predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldIsNull(FieldAccountDeletedAt))
+}
+
+// AccountDeletedAtNotNil applies the NotNil predicate on the "account_deleted_at" field.
+func AccountDeletedAtNotNil() predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldNotNull(FieldAccountDeletedAt))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

@@ -23,6 +23,7 @@ var (
 		{Name: "api_multiplier_mode", Type: field.TypeString, Size: 16, Default: "sync"},
 		{Name: "last_synced_at", Type: field.TypeTime, Nullable: true},
 		{Name: "account_created_at", Type: field.TypeTime, Nullable: true},
+		{Name: "account_deleted_at", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}
@@ -360,6 +361,68 @@ var (
 			},
 		},
 	}
+	// PromotionsColumns holds the columns for the "promotions" table.
+	PromotionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "title", Type: field.TypeString, Size: 200},
+		{Name: "description", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "reward_type", Type: field.TypeString, Size: 16},
+		{Name: "reward_value", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,2)"}},
+		{Name: "starts_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "ends_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "published", Type: field.TypeBool, Default: false},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// PromotionsTable holds the schema information for the "promotions" table.
+	PromotionsTable = &schema.Table{
+		Name:       "promotions",
+		Columns:    PromotionsColumns,
+		PrimaryKey: []*schema.Column{PromotionsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "promotion_enabled_published_starts_at_ends_at",
+				Unique:  false,
+				Columns: []*schema.Column{PromotionsColumns[7], PromotionsColumns[8], PromotionsColumns[5], PromotionsColumns[6]},
+			},
+		},
+	}
+	// PromotionClaimsColumns holds the columns for the "promotion_claims" table.
+	PromotionClaimsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "promotion_id", Type: field.TypeInt},
+		{Name: "user_id", Type: field.TypeInt64},
+		{Name: "payment_order_id", Type: field.TypeInt64},
+		{Name: "out_trade_no", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "order_amount", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,2)"}},
+		{Name: "rebate_amount", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,2)"}},
+		{Name: "status", Type: field.TypeString, Size: 16, Default: "GRANTED"},
+		{Name: "claimed_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// PromotionClaimsTable holds the schema information for the "promotion_claims" table.
+	PromotionClaimsTable = &schema.Table{
+		Name:       "promotion_claims",
+		Columns:    PromotionClaimsColumns,
+		PrimaryKey: []*schema.Column{PromotionClaimsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "promotionclaim_payment_order_id",
+				Unique:  true,
+				Columns: []*schema.Column{PromotionClaimsColumns[3]},
+			},
+			{
+				Name:    "promotionclaim_user_id_claimed_at",
+				Unique:  false,
+				Columns: []*schema.Column{PromotionClaimsColumns[2], PromotionClaimsColumns[8]},
+			},
+			{
+				Name:    "promotionclaim_promotion_id_claimed_at",
+				Unique:  false,
+				Columns: []*schema.Column{PromotionClaimsColumns[1], PromotionClaimsColumns[8]},
+			},
+		},
+	}
 	// SystemLogsColumns holds the columns for the "system_logs" table.
 	SystemLogsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -418,6 +481,8 @@ var (
 		OperationLogsTable,
 		PagesTable,
 		PageViewsTable,
+		PromotionsTable,
+		PromotionClaimsTable,
 		SystemLogsTable,
 		SystemMetaTable,
 	}
@@ -453,6 +518,12 @@ func init() {
 	}
 	PageViewsTable.Annotation = &entsql.Annotation{
 		Table: "page_views",
+	}
+	PromotionsTable.Annotation = &entsql.Annotation{
+		Table: "promotions",
+	}
+	PromotionClaimsTable.Annotation = &entsql.Annotation{
+		Table: "promotion_claims",
 	}
 	SystemLogsTable.Annotation = &entsql.Annotation{
 		Table: "system_logs",

@@ -27,6 +27,8 @@ import SystemLogsPage from '@/pages/admin/SystemLogsPage'
 import OperationLogsPage from '@/pages/admin/OperationLogsPage'
 import SystemConfigPage from '@/pages/admin/SystemConfigPage'
 import InvoicePortalPage from '@/pages/InvoicePortalPage'
+import PromotionPortalPage from '@/pages/PromotionPortalPage'
+import PromotionManagementPage from '@/pages/admin/PromotionManagementPage'
 import AdminDynamicPage from '@/pages/admin/AdminDynamicPage'
 import DynamicPage from '@/pages/DynamicPage'
 import ContentExamplePage from '@/pages/examples/ContentExamplePage'
@@ -96,6 +98,7 @@ export default function App() {
       {/* 用户端发票中心：由 Sub2API custom_menu_items 以 iframe 打开并注入 token。 */}
       <Route path="/invoice" element={<InvoicePortalPage />} />
       <Route path="/invoices" element={<InvoicePortalPage />} />
+      <Route path="/promotions" element={<PromotionPortalPage />} />
       {/* Sub2API developer documentation: public by design so it can be mounted
           in a user-facing custom menu or embedded by another system. */}
       <Route path="/api-docs" element={<ApiDocsPage />} />
@@ -115,6 +118,7 @@ export default function App() {
         <Route path="ops/consumption" element={<ConsumptionPage />} />
         <Route path="ops/cost-config" element={<CostConfigPage />} />
         <Route path="invoices" element={<InvoiceManagementPage />} />
+        <Route path="promotions" element={<PromotionManagementPage />} />
         <Route path="notifications" element={<NotificationManagementPage />} />
         <Route path="logs/system" element={<SystemLogsPage />} />
         <Route path="logs/operation" element={<OperationLogsPage />} />

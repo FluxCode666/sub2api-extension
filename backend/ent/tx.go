@@ -34,6 +34,10 @@ type Tx struct {
 	Page *PageClient
 	// PageView is the client for interacting with the PageView builders.
 	PageView *PageViewClient
+	// Promotion is the client for interacting with the Promotion builders.
+	Promotion *PromotionClient
+	// PromotionClaim is the client for interacting with the PromotionClaim builders.
+	PromotionClaim *PromotionClaimClient
 	// SystemLog is the client for interacting with the SystemLog builders.
 	SystemLog *SystemLogClient
 	// SystemMeta is the client for interacting with the SystemMeta builders.
@@ -180,6 +184,8 @@ func (tx *Tx) init() {
 	tx.OperationLog = NewOperationLogClient(tx.config)
 	tx.Page = NewPageClient(tx.config)
 	tx.PageView = NewPageViewClient(tx.config)
+	tx.Promotion = NewPromotionClient(tx.config)
+	tx.PromotionClaim = NewPromotionClaimClient(tx.config)
 	tx.SystemLog = NewSystemLogClient(tx.config)
 	tx.SystemMeta = NewSystemMetaClient(tx.config)
 }

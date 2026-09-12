@@ -39,6 +39,8 @@ type AccountCostConfig struct {
 	LastSyncedAt *time.Time `json:"last_synced_at,omitempty"`
 	// Sub2API account creation time
 	AccountCreatedAt *time.Time `json:"account_created_at,omitempty"`
+	// Sub2API 账号软删除时间，仅同步写入，保留历史成本配置
+	AccountDeletedAt *time.Time `json:"account_deleted_at,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -57,7 +59,7 @@ func (*AccountCostConfig) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case accountcostconfig.FieldAccountType, accountcostconfig.FieldName, accountcostconfig.FieldPlatform, accountcostconfig.FieldBillingGroup, accountcostconfig.FieldAPIMultiplierMode:
 			values[i] = new(sql.NullString)
-		case accountcostconfig.FieldLastSyncedAt, accountcostconfig.FieldAccountCreatedAt, accountcostconfig.FieldCreatedAt, accountcostconfig.FieldUpdatedAt:
+		case accountcostconfig.FieldLastSyncedAt, accountcostconfig.FieldAccountCreatedAt, accountcostconfig.FieldAccountDeletedAt, accountcostconfig.FieldCreatedAt, accountcostconfig.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -151,6 +153,13 @@ func (_m *AccountCostConfig) assignValues(columns []string, values []any) error 
 				_m.AccountCreatedAt = new(time.Time)
 				*_m.AccountCreatedAt = value.Time
 			}
+		case accountcostconfig.FieldAccountDeletedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field account_deleted_at", values[i])
+			} else if value.Valid {
+				_m.AccountDeletedAt = new(time.Time)
+				*_m.AccountDeletedAt = value.Time
+			}
 		case accountcostconfig.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -239,6 +248,11 @@ func (_m *AccountCostConfig) String() string {
 	builder.WriteString(", ")
 	if v := _m.AccountCreatedAt; v != nil {
 		builder.WriteString("account_created_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.AccountDeletedAt; v != nil {
+		builder.WriteString("account_deleted_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteString(", ")

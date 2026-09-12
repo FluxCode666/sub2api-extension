@@ -18,6 +18,8 @@ import (
 	"sub2api-extension/ent/operationlog"
 	"sub2api-extension/ent/page"
 	"sub2api-extension/ent/pageview"
+	"sub2api-extension/ent/promotion"
+	"sub2api-extension/ent/promotionclaim"
 	"sub2api-extension/ent/systemlog"
 	"sub2api-extension/ent/systemmeta"
 	"sync"
@@ -96,6 +98,8 @@ func checkColumn(t, c string) error {
 			operationlog.Table:         operationlog.ValidColumn,
 			page.Table:                 page.ValidColumn,
 			pageview.Table:             pageview.ValidColumn,
+			promotion.Table:            promotion.ValidColumn,
+			promotionclaim.Table:       promotionclaim.ValidColumn,
 			systemlog.Table:            systemlog.ValidColumn,
 			systemmeta.Table:           systemmeta.ValidColumn,
 		})
