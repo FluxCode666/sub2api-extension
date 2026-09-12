@@ -2,6 +2,8 @@
 
 你正在维护一个与 Sub2API 配套的独立 Go + React 附属系统。开始任何任务前必须阅读根目录的 [AGENTS.md](AGENTS.md)；它是本项目的完整规范和当前实现事实，本文件是 Claude 的启动入口与强制摘要。
 
+每个新任务必须从当前工作区实际打开 `AGENTS.md` 和本文件；会话粘贴、历史记忆或摘要不能替代读取。未实际打开不得声称已读取。同一任务可复用未变化的已读内容，文件变更后重新核对。
+
 规范持续优化中。用户提出额外的通用开发细节、重复约束或团队习惯时，先询问用户是否要把它沉淀到 `AGENTS.md` 及相关入口；获得确认后再更新，并同步检查引用和内容一致性。单次任务的临时要求不自动写入规范。
 
 ## 必须先记住的边界
@@ -20,7 +22,9 @@
 - 后端固定 Go 1.26.5 + Gin + Ent + PostgreSQL；前端固定 React 18 + TypeScript strict + Vite + Tailwind + shadcn/Radix + Lucide。
 - 使用现有 Store 接口和 service 分层；不要让 service 直接暴露 `*ent.Client`，不要手改 `backend/ent/` 生成文件。
 - 前端使用 `@/` 别名、同目录测试和现有 token。管理端保持 Geist、暖灰背景、白/深色表面、靛蓝主色和克制圆角；客户端/API 文档使用 `frontend/tokens.css` 的 OKLCH 变量与 `data-theme`；发票门户保持自己的 `invoice-*` 视觉域。
-- 使用 Lucide 图标、shadcn 组件和可访问的 tooltip；处理加载、空数据、错误、禁用、成功、移动端和 `prefers-reduced-motion` 状态。
+- **全局业务控件必须使用 shadcn/ui**，执行 [AGENTS.md](AGENTS.md) 第 6.5 节：先查 `frontend/src/components/ui/` 和现有组合，使用 `@/components/ui/*` 导入；不得以裸原生控件、自绘控件或另一套 UI 库替代。组件底层、隐藏文件输入与必要表单桥接除外；旧页面的原生控件不能作为本次新增或改造的豁免依据。
+- **必须同时复用标准交互**：下拉用 `Select`，分页用 `Pagination`，日期范围用单个按钮与同一 `Popover + Calendar mode="range"`（区间高亮、桌面双月、窄屏单月、支持清除）；除用户明确要求分开输入外，不得拆成两个日期框或单日弹层。只换组件名不算完成统一。
+- 使用 Lucide 图标和 `Tooltip`；保留各视觉域 token，处理加载、空数据、错误、禁用、成功、移动端和 `prefers-reduced-motion` 状态。交付前核对控件 diff，并在浏览器检查实际样式、键盘焦点及组合交互，发现偏离须先修正。
 
 ## Skill 速查
 
@@ -44,11 +48,11 @@ cd ../frontend && pnpm install --frozen-lockfile && pnpm run typecheck && pnpm r
 
 ## Claude 执行流程
 
-1. `git status --short`，确认并保留已有改动。
+1. 实际读取 `AGENTS.md` 与本文件，执行 `git status --short`、`rg --files`，确认并保留已有改动。
 2. 阅读相关源码、测试和 `.agents/skills/` 项目 skill。
-3. 先做最小实现，沿用现有命名、错误、响应、鉴权和样式模式。
+3. 先做最小实现，沿用现有命名、错误、响应和鉴权；前端新增或改造控件必须满足 `AGENTS.md` 第 6.5 节的组件与标准交互要求。
 4. 为共享行为和安全边界补有意义的测试。
-5. 运行受影响层的检查，必要时运行完整 CI 等价命令。
+5. 运行受影响层的检查，必要时运行完整 CI 等价命令；UI 变更还必须进行浏览器交互与样式验收。
 6. 若路由、配置、数据模型、部署或用户行为改变，同步 README/docs/CHANGELOG，并在结果中说明验证和剩余风险。
 
 Git 提交标题、正文和 tag 说明使用中文；`feat`、`fix`、`docs`、`refactor` 仅保留为可选的机器类型前缀，scope 和实际描述必须中文。正式 tag 名称使用 `vX.Y.Z`（便于 CI 识别），annotated tag 标题/正文必须包含该版本的中文发布内容，并与 `CHANGELOG.md` 的版本章节一致，至少写明新增、修复、迁移/兼容性、升级和回滚信息。例如：`git tag -a v0.7.0 -m "发布版本 v0.7.0：新增客户端文档，修复动态资源校验；无需迁移，升级后执行健康检查"`。
