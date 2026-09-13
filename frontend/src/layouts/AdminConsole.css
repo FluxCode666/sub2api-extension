@@ -602,7 +602,12 @@ html.dark .aux-admin-shell {
 .aux-cost-daily-tabs [role="tab"] span { margin-left: 5px; color: var(--console-subtle); font-size: 10px; font-variant-numeric: tabular-nums; }
 .aux-cost-table-scroll { margin-top: 18px; overflow-x: auto; }
 .aux-cost-table-panel table { width: 100%; min-width: 760px; border-collapse: collapse; color: var(--console-muted); font-size: 12px; }
+.aux-cost-payback-panel table { min-width: 1080px; }
 .aux-cost-table-panel th { padding: 0 12px 12px; border-bottom: 1px solid var(--console-line); color: var(--console-subtle); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-align: right; text-transform: uppercase; }
+.aux-cost-table-panel .aux-cost-sort-button { display: inline-flex; width: auto; height: 28px; justify-content: flex-end; gap: 4px; margin: -8px -8px -8px 0; padding: 0 8px; border-radius: 6px; color: inherit; font-size: 10px; font-weight: 700; letter-spacing: 0; text-transform: none; }
+.aux-cost-table-panel .aux-cost-sort-button:hover { background: color-mix(in srgb, var(--console-accent) 8%, transparent); color: var(--console-ink); }
+.aux-cost-table-panel .aux-cost-sort-button[data-sort-active] { color: var(--console-accent); }
+.aux-cost-table-panel .aux-cost-sort-button svg { width: 13px; height: 13px; flex: 0 0 auto; }
 .aux-cost-table-head-with-help { display: inline-flex; min-height: 20px; align-items: center; justify-content: flex-end; gap: 3px; }
 .aux-cost-table-head-with-help > span:first-child { line-height: 1.25; }
 .aux-cost-table-panel .aux-cost-formula-help { width: 18px; height: 18px; padding: 0; border-radius: 50%; color: var(--console-subtle); }

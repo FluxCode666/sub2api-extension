@@ -2,8 +2,11 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import {
+  ArrowDown,
   ArrowDownRight,
+  ArrowUp,
   ArrowUpRight,
+  ArrowUpDown,
   BarChart3,
   CalendarDays,
   Check,
@@ -129,8 +132,16 @@ interface ConsumptionResponse {
 }
 
 type DailyAccountType = "api" | "oauth";
+type AccountSortKey = "createdAt" | "revenue" | "profit" | "requests";
+type SortDirection = "asc" | "desc";
+
+interface AccountSortState {
+  key: AccountSortKey;
+  direction: SortDirection;
+}
 
 const ACCOUNT_PAGE_SIZES = [10, 20, 50, 100] as const;
+const DEFAULT_ACCOUNT_SORT: AccountSortState = { key: "createdAt", direction: "desc" };
 
 type ViewState =
   | { status: "loading"; data?: ConsumptionResponse }
@@ -241,6 +252,90 @@ function matchesAccountFilters(
   if (from !== null && (!Number.isFinite(createdAt) || createdAt < from)) return false;
   if (to !== null && (!Number.isFinite(createdAt) || createdAt >= to)) return false;
   return true;
+}
+
+function accountCreatedTimestamp(account: AccountConsumption): number | null {
+  if (!account.account_created_at) return null;
+  const value = new Date(account.account_created_at).getTime();
+  return Number.isFinite(value) ? value : null;
+}
+
+function oauthAccountRevenue(account: AccountConsumption): number {
+  return account.oauth_revenue ?? (account.account_type === "oauth" ? account.revenue : 0);
+}
+
+function oauthAccountProfit(account: AccountConsumption, taxRate: number): number {
+  const revenue = oauthAccountRevenue(account);
+  return revenue - account.oauth_cost - revenue * taxRate / 100;
+}
+
+function sortAccountRows(
+  accounts: AccountConsumption[],
+  sort: AccountSortState,
+  revenueValue: (account: AccountConsumption) => number,
+  profitValue: (account: AccountConsumption) => number,
+): AccountConsumption[] {
+  return [...accounts].sort((left, right) => {
+    const leftCreatedAt = accountCreatedTimestamp(left);
+    const rightCreatedAt = accountCreatedTimestamp(right);
+    if (sort.key === "createdAt" && (leftCreatedAt === null || rightCreatedAt === null)) {
+      if (leftCreatedAt === null && rightCreatedAt !== null) return 1;
+      if (leftCreatedAt !== null && rightCreatedAt === null) return -1;
+    }
+
+    const leftValue = sort.key === "createdAt"
+      ? leftCreatedAt ?? 0
+      : sort.key === "revenue"
+        ? revenueValue(left)
+        : sort.key === "profit"
+          ? profitValue(left)
+          : left.requests;
+    const rightValue = sort.key === "createdAt"
+      ? rightCreatedAt ?? 0
+      : sort.key === "revenue"
+        ? revenueValue(right)
+        : sort.key === "profit"
+          ? profitValue(right)
+          : right.requests;
+    const comparison = leftValue - rightValue;
+    if (comparison !== 0) return sort.direction === "asc" ? comparison : -comparison;
+
+    const createdComparison = (rightCreatedAt ?? Number.NEGATIVE_INFINITY) - (leftCreatedAt ?? Number.NEGATIVE_INFINITY);
+    return createdComparison || right.account_id - left.account_id;
+  });
+}
+
+function SortableTableHead({
+  label,
+  sortKey,
+  sort,
+  onSort,
+}: {
+  label: string;
+  sortKey: AccountSortKey;
+  sort: AccountSortState;
+  onSort: (key: AccountSortKey) => void;
+}) {
+  const active = sort.key === sortKey;
+  const direction = active ? sort.direction : null;
+  const nextDirection = active && direction === "desc" ? "正序" : "倒序";
+  const SortIcon = direction === "asc" ? ArrowUp : direction === "desc" ? ArrowDown : ArrowUpDown;
+  return (
+    <TableHead aria-sort={direction === "asc" ? "ascending" : direction === "desc" ? "descending" : "none"}>
+      <Button
+        type="button"
+        variant="ghost"
+        className="aux-cost-sort-button"
+        data-sort-active={active || undefined}
+        aria-label={`按${label}排序`}
+        title={`按${label}${nextDirection}排列`}
+        onClick={() => onSort(sortKey)}
+      >
+        <span>{label}</span>
+        <SortIcon aria-hidden="true" />
+      </Button>
+    </TableHead>
+  );
 }
 
 function AccountListFilters({
@@ -697,6 +792,7 @@ export default function ConsumptionPage() {
             accounts={data.accounts}
             currency={currency}
             revenueAvailable={data.revenue_available}
+            taxRate={data.config.tax_rate}
           />
 
           <AccountCostDetailsPanel accounts={data.accounts} currency={currency} revenueAvailable={data.revenue_available} />
@@ -862,30 +958,41 @@ function OAuthPaybackPanel({
   accounts,
   currency,
   revenueAvailable,
+  taxRate,
 }: {
   accounts: AccountConsumption[];
   currency: string;
   revenueAvailable: boolean;
+  taxRate: number;
 }) {
   const [search, setSearch] = useState("");
   const [createdFrom, setCreatedFrom] = useState("");
   const [createdTo, setCreatedTo] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const oauthAccounts = accounts.filter((account) =>
-    account.account_type === "oauth" ||
-    account.account_type === "mixed" ||
-    account.account_types?.includes("oauth") ||
-    account.oauth_cost > 0,
+  const [sort, setSort] = useState<AccountSortState>(DEFAULT_ACCOUNT_SORT);
+  const oauthAccounts = useMemo(
+    () => accounts.filter((account) =>
+      account.account_type === "oauth" ||
+      account.account_type === "mixed" ||
+      account.account_types?.includes("oauth") ||
+      account.oauth_cost > 0,
+    ),
+    [accounts],
   );
   const filteredAccounts = useMemo(
-    () => oauthAccounts.filter((account) => matchesAccountFilters(account, search, createdFrom, createdTo)),
-    [oauthAccounts, search, createdFrom, createdTo],
+    () => sortAccountRows(
+      oauthAccounts.filter((account) => matchesAccountFilters(account, search, createdFrom, createdTo)),
+      sort,
+      oauthAccountRevenue,
+      (account) => oauthAccountProfit(account, taxRate),
+    ),
+    [oauthAccounts, search, createdFrom, createdTo, sort, taxRate],
   );
   const pageCount = Math.max(1, Math.ceil(filteredAccounts.length / pageSize));
   const currentPage = Math.min(page, pageCount);
   const visibleAccounts = filteredAccounts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const totalRevenue = oauthAccounts.reduce((sum, account) => sum + (account.oauth_revenue ?? (account.account_type === "oauth" ? account.revenue : 0)), 0);
+  const totalRevenue = oauthAccounts.reduce((sum, account) => sum + oauthAccountRevenue(account), 0);
   const totalCost = oauthAccounts.reduce((sum, account) => sum + account.oauth_cost, 0);
   const overallProgress = revenueAvailable && totalCost > 0
     ? Math.min(100, Math.max(0, totalRevenue / totalCost * 100))
@@ -903,6 +1010,14 @@ function OAuthPaybackPanel({
     setSearch("");
     setCreatedFrom("");
     setCreatedTo("");
+  };
+
+  const handleSort = (key: AccountSortKey) => {
+    setSort((current) => ({
+      key,
+      direction: current.key === key && current.direction === "desc" ? "asc" : "desc",
+    }));
+    setPage(1);
   };
 
   return (
@@ -948,10 +1063,12 @@ function OAuthPaybackPanel({
           <TableHeader>
             <TableRow>
               <TableHead>账号 / 计费组</TableHead>
-              <TableHead>账号创建时间</TableHead>
+              <SortableTableHead label="账号创建时间" sortKey="createdAt" sort={sort} onSort={handleSort} />
               <TableHead>过期时间</TableHead>
-              <TableHead>收入</TableHead>
+              <SortableTableHead label="请求数" sortKey="requests" sort={sort} onSort={handleSort} />
+              <SortableTableHead label="收入" sortKey="revenue" sort={sort} onSort={handleSort} />
               <TableHead>OAuth 采购成本</TableHead>
+              <SortableTableHead label="利润" sortKey="profit" sort={sort} onSort={handleSort} />
               <TableHead>回本进度</TableHead>
               <TableHead>待回本金额</TableHead>
               <TableHead>状态</TableHead>
@@ -960,12 +1077,13 @@ function OAuthPaybackPanel({
           <TableBody>
             {filteredAccounts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="aux-cost-empty-cell">
+                <TableCell colSpan={10} className="aux-cost-empty-cell">
                   {oauthAccounts.length === 0 ? "当前区间暂无 OAuth 账号回本数据" : "没有符合筛选条件的 OAuth 回本数据"}
                 </TableCell>
               </TableRow>
             ) : visibleAccounts.map((account) => {
-              const oauthRevenue = account.oauth_revenue ?? (account.account_type === "oauth" ? account.revenue : 0);
+              const oauthRevenue = oauthAccountRevenue(account);
+              const oauthProfit = oauthAccountProfit(account, taxRate);
               const progress = revenueAvailable && account.oauth_cost > 0
                 ? Math.min(100, Math.max(0, oauthRevenue / account.oauth_cost * 100))
                 : null;
@@ -988,8 +1106,12 @@ function OAuthPaybackPanel({
                   </TableCell>
                   <TableCell><small>{formatDateTime(account.account_created_at)}</small></TableCell>
                   <TableCell><small>{formatExpiryDateTime(account.account_expires_at)}</small></TableCell>
+                  <TableCell>{account.requests.toLocaleString("zh-CN")}</TableCell>
                   <TableCell>{revenueAvailable ? formatMoney(oauthRevenue, currency) : "—"}</TableCell>
                   <TableCell>{formatMoney(account.oauth_cost, currency)}</TableCell>
+                  <TableCell className={revenueAvailable ? oauthProfit >= 0 ? "is-positive" : "is-negative" : undefined}>
+                    {revenueAvailable ? formatMoney(oauthProfit, currency) : "—"}
+                  </TableCell>
                   <TableCell>{progress === null ? "—" : `${progress.toFixed(1)}%`}</TableCell>
                   <TableCell>{outstanding === null ? "—" : formatMoney(outstanding, currency)}</TableCell>
                   <TableCell>
@@ -1031,13 +1153,19 @@ function AccountCostDetailsPanel({
   const [createdTo, setCreatedTo] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [sort, setSort] = useState<AccountSortState>(DEFAULT_ACCOUNT_SORT);
   const platformOptions = useMemo(
     () => [...new Set(accounts.map((account) => account.platform).filter(Boolean))].sort(),
     [accounts],
   );
   const filteredAccounts = useMemo(
-    () => accounts.filter((account) => matchesAccountFilters(account, search, createdFrom, createdTo, accountType, platform)),
-    [accounts, search, createdFrom, createdTo, accountType, platform],
+    () => sortAccountRows(
+      accounts.filter((account) => matchesAccountFilters(account, search, createdFrom, createdTo, accountType, platform)),
+      sort,
+      (account) => account.revenue,
+      (account) => account.net_profit,
+    ),
+    [accounts, search, createdFrom, createdTo, accountType, platform, sort],
   );
   const pageCount = Math.max(1, Math.ceil(filteredAccounts.length / pageSize));
   const currentPage = Math.min(page, pageCount);
@@ -1057,6 +1185,14 @@ function AccountCostDetailsPanel({
     setPlatform("");
     setCreatedFrom("");
     setCreatedTo("");
+  };
+
+  const handleSort = (key: AccountSortKey) => {
+    setSort((current) => ({
+      key,
+      direction: current.key === key && current.direction === "desc" ? "asc" : "desc",
+    }));
+    setPage(1);
   };
 
   return (
@@ -1089,15 +1225,15 @@ function AccountCostDetailsPanel({
           <TableHeader>
             <TableRow>
               <TableHead>账号 / 计费组</TableHead>
-              <TableHead>账号创建时间</TableHead>
+              <SortableTableHead label="账号创建时间" sortKey="createdAt" sort={sort} onSort={handleSort} />
               <TableHead>类型</TableHead>
-              <TableHead>请求数</TableHead>
-              <TableHead>收入</TableHead>
+              <SortableTableHead label="请求数" sortKey="requests" sort={sort} onSort={handleSort} />
+              <SortableTableHead label="收入" sortKey="revenue" sort={sort} onSort={handleSort} />
               <TableHead>API 成本</TableHead>
               <TableHead>OAuth 成本</TableHead>
               <TableHead>毛利</TableHead>
               <TableHead>税额</TableHead>
-              <TableHead>利润</TableHead>
+              <SortableTableHead label="利润" sortKey="profit" sort={sort} onSort={handleSort} />
             </TableRow>
           </TableHeader>
           <TableBody>

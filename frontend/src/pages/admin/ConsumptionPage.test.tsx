@@ -189,6 +189,100 @@ const responseWithMixedBillingGroup = {
   },
 };
 
+const responseWithSortableAccounts = {
+  ...responseWithRevenue,
+  data: {
+    ...responseWithRevenue.data,
+    accounts: [
+      {
+        account_id: 1,
+        account_type: "oauth",
+        account_types: ["oauth"],
+        name: "收入最高",
+        platform: "anthropic",
+        account_created_at: "2026-09-01T12:00:00Z",
+        account_expires_at: null,
+        requests: 2,
+        revenue: 40,
+        oauth_revenue: 40,
+        api_cost: 0,
+        oauth_cost: 35,
+        gross_profit: 5,
+        tax_amount: 2.4,
+        net_profit: 2.6,
+        multiplier: 0,
+        multiplier_source: "purchase cost",
+      },
+      {
+        account_id: 2,
+        account_type: "oauth",
+        account_types: ["oauth"],
+        name: "创建最新",
+        platform: "anthropic",
+        account_created_at: "2026-09-04T12:00:00Z",
+        account_expires_at: null,
+        requests: 8,
+        revenue: 10,
+        oauth_revenue: 10,
+        api_cost: 0,
+        oauth_cost: 12,
+        gross_profit: -2,
+        tax_amount: 0.6,
+        net_profit: -2.6,
+        multiplier: 0,
+        multiplier_source: "purchase cost",
+      },
+      {
+        account_id: 3,
+        account_type: "oauth",
+        account_types: ["oauth"],
+        name: "利润最高",
+        platform: "anthropic",
+        account_created_at: "2026-09-03T12:00:00Z",
+        account_expires_at: null,
+        requests: 1,
+        revenue: 30,
+        oauth_revenue: 30,
+        api_cost: 0,
+        oauth_cost: 5,
+        gross_profit: 25,
+        tax_amount: 1.8,
+        net_profit: 23.2,
+        multiplier: 0,
+        multiplier_source: "purchase cost",
+      },
+      {
+        account_id: 4,
+        account_type: "oauth",
+        account_types: ["oauth"],
+        name: "普通账号",
+        platform: "anthropic",
+        account_created_at: "2026-09-02T12:00:00Z",
+        account_expires_at: null,
+        requests: 4,
+        revenue: 20,
+        oauth_revenue: 20,
+        api_cost: 0,
+        oauth_cost: 8,
+        gross_profit: 12,
+        tax_amount: 1.2,
+        net_profit: 10.8,
+        multiplier: 0,
+        multiplier_source: "purchase cost",
+      },
+    ],
+  },
+};
+
+function firstAccountCell(region: HTMLElement): HTMLElement {
+  const rows = within(within(region).getByRole("table")).getAllByRole("row");
+  return within(rows[1]).getAllByRole("cell")[0];
+}
+
+function activeSortHeaders(region: HTMLElement): HTMLElement[] {
+  return within(region).getAllByRole("columnheader").filter((header) => header.getAttribute("aria-sort") !== null && header.getAttribute("aria-sort") !== "none");
+}
+
 beforeEach(() => {
   vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
   vi.mocked(apiClient.get).mockResolvedValue(response);
@@ -267,7 +361,7 @@ describe("消费核算", () => {
     const accountDetails = screen.getByRole("region", { name: "账号成本明细" });
 
     expect(within(payback).getByRole("button", { name: "创建时间" })).toBeInTheDocument();
-    expect(within(payback).getByRole("columnheader", { name: "账号创建时间" })).toBeInTheDocument();
+    expect(within(payback).getByRole("button", { name: "按账号创建时间排序" })).toBeInTheDocument();
     expect(within(payback).getByRole("columnheader", { name: "过期时间" })).toBeInTheDocument();
     expect(within(payback).getAllByText(/剩余 \d+ 天/).length).toBeGreaterThan(0);
     expect(within(accountDetails).getByRole("button", { name: "创建时间" })).toBeInTheDocument();
@@ -307,7 +401,7 @@ describe("消费核算", () => {
     const accountDetails = await screen.findByRole("region", { name: "账号成本明细" });
     expect(within(accountDetails).queryByRole("columnheader", { name: "倍率 / 口径" })).not.toBeInTheDocument();
     expect(within(accountDetails).getByRole("columnheader", { name: "毛利" })).toBeInTheDocument();
-    expect(within(accountDetails).getByRole("columnheader", { name: "利润" })).toBeInTheDocument();
+    expect(within(accountDetails).getByRole("button", { name: "按利润排序" })).toBeInTheDocument();
     expect(within(accountDetails).getAllByText("¥3.00").length).toBeGreaterThan(0);
     expect(within(accountDetails).getAllByText("¥2.70").length).toBeGreaterThan(0);
 
@@ -334,5 +428,45 @@ describe("消费核算", () => {
     const payback = await screen.findByRole("region", { name: "OAuth 回本分析" });
     expect(within(payback).getAllByText("¥10.00").length).toBeGreaterThan(0);
     expect(within(payback).queryByText("¥110.00")).not.toBeInTheDocument();
+  });
+
+  it("两个账号列表默认按创建时间倒序，并分别支持收入、利润和请求数单列排序", async () => {
+    vi.mocked(apiClient.get).mockResolvedValue(responseWithSortableAccounts);
+    render(<ConsumptionPage />);
+
+    const payback = await screen.findByRole("region", { name: "OAuth 回本分析" });
+    const accountDetails = screen.getByRole("region", { name: "账号成本明细" });
+    const paybackCreated = within(payback).getByRole("button", { name: "按账号创建时间排序" }).closest("th");
+    const detailsCreated = within(accountDetails).getByRole("button", { name: "按账号创建时间排序" }).closest("th");
+
+    expect(paybackCreated).toHaveAttribute("aria-sort", "descending");
+    expect(detailsCreated).toHaveAttribute("aria-sort", "descending");
+    expect(firstAccountCell(payback)).toHaveTextContent("创建最新");
+    expect(firstAccountCell(accountDetails)).toHaveTextContent("创建最新");
+
+    await userEvent.click(within(payback).getByRole("button", { name: "按收入排序" }));
+    expect(firstAccountCell(payback)).toHaveTextContent("收入最高");
+    expect(paybackCreated).toHaveAttribute("aria-sort", "none");
+    expect(activeSortHeaders(payback)).toHaveLength(1);
+    expect(firstAccountCell(accountDetails)).toHaveTextContent("创建最新");
+
+    await userEvent.click(within(payback).getByRole("button", { name: "按收入排序" }));
+    expect(firstAccountCell(payback)).toHaveTextContent("创建最新");
+    expect(within(payback).getByRole("button", { name: "按收入排序" }).closest("th")).toHaveAttribute("aria-sort", "ascending");
+
+    await userEvent.click(within(payback).getByRole("button", { name: "按利润排序" }));
+    expect(firstAccountCell(payback)).toHaveTextContent("利润最高");
+    await userEvent.click(within(payback).getByRole("button", { name: "按请求数排序" }));
+    expect(firstAccountCell(payback)).toHaveTextContent("创建最新");
+    expect(activeSortHeaders(payback)).toHaveLength(1);
+
+    await userEvent.click(within(accountDetails).getByRole("button", { name: "按收入排序" }));
+    expect(firstAccountCell(accountDetails)).toHaveTextContent("收入最高");
+    await userEvent.click(within(accountDetails).getByRole("button", { name: "按利润排序" }));
+    expect(firstAccountCell(accountDetails)).toHaveTextContent("利润最高");
+    await userEvent.click(within(accountDetails).getByRole("button", { name: "按请求数排序" }));
+    expect(firstAccountCell(accountDetails)).toHaveTextContent("创建最新");
+    expect(detailsCreated).toHaveAttribute("aria-sort", "none");
+    expect(activeSortHeaders(accountDetails)).toHaveLength(1);
   });
 });
