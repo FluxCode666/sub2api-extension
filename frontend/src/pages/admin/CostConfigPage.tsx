@@ -50,6 +50,7 @@ export default function CostConfigPage() {
   const [draftAccounts, setDraftAccounts] = useState<AccountCostConfig[]>([]);
   const [search, setSearch] = useState("");
   const [accountType, setAccountType] = useState("all");
+  const [costConfigStatus, setCostConfigStatus] = useState("all");
   const [platform, setPlatform] = useState("");
   const [platformPickerOpen, setPlatformPickerOpen] = useState(false);
   const [createdFrom, setCreatedFrom] = useState("");
@@ -89,7 +90,7 @@ export default function CostConfigPage() {
   useEffect(() => { void load(); }, []);
 
   const platformOptions = useMemo(() => [...new Set(draftAccounts.map((account) => account.platform).filter(Boolean))].sort(), [draftAccounts]);
-  const hasFilters = Boolean(search.trim() || accountType !== "all" || platform || createdFrom || createdTo);
+  const hasFilters = Boolean(search.trim() || accountType !== "all" || costConfigStatus !== "all" || platform || createdFrom || createdTo);
   const filteredAccounts = useMemo(() => {
     const needle = search.trim().toLowerCase();
     const start = createdFrom ? new Date(`${createdFrom}T00:00:00`).getTime() : null;
@@ -99,6 +100,7 @@ export default function CostConfigPage() {
     return draftAccounts.filter((account) => {
       if (!needle && account.account_deleted_at) return false;
       if (accountType !== "all" && account.account_type !== accountType) return false;
+      if (costConfigStatus !== "all" && isCostConfigStatusConfigured(account) !== (costConfigStatus === "configured")) return false;
       if (platform && account.platform !== platform) return false;
       if (needle && !account.name.toLowerCase().includes(needle) && !String(account.account_id).includes(needle)) return false;
       if (start !== null || end !== null) {
@@ -107,7 +109,7 @@ export default function CostConfigPage() {
       }
       return true;
     }).sort((left, right) => accountCreatedTimestamp(right) - accountCreatedTimestamp(left) || right.account_id - left.account_id);
-  }, [draftAccounts, search, accountType, platform, createdFrom, createdTo]);
+  }, [draftAccounts, search, accountType, costConfigStatus, platform, createdFrom, createdTo]);
   const pageCount = Math.max(1, Math.ceil(filteredAccounts.length / pageSize));
   const currentPage = Math.min(page, pageCount);
   const pageOffset = (currentPage - 1) * pageSize;
@@ -118,6 +120,7 @@ export default function CostConfigPage() {
   const resetFilters = () => {
     setSearch("");
     setAccountType("all");
+    setCostConfigStatus("all");
     setPlatform("");
     setCreatedFrom("");
     setCreatedTo("");
@@ -420,6 +423,13 @@ export default function CostConfigPage() {
             </Select>
           </div>
           <div className="aux-account-filter-field">
+            <Label htmlFor="account-cost-config-filter" className="text-xs font-normal">成本配置</Label>
+            <Select value={costConfigStatus} onValueChange={(value) => { setCostConfigStatus(value); setPage(1); }}>
+              <SelectTrigger id="account-cost-config-filter" className="aux-account-filter-control"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="all">全部配置</SelectItem><SelectItem value="configured">已配置</SelectItem><SelectItem value="unconfigured">未配置</SelectItem></SelectContent>
+            </Select>
+          </div>
+          <div className="aux-account-filter-field">
             <Label htmlFor="account-platform-filter" className="text-xs font-normal">平台</Label>
             <Popover open={platformPickerOpen} onOpenChange={setPlatformPickerOpen}>
               <PopoverTrigger asChild>
@@ -491,6 +501,11 @@ export default function CostConfigPage() {
 
 function updateAccount(setter: React.Dispatch<React.SetStateAction<AccountCostConfig[]>>, accountID: number, patch: Partial<AccountCostConfig>) {
   setter((current) => current.map((account) => account.account_id === accountID ? { ...account, ...patch } : account));
+}
+
+function isCostConfigStatusConfigured(account: AccountCostConfig) {
+  if (account.account_type === "oauth") return account.oauth_account_cost != null;
+  return account.api_multiplier_mode === "manual" && account.api_multiplier_override != null;
 }
 
 function formatSyncTime(value: string) {

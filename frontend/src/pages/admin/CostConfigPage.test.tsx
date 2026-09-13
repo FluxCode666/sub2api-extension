@@ -123,6 +123,25 @@ describe("成本配置列表", () => {
     expect(visibleRows()).toHaveLength(25);
   });
 
+  it("按成本配置状态筛选独立配置和默认配置账号", async () => {
+    const configuredAPI = { ...accounts[1], api_multiplier_mode: "manual", api_multiplier_override: 1.25 };
+    vi.mocked(apiClient.get).mockResolvedValue(response([accounts[0], configuredAPI, accounts[3]]));
+    await openPage();
+
+    await chooseOption("成本配置", "已配置");
+    expect(visibleRows()).toHaveLength(2);
+    expect(screen.getByText("测试账号 1")).toBeInTheDocument();
+    expect(screen.getByText("测试账号 2")).toBeInTheDocument();
+
+    await chooseOption("成本配置", "未配置");
+    expect(visibleRows()).toHaveLength(1);
+    expect(screen.getByText("测试账号 4")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "重置筛选" }));
+    expect(screen.getByRole("combobox", { name: "成本配置" })).toHaveTextContent("全部配置");
+    expect(visibleRows()).toHaveLength(3);
+  });
+
   it("单个范围日历支持同日筛选、本地首尾边界、组合搜索和清除", async () => {
     const dated = [
       new Date(2026, 8, 12, 0).toISOString(),
