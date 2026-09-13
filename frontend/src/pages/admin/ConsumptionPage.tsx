@@ -792,7 +792,7 @@ function DailyDetailsTable({
               <TableHead aria-sort="descending">日期</TableHead>
               <TableHead>{isApi ? "API 请求数" : "OAuth 请求数"}</TableHead>
               <TableHead>Token</TableHead>
-              {!isApi && <TableHead>当天利润（用户计费）</TableHead>}
+              {!isApi && <TableHead>当天利润（收入）</TableHead>}
               {isApi && <TableHead>API 收入</TableHead>}
               {isApi && <TableHead>API 成本</TableHead>}
               {isApi && <FormulaTableHead label="API 毛利" formula="API 毛利 = API 收入 − API 成本" />}
@@ -912,11 +912,11 @@ function OAuthPaybackPanel({
           <p className="aux-cost-panel-kicker">OAuth payback</p>
           <h2>OAuth 回本分析</h2>
         </div>
-        <span className="aux-cost-range-caption">按账号累计用户计费与采购成本</span>
+        <span className="aux-cost-range-caption">按账号累计收入与采购成本</span>
       </div>
       <div className="aux-cost-payback-summary">
         <div>
-          <span>整体用户计费</span>
+          <span>整体收入</span>
           <strong>{revenueAvailable ? formatMoney(totalRevenue, currency) : "待收费数据"}</strong>
         </div>
         <div>
@@ -950,7 +950,7 @@ function OAuthPaybackPanel({
               <TableHead>账号 / 计费组</TableHead>
               <TableHead>账号创建时间</TableHead>
               <TableHead>过期时间</TableHead>
-              <TableHead>用户计费</TableHead>
+              <TableHead>收入</TableHead>
               <TableHead>OAuth 采购成本</TableHead>
               <TableHead>回本进度</TableHead>
               <TableHead>待回本金额</TableHead>

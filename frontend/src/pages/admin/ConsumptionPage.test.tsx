@@ -224,11 +224,11 @@ describe("消费核算", () => {
     expect(oauthTable.getByText("09/11")).toBeInTheDocument();
     expect(oauthTable.queryByText("区间总账")).not.toBeInTheDocument();
     expect(oauthTable.queryByRole("columnheader", { name: /OAuth 成本/ })).not.toBeInTheDocument();
-    expect(oauthTable.getByRole("columnheader", { name: "当天利润（用户计费）" })).toBeInTheDocument();
+    expect(oauthTable.getByRole("columnheader", { name: "当天利润（收入）" })).toBeInTheDocument();
     expect(oauthTable.queryByRole("columnheader", { name: "回本进度" })).not.toBeInTheDocument();
   });
 
-  it("按账号类型显示 OAuth 用户计费和 API 利润列", async () => {
+  it("按账号类型显示 OAuth 收入和 API 利润列", async () => {
     vi.mocked(apiClient.get).mockResolvedValue(responseWithRevenue);
     render(<ConsumptionPage />);
 
@@ -247,7 +247,7 @@ describe("消费核算", () => {
 
     await userEvent.click(screen.getByRole("tab", { name: /OAuth 账号/ }));
     const oauthTable = within(within(dailyDetails).getByRole("table"));
-    expect(oauthTable.getByRole("columnheader", { name: "当天利润（用户计费）" })).toBeInTheDocument();
+    expect(oauthTable.getByRole("columnheader", { name: "当天利润（收入）" })).toBeInTheDocument();
     expect(oauthTable.queryByRole("columnheader", { name: /OAuth 成本/ })).not.toBeInTheDocument();
     expect(oauthTable.getByText("¥12.00")).toBeInTheDocument();
     expect(oauthTable.queryByRole("columnheader", { name: "倍率 / 口径" })).not.toBeInTheDocument();
