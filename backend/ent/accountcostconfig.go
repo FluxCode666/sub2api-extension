@@ -39,6 +39,8 @@ type AccountCostConfig struct {
 	LastSyncedAt *time.Time `json:"last_synced_at,omitempty"`
 	// Sub2API account creation time
 	AccountCreatedAt *time.Time `json:"account_created_at,omitempty"`
+	// Sub2API account expiration time
+	AccountExpiresAt *time.Time `json:"account_expires_at,omitempty"`
 	// Sub2API 账号软删除时间，仅同步写入，保留历史成本配置
 	AccountDeletedAt *time.Time `json:"account_deleted_at,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -59,7 +61,7 @@ func (*AccountCostConfig) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case accountcostconfig.FieldAccountType, accountcostconfig.FieldName, accountcostconfig.FieldPlatform, accountcostconfig.FieldBillingGroup, accountcostconfig.FieldAPIMultiplierMode:
 			values[i] = new(sql.NullString)
-		case accountcostconfig.FieldLastSyncedAt, accountcostconfig.FieldAccountCreatedAt, accountcostconfig.FieldAccountDeletedAt, accountcostconfig.FieldCreatedAt, accountcostconfig.FieldUpdatedAt:
+		case accountcostconfig.FieldLastSyncedAt, accountcostconfig.FieldAccountCreatedAt, accountcostconfig.FieldAccountExpiresAt, accountcostconfig.FieldAccountDeletedAt, accountcostconfig.FieldCreatedAt, accountcostconfig.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -152,6 +154,13 @@ func (_m *AccountCostConfig) assignValues(columns []string, values []any) error 
 			} else if value.Valid {
 				_m.AccountCreatedAt = new(time.Time)
 				*_m.AccountCreatedAt = value.Time
+			}
+		case accountcostconfig.FieldAccountExpiresAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field account_expires_at", values[i])
+			} else if value.Valid {
+				_m.AccountExpiresAt = new(time.Time)
+				*_m.AccountExpiresAt = value.Time
 			}
 		case accountcostconfig.FieldAccountDeletedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -248,6 +257,11 @@ func (_m *AccountCostConfig) String() string {
 	builder.WriteString(", ")
 	if v := _m.AccountCreatedAt; v != nil {
 		builder.WriteString("account_created_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.AccountExpiresAt; v != nil {
+		builder.WriteString("account_expires_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteString(", ")

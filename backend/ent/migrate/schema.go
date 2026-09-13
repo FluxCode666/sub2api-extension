@@ -23,6 +23,7 @@ var (
 		{Name: "api_multiplier_mode", Type: field.TypeString, Size: 16, Default: "sync"},
 		{Name: "last_synced_at", Type: field.TypeTime, Nullable: true},
 		{Name: "account_created_at", Type: field.TypeTime, Nullable: true},
+		{Name: "account_expires_at", Type: field.TypeTime, Nullable: true},
 		{Name: "account_deleted_at", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},

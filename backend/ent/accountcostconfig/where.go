@@ -109,6 +109,11 @@ func AccountCreatedAt(v time.Time) predicate.AccountCostConfig {
 	return predicate.AccountCostConfig(sql.FieldEQ(FieldAccountCreatedAt, v))
 }
 
+// AccountExpiresAt applies equality check predicate on the "account_expires_at" field. It's identical to AccountExpiresAtEQ.
+func AccountExpiresAt(v time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldEQ(FieldAccountExpiresAt, v))
+}
+
 // AccountDeletedAt applies equality check predicate on the "account_deleted_at" field. It's identical to AccountDeletedAtEQ.
 func AccountDeletedAt(v time.Time) predicate.AccountCostConfig {
 	return predicate.AccountCostConfig(sql.FieldEQ(FieldAccountDeletedAt, v))
@@ -757,6 +762,56 @@ func AccountCreatedAtIsNil() predicate.AccountCostConfig {
 // AccountCreatedAtNotNil applies the NotNil predicate on the "account_created_at" field.
 func AccountCreatedAtNotNil() predicate.AccountCostConfig {
 	return predicate.AccountCostConfig(sql.FieldNotNull(FieldAccountCreatedAt))
+}
+
+// AccountExpiresAtEQ applies the EQ predicate on the "account_expires_at" field.
+func AccountExpiresAtEQ(v time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldEQ(FieldAccountExpiresAt, v))
+}
+
+// AccountExpiresAtNEQ applies the NEQ predicate on the "account_expires_at" field.
+func AccountExpiresAtNEQ(v time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldNEQ(FieldAccountExpiresAt, v))
+}
+
+// AccountExpiresAtIn applies the In predicate on the "account_expires_at" field.
+func AccountExpiresAtIn(vs ...time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldIn(FieldAccountExpiresAt, vs...))
+}
+
+// AccountExpiresAtNotIn applies the NotIn predicate on the "account_expires_at" field.
+func AccountExpiresAtNotIn(vs ...time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldNotIn(FieldAccountExpiresAt, vs...))
+}
+
+// AccountExpiresAtGT applies the GT predicate on the "account_expires_at" field.
+func AccountExpiresAtGT(v time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldGT(FieldAccountExpiresAt, v))
+}
+
+// AccountExpiresAtGTE applies the GTE predicate on the "account_expires_at" field.
+func AccountExpiresAtGTE(v time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldGTE(FieldAccountExpiresAt, v))
+}
+
+// AccountExpiresAtLT applies the LT predicate on the "account_expires_at" field.
+func AccountExpiresAtLT(v time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldLT(FieldAccountExpiresAt, v))
+}
+
+// AccountExpiresAtLTE applies the LTE predicate on the "account_expires_at" field.
+func AccountExpiresAtLTE(v time.Time) predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldLTE(FieldAccountExpiresAt, v))
+}
+
+// AccountExpiresAtIsNil applies the IsNil predicate on the "account_expires_at" field.
+func AccountExpiresAtIsNil() predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldIsNull(FieldAccountExpiresAt))
+}
+
+// AccountExpiresAtNotNil applies the NotNil predicate on the "account_expires_at" field.
+func AccountExpiresAtNotNil() predicate.AccountCostConfig {
+	return predicate.AccountCostConfig(sql.FieldNotNull(FieldAccountExpiresAt))
 }
 
 // AccountDeletedAtEQ applies the EQ predicate on the "account_deleted_at" field.

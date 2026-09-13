@@ -52,9 +52,10 @@ func TestAccountKindExpressionDetectsOAuthType(t *testing.T) {
 
 func TestApplyProfitMetricsWithTax(t *testing.T) {
 	result := &ops.ConsumptionResponse{
-		TotalRevenue:   1000,
-		TotalAPICost:   200,
-		TotalOAuthCost: 100,
+		TotalRevenue:     1000,
+		RevenueAvailable: true,
+		TotalAPICost:     200,
+		TotalOAuthCost:   100,
 		Days: []ops.DailyConsumption{
 			{Revenue: 400, APICost: 80, OAuthCost: 40, TotalCost: 120},
 			{Revenue: 600, APICost: 120, OAuthCost: 60, TotalCost: 180},
@@ -85,9 +86,10 @@ func TestApplyProfitMetricsWithTax(t *testing.T) {
 
 func TestApplyProfitMetricsWithZeroTax(t *testing.T) {
 	result := &ops.ConsumptionResponse{
-		TotalRevenue: 100,
-		TotalAPICost: 30,
-		Days:         []ops.DailyConsumption{{Revenue: 100, TotalCost: 30}},
+		TotalRevenue:     100,
+		RevenueAvailable: true,
+		TotalAPICost:     30,
+		Days:             []ops.DailyConsumption{{Revenue: 100, TotalCost: 30}},
 	}
 
 	applyProfitMetrics(result, ops.CostConfig{TaxRate: 0})
@@ -99,7 +101,8 @@ func TestApplyProfitMetricsWithZeroTax(t *testing.T) {
 
 func TestApplyProfitMetricsCalculatesAPIOnlyDailyMetrics(t *testing.T) {
 	result := &ops.ConsumptionResponse{
-		Days: []ops.DailyConsumption{{APIRevenue: 400, APICost: 80}},
+		RevenueAvailable: true,
+		Days:             []ops.DailyConsumption{{APIRevenue: 400, APICost: 80}},
 	}
 
 	applyProfitMetrics(result, ops.CostConfig{TaxRate: 6})
@@ -108,6 +111,40 @@ func TestApplyProfitMetricsCalculatesAPIOnlyDailyMetrics(t *testing.T) {
 	assert.InDelta(t, 24, result.Days[0].APITaxAmount, 0.000001)
 	assert.InDelta(t, 296, result.Days[0].APINetProfit, 0.000001)
 	assert.InDelta(t, 0.74, result.Days[0].APINetMargin, 0.000001)
+}
+
+func TestApplyProfitMetricsWithoutRevenueDoesNotInventProfit(t *testing.T) {
+	result := &ops.ConsumptionResponse{
+		TotalRevenue:   120,
+		TotalAPICost:   80,
+		TotalOAuthCost: 20,
+		GrossProfit:    20,
+		TotalTax:       7,
+		NetProfit:      13,
+		Days:           []ops.DailyConsumption{{Revenue: 120, TotalCost: 100, GrossProfit: 20, APIGrossProfit: 10, APITaxAmount: 2, APINetProfit: 8}},
+		Accounts:       []ops.AccountConsumption{{Revenue: 120, GrossProfit: 20, TaxAmount: 7, NetProfit: 13}},
+	}
+
+	applyProfitMetrics(result, ops.CostConfig{TaxRate: 6})
+
+	if result.TotalCost != 100 {
+		t.Fatalf("expected total cost to remain available without revenue, got %v", result.TotalCost)
+	}
+	if result.GrossProfit != 0 || result.TotalTax != 0 || result.NetProfit != 0 {
+		t.Fatalf("expected aggregate profit metrics to be zero, got %+v", result)
+	}
+	if result.Days[0].GrossProfit != 0 || result.Days[0].APINetProfit != 0 || result.Accounts[0].NetProfit != 0 {
+		t.Fatalf("expected detail profit metrics to be zero, got day=%+v account=%+v", result.Days[0], result.Accounts[0])
+	}
+}
+
+func TestChargeColumnExpressionOnlyUsesExplicitChargeFields(t *testing.T) {
+	if expression, source := chargeColumnExpression("u", map[string]bool{"actual_cost": true}); expression != "0" || source != "" {
+		t.Fatalf("provider cost must not become revenue: expression=%q source=%q", expression, source)
+	}
+	if expression, source := chargeColumnExpression("u", map[string]bool{"billed_amount": true}); expression == "0" || source != "billed_amount" {
+		t.Fatalf("explicit charge field should be used: expression=%q source=%q", expression, source)
+	}
 }
 
 func TestAccountAPICostIgnoresOAuthUsageSnapshots(t *testing.T) {
@@ -130,10 +167,12 @@ func TestBillingGroupKeyKeepsUnmergedAccountsSeparate(t *testing.T) {
 func TestAddAccountBreakdownMergesBillingGroup(t *testing.T) {
 	group := "same-oauth"
 	created := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	firstExpiry := time.Date(2026, 2, 1, 3, 4, 5, 0, time.UTC)
+	laterExpiry := time.Date(2026, 3, 1, 3, 4, 5, 0, time.UTC)
 	result := &ops.ConsumptionResponse{}
 	index := make(map[string]int)
-	addAccountBreakdown(result, index, ops.AccountCostConfig{BillingGroup: group, AccountCreatedAt: &created}, 11, "oauth", 100, 20, 2, 0, "purchase cost")
-	addAccountBreakdown(result, index, ops.AccountCostConfig{BillingGroup: group}, 12, "oauth", 200, 0, 3, 0, "purchase cost")
+	addAccountBreakdown(result, index, ops.AccountCostConfig{BillingGroup: group, AccountCreatedAt: &created, AccountExpiresAt: &firstExpiry}, 11, "oauth", 100, 20, 2, 0, "purchase cost")
+	addAccountBreakdown(result, index, ops.AccountCostConfig{BillingGroup: group, AccountExpiresAt: &laterExpiry}, 12, "oauth", 200, 0, 3, 0, "purchase cost")
 
 	if len(result.Accounts) != 1 {
 		t.Fatalf("got %d account rows, want one merged row", len(result.Accounts))
@@ -141,6 +180,9 @@ func TestAddAccountBreakdownMergesBillingGroup(t *testing.T) {
 	row := result.Accounts[0]
 	if row.AccountID != 11 || len(row.AccountIDs) != 2 || row.Requests != 5 || row.Revenue != 300 || row.OAuthCost != 20 {
 		t.Fatalf("merged row = %+v", row)
+	}
+	if row.AccountExpiresAt == nil || !row.AccountExpiresAt.Equal(firstExpiry) {
+		t.Fatalf("merged expiration = %v, want earliest %v", row.AccountExpiresAt, firstExpiry)
 	}
 }
 

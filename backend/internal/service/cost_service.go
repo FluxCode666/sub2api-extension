@@ -468,12 +468,18 @@ func (s *EntCostConfigStore) SyncAccounts(ctx context.Context, accounts []ops.Su
 				SetSyncedAPIMultiplier(account.RateMultiplier).
 				SetLastSyncedAt(now).
 				SetNillableAccountCreatedAt(account.CreatedAt).
+				SetNillableAccountExpiresAt(account.ExpiresAt).
 				SetNillableAccountDeletedAt(account.DeletedAt).
 				Save(ctx)
 		} else if err == nil {
 			update := entity.Update().SetAccountType(account.Type).SetName(account.Name).SetPlatform(account.Platform).SetSyncedAPIMultiplier(account.RateMultiplier).SetLastSyncedAt(now)
 			if account.CreatedAt != nil {
 				update.SetAccountCreatedAt(*account.CreatedAt)
+			}
+			if account.ExpiresAt == nil {
+				update.ClearAccountExpiresAt()
+			} else {
+				update.SetAccountExpiresAt(*account.ExpiresAt)
 			}
 			if account.DeletedAt == nil {
 				update.ClearAccountDeletedAt()
@@ -493,7 +499,7 @@ func accountCostConfigFromEntity(entity *ent.AccountCostConfig) ops.AccountCostC
 	return ops.AccountCostConfig{
 		AccountID: entity.AccountID, AccountType: entity.AccountType, Name: entity.Name, Platform: entity.Platform, BillingGroup: entity.BillingGroup,
 		OAuthAccountCost: entity.OauthAccountCost, APIMultiplierOverride: entity.APIMultiplierOverride,
-		SyncedAPIMultiplier: entity.SyncedAPIMultiplier, APIMultiplierMode: entity.APIMultiplierMode, LastSyncedAt: entity.LastSyncedAt, AccountCreatedAt: entity.AccountCreatedAt,
+		SyncedAPIMultiplier: entity.SyncedAPIMultiplier, APIMultiplierMode: entity.APIMultiplierMode, LastSyncedAt: entity.LastSyncedAt, AccountCreatedAt: entity.AccountCreatedAt, AccountExpiresAt: entity.AccountExpiresAt,
 		AccountDeletedAt: entity.AccountDeletedAt,
 	}
 }

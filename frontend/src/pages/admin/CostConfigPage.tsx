@@ -46,6 +46,7 @@ interface CostConfigResponse {
 export default function CostConfigPage() {
   const [data, setData] = useState<CostConfigResponse | null>(null);
   const [global, setGlobal] = useState<CostConfig>({ oauth_account_cost: 0, api_cost_multiplier: 1, tax_rate: 0, currency: "CNY" });
+  const [globalDraft, setGlobalDraft] = useState<CostConfig>({ oauth_account_cost: 0, api_cost_multiplier: 1, tax_rate: 0, currency: "CNY" });
   const [draftAccounts, setDraftAccounts] = useState<AccountCostConfig[]>([]);
   const [search, setSearch] = useState("");
   const [accountType, setAccountType] = useState("all");
@@ -58,6 +59,7 @@ export default function CostConfigPage() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [savingGlobal, setSavingGlobal] = useState(false);
+  const [globalDialogOpen, setGlobalDialogOpen] = useState(false);
   const [savingAccount, setSavingAccount] = useState<number | null>(null);
   const [savingBillingGroup, setSavingBillingGroup] = useState(false);
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
@@ -65,6 +67,7 @@ export default function CostConfigPage() {
   const [mergeAccountIDs, setMergeAccountIDs] = useState<number[]>([]);
   const [mergeGroup, setMergeGroup] = useState("");
   const [mergeError, setMergeError] = useState("");
+  const [globalError, setGlobalError] = useState("");
   const [error, setError] = useState("");
 
   const load = async () => {
@@ -74,6 +77,7 @@ export default function CostConfigPage() {
       if (envelope.code !== 0 || !envelope.data) throw new Error(envelope.message || "无法读取成本配置");
       setData(envelope.data);
       setGlobal(envelope.data.global);
+      setGlobalDraft(envelope.data.global);
       setDraftAccounts(envelope.data.accounts.map((account) => ({ ...account })));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "无法读取成本配置");
@@ -138,19 +142,24 @@ export default function CostConfigPage() {
   };
 
   const saveGlobal = async () => {
-    if (global.oauth_account_cost < 0 || global.api_cost_multiplier <= 0 || global.tax_rate < 0 || global.tax_rate > 100) {
-      setError("OAuth 默认成本不能为负，API 默认倍率必须大于 0，税点必须在 0% 到 100% 之间。");
+    if (globalDraft.oauth_account_cost < 0 || globalDraft.api_cost_multiplier <= 0 || globalDraft.tax_rate < 0 || globalDraft.tax_rate > 100) {
+      setGlobalError("OAuth 默认成本不能为负，API 默认倍率必须大于 0，税点必须在 0% 到 100% 之间。");
       return;
     }
     setSavingGlobal(true);
     setError("");
+    setGlobalError("");
     try {
-      const envelope = await apiClient.put<AuxEnvelope<CostConfig>>("/admin/ops/cost-config", global);
+      const envelope = await apiClient.put<AuxEnvelope<CostConfig>>("/admin/ops/cost-config", globalDraft);
       if (envelope.code !== 0 || !envelope.data) throw new Error(envelope.message || "保存失败");
       setGlobal(envelope.data);
+      setGlobalDraft(envelope.data);
+      setGlobalDialogOpen(false);
       toast.success("默认成本配置已保存");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "保存失败");
+      const message = reason instanceof Error ? reason.message : "保存失败";
+      setGlobalError(message);
+      setError(message);
     } finally {
       setSavingGlobal(false);
     }
@@ -164,6 +173,7 @@ export default function CostConfigPage() {
       if (envelope.code !== 0 || !envelope.data) throw new Error(envelope.message || "同步失败");
       setData(envelope.data);
       setGlobal(envelope.data.global);
+      setGlobalDraft(envelope.data.global);
       setDraftAccounts(envelope.data.accounts.map((account) => ({ ...account })));
       resetMergeForm();
       setMergeDialogOpen(false);
@@ -228,6 +238,7 @@ export default function CostConfigPage() {
       if (envelope.code !== 0 || !envelope.data) throw new Error(envelope.message || "保存失败");
       setData(envelope.data);
       setGlobal(envelope.data.global);
+      setGlobalDraft(envelope.data.global);
       setDraftAccounts(envelope.data.accounts.map((account) => ({ ...account })));
       toast.success(`已将 ${mergeAccountIDs.length} 个账号合并到 ${group}`);
       resetMergeForm();
@@ -236,6 +247,14 @@ export default function CostConfigPage() {
       setMergeError(reason instanceof Error ? reason.message : "保存失败");
     } finally {
       setSavingBillingGroup(false);
+    }
+  };
+
+  const handleGlobalDialogOpenChange = (open: boolean) => {
+    setGlobalDialogOpen(open);
+    if (open) {
+      setGlobalDraft(global);
+      setGlobalError("");
     }
   };
 
@@ -255,13 +274,53 @@ export default function CostConfigPage() {
       {error && <div className="aux-cost-alert" role="alert">{error}</div>}
 
       <section className="aux-config-layout">
-        <div className="aux-cost-panel aux-config-form-panel">
+        <div className="aux-cost-panel aux-config-form-panel aux-config-summary-panel">
           <div className="aux-cost-panel-head"><div><p className="aux-cost-panel-kicker">Fallback policy</p><h2>默认核算参数</h2></div><span className="aux-config-lock"><Check size={14} />账号未单独配置时使用</span></div>
-          <div className="aux-config-field"><label htmlFor="oauth-cost">OAuth 默认单号成本</label><p>仅用于没有单独采购成本的 OAuth 账号；已单独配置的账号优先使用自己的金额。</p><div className="aux-config-input-wrap"><span>{global.currency}</span><input id="oauth-cost" type="number" min="0" step="0.01" value={global.oauth_account_cost} onChange={(event) => setGlobal({ ...global, oauth_account_cost: Number(event.target.value) })} /><em> / 号</em></div></div>
-          <div className="aux-config-field"><label htmlFor="api-multiplier">API 默认成本倍率</label><p>仅用于账号没有同步倍率或手工倍率时的兜底值。</p><div className="aux-config-input-wrap"><span>×</span><input id="api-multiplier" type="number" min="0.01" step="0.01" value={global.api_cost_multiplier} onChange={(event) => setGlobal({ ...global, api_cost_multiplier: Number(event.target.value) })} /></div></div>
-          <div className="aux-config-field"><label htmlFor="tax-rate">税点</label><p>按收入计提的税点，填写百分比。例如填写 6 表示 6%；税后利润 = 税前利润 − 收入 × 税点。</p><div className="aux-config-input-wrap"><span>%</span><input id="tax-rate" type="number" min="0" max="100" step="0.01" value={global.tax_rate} onChange={(event) => setGlobal({ ...global, tax_rate: Number(event.target.value) })} /><em> / 收入</em></div></div>
-          <div className="aux-config-field"><label htmlFor="currency">货币单位</label><p>用于成本、收入、税额与利润展示。</p><input id="currency" className="aux-config-currency-input" maxLength={8} value={global.currency} onChange={(event) => setGlobal({ ...global, currency: event.target.value.toUpperCase() })} /></div>
-          <button type="button" className="aux-config-save" disabled={savingGlobal} onClick={() => void saveGlobal()}>{savingGlobal ? "保存中…" : "保存默认配置"}<Check size={17} /></button>
+          <p className="aux-config-summary-copy">统一设置账号没有独立成本时的兜底口径，修改后会用于后续消费核算。</p>
+          <div className="aux-config-summary-grid">
+            <div><span>OAuth 单号成本</span><strong>{global.currency} {global.oauth_account_cost.toFixed(2)}</strong><small>每个账号</small></div>
+            <div><span>API 成本倍率</span><strong>×{global.api_cost_multiplier.toFixed(2)}</strong><small>无同步或手工倍率时</small></div>
+            <div><span>税点</span><strong>{global.tax_rate.toFixed(2)}%</strong><small>按收入计提</small></div>
+            <div><span>货币单位</span><strong>{global.currency}</strong><small>成本与利润展示</small></div>
+          </div>
+          <Dialog open={globalDialogOpen} onOpenChange={handleGlobalDialogOpenChange}>
+            <DialogTrigger asChild>
+              <Button type="button" className="aux-config-edit-action"><SlidersHorizontal aria-hidden="true" />编辑默认核算参数</Button>
+            </DialogTrigger>
+            <DialogContent className="aux-default-config-dialog">
+              <DialogHeader className="aux-default-config-dialog-header">
+                <DialogTitle>默认核算参数</DialogTitle>
+                <DialogDescription>账号未设置独立成本时，系统会使用以下参数进行成本、税额与利润核算。</DialogDescription>
+              </DialogHeader>
+              <form className="aux-default-config-form" onSubmit={(event) => { event.preventDefault(); void saveGlobal(); }}>
+                <div className="aux-default-config-field">
+                  <Label htmlFor="oauth-cost">OAuth 默认单号成本</Label>
+                  <p>仅用于没有单独采购成本的 OAuth 账号；已单独配置的账号优先使用自己的金额。</p>
+                  <div className="aux-config-input-wrap"><span>{globalDraft.currency}</span><Input id="oauth-cost" type="number" min="0" step="0.01" value={globalDraft.oauth_account_cost} onChange={(event) => setGlobalDraft({ ...globalDraft, oauth_account_cost: Number(event.target.value) })} /><em> / 号</em></div>
+                </div>
+                <div className="aux-default-config-field">
+                  <Label htmlFor="api-multiplier">API 默认成本倍率</Label>
+                  <p>仅用于账号没有同步倍率或手工倍率时的兜底值。</p>
+                  <div className="aux-config-input-wrap"><span>×</span><Input id="api-multiplier" type="number" min="0.01" step="0.01" value={globalDraft.api_cost_multiplier} onChange={(event) => setGlobalDraft({ ...globalDraft, api_cost_multiplier: Number(event.target.value) })} /></div>
+                </div>
+                <div className="aux-default-config-field">
+                  <Label htmlFor="tax-rate">税点</Label>
+                  <p>按收入计提的税点，填写百分比。例如填写 6 表示 6%；税后利润 = 税前利润 − 收入 × 税点。</p>
+                  <div className="aux-config-input-wrap"><span>%</span><Input id="tax-rate" type="number" min="0" max="100" step="0.01" value={globalDraft.tax_rate} onChange={(event) => setGlobalDraft({ ...globalDraft, tax_rate: Number(event.target.value) })} /><em> / 收入</em></div>
+                </div>
+                <div className="aux-default-config-field">
+                  <Label htmlFor="currency">货币单位</Label>
+                  <p>用于成本、收入、税额与利润展示。</p>
+                  <Input id="currency" className="aux-default-config-currency-input" maxLength={8} value={globalDraft.currency} onChange={(event) => setGlobalDraft({ ...globalDraft, currency: event.target.value.toUpperCase() })} />
+                </div>
+                {globalError && <div className="aux-default-config-alert" role="alert">{globalError}</div>}
+                <DialogFooter className="aux-default-config-footer">
+                  <DialogClose asChild><Button type="button" variant="outline" disabled={savingGlobal}>取消</Button></DialogClose>
+                  <Button type="submit" disabled={savingGlobal}>{savingGlobal ? "保存中…" : "保存默认配置"}<Check aria-hidden="true" /></Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
         <aside className="aux-cost-panel aux-config-preview-panel">
           <p className="aux-cost-panel-kicker">Sync status</p><h2>同步与历史口径</h2>
@@ -385,17 +444,17 @@ export default function CostConfigPage() {
               </PopoverContent>
             </Popover>
           </div>
-          <AccountCreatedDateRangePicker from={createdFrom} to={createdTo} onChange={(from, to) => { setCreatedFrom(from); setCreatedTo(to); setPage(1); }} />
+          <AccountCreatedDateRangePicker from={createdFrom} to={createdTo} hintId="account-date-hint" onChange={(from, to) => { setCreatedFrom(from); setCreatedTo(to); setPage(1); }} />
           <Button type="button" variant="ghost" size="sm" onClick={resetFilters} disabled={!hasFilters}>重置筛选</Button>
         </div>
         <p id="account-date-hint" className="aux-account-filter-hint">默认仅显示未删除账号；搜索账号名或 ID 可查询已删除账号。按创建时间倒序排列，日期范围包含本地结束当天，未知创建时间排在最后且不参与日期筛选。</p>
-        <div className="aux-account-table-scroll"><Table className="aux-account-table"><TableHeader><TableRow><TableHead>账号</TableHead><TableHead aria-sort="descending">创建时间 ↓</TableHead><TableHead>类型 / 平台</TableHead><TableHead>OAuth 单号成本</TableHead><TableHead>API 成本倍率</TableHead><TableHead>同步倍率</TableHead><TableHead>合并计费组</TableHead><TableHead>操作</TableHead></TableRow></TableHeader><TableBody>
+        <div className="aux-account-table-scroll"><Table className="aux-account-table"><TableHeader><TableRow><TableHead className="aux-account-name-column">账号</TableHead><TableHead aria-sort="descending">创建时间 ↓</TableHead><TableHead>类型 / 平台</TableHead><TableHead className="aux-account-oauth-cost-column">OAuth 单号成本</TableHead><TableHead className="aux-account-api-multiplier-column">API 成本倍率</TableHead><TableHead>同步倍率</TableHead><TableHead>合并计费组</TableHead><TableHead>操作</TableHead></TableRow></TableHeader><TableBody>
           {visibleAccounts.length === 0 ? <TableRow><TableCell colSpan={8} className="aux-cost-empty-cell">{hasFilters ? "没有符合筛选条件的账号，请调整或重置筛选。" : draftAccounts.length ? "暂无未删除账号，输入账号名或 ID 可查询已删除账号。" : "暂无账号。点击“立即同步倍率”读取 Sub2API accounts。"}</TableCell></TableRow> : visibleAccounts.map((account) => <TableRow key={account.account_id}>
-            <TableCell><div className="aux-account-name"><strong>{account.name || "未命名账号"}</strong><span className="aux-account-id">#{account.account_id}</span></div>{account.account_deleted_at && <Badge variant="secondary" className="mt-1">已删除</Badge>}</TableCell>
+            <TableCell className="aux-account-name-column"><div className="aux-account-name"><strong>{account.name || "未命名账号"}</strong><span className="aux-account-id">#{account.account_id}</span></div>{account.account_deleted_at && <Badge variant="secondary" className="mt-1">已删除</Badge>}</TableCell>
             <TableCell className="aux-account-created-at">{account.account_created_at ? formatAccountCreatedAt(account.account_created_at) : "—"}</TableCell>
             <TableCell><span className={`aux-account-type aux-account-type--${account.account_type}`}>{account.account_type === "oauth" ? "OAuth" : "API"}</span><small>{account.platform || "—"}</small></TableCell>
-            <TableCell>{account.account_type === "oauth" ? <Input aria-label={`账号 ${account.account_id} 的 OAuth 单号成本`} className="aux-account-number" type="number" min="0" step="0.01" value={account.oauth_account_cost ?? ""} placeholder={`默认 ${global.oauth_account_cost}`} onChange={(event) => updateAccount(setDraftAccounts, account.account_id, { oauth_account_cost: event.target.value === "" ? null : Number(event.target.value) })} /> : <span className="aux-account-muted">不适用</span>}</TableCell>
-            <TableCell>{account.account_type === "api" ? <div className="aux-account-multiplier"><Input aria-label={`账号 ${account.account_id} 的 API 成本倍率`} className="aux-account-number" type="number" min="0.01" step="0.01" disabled={account.api_multiplier_mode !== "manual"} value={account.api_multiplier_override ?? ""} placeholder={account.synced_api_multiplier?.toFixed(2) ?? global.api_cost_multiplier.toFixed(2)} onChange={(event) => updateAccount(setDraftAccounts, account.account_id, { api_multiplier_override: event.target.value === "" ? null : Number(event.target.value), api_multiplier_mode: "manual" })} /><Button type="button" size="sm" className={`aux-account-mode ${account.api_multiplier_mode === "manual" ? "is-manual" : ""}`} onClick={() => updateAccount(setDraftAccounts, account.account_id, { api_multiplier_mode: account.api_multiplier_mode === "manual" ? "sync" : "manual", api_multiplier_override: account.api_multiplier_mode === "manual" ? null : account.api_multiplier_override })}>{account.api_multiplier_mode === "manual" ? "手工" : "跟随同步"}</Button></div> : <span className="aux-account-muted">不适用</span>}</TableCell>
+            <TableCell className="aux-account-oauth-cost-column">{account.account_type === "oauth" ? <Input aria-label={`账号 ${account.account_id} 的 OAuth 单号成本`} className="aux-account-number" type="number" min="0" step="0.01" value={account.oauth_account_cost ?? ""} placeholder={`默认 ${global.oauth_account_cost}`} onChange={(event) => updateAccount(setDraftAccounts, account.account_id, { oauth_account_cost: event.target.value === "" ? null : Number(event.target.value) })} /> : <span className="aux-account-muted">不适用</span>}</TableCell>
+            <TableCell className="aux-account-api-multiplier-column">{account.account_type === "api" ? <div className="aux-account-multiplier"><Input aria-label={`账号 ${account.account_id} 的 API 成本倍率`} className="aux-account-number" type="number" min="0.01" step="0.01" disabled={account.api_multiplier_mode !== "manual"} value={account.api_multiplier_override ?? ""} placeholder={account.synced_api_multiplier?.toFixed(2) ?? global.api_cost_multiplier.toFixed(2)} onChange={(event) => updateAccount(setDraftAccounts, account.account_id, { api_multiplier_override: event.target.value === "" ? null : Number(event.target.value), api_multiplier_mode: "manual" })} /><Button type="button" size="sm" className={`aux-account-mode ${account.api_multiplier_mode === "manual" ? "is-manual" : ""}`} onClick={() => updateAccount(setDraftAccounts, account.account_id, { api_multiplier_mode: account.api_multiplier_mode === "manual" ? "sync" : "manual", api_multiplier_override: account.api_multiplier_mode === "manual" ? null : account.api_multiplier_override })}>{account.api_multiplier_mode === "manual" ? "手工" : "跟随同步"}</Button></div> : <span className="aux-account-muted">不适用</span>}</TableCell>
             <TableCell>{account.account_type === "api" ? <><strong>{account.synced_api_multiplier?.toFixed(4) ?? "—"}</strong><small>{account.last_synced_at ? formatSyncTime(account.last_synced_at) : "未同步"}</small></> : <span className="aux-account-muted">采购价独立配置</span>}</TableCell>
             <TableCell><Select value={account.billing_group ? `group:${account.billing_group}` : "independent"} onValueChange={(value) => updateAccount(setDraftAccounts, account.account_id, { billing_group: value === "independent" ? "" : value.slice(6) })}>
               <SelectTrigger className="aux-account-group" aria-label={`账号 ${account.account_id} 的合并计费组`}><SelectValue /></SelectTrigger>

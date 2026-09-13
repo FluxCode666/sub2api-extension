@@ -535,7 +535,7 @@ html.dark .aux-admin-shell {
 .aux-cost-eyebrow { display: flex; align-items: center; gap: 9px; margin: 0 0 16px; color: var(--console-muted); font-size: 11px; font-weight: 680; letter-spacing: .08em; }
 .aux-cost-eyebrow > span { width: 30px; height: 1px; background: var(--console-accent); }
 .aux-cost-header h1 { margin: 0; font-size: clamp(2.6rem, 6vw, 5.5rem); font-weight: 700; letter-spacing: -.09em; line-height: 1; }
-.aux-cost-header > div > p:last-child { max-width: 550px; margin: 18px 0 0; color: var(--console-muted); font-size: 14px; line-height: 1.75; }
+.aux-cost-header > div > p:last-child { max-width: 760px; margin: 18px 0 0; color: var(--console-muted); font-size: 14px; line-height: 1.75; white-space: nowrap; }
 .aux-cost-refresh { display: inline-flex; min-height: 40px; align-items: center; gap: 8px; padding: 0 14px; border: 1px solid var(--console-line-strong); border-radius: 999px; background: var(--console-surface); color: var(--console-ink); font-size: 12px; font-weight: 680; cursor: pointer; transition: border-color 180ms ease, transform 180ms ease; }
 .aux-cost-refresh:hover { border-color: var(--console-accent); transform: translateY(-1px); }
 .aux-cost-filter { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-bottom: 16px; padding: 16px 18px; border: 1px solid var(--console-line); border-radius: 18px; background: color-mix(in srgb, var(--console-surface) 90%, transparent); }
@@ -546,6 +546,9 @@ html.dark .aux-admin-shell {
 .aux-cost-filter label { display: flex; flex-direction: column; gap: 6px; color: var(--console-subtle); font-size: 10px; font-weight: 650; }
 .aux-cost-filter input { min-height: 36px; padding: 0 10px; border: 1px solid var(--console-line-strong); border-radius: 9px; background: var(--console-surface-strong); color: var(--console-ink); font: inherit; font-size: 12px; }
 .aux-cost-filter input:focus-visible, .aux-config-field input:focus-visible { outline: 2px solid var(--console-accent); outline-offset: 2px; }
+.aux-cost-date-range { display: flex; min-width: 245px; }
+.aux-cost-date-trigger { min-height: 36px; justify-content: flex-start; gap: 8px; border-color: var(--console-line-strong); background: var(--console-surface-strong); color: var(--console-ink); font-size: 12px; font-weight: 500; }
+.aux-cost-date-trigger span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .aux-cost-range-arrow { align-self: center; margin-top: 16px; color: var(--console-subtle); }
 .aux-cost-apply, .aux-config-save { min-height: 38px; padding: 0 17px; border: 0; border-radius: 10px; background: var(--console-ink); color: var(--console-bg); font-size: 12px; font-weight: 700; cursor: pointer; transition: background 180ms ease, transform 180ms ease; }
 .aux-cost-apply:hover, .aux-config-save:hover { background: var(--console-accent); color: #fff; transform: translateY(-1px); }
@@ -561,50 +564,62 @@ html.dark .aux-admin-shell {
 .aux-cost-metric--warm .aux-cost-metric-icon { color: var(--cost-orange); background: color-mix(in srgb, var(--cost-orange) 12%, transparent); }
 .aux-cost-metric--positive .aux-cost-metric-icon { color: var(--cost-green); background: color-mix(in srgb, var(--cost-green) 12%, transparent); }
 .aux-cost-metric--negative .aux-cost-metric-icon { color: #bd5968; background: rgba(189, 89, 104, .12); }
-.aux-cost-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, .72fr); gap: 12px; margin-top: 12px; }
 .aux-cost-panel { border: 1px solid var(--console-line); border-radius: 22px; background: color-mix(in srgb, var(--console-surface) 93%, transparent); box-shadow: 0 18px 44px var(--console-shadow); }
-.aux-cost-chart-panel, .aux-cost-formula-panel, .aux-cost-table-panel { padding: 23px; }
+.aux-cost-table-panel { padding: 23px; }
 .aux-cost-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
 .aux-cost-panel-kicker { margin: 0 0 7px; color: var(--console-subtle); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 .aux-cost-panel h2 { margin: 0; color: var(--console-ink); font-size: 18px; font-weight: 690; letter-spacing: -.04em; }
-.aux-cost-legend { display: flex; flex-wrap: wrap; gap: 12px; color: var(--console-muted); font-size: 10px; }
-.aux-cost-legend span { display: inline-flex; align-items: center; gap: 5px; }
-.aux-cost-legend i { display: inline-block; width: 18px; height: 2px; border-radius: 999px; background: var(--cost-blue); }
-.aux-cost-legend i.is-cost { background: var(--cost-orange); }
-.aux-cost-legend i.is-profit { background: var(--cost-green); }
-.aux-cost-legend i.is-net-profit { background: #7b61c9; }
-.aux-cost-chart-wrap { min-height: 280px; margin-top: 18px; }
-.aux-cost-chart { display: block; width: 100%; height: 280px; overflow: visible; }
-.aux-chart-grid-line { stroke: var(--console-line); stroke-width: 1; }
-.aux-chart-line { fill: none; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
-.aux-chart-line--revenue { stroke: var(--cost-blue); }
-.aux-chart-line--cost { stroke: var(--cost-orange); stroke-dasharray: 5 5; }
-.aux-chart-line--profit { stroke: var(--cost-green); }
-.aux-chart-line--net-profit { stroke: #7b61c9; stroke-dasharray: 2 4; }
-.aux-chart-point--revenue { fill: var(--cost-blue); stroke: var(--console-surface); stroke-width: 2; }
-.aux-chart-point--cost { fill: var(--cost-orange); }
-.aux-chart-label { fill: var(--console-subtle); font-size: 10px; text-anchor: middle; }
-.aux-cost-empty { display: grid; height: 280px; place-items: center; color: var(--console-subtle); font-size: 12px; }
-.aux-cost-formula-panel { background: linear-gradient(145deg, color-mix(in srgb, var(--console-accent) 9%, var(--console-surface)), var(--console-surface)); }
-.aux-cost-formula-panel h2 { margin-bottom: 22px; }
-.aux-cost-formula { display: flex; flex-direction: column; gap: 8px; padding: 15px 0; border-top: 1px solid var(--console-line); }
-.aux-cost-formula span { color: var(--console-muted); font-size: 11px; }
-.aux-cost-formula strong { color: var(--console-ink); font-size: 14px; font-weight: 670; }
-.aux-cost-note { margin: 20px 0 0; padding-top: 16px; border-top: 1px solid var(--console-line); color: var(--console-muted); font-size: 11px; line-height: 1.75; }
 .aux-cost-table-panel { margin-top: 12px; }
+.aux-cost-payback-panel { margin-top: 12px; }
+.aux-cost-payback-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
+.aux-cost-payback-summary > div { display: flex; flex-direction: column; gap: 6px; padding: 14px; border: 1px solid var(--console-line); border-radius: 12px; background: color-mix(in srgb, var(--console-surface-strong) 72%, transparent); }
+.aux-cost-payback-summary span { color: var(--console-subtle); font-size: 10px; }
+.aux-cost-payback-summary strong { color: var(--console-ink); font-size: 17px; font-weight: 680; }
+.aux-cost-payback-status { display: inline-flex; min-height: 24px; align-items: center; padding: 0 8px; border: 1px solid var(--console-line); border-radius: 999px; color: var(--console-subtle); font-size: 10px; font-weight: 680; }
+.aux-cost-payback-status--settled { border-color: rgba(63, 155, 121, .3); background: rgba(63, 155, 121, .1); color: var(--cost-green); }
+.aux-cost-payback-status--pending { border-color: rgba(220, 144, 100, .3); background: rgba(220, 144, 100, .1); color: #a9633b; }
+.aux-cost-payback-status--unknown { background: color-mix(in srgb, var(--console-line) 45%, transparent); }
+.aux-cost-list-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-top: 18px; }
+.aux-cost-list-search { display: inline-flex; min-width: min(100%, 280px); min-height: 36px; flex: 1 1 280px; align-items: center; gap: 8px; padding: 0 11px; border: 1px solid var(--console-line-strong); border-radius: 10px; background: var(--console-surface-strong); color: var(--console-subtle); }
+.aux-cost-list-search input { width: 100%; min-width: 0; height: 34px; border: 0; outline: 0; background: transparent; color: var(--console-ink); font: inherit; font-size: 12px; box-shadow: none; }
+.aux-cost-list-search input:focus-visible { box-shadow: none; outline: none; }
+.aux-cost-list-search:focus-within { outline: 2px solid var(--console-accent); outline-offset: 2px; }
+.aux-cost-list-filters .aux-account-date-range-filter { width: 300px; max-width: 100%; flex-basis: auto; }
+.aux-cost-list-filters .aux-account-date-range-filter > label { color: var(--console-muted); font-size: 11px; }
+.aux-cost-list-reset { min-height: 36px; border-color: var(--console-line-strong); color: var(--console-muted); font-size: 11px; }
+.aux-cost-list-reset:disabled { cursor: not-allowed; opacity: .55; }
+.aux-cost-list-page-size { width: 84px; height: 32px; font-size: 11px; }
+.aux-cost-list-pagination { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--console-line); }
+.aux-cost-list-pagination-controls { gap: 16px; }
+.aux-cost-list-pagination nav button { width: 32px; height: 32px; border-color: var(--console-line-strong); background: var(--console-surface-strong); color: var(--console-ink); }
+.aux-cost-list-pagination nav button:hover:not(:disabled) { color: var(--console-accent); }
+.aux-cost-list-pagination nav svg { width: 16px; height: 16px; }
 .aux-cost-range-caption { color: var(--console-subtle); font-size: 11px; }
+.aux-cost-daily-tabs { margin-top: 17px; }
+.aux-cost-daily-tabs [role="tablist"] { background: color-mix(in srgb, var(--console-line) 50%, transparent); }
+.aux-cost-daily-tabs [role="tab"] { color: var(--console-muted); font-size: 11px; }
+.aux-cost-daily-tabs [role="tab"][data-state="active"] { color: var(--console-ink); }
+.aux-cost-daily-tabs [role="tab"] span { margin-left: 5px; color: var(--console-subtle); font-size: 10px; font-variant-numeric: tabular-nums; }
 .aux-cost-table-scroll { margin-top: 18px; overflow-x: auto; }
 .aux-cost-table-panel table { width: 100%; min-width: 760px; border-collapse: collapse; color: var(--console-muted); font-size: 12px; }
 .aux-cost-table-panel th { padding: 0 12px 12px; border-bottom: 1px solid var(--console-line); color: var(--console-subtle); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-align: right; text-transform: uppercase; }
+.aux-cost-table-head-with-help { display: inline-flex; min-height: 20px; align-items: center; justify-content: flex-end; gap: 3px; }
+.aux-cost-table-head-with-help > span:first-child { line-height: 1.25; }
+.aux-cost-table-panel .aux-cost-formula-help { width: 18px; height: 18px; padding: 0; border-radius: 50%; color: var(--console-subtle); }
+.aux-cost-table-panel .aux-cost-formula-help:hover { background: color-mix(in srgb, var(--console-accent) 10%, transparent); color: var(--console-accent); }
+.aux-cost-table-panel .aux-cost-formula-help svg { width: 13px; height: 13px; }
 .aux-cost-table-panel th:first-child, .aux-cost-table-panel td:first-child { text-align: left; }
 .aux-cost-table-panel td { padding: 14px 12px; border-bottom: 1px solid var(--console-line); text-align: right; white-space: nowrap; }
 .aux-cost-table-panel td strong { color: var(--console-ink); font-weight: 650; }
 .aux-cost-table-panel td small { color: var(--console-subtle); font-size: 10px; }
+.aux-cost-account-cell strong, .aux-cost-account-cell small { display: block; }
+.aux-cost-account-cell small { margin-top: 5px; }
 .aux-cost-table-panel tr:hover td { background: color-mix(in srgb, var(--console-accent) 4%, transparent); }
 .aux-cost-table-panel .is-positive { color: var(--cost-green); font-weight: 680; }
 .aux-cost-table-panel .is-negative { color: #bd5968; font-weight: 680; }
 .aux-cost-empty-cell { padding: 34px !important; color: var(--console-subtle); text-align: center !important; }
 .aux-cost-config-page .aux-cost-header { margin-bottom: 32px; }
+.aux-cost-config-page { width: min(100%, 1480px); }
 .aux-cost-config-status { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid rgba(82, 183, 136, .25); border-radius: 999px; background: rgba(82, 183, 136, .08); }
 .aux-cost-config-status > span { width: 7px; height: 7px; border-radius: 50%; background: #52b788; box-shadow: 0 0 0 4px rgba(82, 183, 136, .12); }
 .aux-cost-config-status div { display: flex; flex-direction: column; gap: 1px; }
@@ -612,7 +627,15 @@ html.dark .aux-admin-shell {
 .aux-cost-config-status small { color: var(--console-subtle); font-size: 9px; }
 .aux-config-layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr); gap: 12px; }
 .aux-config-form-panel, .aux-config-preview-panel { padding: 25px; }
+.aux-config-summary-panel { display: flex; min-height: 100%; flex-direction: column; }
 .aux-config-lock { display: inline-flex; align-items: center; gap: 5px; color: var(--cost-green); font-size: 10px; font-weight: 680; }
+.aux-config-summary-copy { max-width: 540px; margin: 22px 0 0; color: var(--console-muted); font-size: 12px; line-height: 1.7; }
+.aux-config-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 20px; }
+.aux-config-summary-grid > div { display: flex; min-width: 0; flex-direction: column; gap: 6px; padding: 14px; border: 1px solid var(--console-line); border-radius: 12px; background: color-mix(in srgb, var(--console-surface-strong) 64%, transparent); }
+.aux-config-summary-grid span, .aux-config-summary-grid small { color: var(--console-subtle); font-size: 10px; }
+.aux-config-summary-grid strong { overflow: hidden; color: var(--console-ink); font-size: 17px; font-weight: 690; text-overflow: ellipsis; white-space: nowrap; }
+.aux-config-edit-action { align-self: flex-start; min-height: 40px; margin-top: 22px; gap: 8px; border-radius: 10px; background: var(--console-ink); color: var(--console-bg); font-size: 12px; font-weight: 700; }
+.aux-config-edit-action:hover { background: var(--console-accent); color: #fff; }
 .aux-config-field { padding: 24px 0; border-bottom: 1px solid var(--console-line); }
 .aux-config-field label { display: block; color: var(--console-ink); font-size: 13px; font-weight: 680; }
 .aux-config-field p { max-width: 560px; margin: 8px 0 14px; color: var(--console-muted); font-size: 11px; line-height: 1.7; }
@@ -630,6 +653,21 @@ html.dark .aux-admin-shell {
 .aux-config-preview-card strong small { color: var(--console-subtle); font-size: 11px; font-weight: 500; }
 .aux-config-help { display: flex; gap: 9px; margin-top: 20px; color: var(--console-muted); font-size: 11px; line-height: 1.75; }
 .aux-config-help svg { flex: 0 0 auto; margin-top: 2px; color: var(--console-accent); }
+.aux-default-config-dialog.aux-default-config-dialog { width: min(600px, calc(100vw - 28px)); max-width: 600px; max-height: min(760px, calc(100dvh - 28px)); gap: 0; overflow: hidden; padding: 0; border-color: hsl(var(--border)); border-radius: 12px; background: hsl(var(--background)); color: hsl(var(--foreground)); }
+.aux-default-config-dialog-header { padding: 22px 52px 18px 22px; border-bottom: 1px solid hsl(var(--border)); text-align: left; }
+.aux-default-config-dialog-header h2 { font-size: 17px; letter-spacing: 0; }
+.aux-default-config-dialog-header p { margin-top: 7px; line-height: 1.6; }
+.aux-default-config-form { display: grid; max-height: calc(100dvh - 132px); gap: 18px; overflow-y: auto; padding: 20px 22px 22px; }
+.aux-default-config-field { display: grid; gap: 8px; }
+.aux-default-config-field > label { color: hsl(var(--foreground)); font-size: 12px; font-weight: 650; }
+.aux-default-config-field > p { margin: 0; color: hsl(var(--muted-foreground)); font-size: 10px; line-height: 1.6; }
+.aux-default-config-dialog .aux-config-input-wrap { width: 100%; max-width: none; min-height: 42px; border-color: hsl(var(--input)); border-radius: 9px; background: hsl(var(--background)); }
+.aux-default-config-dialog .aux-config-input-wrap span, .aux-default-config-dialog .aux-config-input-wrap em { color: hsl(var(--muted-foreground)); }
+.aux-default-config-dialog .aux-config-input-wrap input { height: 40px; color: hsl(var(--foreground)); }
+.aux-default-config-currency-input { width: 160px; min-height: 40px; border-color: hsl(var(--input)); background: hsl(var(--background)); color: hsl(var(--foreground)); }
+.aux-default-config-alert { padding: 9px 11px; border: 1px solid color-mix(in srgb, #dc2626 30%, hsl(var(--border))); border-radius: 8px; background: color-mix(in srgb, #dc2626 7%, hsl(var(--background))); color: #b91c1c; font-size: 11px; line-height: 1.5; }
+.aux-default-config-footer { margin: 1px -22px -22px; padding: 15px 22px 16px; border-top: 1px solid hsl(var(--border)); background: color-mix(in srgb, hsl(var(--muted)) 34%, hsl(var(--background))); }
+.aux-default-config-footer button { min-width: 106px; min-height: 40px; border-radius: 9px; font-size: 11px; font-weight: 680; }
 .aux-account-config-panel { margin-top: 12px; padding: 23px; }
 .aux-account-panel-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 9px; }
 .aux-account-search { display: inline-flex; min-width: min(100%, 280px); min-height: 36px; align-items: center; gap: 8px; padding: 0 11px; border: 1px solid var(--console-line-strong); border-radius: 10px; background: var(--console-surface-strong); color: var(--console-subtle); }
@@ -639,14 +677,17 @@ html.dark .aux-admin-shell {
 .aux-account-filters .aux-account-search { flex: 1 1 260px; }
 .aux-account-filter-field { display: grid; min-width: 0; gap: 6px; color: var(--console-muted); font-size: 11px; }
 .aux-account-filter-control { min-width: 120px; height: 36px; font-size: 12px; }
-.aux-account-name { display: flex; min-width: 160px; align-items: baseline; gap: 6px; }
-.aux-account-name strong { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aux-account-name-column { width: 180px; max-width: 180px; }
+.aux-account-name { display: grid; max-width: 180px; min-width: 0; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 6px; }
+.aux-account-name strong { min-width: 0; overflow-wrap: anywhere; white-space: normal; line-height: 1.45; }
 .aux-account-id { flex-shrink: 0; color: var(--console-subtle); font-size: 11px; }
 .aux-account-created-at { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .aux-account-date-range-filter { width: 300px; max-width: 100%; }
 .aux-account-filter-hint { margin-top: 9px; color: var(--console-subtle); font-size: 11px; line-height: 1.5; }
 .aux-account-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-top: 16px; color: var(--console-muted); font-size: 12px; }
 .aux-account-pagination-controls, .aux-account-pagination nav, .aux-account-page-size { display: flex; align-items: center; gap: 8px; }
+.aux-account-page-size { flex: 0 0 auto; white-space: nowrap; }
+.aux-account-page-size > span { flex: 0 0 auto; white-space: nowrap; }
 .aux-account-pagination-controls { flex-wrap: wrap; gap: 16px; }
 .aux-account-pagination nav button { width: 32px; height: 32px; border-color: var(--console-line-strong); background: var(--console-surface-strong); color: var(--console-ink); }
 .aux-account-pagination nav button:hover:not(:disabled) { color: var(--console-accent); }
@@ -702,10 +743,13 @@ html.dark .aux-admin-shell {
 .aux-account-type { display: inline-flex; padding: 4px 7px; border-radius: 999px; font-size: 10px; font-weight: 700; }
 .aux-account-type--oauth { color: #9e5c32; background: rgba(220, 144, 100, .14); }
 .aux-account-type--api { color: #4f5bc5; background: rgba(88, 100, 221, .12); }
-.aux-account-number { width: 116px; min-height: 34px; padding: 0 9px; border: 1px solid var(--console-line-strong); border-radius: 8px; background: var(--console-surface-strong); color: var(--console-ink); font: inherit; font-size: 12px; }
+.aux-account-oauth-cost-column { width: 124px; max-width: 124px; white-space: normal !important; }
+.aux-account-api-multiplier-column { width: 158px; max-width: 158px; white-space: normal !important; }
+.aux-account-number { width: 104px; min-height: 34px; padding: 0 9px; border: 1px solid var(--console-line-strong); border-radius: 8px; background: var(--console-surface-strong); color: var(--console-ink); font: inherit; font-size: 12px; }
+.aux-account-api-multiplier-column .aux-account-number { width: 72px; }
 .aux-account-number:disabled { cursor: not-allowed; opacity: .5; }
 .aux-account-group { width: 150px; min-height: 34px; padding: 0 8px; border: 1px solid var(--console-line-strong); border-radius: 8px; background: var(--console-surface-strong); color: var(--console-ink); font: inherit; font-size: 11px; }
-.aux-account-multiplier { display: flex; align-items: center; gap: 6px; }
+.aux-account-multiplier { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .aux-account-mode, .aux-account-save { min-height: 32px; padding: 0 9px; border: 1px solid var(--console-line-strong); border-radius: 8px; background: var(--console-surface); color: var(--console-muted); font: inherit; font-size: 10px; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .aux-account-mode.is-manual { border-color: color-mix(in srgb, var(--console-accent) 50%, var(--console-line-strong)); color: var(--console-accent); }
 .aux-account-save { border: 0; background: var(--console-ink); color: var(--console-bg); }
@@ -715,7 +759,8 @@ html.dark .aux-admin-shell {
 
 @media (max-width: 900px) {
   .aux-cost-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .aux-cost-grid, .aux-config-layout { grid-template-columns: 1fr; }
+  .aux-config-layout { grid-template-columns: 1fr; }
+  .aux-cost-header > div > p:last-child { max-width: 100%; white-space: normal; }
 }
 
 @media (max-width: 560px) {
@@ -727,8 +772,13 @@ html.dark .aux-admin-shell {
   .aux-cost-range-arrow { display: none; }
   .aux-cost-apply { width: 100%; }
   .aux-cost-kpis { grid-template-columns: 1fr; }
-  .aux-cost-chart-panel, .aux-cost-formula-panel, .aux-cost-table-panel, .aux-config-form-panel, .aux-config-preview-panel { padding: 17px; }
-  .aux-cost-legend { margin-top: 10px; }
+  .aux-cost-table-panel, .aux-config-form-panel, .aux-config-preview-panel { padding: 17px; }
+  .aux-cost-payback-summary { grid-template-columns: 1fr; }
+  .aux-cost-list-filters { align-items: stretch; flex-direction: column; }
+  .aux-cost-list-search, .aux-cost-list-filters .aux-account-date-range-filter, .aux-cost-list-filters .aux-account-filter-field, .aux-cost-list-reset { width: 100%; max-width: none; }
+  .aux-cost-list-search { flex-basis: auto; }
+  .aux-cost-list-filters .aux-account-date-range-filter { flex-basis: auto; }
+  .aux-cost-list-reset { justify-content: center; }
   .aux-cost-panel-head { flex-direction: column; }
   .aux-cost-range-caption { margin-top: -8px; }
   .aux-cost-config-status { align-self: flex-start; }

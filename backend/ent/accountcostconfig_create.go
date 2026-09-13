@@ -166,6 +166,20 @@ func (_c *AccountCostConfigCreate) SetNillableAccountCreatedAt(v *time.Time) *Ac
 	return _c
 }
 
+// SetAccountExpiresAt sets the "account_expires_at" field.
+func (_c *AccountCostConfigCreate) SetAccountExpiresAt(v time.Time) *AccountCostConfigCreate {
+	_c.mutation.SetAccountExpiresAt(v)
+	return _c
+}
+
+// SetNillableAccountExpiresAt sets the "account_expires_at" field if the given value is not nil.
+func (_c *AccountCostConfigCreate) SetNillableAccountExpiresAt(v *time.Time) *AccountCostConfigCreate {
+	if v != nil {
+		_c.SetAccountExpiresAt(*v)
+	}
+	return _c
+}
+
 // SetAccountDeletedAt sets the "account_deleted_at" field.
 func (_c *AccountCostConfigCreate) SetAccountDeletedAt(v time.Time) *AccountCostConfigCreate {
 	_c.mutation.SetAccountDeletedAt(v)
@@ -379,6 +393,10 @@ func (_c *AccountCostConfigCreate) createSpec() (*AccountCostConfig, *sqlgraph.C
 	if value, ok := _c.mutation.AccountCreatedAt(); ok {
 		_spec.SetField(accountcostconfig.FieldAccountCreatedAt, field.TypeTime, value)
 		_node.AccountCreatedAt = &value
+	}
+	if value, ok := _c.mutation.AccountExpiresAt(); ok {
+		_spec.SetField(accountcostconfig.FieldAccountExpiresAt, field.TypeTime, value)
+		_node.AccountExpiresAt = &value
 	}
 	if value, ok := _c.mutation.AccountDeletedAt(); ok {
 		_spec.SetField(accountcostconfig.FieldAccountDeletedAt, field.TypeTime, value)

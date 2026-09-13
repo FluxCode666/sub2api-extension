@@ -55,11 +55,11 @@ func init() {
 	// accountcostconfig.APIMultiplierModeValidator is a validator for the "api_multiplier_mode" field. It is called by the builders before save.
 	accountcostconfig.APIMultiplierModeValidator = accountcostconfigDescAPIMultiplierMode.Validators[0].(func(string) error)
 	// accountcostconfigDescCreatedAt is the schema descriptor for created_at field.
-	accountcostconfigDescCreatedAt := accountcostconfigFields[12].Descriptor()
+	accountcostconfigDescCreatedAt := accountcostconfigFields[13].Descriptor()
 	// accountcostconfig.DefaultCreatedAt holds the default value on creation for the created_at field.
 	accountcostconfig.DefaultCreatedAt = accountcostconfigDescCreatedAt.Default.(func() time.Time)
 	// accountcostconfigDescUpdatedAt is the schema descriptor for updated_at field.
-	accountcostconfigDescUpdatedAt := accountcostconfigFields[13].Descriptor()
+	accountcostconfigDescUpdatedAt := accountcostconfigFields[14].Descriptor()
 	// accountcostconfig.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	accountcostconfig.DefaultUpdatedAt = accountcostconfigDescUpdatedAt.Default.(func() time.Time)
 	// accountcostconfig.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

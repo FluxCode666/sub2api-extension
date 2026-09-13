@@ -37,12 +37,13 @@ func (s *Sub2APICostStore) ListAccounts(ctx context.Context) ([]ops.Sub2APIAccou
 	typeExpr := textColumnExpression("a", columns, "type")
 	rate := numericColumnExpression("a", columns, []string{"rate_multiplier"})
 	created := nullableTimeColumnExpression("a", columns, "created_at")
+	expires := nullableTimeColumnExpression("a", columns, "expires_at")
 	deleted := nullableTimeColumnExpression("a", columns, "deleted_at")
 	updated := timeColumnExpression("a", columns, "updated_at")
 	// 同步保留软删除账号及删除时间，用于名称/ID 检索与历史对账；列表默认隐藏它们。
 	statement := fmt.Sprintf(`
-		SELECT a."id"::bigint, %s, %s, %s, %s::double precision, %s, %s, %s
-		FROM accounts a ORDER BY %s DESC NULLS LAST, a."id" DESC`, name, typeExpr, platform, rate, created, updated, deleted, created)
+		SELECT a."id"::bigint, %s, %s, %s, %s::double precision, %s, %s, %s, %s
+		FROM accounts a ORDER BY %s DESC NULLS LAST, a."id" DESC`, name, typeExpr, platform, rate, created, updated, deleted, expires, created)
 	rows, err := s.db.QueryContext(ctx, statement)
 	if err != nil {
 		return nil, err
@@ -52,8 +53,8 @@ func (s *Sub2APICostStore) ListAccounts(ctx context.Context) ([]ops.Sub2APIAccou
 	for rows.Next() {
 		var account ops.Sub2APIAccount
 		var rawType string
-		var createdAt, deletedAt sql.NullTime
-		if err := rows.Scan(&account.ID, &account.Name, &rawType, &account.Platform, &account.RateMultiplier, &createdAt, &account.UpdatedAt, &deletedAt); err != nil {
+		var createdAt, deletedAt, expiresAt sql.NullTime
+		if err := rows.Scan(&account.ID, &account.Name, &rawType, &account.Platform, &account.RateMultiplier, &createdAt, &account.UpdatedAt, &deletedAt, &expiresAt); err != nil {
 			return nil, err
 		}
 		if createdAt.Valid {
@@ -61,6 +62,9 @@ func (s *Sub2APICostStore) ListAccounts(ctx context.Context) ([]ops.Sub2APIAccou
 		}
 		if deletedAt.Valid {
 			account.DeletedAt = &deletedAt.Time
+		}
+		if expiresAt.Valid {
+			account.ExpiresAt = &expiresAt.Time
 		}
 		account.Type = classifyAccountType(rawType, account.Platform)
 		if account.RateMultiplier <= 0 {
@@ -99,10 +103,7 @@ func (s *Sub2APICostStore) QueryConsumption(ctx context.Context, query ops.Consu
 	}
 	kind := accountKindExpression(accountColumns, joined)
 	baseCost := accountBaseCostExpression("u", usageColumns)
-	revenue := numericColumnExpression("u", usageColumns, []string{"charged_amount", "amount", "price", "total_price", "revenue", "request_amount", "actual_cost"})
-	if revenue == "0" {
-		revenue = baseCost
-	}
+	revenue, revenueSource := chargeColumnExpression("u", usageColumns)
 	tokens := numericColumnExpression("u", usageColumns, []string{"total_tokens", "tokens"})
 	if tokens == "0" {
 		tokens = sumNumericColumns("u", usageColumns, []string{"input_tokens", "prompt_tokens", "output_tokens", "completion_tokens", "cache_creation_tokens", "cache_read_tokens", "image_input_tokens", "image_output_tokens"})
@@ -143,9 +144,19 @@ func (s *Sub2APICostStore) QueryConsumption(ctx context.Context, query ops.Consu
 	for _, account := range accountConfigs {
 		configs[account.AccountID] = account
 	}
-	result := &ops.ConsumptionResponse{StartTime: query.StartTime, EndTime: query.EndTime, Config: config, Days: make([]ops.DailyConsumption, 0), Accounts: make([]ops.AccountConsumption, 0)}
+	result := &ops.ConsumptionResponse{
+		StartTime:     query.StartTime,
+		EndTime:       query.EndTime,
+		Config:        config,
+		Days:          make([]ops.DailyConsumption, 0),
+		DailyAccounts: make([]ops.DailyAccountConsumption, 0),
+		Accounts:      make([]ops.AccountConsumption, 0),
+	}
+	result.RevenueAvailable = revenueSource != ""
+	result.RevenueSource = revenueSource
 	dayIndex := make(map[string]int)
 	apiDayAccounts := make(map[string]map[int64]struct{})
+	apiAccounts := make(map[int64]struct{})
 	accountIndex := make(map[string]int)
 	for rows.Next() {
 		var day time.Time
@@ -172,6 +183,27 @@ func (s *Sub2APICostStore) QueryConsumption(ctx context.Context, query ops.Consu
 		}
 		apiCost := accountAPICost(kindValue, historicalCost, unsnapshottedRaw, multiplier)
 		key := day.Format("2006-01-02")
+		accountType := "api"
+		dailyMultiplier := multiplier
+		dailyMultiplierSource := multiplierSource(accountConfig, snapshotRateMultiplier, accountRateMultiplier)
+		if kindValue == "oauth" {
+			accountType = "oauth"
+			dailyMultiplier = 0
+			dailyMultiplierSource = "purchase cost"
+		}
+		result.DailyAccounts = append(result.DailyAccounts, ops.DailyAccountConsumption{
+			Date:             day,
+			AccountID:        accountIDValue,
+			AccountType:      accountType,
+			Name:             accountConfig.Name,
+			Platform:         accountConfig.Platform,
+			Requests:         requests,
+			Tokens:           tokenCount,
+			Revenue:          rawRevenue,
+			APICost:          apiCost,
+			Multiplier:       dailyMultiplier,
+			MultiplierSource: dailyMultiplierSource,
+		})
 		idx, ok := dayIndex[key]
 		if !ok {
 			idx = len(result.Days)
@@ -200,6 +232,7 @@ func (s *Sub2APICostStore) QueryConsumption(ctx context.Context, query ops.Consu
 			}
 			result.TotalAPICost += apiCost
 			if accountIDValue != 0 {
+				apiAccounts[accountIDValue] = struct{}{}
 				addAccountBreakdown(result, accountIndex, accountConfig, accountIDValue, kindValue, rawRevenue, apiCost, requests, multiplier, multiplierSource(accountConfig, snapshotRateMultiplier, accountRateMultiplier))
 			}
 		} else {
@@ -209,6 +242,7 @@ func (s *Sub2APICostStore) QueryConsumption(ctx context.Context, query ops.Consu
 			addAccountBreakdown(result, accountIndex, accountConfig, accountIDValue, kindValue, rawRevenue, 0, requests, 0, "purchase cost")
 		}
 	}
+	result.APIAccountCount = int64(len(apiAccounts))
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -250,6 +284,29 @@ func accountAPICost(kind string, historicalCost, unsnapshottedRaw, multiplier fl
 }
 
 func applyProfitMetrics(result *ops.ConsumptionResponse, config ops.CostConfig) {
+	result.TotalCost = result.TotalAPICost + result.TotalOAuthCost
+	if !result.RevenueAvailable {
+		for i := range result.Days {
+			result.Days[i].GrossProfit = 0
+			result.Days[i].Profit = 0
+			result.Days[i].NetProfit = 0
+			result.Days[i].APIGrossProfit = 0
+			result.Days[i].APITaxAmount = 0
+			result.Days[i].APINetProfit = 0
+		}
+		for i := range result.Accounts {
+			result.Accounts[i].GrossProfit = 0
+			result.Accounts[i].TaxAmount = 0
+			result.Accounts[i].NetProfit = 0
+		}
+		result.GrossProfit = 0
+		result.GrossMargin = 0
+		result.TotalTax = 0
+		result.Profit = 0
+		result.NetProfit = 0
+		result.NetMargin = 0
+		return
+	}
 	for i := range result.Days {
 		result.Days[i].GrossProfit = result.Days[i].Revenue - result.Days[i].TotalCost
 		result.Days[i].Profit = result.Days[i].GrossProfit
@@ -265,7 +322,6 @@ func applyProfitMetrics(result *ops.ConsumptionResponse, config ops.CostConfig) 
 			result.Days[i].APINetMargin = result.Days[i].APINetProfit / result.Days[i].APIRevenue
 		}
 	}
-	result.TotalCost = result.TotalAPICost + result.TotalOAuthCost
 	result.GrossProfit = result.TotalRevenue - result.TotalCost
 	if result.TotalRevenue > 0 {
 		result.GrossMargin = result.GrossProfit / result.TotalRevenue
@@ -283,6 +339,18 @@ func applyProfitMetrics(result *ops.ConsumptionResponse, config ops.CostConfig) 
 	}
 }
 
+// chargeColumnExpression only accepts fields that explicitly represent the
+// amount charged to the customer. Provider cost fields must never be reused
+// as revenue because that makes the profit view look valid while being false.
+func chargeColumnExpression(alias string, columns map[string]bool) (string, string) {
+	for _, name := range []string{"charged_amount", "billed_amount", "user_charge", "request_amount"} {
+		if columns[name] {
+			return fmt.Sprintf("COALESCE(%s.%s::numeric, 0)", alias, identifier(name)), name
+		}
+	}
+	return "0", ""
+}
+
 func addAccountBreakdown(result *ops.ConsumptionResponse, index map[string]int, config ops.AccountCostConfig, accountID int64, kind string, revenue, cost float64, requests int64, multiplier float64, source string) {
 	key := billingGroupKey(config, accountID, kind)
 	i, ok := index[key]
@@ -292,7 +360,7 @@ func addAccountBreakdown(result *ops.ConsumptionResponse, index map[string]int, 
 		result.Accounts = append(result.Accounts, ops.AccountConsumption{
 			AccountID: accountID, AccountIDs: []int64{accountID}, AccountType: kind, AccountTypes: []string{kind},
 			Name: config.Name, Platform: config.Platform, BillingGroup: strings.TrimSpace(config.BillingGroup),
-			AccountCreatedAt: config.AccountCreatedAt,
+			AccountCreatedAt: config.AccountCreatedAt, AccountExpiresAt: config.AccountExpiresAt,
 		})
 	}
 	item := &result.Accounts[i]
@@ -305,6 +373,9 @@ func addAccountBreakdown(result *ops.ConsumptionResponse, index map[string]int, 
 	}
 	if item.AccountCreatedAt == nil || (config.AccountCreatedAt != nil && config.AccountCreatedAt.Before(*item.AccountCreatedAt)) {
 		item.AccountCreatedAt = config.AccountCreatedAt
+	}
+	if config.AccountExpiresAt != nil && (item.AccountExpiresAt == nil || config.AccountExpiresAt.Before(*item.AccountExpiresAt)) {
+		item.AccountExpiresAt = config.AccountExpiresAt
 	}
 	item.Requests += requests
 	item.Revenue += revenue

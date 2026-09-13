@@ -12,20 +12,22 @@ interface AccountCreatedDateRangePickerProps {
   from: string;
   to: string;
   onChange: (from: string, to: string) => void;
+  inputId?: string;
+  hintId?: string;
 }
 
 /** 通过同一日历选择账号创建日期范围，保留本地日期口径。 */
-export function AccountCreatedDateRangePicker({ from, to, onChange }: AccountCreatedDateRangePickerProps) {
+export function AccountCreatedDateRangePicker({ from, to, onChange, inputId = "account-created-range", hintId }: AccountCreatedDateRangePickerProps) {
   const [open, setOpen] = useState(false);
   const isMobile = useIsMobile();
   const selected = from ? { from: new Date(`${from}T00:00:00`), to: to ? new Date(`${to}T00:00:00`) : undefined } : undefined;
 
   return (
     <div className="aux-account-filter-field aux-account-date-range-filter">
-      <Label htmlFor="account-created-range" className="text-xs font-normal">创建时间</Label>
+      <Label htmlFor={inputId} className="text-xs font-normal">创建时间</Label>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button id="account-created-range" type="button" variant="outline" className={`h-9 w-full justify-start gap-2 text-left text-xs font-normal ${from ? "" : "text-muted-foreground"}`} aria-describedby="account-date-hint">
+          <Button id={inputId} type="button" variant="outline" className={`h-9 w-full justify-start gap-2 text-left text-xs font-normal ${from ? "" : "text-muted-foreground"}`} aria-describedby={hintId || undefined}>
             <CalendarDays className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span className="truncate">{from ? `${from} — ${to || "选择结束日期"}` : "选择创建日期范围"}</span>
           </Button>

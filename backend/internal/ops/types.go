@@ -23,6 +23,7 @@ type Sub2APIAccount struct {
 	CreatedAt      *time.Time `json:"created_at,omitempty"`
 	DeletedAt      *time.Time `json:"deleted_at,omitempty"`
 	UpdatedAt      time.Time  `json:"updated_at"`
+	ExpiresAt      *time.Time `json:"expires_at,omitempty"`
 }
 
 // AccountCostConfig is the extension-owned per-account cost policy. A nil
@@ -39,6 +40,7 @@ type AccountCostConfig struct {
 	APIMultiplierMode     string     `json:"api_multiplier_mode"`
 	LastSyncedAt          *time.Time `json:"last_synced_at,omitempty"`
 	AccountCreatedAt      *time.Time `json:"account_created_at,omitempty"`
+	AccountExpiresAt      *time.Time `json:"account_expires_at,omitempty"`
 	AccountDeletedAt      *time.Time `json:"account_deleted_at,omitempty"`
 }
 
@@ -114,6 +116,22 @@ type DailyConsumption struct {
 	APIAccountCount   int64     `json:"api_account_count"`
 }
 
+// DailyAccountConsumption 是按日期和真实账号拆分的用量明细；OAuth 采购成本仍属于区间级总账。
+type DailyAccountConsumption struct {
+	Date             time.Time `json:"date"`
+	AccountID        int64     `json:"account_id"`
+	AccountType      string    `json:"account_type"`
+	Name             string    `json:"name"`
+	Platform         string    `json:"platform"`
+	Requests         int64     `json:"requests"`
+	Tokens           int64     `json:"tokens"`
+	Revenue          float64   `json:"revenue"`
+	APICost          float64   `json:"api_cost"`
+	OAuthCost        float64   `json:"oauth_cost"`
+	Multiplier       float64   `json:"multiplier"`
+	MultiplierSource string    `json:"multiplier_source"`
+}
+
 type AccountConsumption struct {
 	AccountID        int64               `json:"account_id"`
 	AccountIDs       []int64             `json:"account_ids,omitempty"`
@@ -123,6 +141,7 @@ type AccountConsumption struct {
 	Platform         string              `json:"platform"`
 	BillingGroup     string              `json:"billing_group,omitempty"`
 	AccountCreatedAt *time.Time          `json:"account_created_at,omitempty"`
+	AccountExpiresAt *time.Time          `json:"account_expires_at,omitempty"`
 	Requests         int64               `json:"requests"`
 	Revenue          float64             `json:"revenue"`
 	APICost          float64             `json:"api_cost"`
@@ -145,22 +164,26 @@ type AccountMultiplier struct {
 }
 
 type ConsumptionResponse struct {
-	StartTime         time.Time            `json:"start_time"`
-	EndTime           time.Time            `json:"end_time"`
-	Config            CostConfig           `json:"config"`
-	TotalRequests     int64                `json:"total_requests"`
-	TotalTokens       int64                `json:"total_tokens"`
-	TotalRevenue      float64              `json:"total_revenue"`
-	TotalAPICost      float64              `json:"total_api_cost"`
-	TotalOAuthCost    float64              `json:"total_oauth_cost"`
-	TotalCost         float64              `json:"total_cost"`
-	GrossProfit       float64              `json:"gross_profit"`
-	GrossMargin       float64              `json:"gross_margin"`
-	TotalTax          float64              `json:"total_tax"`
-	Profit            float64              `json:"profit"`
-	NetProfit         float64              `json:"net_profit"`
-	NetMargin         float64              `json:"net_margin"`
-	OAuthAccountCount int64                `json:"oauth_account_count"`
-	Days              []DailyConsumption   `json:"days"`
-	Accounts          []AccountConsumption `json:"accounts"`
+	StartTime         time.Time                 `json:"start_time"`
+	EndTime           time.Time                 `json:"end_time"`
+	Config            CostConfig                `json:"config"`
+	TotalRequests     int64                     `json:"total_requests"`
+	TotalTokens       int64                     `json:"total_tokens"`
+	TotalRevenue      float64                   `json:"total_revenue"`
+	RevenueAvailable  bool                      `json:"revenue_available"`
+	RevenueSource     string                    `json:"revenue_source,omitempty"`
+	TotalAPICost      float64                   `json:"total_api_cost"`
+	TotalOAuthCost    float64                   `json:"total_oauth_cost"`
+	TotalCost         float64                   `json:"total_cost"`
+	GrossProfit       float64                   `json:"gross_profit"`
+	GrossMargin       float64                   `json:"gross_margin"`
+	TotalTax          float64                   `json:"total_tax"`
+	Profit            float64                   `json:"profit"`
+	NetProfit         float64                   `json:"net_profit"`
+	NetMargin         float64                   `json:"net_margin"`
+	OAuthAccountCount int64                     `json:"oauth_account_count"`
+	APIAccountCount   int64                     `json:"api_account_count"`
+	Days              []DailyConsumption        `json:"days"`
+	DailyAccounts     []DailyAccountConsumption `json:"daily_accounts"`
+	Accounts          []AccountConsumption      `json:"accounts"`
 }

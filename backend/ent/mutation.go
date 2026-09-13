@@ -76,6 +76,7 @@ type AccountCostConfigMutation struct {
 	api_multiplier_mode        *string
 	last_synced_at             *time.Time
 	account_created_at         *time.Time
+	account_expires_at         *time.Time
 	account_deleted_at         *time.Time
 	created_at                 *time.Time
 	updated_at                 *time.Time
@@ -753,6 +754,55 @@ func (m *AccountCostConfigMutation) ResetAccountCreatedAt() {
 	delete(m.clearedFields, accountcostconfig.FieldAccountCreatedAt)
 }
 
+// SetAccountExpiresAt sets the "account_expires_at" field.
+func (m *AccountCostConfigMutation) SetAccountExpiresAt(t time.Time) {
+	m.account_expires_at = &t
+}
+
+// AccountExpiresAt returns the value of the "account_expires_at" field in the mutation.
+func (m *AccountCostConfigMutation) AccountExpiresAt() (r time.Time, exists bool) {
+	v := m.account_expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountExpiresAt returns the old "account_expires_at" field's value of the AccountCostConfig entity.
+// If the AccountCostConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountCostConfigMutation) OldAccountExpiresAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountExpiresAt: %w", err)
+	}
+	return oldValue.AccountExpiresAt, nil
+}
+
+// ClearAccountExpiresAt clears the value of the "account_expires_at" field.
+func (m *AccountCostConfigMutation) ClearAccountExpiresAt() {
+	m.account_expires_at = nil
+	m.clearedFields[accountcostconfig.FieldAccountExpiresAt] = struct{}{}
+}
+
+// AccountExpiresAtCleared returns if the "account_expires_at" field was cleared in this mutation.
+func (m *AccountCostConfigMutation) AccountExpiresAtCleared() bool {
+	_, ok := m.clearedFields[accountcostconfig.FieldAccountExpiresAt]
+	return ok
+}
+
+// ResetAccountExpiresAt resets all changes to the "account_expires_at" field.
+func (m *AccountCostConfigMutation) ResetAccountExpiresAt() {
+	m.account_expires_at = nil
+	delete(m.clearedFields, accountcostconfig.FieldAccountExpiresAt)
+}
+
 // SetAccountDeletedAt sets the "account_deleted_at" field.
 func (m *AccountCostConfigMutation) SetAccountDeletedAt(t time.Time) {
 	m.account_deleted_at = &t
@@ -908,7 +958,7 @@ func (m *AccountCostConfigMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AccountCostConfigMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 15)
 	if m.account_id != nil {
 		fields = append(fields, accountcostconfig.FieldAccountID)
 	}
@@ -941,6 +991,9 @@ func (m *AccountCostConfigMutation) Fields() []string {
 	}
 	if m.account_created_at != nil {
 		fields = append(fields, accountcostconfig.FieldAccountCreatedAt)
+	}
+	if m.account_expires_at != nil {
+		fields = append(fields, accountcostconfig.FieldAccountExpiresAt)
 	}
 	if m.account_deleted_at != nil {
 		fields = append(fields, accountcostconfig.FieldAccountDeletedAt)
@@ -981,6 +1034,8 @@ func (m *AccountCostConfigMutation) Field(name string) (ent.Value, bool) {
 		return m.LastSyncedAt()
 	case accountcostconfig.FieldAccountCreatedAt:
 		return m.AccountCreatedAt()
+	case accountcostconfig.FieldAccountExpiresAt:
+		return m.AccountExpiresAt()
 	case accountcostconfig.FieldAccountDeletedAt:
 		return m.AccountDeletedAt()
 	case accountcostconfig.FieldCreatedAt:
@@ -1018,6 +1073,8 @@ func (m *AccountCostConfigMutation) OldField(ctx context.Context, name string) (
 		return m.OldLastSyncedAt(ctx)
 	case accountcostconfig.FieldAccountCreatedAt:
 		return m.OldAccountCreatedAt(ctx)
+	case accountcostconfig.FieldAccountExpiresAt:
+		return m.OldAccountExpiresAt(ctx)
 	case accountcostconfig.FieldAccountDeletedAt:
 		return m.OldAccountDeletedAt(ctx)
 	case accountcostconfig.FieldCreatedAt:
@@ -1109,6 +1166,13 @@ func (m *AccountCostConfigMutation) SetField(name string, value ent.Value) error
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAccountCreatedAt(v)
+		return nil
+	case accountcostconfig.FieldAccountExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountExpiresAt(v)
 		return nil
 	case accountcostconfig.FieldAccountDeletedAt:
 		v, ok := value.(time.Time)
@@ -1233,6 +1297,9 @@ func (m *AccountCostConfigMutation) ClearedFields() []string {
 	if m.FieldCleared(accountcostconfig.FieldAccountCreatedAt) {
 		fields = append(fields, accountcostconfig.FieldAccountCreatedAt)
 	}
+	if m.FieldCleared(accountcostconfig.FieldAccountExpiresAt) {
+		fields = append(fields, accountcostconfig.FieldAccountExpiresAt)
+	}
 	if m.FieldCleared(accountcostconfig.FieldAccountDeletedAt) {
 		fields = append(fields, accountcostconfig.FieldAccountDeletedAt)
 	}
@@ -1270,6 +1337,9 @@ func (m *AccountCostConfigMutation) ClearField(name string) error {
 		return nil
 	case accountcostconfig.FieldAccountCreatedAt:
 		m.ClearAccountCreatedAt()
+		return nil
+	case accountcostconfig.FieldAccountExpiresAt:
+		m.ClearAccountExpiresAt()
 		return nil
 	case accountcostconfig.FieldAccountDeletedAt:
 		m.ClearAccountDeletedAt()
@@ -1314,6 +1384,9 @@ func (m *AccountCostConfigMutation) ResetField(name string) error {
 		return nil
 	case accountcostconfig.FieldAccountCreatedAt:
 		m.ResetAccountCreatedAt()
+		return nil
+	case accountcostconfig.FieldAccountExpiresAt:
+		m.ResetAccountExpiresAt()
 		return nil
 	case accountcostconfig.FieldAccountDeletedAt:
 		m.ResetAccountDeletedAt()

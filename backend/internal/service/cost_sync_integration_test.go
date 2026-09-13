@@ -58,12 +58,12 @@ func TestCostAccountSyncDeletionAndMigration(t *testing.T) {
 	require.NoError(t, client.Schema.Create(ctx))
 	_, err = db.ExecContext(ctx, `CREATE TABLE accounts (
 		id bigint PRIMARY KEY, name text, type text, platform text, rate_multiplier numeric,
-		created_at timestamptz, updated_at timestamptz, deleted_at timestamptz);
+		created_at timestamptz, expires_at timestamptz, updated_at timestamptz, deleted_at timestamptz);
 		INSERT INTO accounts VALUES
-		(1, '有效 OAuth', 'oauth', 'openai', 1, '2026-09-10T00:00:00Z', now(), NULL),
-		(2, '已删除 API', 'apikey', 'anthropic', 0.7, '2026-09-12T00:00:00Z', now(), '2026-09-13T00:00:00Z'),
-		(3, '未知创建时间', 'apikey', 'openai', 1, NULL, now(), NULL),
-		(4, '同日有效 API', 'apikey', 'anthropic', 1, '2026-09-12T00:00:00Z', now(), NULL)`)
+		(1, '有效 OAuth', 'oauth', 'openai', 1, '2026-09-10T00:00:00Z', '2026-10-01T00:00:00Z', now(), NULL),
+		(2, '已删除 API', 'apikey', 'anthropic', 0.7, '2026-09-12T00:00:00Z', NULL, now(), '2026-09-13T00:00:00Z'),
+		(3, '未知创建时间', 'apikey', 'openai', 1, NULL, NULL, now(), NULL),
+		(4, '同日有效 API', 'apikey', 'anthropic', 1, '2026-09-12T00:00:00Z', NULL, now(), NULL)`)
 	require.NoError(t, err)
 	result, err := svc.Sync(ctx)
 	require.NoError(t, err)
@@ -80,6 +80,8 @@ func TestCostAccountSyncDeletionAndMigration(t *testing.T) {
 	require.Equal(t, 0.2, *deleted.APIMultiplierOverride)
 	require.Nil(t, result.Accounts[0].AccountDeletedAt)
 	require.Nil(t, result.Accounts[3].AccountCreatedAt)
+	require.NotNil(t, result.Accounts[2].AccountExpiresAt)
+	require.Equal(t, "2026-10-01T00:00:00Z", result.Accounts[2].AccountExpiresAt.UTC().Format(time.RFC3339))
 
 	// 编辑成本不得通过响应中的同步字段篡改删除状态。
 	for _, value := range []*time.Time{nil, new(time.Time)} {
@@ -111,6 +113,8 @@ func TestCostAccountSyncDeletionAndMigration(t *testing.T) {
 
 	// 兼容没有删除时间列的旧版上游表。
 	_, err = db.ExecContext(ctx, `ALTER TABLE accounts DROP COLUMN deleted_at`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `ALTER TABLE accounts DROP COLUMN expires_at`)
 	require.NoError(t, err)
 	upstream, err := source.ListAccounts(ctx)
 	require.NoError(t, err)

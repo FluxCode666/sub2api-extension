@@ -35,6 +35,8 @@ const (
 	FieldLastSyncedAt = "last_synced_at"
 	// FieldAccountCreatedAt holds the string denoting the account_created_at field in the database.
 	FieldAccountCreatedAt = "account_created_at"
+	// FieldAccountExpiresAt holds the string denoting the account_expires_at field in the database.
+	FieldAccountExpiresAt = "account_expires_at"
 	// FieldAccountDeletedAt holds the string denoting the account_deleted_at field in the database.
 	FieldAccountDeletedAt = "account_deleted_at"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -59,6 +61,7 @@ var Columns = []string{
 	FieldAPIMultiplierMode,
 	FieldLastSyncedAt,
 	FieldAccountCreatedAt,
+	FieldAccountExpiresAt,
 	FieldAccountDeletedAt,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -160,6 +163,11 @@ func ByLastSyncedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByAccountCreatedAt orders the results by the account_created_at field.
 func ByAccountCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAccountCreatedAt, opts...).ToFunc()
+}
+
+// ByAccountExpiresAt orders the results by the account_expires_at field.
+func ByAccountExpiresAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAccountExpiresAt, opts...).ToFunc()
 }
 
 // ByAccountDeletedAt orders the results by the account_deleted_at field.

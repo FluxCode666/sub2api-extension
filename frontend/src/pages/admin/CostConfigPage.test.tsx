@@ -61,6 +61,27 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe("成本配置列表", () => {
+  it("默认核算参数通过弹窗编辑，取消不会改动已保存摘要", async () => {
+    await openPage();
+    expect(screen.getByText("CNY 0.00")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "编辑默认核算参数" }));
+    const dialog = screen.getByRole("dialog", { name: "默认核算参数" });
+    expect(within(dialog).getByLabelText("OAuth 默认单号成本")).toHaveValue(0);
+    fireEvent.change(within(dialog).getByLabelText("OAuth 默认单号成本"), { target: { value: "12.5" } });
+    await userEvent.click(within(dialog).getByRole("button", { name: "取消" }));
+    expect(screen.queryByRole("dialog", { name: "默认核算参数" })).not.toBeInTheDocument();
+    expect(screen.getByText("CNY 0.00")).toBeInTheDocument();
+
+    vi.mocked(apiClient.put).mockResolvedValue({ code: 0, data: { oauth_account_cost: 12.5, api_cost_multiplier: 1, tax_rate: 0, currency: "CNY" } });
+    await userEvent.click(screen.getByRole("button", { name: "编辑默认核算参数" }));
+    const reopenedDialog = screen.getByRole("dialog", { name: "默认核算参数" });
+    fireEvent.change(within(reopenedDialog).getByLabelText("OAuth 默认单号成本"), { target: { value: "12.5" } });
+    await userEvent.click(within(reopenedDialog).getByRole("button", { name: "保存默认配置" }));
+    await waitFor(() => expect(apiClient.put).toHaveBeenCalledWith("/admin/ops/cost-config", { oauth_account_cost: 12.5, api_cost_multiplier: 1, tax_rate: 0, currency: "CNY" }));
+    expect(screen.getByText("CNY 12.50")).toBeInTheDocument();
+  });
+
   it("分页显示账号，跨页和筛选保留编辑，并按账号 ID 保存", async () => {
     vi.mocked(apiClient.put).mockResolvedValue({ code: 0, data: { ...accounts[24], oauth_account_cost: 42 } });
     await openPage();
