@@ -105,7 +105,7 @@ const responseWithRevenue = {
   data: {
     ...response.data,
     revenue_available: true,
-    revenue_source: "charged_amount",
+    revenue_source: "actual_cost",
     total_revenue: 27,
     daily_accounts: response.data.daily_accounts.map((row) => ({
       ...row,
@@ -159,6 +159,33 @@ const responseWithAccountLists = {
         multiplier_source: isOAuth ? "purchase cost" : "manual",
       };
     }),
+  },
+};
+
+const responseWithMixedBillingGroup = {
+  ...responseWithRevenue,
+  data: {
+    ...responseWithRevenue.data,
+    accounts: [{
+      account_id: 8,
+      account_ids: [7, 8],
+      account_type: "mixed",
+      account_types: ["api", "oauth"],
+      name: "混合计费组",
+      platform: "openai",
+      billing_group: "混合计费组",
+      requests: 2,
+      revenue: 110,
+      api_revenue: 100,
+      oauth_revenue: 10,
+      api_cost: 80,
+      oauth_cost: 10,
+      gross_profit: 20,
+      tax_amount: 6.6,
+      net_profit: 13.4,
+      multiplier: 1,
+      multiplier_source: "manual",
+    }],
   },
 };
 
@@ -278,6 +305,7 @@ describe("消费核算", () => {
     render(<ConsumptionPage />);
 
     const accountDetails = await screen.findByRole("region", { name: "账号成本明细" });
+    expect(within(accountDetails).queryByRole("columnheader", { name: "倍率 / 口径" })).not.toBeInTheDocument();
     expect(within(accountDetails).getByRole("columnheader", { name: "毛利" })).toBeInTheDocument();
     expect(within(accountDetails).getByRole("columnheader", { name: "利润" })).toBeInTheDocument();
     expect(within(accountDetails).getAllByText("¥3.00").length).toBeGreaterThan(0);
@@ -297,5 +325,14 @@ describe("消费核算", () => {
 
     await userEvent.click(within(accountDetails).getByRole("button", { name: "清除筛选" }));
     expect(within(accountDetails).getByText("计费组-1")).toBeInTheDocument();
+  });
+
+  it("OAuth 回本只累计混合计费组中的 OAuth 收入", async () => {
+    vi.mocked(apiClient.get).mockResolvedValue(responseWithMixedBillingGroup);
+    render(<ConsumptionPage />);
+
+    const payback = await screen.findByRole("region", { name: "OAuth 回本分析" });
+    expect(within(payback).getAllByText("¥10.00").length).toBeGreaterThan(0);
+    expect(within(payback).queryByText("¥110.00")).not.toBeInTheDocument();
   });
 });

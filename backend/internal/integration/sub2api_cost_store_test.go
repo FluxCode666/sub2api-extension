@@ -138,8 +138,14 @@ func TestApplyProfitMetricsWithoutRevenueDoesNotInventProfit(t *testing.T) {
 	}
 }
 
-func TestChargeColumnExpressionOnlyUsesExplicitChargeFields(t *testing.T) {
-	if expression, source := chargeColumnExpression("u", map[string]bool{"actual_cost": true}); expression != "0" || source != "" {
+func TestChargeColumnExpressionUsesSub2APIActualCost(t *testing.T) {
+	if expression, source := chargeColumnExpression("u", map[string]bool{"actual_cost": true}); expression == "0" || source != "actual_cost" {
+		t.Fatalf("Sub2API actual_cost should be used as user revenue: expression=%q source=%q", expression, source)
+	}
+	if expression, source := chargeColumnExpression("u", map[string]bool{"actual_cost": true, "billed_amount": true}); source != "actual_cost" || expression == "0" {
+		t.Fatalf("canonical actual_cost should take precedence: expression=%q source=%q", expression, source)
+	}
+	if expression, source := chargeColumnExpression("u", map[string]bool{"total_cost": true, "provider_cost": true}); expression != "0" || source != "" {
 		t.Fatalf("provider cost must not become revenue: expression=%q source=%q", expression, source)
 	}
 	if expression, source := chargeColumnExpression("u", map[string]bool{"billed_amount": true}); expression == "0" || source != "billed_amount" {
@@ -219,7 +225,7 @@ func TestAddAccountBreakdownMergesAPIAndOAuthCosts(t *testing.T) {
 		t.Fatalf("got %d account rows, want one mixed row", len(result.Accounts))
 	}
 	row := result.Accounts[0]
-	if row.AccountType != "mixed" || len(row.AccountTypes) != 2 || row.APICost != 10 || row.OAuthCost != 20 || row.Requests != 3 || row.Revenue != 300 {
+	if row.AccountType != "mixed" || len(row.AccountTypes) != 2 || row.APICost != 10 || row.OAuthCost != 20 || row.Requests != 3 || row.Revenue != 300 || row.APIRevenue != 100 || row.OAuthRevenue != 200 {
 		t.Fatalf("mixed row = %+v", row)
 	}
 }

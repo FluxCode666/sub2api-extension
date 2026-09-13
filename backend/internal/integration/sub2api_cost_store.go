@@ -339,11 +339,12 @@ func applyProfitMetrics(result *ops.ConsumptionResponse, config ops.CostConfig) 
 	}
 }
 
-// chargeColumnExpression only accepts fields that explicitly represent the
-// amount charged to the customer. Provider cost fields must never be reused
-// as revenue because that makes the profit view look valid while being false.
+// chargeColumnExpression selects a field that represents the amount charged to
+// the customer. Sub2API's usage_logs.actual_cost is the canonical user charge;
+// the remaining names are kept for compatible deployments with an explicit
+// billing column. Provider cost fields must never be reused as revenue.
 func chargeColumnExpression(alias string, columns map[string]bool) (string, string) {
-	for _, name := range []string{"charged_amount", "billed_amount", "user_charge", "request_amount"} {
+	for _, name := range []string{"actual_cost", "charged_amount", "billed_amount", "user_charge", "request_amount"} {
 		if columns[name] {
 			return fmt.Sprintf("COALESCE(%s.%s::numeric, 0)", alias, identifier(name)), name
 		}
@@ -380,8 +381,10 @@ func addAccountBreakdown(result *ops.ConsumptionResponse, index map[string]int, 
 	item.Requests += requests
 	item.Revenue += revenue
 	if kind == "oauth" {
+		item.OAuthRevenue += revenue
 		item.OAuthCost += cost
 	} else {
+		item.APIRevenue += revenue
 		item.APICost += cost
 		if multiplier > 0 {
 			if item.Multiplier == 0 {

@@ -76,6 +76,8 @@ interface AccountConsumption {
   account_expires_at?: string | null;
   requests: number;
   revenue: number;
+  api_revenue?: number;
+  oauth_revenue?: number;
   api_cost: number;
   oauth_cost: number;
   gross_profit: number;
@@ -767,19 +769,6 @@ function DateRangePicker({
   );
 }
 
-function formatAccountCostBasis(account: AccountConsumption): ReactNode {
-  if (account.account_type === "oauth") return "采购单号成本";
-  const multipliers = account.multipliers?.length
-    ? account.multipliers.map((item) => `#${item.account_id} ×${item.multiplier.toFixed(4)} · ${item.source}`).join("；")
-    : "API 倍率未记录";
-  if (account.account_type === "mixed") {
-    return <>{multipliers}<br />{account.account_types?.includes("oauth") ? "OAuth 采购单号成本" : ""}</>;
-  }
-  return account.multipliers?.length && account.multipliers.length > 1
-    ? multipliers
-    : `×${account.multiplier.toFixed(4)} · ${account.multiplier_source}`;
-}
-
 function DailyDetailsTable({
   rows,
   type,
@@ -896,7 +885,7 @@ function OAuthPaybackPanel({
   const pageCount = Math.max(1, Math.ceil(filteredAccounts.length / pageSize));
   const currentPage = Math.min(page, pageCount);
   const visibleAccounts = filteredAccounts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const totalRevenue = oauthAccounts.reduce((sum, account) => sum + account.revenue, 0);
+  const totalRevenue = oauthAccounts.reduce((sum, account) => sum + (account.oauth_revenue ?? (account.account_type === "oauth" ? account.revenue : 0)), 0);
   const totalCost = oauthAccounts.reduce((sum, account) => sum + account.oauth_cost, 0);
   const overallProgress = revenueAvailable && totalCost > 0
     ? Math.min(100, Math.max(0, totalRevenue / totalCost * 100))
@@ -976,17 +965,18 @@ function OAuthPaybackPanel({
                 </TableCell>
               </TableRow>
             ) : visibleAccounts.map((account) => {
+              const oauthRevenue = account.oauth_revenue ?? (account.account_type === "oauth" ? account.revenue : 0);
               const progress = revenueAvailable && account.oauth_cost > 0
-                ? Math.min(100, Math.max(0, account.revenue / account.oauth_cost * 100))
+                ? Math.min(100, Math.max(0, oauthRevenue / account.oauth_cost * 100))
                 : null;
               const outstanding = progress === null
                 ? null
-                : Math.max(0, account.oauth_cost - account.revenue);
+                : Math.max(0, account.oauth_cost - oauthRevenue);
               const status = !revenueAvailable
                 ? "待收费数据"
                 : account.oauth_cost <= 0
                   ? "待配置成本"
-                  : account.revenue >= account.oauth_cost
+                  : oauthRevenue >= account.oauth_cost
                     ? "已回本"
                     : "未回本";
               const accountIDs = account.account_ids?.length ? account.account_ids : [account.account_id];
@@ -998,7 +988,7 @@ function OAuthPaybackPanel({
                   </TableCell>
                   <TableCell><small>{formatDateTime(account.account_created_at)}</small></TableCell>
                   <TableCell><small>{formatExpiryDateTime(account.account_expires_at)}</small></TableCell>
-                  <TableCell>{revenueAvailable ? formatMoney(account.revenue, currency) : "—"}</TableCell>
+                  <TableCell>{revenueAvailable ? formatMoney(oauthRevenue, currency) : "—"}</TableCell>
                   <TableCell>{formatMoney(account.oauth_cost, currency)}</TableCell>
                   <TableCell>{progress === null ? "—" : `${progress.toFixed(1)}%`}</TableCell>
                   <TableCell>{outstanding === null ? "—" : formatMoney(outstanding, currency)}</TableCell>
@@ -1105,7 +1095,6 @@ function AccountCostDetailsPanel({
               <TableHead>收入</TableHead>
               <TableHead>API 成本</TableHead>
               <TableHead>OAuth 成本</TableHead>
-              <TableHead>倍率 / 口径</TableHead>
               <TableHead>毛利</TableHead>
               <TableHead>税额</TableHead>
               <TableHead>利润</TableHead>
@@ -1114,7 +1103,7 @@ function AccountCostDetailsPanel({
           <TableBody>
             {filteredAccounts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="aux-cost-empty-cell">
+                <TableCell colSpan={10} className="aux-cost-empty-cell">
                   {accounts.length === 0 ? "当前区间暂无账号成本明细" : "没有符合筛选条件的账号成本明细"}
                 </TableCell>
               </TableRow>
@@ -1132,7 +1121,6 @@ function AccountCostDetailsPanel({
                   <TableCell>{revenueAvailable ? formatMoney(account.revenue, currency) : "—"}</TableCell>
                   <TableCell>{formatMoney(account.api_cost, currency)}</TableCell>
                   <TableCell>{formatMoney(account.oauth_cost, currency)}</TableCell>
-                  <TableCell><small>{formatAccountCostBasis(account)}</small></TableCell>
                   <TableCell className={revenueAvailable ? account.gross_profit >= 0 ? "is-positive" : "is-negative" : undefined}>
                     {revenueAvailable ? formatMoney(account.gross_profit, currency) : "—"}
                   </TableCell>

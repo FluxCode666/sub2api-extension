@@ -208,8 +208,12 @@ func parseConsumptionTime(value string) (time.Time, error) {
 			return parsed, nil
 		}
 	}
+	// Date-only and local date/time values come from the admin date picker. They
+	// represent Shanghai calendar time because the SQL day bucket uses the same
+	// timezone; do not let the container's local timezone shift the range.
+	uiLocation := time.FixedZone("Asia/Shanghai", 8*60*60)
 	for _, layout := range []string{"2006-01-02T15:04", "2006-01-02 15:04:05", "2006-01-02"} {
-		if parsed, err := time.ParseInLocation(layout, value, time.Local); err == nil {
+		if parsed, err := time.ParseInLocation(layout, value, uiLocation); err == nil {
 			return parsed.UTC(), nil
 		}
 	}

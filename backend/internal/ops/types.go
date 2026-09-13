@@ -144,6 +144,8 @@ type AccountConsumption struct {
 	AccountExpiresAt *time.Time          `json:"account_expires_at,omitempty"`
 	Requests         int64               `json:"requests"`
 	Revenue          float64             `json:"revenue"`
+	APIRevenue       float64             `json:"api_revenue"`
+	OAuthRevenue     float64             `json:"oauth_revenue"`
 	APICost          float64             `json:"api_cost"`
 	OAuthCost        float64             `json:"oauth_cost"`
 	GrossProfit      float64             `json:"gross_profit"`
