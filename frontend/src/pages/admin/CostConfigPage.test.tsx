@@ -15,7 +15,7 @@ const accounts = Array.from({ length: 25 }, (_, index) => ({
   account_deleted_at: null as string | null,
   billing_group: index < 2 ? "主账号组" : "",
   account_created_at: new Date(2026, 8, index + 1, 12).toISOString(),
-  oauth_account_cost: 10,
+  oauth_account_cost: 10 as number | null,
   api_multiplier_mode: "sync",
   synced_api_multiplier: 1,
 }));
@@ -140,6 +140,13 @@ describe("成本配置列表", () => {
     await userEvent.click(screen.getByRole("button", { name: "重置筛选" }));
     expect(screen.getByRole("combobox", { name: "成本配置" })).toHaveTextContent("全部配置");
     expect(visibleRows()).toHaveLength(3);
+  });
+
+  it("未配置 OAuth 单号成本时显示未配置提示", async () => {
+    vi.mocked(apiClient.get).mockResolvedValue(response([{ ...accounts[0], oauth_account_cost: null }]));
+    await openPage();
+
+    expect(screen.getByLabelText("账号 1 的 OAuth 单号成本")).toHaveAttribute("placeholder", "未配置");
   });
 
   it("单个范围日历支持同日筛选、本地首尾边界、组合搜索和清除", async () => {

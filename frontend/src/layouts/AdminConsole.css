@@ -536,7 +536,7 @@ html.dark .aux-admin-shell {
 .aux-cost-eyebrow > span { width: 30px; height: 1px; background: var(--console-accent); }
 .aux-cost-header h1 { margin: 0; font-size: clamp(2.6rem, 6vw, 5.5rem); font-weight: 700; letter-spacing: -.09em; line-height: 1; }
 .aux-cost-header > div > p:last-child { max-width: 760px; margin: 18px 0 0; color: var(--console-muted); font-size: 14px; line-height: 1.75; white-space: nowrap; }
-.aux-cost-refresh { display: inline-flex; min-height: 40px; align-items: center; gap: 8px; padding: 0 14px; border: 1px solid var(--console-line-strong); border-radius: 999px; background: var(--console-surface); color: var(--console-ink); font-size: 12px; font-weight: 680; cursor: pointer; transition: border-color 180ms ease, transform 180ms ease; }
+.aux-cost-refresh { display: inline-flex; flex: 0 0 auto; min-height: 40px; align-items: center; gap: 8px; padding: 0 14px; border: 1px solid var(--console-line-strong); border-radius: 999px; background: var(--console-surface); color: var(--console-ink); font-size: 12px; font-weight: 680; white-space: nowrap; cursor: pointer; transition: border-color 180ms ease, transform 180ms ease; }
 .aux-cost-refresh:hover { border-color: var(--console-accent); transform: translateY(-1px); }
 .aux-cost-filter { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-bottom: 16px; padding: 16px 18px; border: 1px solid var(--console-line); border-radius: 18px; background: color-mix(in srgb, var(--console-surface) 90%, transparent); }
 .aux-cost-filter-title { display: flex; min-width: 190px; align-items: center; gap: 10px; margin-right: auto; color: var(--console-accent); }
@@ -625,9 +625,9 @@ html.dark .aux-admin-shell {
 .aux-cost-config-status div { display: flex; flex-direction: column; gap: 1px; }
 .aux-cost-config-status strong { color: var(--console-ink); font-size: 11px; }
 .aux-cost-config-status small { color: var(--console-subtle); font-size: 9px; }
-.aux-config-layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr); gap: 12px; }
+.aux-config-layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr); align-items: start; gap: 12px; }
 .aux-config-form-panel, .aux-config-preview-panel { padding: 25px; }
-.aux-config-summary-panel { display: flex; min-height: 100%; flex-direction: column; }
+.aux-config-summary-panel { display: flex; flex-direction: column; }
 .aux-config-lock { display: inline-flex; align-items: center; gap: 5px; color: var(--cost-green); font-size: 10px; font-weight: 680; }
 .aux-config-summary-copy { max-width: 540px; margin: 22px 0 0; color: var(--console-muted); font-size: 12px; line-height: 1.7; }
 .aux-config-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 20px; }
@@ -668,19 +668,26 @@ html.dark .aux-admin-shell {
 .aux-default-config-alert { padding: 9px 11px; border: 1px solid color-mix(in srgb, #dc2626 30%, hsl(var(--border))); border-radius: 8px; background: color-mix(in srgb, #dc2626 7%, hsl(var(--background))); color: #b91c1c; font-size: 11px; line-height: 1.5; }
 .aux-default-config-footer { margin: 1px -22px -22px; padding: 15px 22px 16px; border-top: 1px solid hsl(var(--border)); background: color-mix(in srgb, hsl(var(--muted)) 34%, hsl(var(--background))); }
 .aux-default-config-footer button { min-width: 106px; min-height: 40px; border-radius: 9px; font-size: 11px; font-weight: 680; }
-.aux-account-config-panel { margin-top: 12px; padding: 23px; }
+.aux-account-config-panel { margin-top: 12px; padding: 24px 26px 20px; }
 .aux-account-panel-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 9px; }
 .aux-account-search { display: inline-flex; min-width: min(100%, 280px); min-height: 36px; align-items: center; gap: 8px; padding: 0 11px; border: 1px solid var(--console-line-strong); border-radius: 10px; background: var(--console-surface-strong); color: var(--console-subtle); }
 .aux-account-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--console-ink); font: inherit; font-size: 12px; }
 .aux-account-search:focus-within { outline: 2px solid var(--console-accent); outline-offset: 2px; }
-.aux-account-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-top: 18px; }
-.aux-account-filters .aux-account-search { flex: 1 1 260px; }
+.aux-account-filters { display: grid; grid-template-columns: minmax(280px, 1fr) repeat(3, minmax(128px, 150px)) minmax(238px, 280px) auto; align-items: end; gap: 10px; margin-top: 22px; }
+.aux-account-filters .aux-account-search { width: 100%; min-width: 0; min-height: 40px; }
 .aux-account-filter-field { display: grid; min-width: 0; gap: 6px; color: var(--console-muted); font-size: 11px; }
-.aux-account-filter-control { min-width: 120px; height: 36px; font-size: 12px; }
-.aux-account-name-column { width: 180px; max-width: 180px; }
+.aux-account-filter-control { width: 100%; min-width: 0; height: 40px; font-size: 12px; }
+.aux-account-filters .aux-account-date-range-filter { width: 100%; min-width: 0; }
+.aux-account-filters .aux-account-date-range-filter > button { height: 40px; }
+.aux-account-name-column { width: 230px; max-width: 230px; }
 .aux-account-name { display: grid; max-width: 180px; min-width: 0; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 6px; }
 .aux-account-name strong { min-width: 0; overflow-wrap: anywhere; white-space: normal; line-height: 1.45; }
 .aux-account-id { flex-shrink: 0; color: var(--console-subtle); font-size: 11px; }
+.aux-account-created-column { width: 175px; max-width: 175px; }
+.aux-account-type-column { width: 130px; max-width: 130px; }
+.aux-account-sync-column { width: 150px; max-width: 150px; }
+.aux-account-group-column { width: 190px; max-width: 190px; }
+.aux-account-actions-column { width: 78px; max-width: 78px; }
 .aux-account-created-at { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .aux-account-date-range-filter { width: 300px; max-width: 100%; }
 .aux-account-filter-hint { margin-top: 9px; color: var(--console-subtle); font-size: 11px; line-height: 1.5; }
@@ -733,14 +740,16 @@ html.dark .aux-admin-shell {
 .aux-account-merge-submit:hover:not(:disabled) { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
 .aux-account-merge-submit:disabled { cursor: not-allowed; background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); box-shadow: none; opacity: 1; }
 .aux-account-table-scroll { margin-top: 18px; overflow-x: auto; }
-.aux-account-table { width: 100%; min-width: 1280px; border-collapse: collapse; color: var(--console-muted); font-size: 12px; }
-.aux-account-table th { padding: 0 12px 12px; border-bottom: 1px solid var(--console-line); color: var(--console-subtle); font-size: 10px; font-weight: 700; text-align: left; white-space: nowrap; }
-.aux-account-table td { padding: 14px 12px; border-bottom: 1px solid var(--console-line); vertical-align: middle; }
+.aux-account-table { width: 100%; min-width: 1280px; table-layout: fixed; border-collapse: collapse; color: var(--console-muted); font-size: 12px; }
+.aux-account-table th { padding: 0 14px 10px; border-bottom: 1px solid var(--console-line); color: var(--console-subtle); font-size: 10px; font-weight: 700; text-align: left; white-space: nowrap; }
+.aux-account-table td { padding: 12px 14px; border-bottom: 1px solid var(--console-line); vertical-align: middle; }
 .aux-account-table tr:hover td { background: color-mix(in srgb, var(--console-accent) 4%, transparent); }
 .aux-account-table td strong, .aux-account-table td small { display: block; }
 .aux-account-table td strong { color: var(--console-ink); font-weight: 650; }
 .aux-account-table td small { margin-top: 4px; color: var(--console-subtle); font-size: 10px; }
-.aux-account-type { display: inline-flex; padding: 4px 7px; border-radius: 999px; font-size: 10px; font-weight: 700; }
+.aux-account-type-stack { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.aux-account-type-stack small { margin-top: 0 !important; padding-left: 8px; border-left: 1px solid var(--console-line-strong); font-size: 11px !important; letter-spacing: .01em; }
+.aux-account-type { display: inline-flex; min-width: 48px; justify-content: center; padding: 5px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; }
 .aux-account-type--oauth { color: #9e5c32; background: rgba(220, 144, 100, .14); }
 .aux-account-type--api { color: #4f5bc5; background: rgba(88, 100, 221, .12); }
 .aux-account-oauth-cost-column { width: 124px; max-width: 124px; white-space: normal !important; }
@@ -748,8 +757,13 @@ html.dark .aux-admin-shell {
 .aux-account-number { width: 104px; min-height: 34px; padding: 0 9px; border: 1px solid var(--console-line-strong); border-radius: 8px; background: var(--console-surface-strong); color: var(--console-ink); font: inherit; font-size: 12px; }
 .aux-account-api-multiplier-column .aux-account-number { width: 72px; }
 .aux-account-number:disabled { cursor: not-allowed; opacity: .5; }
-.aux-account-group { width: 150px; min-height: 34px; padding: 0 8px; border: 1px solid var(--console-line-strong); border-radius: 8px; background: var(--console-surface-strong); color: var(--console-ink); font: inherit; font-size: 11px; }
-.aux-account-multiplier { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.aux-cost-config-page input[type="number"], .aux-default-config-dialog input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+.aux-cost-config-page input[type="number"]::-webkit-inner-spin-button,
+.aux-cost-config-page input[type="number"]::-webkit-outer-spin-button,
+.aux-default-config-dialog input[type="number"]::-webkit-inner-spin-button,
+.aux-default-config-dialog input[type="number"]::-webkit-outer-spin-button { margin: 0; -webkit-appearance: none; }
+.aux-account-group { width: 100%; min-height: 34px; padding: 0 8px; border: 1px solid var(--console-line-strong); border-radius: 8px; background: var(--console-surface-strong); color: var(--console-ink); font: inherit; font-size: 11px; }
+.aux-account-multiplier { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; }
 .aux-account-mode, .aux-account-save { min-height: 32px; padding: 0 9px; border: 1px solid var(--console-line-strong); border-radius: 8px; background: var(--console-surface); color: var(--console-muted); font: inherit; font-size: 10px; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .aux-account-mode.is-manual { border-color: color-mix(in srgb, var(--console-accent) 50%, var(--console-line-strong)); color: var(--console-accent); }
 .aux-account-save { border: 0; background: var(--console-ink); color: var(--console-bg); }
@@ -761,6 +775,13 @@ html.dark .aux-admin-shell {
   .aux-cost-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .aux-config-layout { grid-template-columns: 1fr; }
   .aux-cost-header > div > p:last-child { max-width: 100%; white-space: normal; }
+}
+
+@media (max-width: 1440px) {
+  .aux-account-filters { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .aux-account-filters .aux-account-search { grid-column: span 2; }
+  .aux-account-filters .aux-account-date-range-filter { grid-column: span 2; }
+  .aux-account-filters > button { justify-self: start; }
 }
 
 @media (max-width: 560px) {
@@ -785,8 +806,9 @@ html.dark .aux-admin-shell {
   .aux-account-config-panel { padding: 17px; }
   .aux-account-panel-actions { width: 100%; align-items: stretch; flex-direction: column; }
   .aux-account-search { width: 100%; }
-  .aux-account-filter-field { flex: 1 1 150px; }
-  .aux-account-date-range-filter { flex-basis: 300px; }
+  .aux-account-filters { grid-template-columns: 1fr; gap: 10px; }
+  .aux-account-filters .aux-account-search, .aux-account-filters .aux-account-date-range-filter { grid-column: auto; }
+  .aux-account-filters > button { justify-self: stretch; }
   .aux-account-pagination-controls { width: 100%; justify-content: space-between; }
   .aux-account-merge-action { width: 100%; }
   .aux-account-merge-dialog-header { padding: 18px 46px 16px 17px; }
