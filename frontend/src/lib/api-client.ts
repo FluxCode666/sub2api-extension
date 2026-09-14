@@ -70,20 +70,25 @@ function buildHeaders(extra?: Record<string, string>): Record<string, string> {
  * AbortController,响应或异常后清理定时器,避免定时器泄漏。
  * 返回 { signal, cleanup } —— signal 传入 fetch init,cleanup 在 finally 调用。
  */
-function withTimeout(options: ApiRequestOptions): { signal: AbortSignal | undefined; cleanup: () => void } {
+function withTimeout(options: ApiRequestOptions): { signal: AbortSignal | undefined; cleanup: () => void; timedOut: () => boolean } {
   // 调用方自带 signal 时尊重之, 不叠加默认超时
   if (options.signal) {
-    return { signal: options.signal, cleanup: () => {} }
+    return { signal: options.signal, cleanup: () => {}, timedOut: () => false }
   }
   const timeoutMs = options.timeout ?? DEFAULT_REQUEST_TIMEOUT_MS
   if (timeoutMs <= 0) {
-    return { signal: undefined, cleanup: () => {} }
+    return { signal: undefined, cleanup: () => {}, timedOut: () => false }
   }
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  let expired = false
+  const timer = setTimeout(() => {
+    expired = true
+    controller.abort()
+  }, timeoutMs)
   return {
     signal: controller.signal,
     cleanup: () => clearTimeout(timer),
+    timedOut: () => expired,
   }
 }
 
@@ -96,7 +101,7 @@ export async function apiRequest<T>(
 ): Promise<T> {
   const url = `${AUX_API_BASE_URL}${path}`
   const headers = buildHeaders(options.headers)
-  const { signal, cleanup } = withTimeout(options)
+  const { signal, cleanup, timedOut } = withTimeout(options)
   const init: RequestInit = {
     method: options.method ?? 'GET',
     headers,
@@ -120,6 +125,7 @@ export async function apiRequest<T>(
       try {
         payload = (await response.json()) as Partial<AuxEnvelope<unknown>>
       } catch (parseError) {
+        if (signal?.aborted) throw parseError
         // 非 JSON 响应仍使用 HTTP 状态码生成错误，但保留解析异常帮助排查代理/网关问题。
         console.warn('[apiRequest] non-JSON error response', {
           url,
@@ -151,6 +157,13 @@ export async function apiRequest<T>(
       throw apiError
     }
     return (await response.json()) as T
+  } catch (error) {
+    if (timedOut()) {
+      const timeoutError = new Error('请求超时，请稍后重试')
+      timeoutError.name = 'TimeoutError'
+      throw timeoutError
+    }
+    throw error
   } finally {
     cleanup()
   }

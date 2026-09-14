@@ -61,6 +61,25 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe("成本配置列表", () => {
+  it("首次加载失败不展示默认费用或零账号，并可重试恢复", async () => {
+    vi.mocked(apiClient.get).mockRejectedValueOnce(new Error("请求超时，请稍后重试"));
+    render(<CostConfigPage />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("请求超时，请稍后重试");
+    expect(screen.queryByText("CNY 0.00")).not.toBeInTheDocument();
+    expect(screen.queryByText("0 个账号")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "编辑默认核算参数" })).not.toBeInTheDocument();
+    let finish!: (value: ReturnType<typeof response>) => void;
+    vi.mocked(apiClient.get).mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+    await userEvent.click(screen.getByRole("button", { name: "重新加载" }));
+    expect(screen.getByText("正在读取账号成本配置…")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "重新加载" })).not.toBeInTheDocument();
+    finish(response());
+    await screen.findByRole("table");
+    expect(apiClient.get).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(visibleRows()).toHaveLength(20);
+  });
+
   it("默认核算参数通过弹窗编辑，取消不会改动已保存摘要", async () => {
     await openPage();
     expect(screen.getByText("CNY 0.00")).toBeInTheDocument();

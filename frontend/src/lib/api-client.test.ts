@@ -217,7 +217,30 @@ describe('api-client', () => {
 
       await expect(
         apiRequest('/slow', { timeout: 50 }),
-      ).rejects.toThrow()
+      ).rejects.toMatchObject({ name: 'TimeoutError', message: '请求超时，请稍后重试' })
+    })
+
+    it.each([200, 503])('reports timeout while reading a %s response body', async (status) => {
+      fetchMock.mockImplementationOnce((_url: string, init: RequestInit) => Promise.resolve({
+        ...mockResponse(status, {}),
+        json: () => new Promise((_resolve, reject) => {
+          init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+        }),
+      }))
+      await expect(apiRequest('/slow-body', { timeout: 20 })).rejects.toMatchObject({
+        name: 'TimeoutError', message: '请求超时，请稍后重试',
+      })
+    })
+
+    it('cleans up timers after success and preserves genuine network failures', async () => {
+      vi.useFakeTimers()
+      fetchMock.mockResolvedValueOnce(mockResponse(200, {}))
+      await apiRequest('/ok')
+      expect(vi.getTimerCount()).toBe(0)
+      const failure = new TypeError('Failed to fetch')
+      fetchMock.mockRejectedValueOnce(failure)
+      await expect(apiRequest('/offline')).rejects.toBe(failure)
+      expect(vi.getTimerCount()).toBe(0)
     })
 
     it('respects caller-provided signal without applying default timeout', async () => {
@@ -234,7 +257,7 @@ describe('api-client', () => {
       // 调用方自带 signal: 50ms 后手动 abort(而非默认超时)
       const p = apiRequest('/x', { signal: controller.signal })
       setTimeout(() => controller.abort(), 50)
-      await expect(p).rejects.toThrow()
+      await expect(p).rejects.toMatchObject({ name: 'AbortError', message: 'aborted' })
     })
   })
 })

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sort"
 	"strings"
 	"time"
 
@@ -65,11 +66,62 @@ func (s *CostService) Query(ctx context.Context, query ops.ConsumptionQuery) (*o
 }
 
 func (s *CostService) GetConfig(ctx context.Context) (ops.CostConfigResponse, error) {
-	// 打开配置页就从账号列表补齐元数据，让尚无使用记录的新账号也能配置成本和计费组。
-	if s != nil && s.accountSource != nil {
-		return s.Sync(ctx)
+	config, _, err := s.loadAccountConfig(ctx)
+	return config, err
+}
+
+// 页面读取只合并账号快照，不等待全量同步锁，也不逐账号写库。
+func (s *CostService) loadAccountConfig(ctx context.Context) (ops.CostConfigResponse, []ops.Sub2APIAccount, error) {
+	config, err := s.readConfig(ctx)
+	if err != nil || s.accountSource == nil {
+		return config, nil, err
 	}
-	return s.readConfig(ctx)
+	accounts, err := s.accountSource.ListAccounts(ctx)
+	if err != nil {
+		return ops.CostConfigResponse{}, nil, err
+	}
+	return mergeLiveAccountConfig(config, accounts), accounts, nil
+}
+
+func mergeLiveAccountConfig(config ops.CostConfigResponse, upstream []ops.Sub2APIAccount) ops.CostConfigResponse {
+	if len(upstream) == 0 {
+		return config
+	}
+	accounts := make(map[int64]ops.AccountCostConfig, len(config.Accounts)+len(upstream))
+	for _, account := range config.Accounts {
+		accounts[account.AccountID] = account
+	}
+	for _, live := range upstream {
+		account, exists := accounts[live.ID]
+		if !exists {
+			account = ops.AccountCostConfig{AccountID: live.ID, APIMultiplierMode: "sync"}
+		}
+		account.Name, account.AccountType, account.Platform = live.Name, live.Type, live.Platform
+		account.SyncedAPIMultiplier = &live.RateMultiplier
+		if live.CreatedAt != nil {
+			account.AccountCreatedAt = live.CreatedAt
+		}
+		account.AccountDeletedAt, account.AccountExpiresAt = live.DeletedAt, live.ExpiresAt
+		accounts[live.ID] = account
+	}
+	config.Accounts = make([]ops.AccountCostConfig, 0, len(accounts))
+	for _, account := range accounts {
+		config.Accounts = append(config.Accounts, account)
+	}
+	sort.Slice(config.Accounts, func(i, j int) bool {
+		left, right := config.Accounts[i], config.Accounts[j]
+		if left.AccountCreatedAt == nil && right.AccountCreatedAt != nil {
+			return false
+		}
+		if left.AccountCreatedAt != nil && right.AccountCreatedAt == nil {
+			return true
+		}
+		if left.AccountCreatedAt != nil && !left.AccountCreatedAt.Equal(*right.AccountCreatedAt) {
+			return left.AccountCreatedAt.After(*right.AccountCreatedAt)
+		}
+		return left.AccountID > right.AccountID
+	})
+	return config
 }
 
 func (s *CostService) readConfig(ctx context.Context) (ops.CostConfigResponse, error) {
@@ -102,6 +154,26 @@ func (s *CostService) SaveAccountConfig(ctx context.Context, config ops.AccountC
 	config = normalizeAccountCostConfig(config)
 	if s == nil || s.configStore == nil {
 		return config, errors.New("cost store is unavailable")
+	}
+	if s.accountSource != nil {
+		accounts, err := s.accountSource.ListAccounts(ctx)
+		if err != nil {
+			return config, err
+		}
+		for _, account := range accounts {
+			if account.ID != config.AccountID {
+				continue
+			}
+			// 新账号也可立即保存；元数据仅从受信任的上游读取。
+			if err := s.configStore.SyncAccounts(ctx, []ops.Sub2APIAccount{account}); err != nil {
+				return config, err
+			}
+			config.Name, config.AccountType, config.Platform = account.Name, account.Type, account.Platform
+			config.SyncedAPIMultiplier = &account.RateMultiplier
+			// 保留刚写入的受信任时间，避免表单旧快照覆盖同步结果。
+			config.LastSyncedAt, config.AccountCreatedAt = nil, nil
+			break
+		}
 	}
 	if strings.TrimSpace(config.BillingGroup) != "" && config.AccountType == "oauth" {
 		accounts, err := s.configStore.ListAccountCostConfigs(ctx)
@@ -145,14 +217,11 @@ func (s *CostService) SaveBillingGroup(ctx context.Context, update ops.BillingGr
 	if len(ids) < 2 {
 		return ops.CostConfigResponse{}, ErrInvalidBillingGroupUpdate
 	}
-	accounts, err := s.configStore.ListAccountCostConfigs(ctx)
+	config, upstream, err := s.loadAccountConfig(ctx)
 	if err != nil {
 		return ops.CostConfigResponse{}, err
 	}
-	global, err := s.configStore.GetCostConfig(ctx)
-	if err != nil {
-		return ops.CostConfigResponse{}, err
-	}
+	accounts, global := config.Accounts, config.Global
 	wanted := make(map[int64]struct{}, len(ids))
 	for _, id := range ids {
 		wanted[id] = struct{}{}
@@ -170,11 +239,26 @@ func (s *CostService) SaveBillingGroup(ctx context.Context, update ops.BillingGr
 	if err := validateOAuthBillingGroupCosts(accounts, wanted, group, global.OAuthAccountCost); err != nil {
 		return ops.CostConfigResponse{}, err
 	}
+	selected := make([]ops.Sub2APIAccount, 0, len(ids))
+	for _, account := range upstream {
+		if _, ok := wanted[account.ID]; ok {
+			selected = append(selected, account)
+		}
+	}
+	if len(selected) > 0 {
+		if err := s.configStore.SyncAccounts(ctx, selected); err != nil {
+			return ops.CostConfigResponse{}, err
+		}
+	}
 	if err := s.configStore.SetAccountBillingGroup(ctx, ids, group); err != nil {
 		return ops.CostConfigResponse{}, err
 	}
-	// 写入成功后只读取本地结果，避免上游暂时不可用把已保存的计费组报为失败。
-	return s.readConfig(ctx)
+	// 复用写入前的上游快照，保留未建档账号，避免保存后再次请求上游。
+	saved, err := s.readConfig(ctx)
+	if err != nil {
+		return ops.CostConfigResponse{}, err
+	}
+	return mergeLiveAccountConfig(saved, upstream), nil
 }
 
 func validateOAuthBillingGroupCosts(accounts []ops.AccountCostConfig, wanted map[int64]struct{}, group string, globalCost float64) error {
@@ -201,7 +285,7 @@ func (s *CostService) Sync(ctx context.Context) (ops.CostConfigResponse, error) 
 	if s == nil || s.accountSource == nil || s.configStore == nil {
 		return ops.CostConfigResponse{}, errors.New("cost account sync is unavailable")
 	}
-	// 页面读取、手工同步和定时任务可能重叠，串行写入以避免新账号首次建档时冲突。
+	// 手工同步和定时任务串行执行；页面读取与所选账号保存不等待全量同步。
 	select {
 	case s.accountSync <- struct{}{}:
 		defer func() { <-s.accountSync }()
@@ -476,7 +560,7 @@ func (s *EntCostConfigStore) SyncAccounts(ctx context.Context, accounts []ops.Su
 	for _, account := range accounts {
 		entity, err := s.client.AccountCostConfig.Query().Where(accountcostconfig.AccountIDEQ(account.ID)).Only(ctx)
 		if ent.IsNotFound(err) {
-			_, err = s.client.AccountCostConfig.Create().
+			entity, err = s.client.AccountCostConfig.Create().
 				SetAccountID(account.ID).
 				SetAccountType(account.Type).
 				SetName(account.Name).
@@ -488,7 +572,15 @@ func (s *EntCostConfigStore) SyncAccounts(ctx context.Context, accounts []ops.Su
 				SetNillableAccountExpiresAt(account.ExpiresAt).
 				SetNillableAccountDeletedAt(account.DeletedAt).
 				Save(ctx)
-		} else if err == nil {
+			if err == nil {
+				continue
+			}
+			// 首次保存可能与后台同步同时建档；冲突后重读，仅更新元数据。
+			if ent.IsConstraintError(err) {
+				entity, err = s.client.AccountCostConfig.Query().Where(accountcostconfig.AccountIDEQ(account.ID)).Only(ctx)
+			}
+		}
+		if err == nil {
 			update := entity.Update().SetAccountType(account.Type).SetName(account.Name).SetPlatform(account.Platform).SetSyncedAPIMultiplier(account.RateMultiplier).SetLastSyncedAt(now)
 			if account.CreatedAt != nil {
 				update.SetAccountCreatedAt(*account.CreatedAt)

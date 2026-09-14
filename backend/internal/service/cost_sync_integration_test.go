@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/require"
@@ -84,6 +85,13 @@ func TestCostAccountSyncDeletionAndMigration(t *testing.T) {
 	require.NotNil(t, result.Accounts[2].AccountExpiresAt)
 	require.Equal(t, "2026-10-01T00:00:00Z", result.Accounts[2].AccountExpiresAt.UTC().Format(time.RFC3339))
 
+	persisted, err := store.ListAccountCostConfigs(ctx)
+	require.NoError(t, err)
+	require.Len(t, persisted, 1, "读取账号列表不应执行全量建档")
+	// 后台同步仍独立保存历史元数据；成本与分组不能被覆盖。
+	_, err = svc.Sync(ctx)
+	require.NoError(t, err)
+
 	// 新账号无需使用记录或手工同步，重新加载后即可保存采购价并参与合并计费。
 	_, err = db.ExecContext(ctx, `INSERT INTO accounts VALUES
 		(5, '新建未使用 OAuth', 'oauth', 'openai', 1, '2026-09-14T00:00:00Z', NULL, now(), NULL)`)
@@ -150,4 +158,92 @@ func TestCostAccountSyncDeletionAndMigration(t *testing.T) {
 	for _, account := range upstream {
 		require.Nil(t, account.DeletedAt)
 	}
+
+	t.Run("large account list avoids per-account writes", func(t *testing.T) {
+		_, err := db.ExecContext(ctx, `INSERT INTO accounts (id, name, type, platform, rate_multiplier)
+			SELECT n, '未使用账号 ' || n, 'apikey', 'openai', 0.7 FROM generate_series(100, 1599) n`)
+		require.NoError(t, err)
+		// 每次数据库操作注入 6ms 延迟；旧版全量同步在此负载下超过 15 秒。
+		delayed := ent.NewClient(ent.Driver(costLatencyDriver{Driver: entsql.OpenDB("postgres", db)}))
+		fastService := NewCostService(nil, NewEntCostConfigStore(delayed), source)
+		readCtx, readCancel := context.WithTimeout(ctx, 2*time.Second)
+		defer readCancel()
+		result, err := fastService.GetConfig(readCtx)
+		require.NoError(t, err)
+		require.Len(t, result.Accounts, 1505)
+		persisted, err := store.ListAccountCostConfigs(ctx)
+		require.NoError(t, err)
+		require.Len(t, persisted, 5, "读取大量未使用账号不应逐条建档")
+
+		result, err = fastService.SaveBillingGroup(ctx, ops.BillingGroupUpdate{AccountIDs: []int64{100, 101}, BillingGroup: "新账号合并组"})
+		require.NoError(t, err)
+		require.Len(t, result.Accounts, 1505, "保存后未建档账号不得消失")
+		persisted, err = store.ListAccountCostConfigs(ctx)
+		require.NoError(t, err)
+		require.Len(t, persisted, 7, "仅所选的两个新账号需要建档")
+	})
+
+	t.Run("concurrent first sync can recover unique conflict", func(t *testing.T) {
+		started, release := make(chan struct{}, 2), make(chan struct{})
+		client.AccountCostConfig.Use(func(next ent.Mutator) ent.Mutator {
+			return ent.MutateFunc(func(ctx context.Context, mutation ent.Mutation) (ent.Value, error) {
+				if mutation.Op().Is(ent.OpCreate) {
+					started <- struct{}{}
+					select {
+					case <-release:
+					case <-ctx.Done():
+						return nil, ctx.Err()
+					}
+				}
+				return next.Mutate(ctx, mutation)
+			})
+		})
+		done := make(chan error, 2)
+		for range 2 {
+			go func() {
+				done <- store.SyncAccounts(ctx, []ops.Sub2APIAccount{{ID: 9000, Name: "并发新账号", Type: "api", RateMultiplier: 0.5}})
+			}()
+		}
+		for range 2 {
+			select {
+			case <-started:
+			case <-ctx.Done():
+				close(release)
+				<-done
+				<-done
+				t.Fatal("并发建档未进入测试屏障")
+			}
+		}
+		close(release)
+		err1, err2 := <-done, <-done
+		require.NoError(t, err1)
+		require.NoError(t, err2)
+	})
+
+}
+
+// costLatencyDriver 模拟网络数据库往返延迟，覆盖真实 SQL 路径的性能回归。
+type costLatencyDriver struct{ dialect.Driver }
+
+func costDatabaseDelay(ctx context.Context) error {
+	timer := time.NewTimer(6 * time.Millisecond)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+func (d costLatencyDriver) Query(ctx context.Context, query string, args, result any) error {
+	if err := costDatabaseDelay(ctx); err != nil {
+		return err
+	}
+	return d.Driver.Query(ctx, query, args, result)
+}
+func (d costLatencyDriver) Exec(ctx context.Context, query string, args, result any) error {
+	if err := costDatabaseDelay(ctx); err != nil {
+		return err
+	}
+	return d.Driver.Exec(ctx, query, args, result)
 }

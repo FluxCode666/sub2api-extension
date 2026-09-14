@@ -72,6 +72,7 @@ export default function CostConfigPage() {
   const [error, setError] = useState("");
 
   const load = async () => {
+    setLoading(true);
     setError("");
     try {
       const envelope = await apiClient.get<AuxEnvelope<CostConfigResponse>>("/admin/ops/cost-config");
@@ -263,6 +264,19 @@ export default function CostConfigPage() {
 
   if (loading) return <div className="aux-cost-page aux-cost-state"><SlidersHorizontal className="aux-spin" aria-hidden="true" /><span>正在读取账号成本配置…</span></div>;
 
+  if (!data) return (
+    <div className="aux-cost-page aux-cost-config-page">
+      <header className="aux-cost-header"><h1>账号成本配置</h1></header>
+      <div className="aux-cost-panel flex flex-col items-start gap-4 p-6" role="alert">
+        <div className="space-y-2">
+          <h2 className="font-semibold">成本配置加载失败</h2>
+          <p className="text-sm text-muted-foreground">{error || "无法读取成本配置"}</p>
+        </div>
+        <Button type="button" variant="outline" onClick={() => void load()}><RefreshCw aria-hidden="true" />重新加载</Button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="aux-cost-page aux-cost-config-page">
       <header className="aux-cost-header">
@@ -327,7 +341,7 @@ export default function CostConfigPage() {
         </div>
         <aside className="aux-cost-panel aux-config-preview-panel">
           <p className="aux-cost-panel-kicker">Sync status</p><h2>同步与历史口径</h2>
-          <div className="aux-config-preview-card"><span className="aux-preview-label"><Coins size={15} />已同步账号</span><strong>{data?.accounts.length ?? 0} 个</strong><small>OAuth {data?.accounts.filter((item) => item.account_type === "oauth").length ?? 0} · API {data?.accounts.filter((item) => item.account_type === "api").length ?? 0}</small></div>
+          <div className="aux-config-preview-card"><span className="aux-preview-label"><Coins size={15} />账号总数</span><strong>{data?.accounts.length ?? 0} 个</strong><small>OAuth {data?.accounts.filter((item) => item.account_type === "oauth").length ?? 0} · API {data?.accounts.filter((item) => item.account_type === "api").length ?? 0}</small></div>
           <div className="aux-config-preview-card"><span className="aux-preview-label"><SlidersHorizontal size={15} />合并计费组</span><strong>{billingGroupCount(data?.accounts ?? [])} 组</strong><small>同组 API / OAuth 账号分别核算成本后汇总</small></div>
           <div className="aux-config-preview-card"><span className="aux-preview-label"><SlidersHorizontal size={15} />最近同步</span><strong>{data?.last_sync_at ? formatSyncTime(data.last_sync_at) : "尚未同步"}</strong></div>
           <div className="aux-config-help"><CircleHelp size={16} /><span>API 手工倍率只影响没有历史快照的记录；已有 usage_logs.account_rate_multiplier 的历史记录永远按发生时倍率核算。</span></div>
