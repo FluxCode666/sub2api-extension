@@ -38,6 +38,7 @@ type CostService struct {
 	queryStore    CostQueryStore
 	configStore   CostConfigStore
 	accountSource CostAccountSource
+	accountSync   chan struct{}
 }
 
 func NewCostService(queryStore CostQueryStore, configStore CostConfigStore, sources ...CostAccountSource) *CostService {
@@ -45,7 +46,7 @@ func NewCostService(queryStore CostQueryStore, configStore CostConfigStore, sour
 	if len(sources) > 0 {
 		source = sources[0]
 	}
-	return &CostService{queryStore: queryStore, configStore: configStore, accountSource: source}
+	return &CostService{queryStore: queryStore, configStore: configStore, accountSource: source, accountSync: make(chan struct{}, 1)}
 }
 
 func (s *CostService) Query(ctx context.Context, query ops.ConsumptionQuery) (*ops.ConsumptionResponse, error) {
@@ -64,6 +65,14 @@ func (s *CostService) Query(ctx context.Context, query ops.ConsumptionQuery) (*o
 }
 
 func (s *CostService) GetConfig(ctx context.Context) (ops.CostConfigResponse, error) {
+	// 打开配置页就从账号列表补齐元数据，让尚无使用记录的新账号也能配置成本和计费组。
+	if s != nil && s.accountSource != nil {
+		return s.Sync(ctx)
+	}
+	return s.readConfig(ctx)
+}
+
+func (s *CostService) readConfig(ctx context.Context) (ops.CostConfigResponse, error) {
 	if s == nil || s.configStore == nil {
 		return ops.CostConfigResponse{Global: ops.DefaultCostConfig(), Accounts: []ops.AccountCostConfig{}}, errors.New("cost store is unavailable")
 	}
@@ -164,7 +173,8 @@ func (s *CostService) SaveBillingGroup(ctx context.Context, update ops.BillingGr
 	if err := s.configStore.SetAccountBillingGroup(ctx, ids, group); err != nil {
 		return ops.CostConfigResponse{}, err
 	}
-	return s.GetConfig(ctx)
+	// 写入成功后只读取本地结果，避免上游暂时不可用把已保存的计费组报为失败。
+	return s.readConfig(ctx)
 }
 
 func validateOAuthBillingGroupCosts(accounts []ops.AccountCostConfig, wanted map[int64]struct{}, group string, globalCost float64) error {
@@ -191,6 +201,13 @@ func (s *CostService) Sync(ctx context.Context) (ops.CostConfigResponse, error) 
 	if s == nil || s.accountSource == nil || s.configStore == nil {
 		return ops.CostConfigResponse{}, errors.New("cost account sync is unavailable")
 	}
+	// 页面读取、手工同步和定时任务可能重叠，串行写入以避免新账号首次建档时冲突。
+	select {
+	case s.accountSync <- struct{}{}:
+		defer func() { <-s.accountSync }()
+	case <-ctx.Done():
+		return ops.CostConfigResponse{}, ctx.Err()
+	}
 	accounts, err := s.accountSource.ListAccounts(ctx)
 	if err != nil {
 		return ops.CostConfigResponse{}, err
@@ -198,7 +215,7 @@ func (s *CostService) Sync(ctx context.Context) (ops.CostConfigResponse, error) 
 	if err := s.configStore.SyncAccounts(ctx, accounts); err != nil {
 		return ops.CostConfigResponse{}, err
 	}
-	return s.GetConfig(ctx)
+	return s.readConfig(ctx)
 }
 
 // StartPeriodicSync performs an initial best-effort sync and then refreshes

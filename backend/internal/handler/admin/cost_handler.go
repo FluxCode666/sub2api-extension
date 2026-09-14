@@ -60,6 +60,10 @@ func (h *CostHandler) GetConfig(c *gin.Context) {
 	}
 	data, err := h.provider.GetConfig(c.Request.Context())
 	if err != nil {
+		if errors.Is(err, service.ErrSub2APIDatabaseUnavailable) {
+			response.ServiceUnavailable(c, "sub2api database is unavailable")
+			return
+		}
 		response.Error(c, http.StatusInternalServerError, "failed to read cost config")
 		return
 	}

@@ -271,10 +271,10 @@ describe("成本配置列表", () => {
     expect(screen.queryByText("已删除")).not.toBeInTheDocument();
   });
 
-  it("没有账号时显示同步引导", async () => {
+  it("没有账号时提示添加账号后刷新", async () => {
     vi.mocked(apiClient.get).mockResolvedValue(response([]));
     await openPage();
-    expect(screen.getByText("暂无账号。点击“立即同步倍率”读取 Sub2API accounts。")).toBeInTheDocument();
+    expect(screen.getByText("暂无账号，请先在 Sub2API 添加账号后刷新页面。")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "上一页" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "下一页" })).toBeDisabled();
   });

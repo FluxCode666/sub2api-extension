@@ -65,7 +65,8 @@ func TestCostAccountSyncDeletionAndMigration(t *testing.T) {
 		(3, '未知创建时间', 'apikey', 'openai', 1, NULL, NULL, now(), NULL),
 		(4, '同日有效 API', 'apikey', 'anthropic', 1, '2026-09-12T00:00:00Z', NULL, now(), NULL)`)
 	require.NoError(t, err)
-	result, err := svc.Sync(ctx)
+	// 此时甚至没有 usage_logs 表；首次打开配置页就应获取所有上游账号。
+	result, err := svc.GetConfig(ctx)
 	require.NoError(t, err)
 	require.Len(t, result.Accounts, 4)
 	ids := make([]int64, 0, len(result.Accounts))
@@ -82,6 +83,30 @@ func TestCostAccountSyncDeletionAndMigration(t *testing.T) {
 	require.Nil(t, result.Accounts[3].AccountCreatedAt)
 	require.NotNil(t, result.Accounts[2].AccountExpiresAt)
 	require.Equal(t, "2026-10-01T00:00:00Z", result.Accounts[2].AccountExpiresAt.UTC().Format(time.RFC3339))
+
+	// 新账号无需使用记录或手工同步，重新加载后即可保存采购价并参与合并计费。
+	_, err = db.ExecContext(ctx, `INSERT INTO accounts VALUES
+		(5, '新建未使用 OAuth', 'oauth', 'openai', 1, '2026-09-14T00:00:00Z', NULL, now(), NULL)`)
+	require.NoError(t, err)
+	result, err = svc.GetConfig(ctx)
+	require.NoError(t, err)
+	require.Len(t, result.Accounts, 5)
+	newAccount := result.Accounts[0]
+	require.Equal(t, int64(5), newAccount.AccountID)
+	require.Nil(t, newAccount.OAuthAccountCost)
+	cost := 12.5
+	newAccount.OAuthAccountCost = &cost
+	saved, err := svc.SaveAccountConfig(ctx, newAccount)
+	require.NoError(t, err)
+	require.Equal(t, cost, *saved.OAuthAccountCost)
+	result, err = svc.SaveBillingGroup(ctx, ops.BillingGroupUpdate{AccountIDs: []int64{5, 4}, BillingGroup: "未使用账号组"})
+	require.NoError(t, err)
+	result, err = svc.GetConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "未使用账号组", result.Accounts[0].BillingGroup)
+	require.Equal(t, "未使用账号组", result.Accounts[1].BillingGroup)
+	require.Equal(t, cost, *result.Accounts[0].OAuthAccountCost)
+	require.Equal(t, 0.2, *result.Accounts[2].APIMultiplierOverride)
 
 	// 编辑成本不得通过响应中的同步字段篡改删除状态。
 	for _, value := range []*time.Time{nil, new(time.Time)} {
@@ -111,8 +136,8 @@ func TestCostAccountSyncDeletionAndMigration(t *testing.T) {
 	require.NoError(t, err)
 	result, err = svc.Sync(ctx)
 	require.NoError(t, err)
-	require.Nil(t, result.Accounts[1].AccountDeletedAt)
-	require.Equal(t, 0.2, *result.Accounts[1].APIMultiplierOverride)
+	require.Nil(t, result.Accounts[2].AccountDeletedAt)
+	require.Equal(t, 0.2, *result.Accounts[2].APIMultiplierOverride)
 
 	// 兼容没有删除时间列的旧版上游表。
 	_, err = db.ExecContext(ctx, `ALTER TABLE accounts DROP COLUMN deleted_at`)
@@ -121,7 +146,7 @@ func TestCostAccountSyncDeletionAndMigration(t *testing.T) {
 	require.NoError(t, err)
 	upstream, err := source.ListAccounts(ctx)
 	require.NoError(t, err)
-	require.Len(t, upstream, 4)
+	require.Len(t, upstream, 5)
 	for _, account := range upstream {
 		require.Nil(t, account.DeletedAt)
 	}
