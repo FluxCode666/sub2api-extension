@@ -212,7 +212,7 @@ function formatDateTime(value?: string | null): string {
 }
 
 function formatExpiryDateTime(value?: string | null): string {
-  if (!value) return "永不过期";
+  if (!value) return "未获取到";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   const remainingDays = Math.ceil((date.getTime() - Date.now()) / 86400000);

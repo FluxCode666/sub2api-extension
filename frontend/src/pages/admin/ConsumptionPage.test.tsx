@@ -350,7 +350,7 @@ describe("消费核算", () => {
     expect(within(payback).getByText("整体回本进度")).toBeInTheDocument();
     expect(within(payback).getAllByText("100.0%")).toHaveLength(2);
     expect(within(payback).getByText("已回本")).toBeInTheDocument();
-    expect(within(payback).getByText("永不过期")).toBeInTheDocument();
+    expect(within(payback).getByText("未获取到")).toBeInTheDocument();
   });
 
   it("支持 OAuth 回本和账号成本列表的搜索、创建时间筛选与分页", async () => {

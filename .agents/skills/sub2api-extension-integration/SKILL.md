@@ -5,7 +5,7 @@ description: 配置或排查 sub2api 与 sub2api-extension 的 iframe、登录�
 
 # sub2api-extension 集成与会话规范
 
-sub2api-extension 是独立服务；它不导入 sub2api 后端代码，也不共享 sub2api 数据库。两者只通过 HTTP 身份验证和 iframe 配置连接。修改集成时先确认请求发生在浏览器还是容器内：浏览器需要公网/可解析域名，后端到 sub2api 才可以使用 Docker 内网地址。
+sub2api-extension 是独立服务，不导入 sub2api 后端代码，业务数据保存在自有数据库。两者通过 HTTP 身份验证和 iframe 配置连接；`SUB2API_DATABASE_*` 独立连接用于明确的账号、消费等只读查询与菜单等受控同步。修改集成时先确认请求发生在浏览器还是容器内：浏览器需要公网/可解析域名，后端到 sub2api 才可以使用 Docker 内网地址。
 
 ## 两条嵌入链路
 
@@ -61,6 +61,10 @@ sub2api-extension 是独立服务；它不导入 sub2api 后端代码，也不�
 - [ ] iframe 进入时能完成 `/admin/session`，独立登录时能完成 `/admin/login`
 - [ ] 管理 API 使用 `X-Aux-Session`，JWT secret 在重启和发布前后不变
 - [ ] 未泄漏密码、sub2api token、access token 或完整认证响应
+
+## 运营账号期限读取
+
+消费核算通过独立的 `SUB2API_DATABASE_*` 只读连接读取账号元数据。OAuth 期限优先使用手填的 `accounts.expires_at`，为空时提取 `credentials.subscription_expires_at`，影子账号再回退到 `parent_account_id` 对应母账号的订阅日期。不得加载完整凭据或把 `credentials.expires_at` 的 token 到期时间当作订阅期限。无有效日期时显示“未获取到”；数据依赖上游成功获取并由附属系统启动/定时/手工同步持久化，不直接请求供应商。具体更新、兼容与回退规则见 `docs/INTEGRATION.md` 的运营中心说明。
 
 ## 相关文件
 

@@ -298,3 +298,73 @@ describe("成本配置列表", () => {
     expect(screen.getByRole("button", { name: "下一页" })).toBeDisabled();
   });
 });
+
+describe("合并计费账号下拉", () => {
+  it("大量账号按每页 10 条加载，滚到底部追加下一页，仍能按名称、ID、平台和计费组搜索末尾账号", async () => {
+    const manyAccounts = Array.from({ length: 1500 }, (_, index) => ({ ...accounts[index % accounts.length], account_id: index + 1, name: `批量账号 ${index + 1}`, billing_group: "" }));
+    manyAccounts[1499] = { ...manyAccounts[1499], name: "末尾验证账号", platform: "anthropic", billing_group: "末尾计费组" };
+    vi.mocked(apiClient.get).mockResolvedValue(response(manyAccounts));
+    await openPage();
+    await userEvent.click(screen.getByRole("button", { name: "账号合并计费" }));
+    await userEvent.click(screen.getByRole("combobox", { name: "合并账号" }));
+    expect(screen.getAllByRole("option")).toHaveLength(10);
+    expect(screen.getByText("共 1500 个匹配账号，已显示 10 条，滚动到底部加载下一页。")).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /末尾验证账号/ })).not.toBeInTheDocument();
+
+    const list = screen.getByRole("listbox", { name: "Suggestions" });
+    Object.defineProperties(list, {
+      scrollTop: { configurable: true, get: () => 1000 },
+      clientHeight: { configurable: true, get: () => 300 },
+      scrollHeight: { configurable: true, get: () => 1000 },
+    });
+    fireEvent.scroll(list);
+    await waitFor(() => expect(screen.getAllByRole("option")).toHaveLength(20));
+    expect(screen.getByText("共 1500 个匹配账号，已显示 20 条，滚动到底部加载下一页。")).toBeInTheDocument();
+
+    const search = screen.getByRole("combobox", { name: "搜索可合并账号" });
+    for (const query of ["末尾验证账号", "1500", "  ANTHROPIC  ", "末尾计费组"]) {
+      fireEvent.change(search, { target: { value: query } });
+      await waitFor(() => expect(screen.getAllByRole("option")[0]).toHaveTextContent("末尾验证账号"));
+      expect(screen.getAllByRole("option").length).toBeLessThanOrEqual(10);
+      expect(screen.getByRole("option", { name: /末尾验证账号/ })).toHaveAttribute("aria-disabled", "false");
+    }
+    fireEvent.change(search, { target: { value: "没有这样的账号" } });
+    expect(await screen.findByText("没有匹配账号")).toBeInTheDocument();
+    expect(screen.queryByRole("option")).not.toBeInTheDocument();
+    fireEvent.change(search, { target: { value: "" } });
+    await waitFor(() => expect(screen.getAllByRole("option")).toHaveLength(10));
+  });
+
+  it("搜索切换和重新打开下拉保留多选，支持鼠标取消与键盘选择并提交全部账号", async () => {
+    const items = Array.from({ length: 60 }, (_, index) => ({ ...accounts[index % accounts.length], account_id: index + 1, name: `批量账号 ${index + 1}` }));
+    vi.mocked(apiClient.get).mockResolvedValue(response(items));
+    vi.mocked(apiClient.put).mockResolvedValue(response(items));
+    await openPage();
+    await userEvent.click(screen.getByRole("button", { name: "账号合并计费" }));
+    const trigger = screen.getByRole("combobox", { name: "合并账号" });
+    expect(screen.getByRole("button", { name: "应用合并" })).toBeDisabled();
+    await userEvent.click(trigger);
+    await userEvent.click(screen.getByRole("option", { name: "批量账号 1 #1 · OAuth · openai" }));
+    expect(trigger).toHaveTextContent("已选择 1 个OAuth账号");
+    const search = screen.getByRole("combobox", { name: "搜索可合并账号" });
+    fireEvent.change(search, { target: { value: "60" } });
+    await screen.findByRole("option", { name: "批量账号 60 #60 · API · openai" });
+    await userEvent.click(search);
+    await userEvent.keyboard("{ArrowDown}{Enter}");
+    expect(trigger).toHaveTextContent("已选择 2 个API / OAuth账号");
+    await userEvent.keyboard("{Escape}");
+    expect(trigger).toHaveFocus();
+    await userEvent.click(trigger);
+    expect(screen.getByRole("combobox", { name: "搜索可合并账号" })).toHaveValue("");
+    await userEvent.click(screen.getByRole("option", { name: "批量账号 1 #1 · OAuth · openai" }));
+    expect(trigger).toHaveTextContent("已选择 1 个API账号");
+    await userEvent.click(screen.getByRole("option", { name: "批量账号 1 #1 · OAuth · openai" }));
+    await userEvent.keyboard("{Escape}");
+    await userEvent.type(screen.getByLabelText("计费组名称"), "跨搜索合并组");
+    await userEvent.click(screen.getByRole("button", { name: "应用合并" }));
+    await waitFor(() => expect(apiClient.put).toHaveBeenCalledWith("/admin/ops/cost-config/billing-groups", { account_ids: [60, 1], billing_group: "跨搜索合并组" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "账号合并计费" })).not.toBeInTheDocument());
+    await userEvent.click(screen.getByRole("button", { name: "账号合并计费" }));
+    expect(screen.getByRole("combobox", { name: "合并账号" })).toHaveTextContent("选择需要合并的账号");
+  });
+});

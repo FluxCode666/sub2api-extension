@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type UIEvent } from "react";
+import { defaultFilter } from "cmdk";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Coins, RefreshCw, Search, SlidersHorizontal, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,8 @@ interface CostConfigResponse {
   last_sync_at?: string | null;
 }
 
+const MERGE_ACCOUNT_PAGE_SIZE = 10;
+
 export default function CostConfigPage() {
   const [data, setData] = useState<CostConfigResponse | null>(null);
   const [global, setGlobal] = useState<CostConfig>({ oauth_account_cost: 0, api_cost_multiplier: 1, tax_rate: 0, currency: "CNY" });
@@ -65,6 +68,8 @@ export default function CostConfigPage() {
   const [savingBillingGroup, setSavingBillingGroup] = useState(false);
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
   const [mergeAccountPickerOpen, setMergeAccountPickerOpen] = useState(false);
+  const [mergeAccountSearch, setMergeAccountSearch] = useState("");
+  const [mergeAccountPage, setMergeAccountPage] = useState(1);
   const [mergeAccountIDs, setMergeAccountIDs] = useState<number[]>([]);
   const [mergeGroup, setMergeGroup] = useState("");
   const [mergeError, setMergeError] = useState("");
@@ -128,13 +133,36 @@ export default function CostConfigPage() {
     setPage(1);
   };
 
-  const selectedMergeAccounts = useMemo(() => draftAccounts.filter((account) => mergeAccountIDs.includes(account.account_id)), [draftAccounts, mergeAccountIDs]);
+  const selectedMergeIDSet = useMemo(() => new Set(mergeAccountIDs), [mergeAccountIDs]);
+  const selectedMergeAccounts = useMemo(() => draftAccounts.filter((account) => selectedMergeIDSet.has(account.account_id)), [draftAccounts, selectedMergeIDSet]);
   const selectedMergeTypes = useMemo(() => new Set(selectedMergeAccounts.map((account) => account.account_type)), [selectedMergeAccounts]);
   const selectedMergeLabel = selectedMergeTypes.size === 2 ? "API / OAuth" : selectedMergeTypes.has("oauth") ? "OAuth" : "API";
   const mergeGroupOptions = useMemo(() => billingGroupOptions(draftAccounts), [draftAccounts]);
+  const mergeAccountResults = useMemo(() => {
+    const query = mergeAccountSearch.trim();
+    const matches = query ? draftAccounts.map((account) => ({
+      account,
+      score: defaultFilter(`${account.name} ${account.account_id} ${account.platform} ${account.account_type} ${account.billing_group ?? ""}`, query),
+    })).filter(({ score }) => score > 0).sort((left, right) => right.score - left.score).map(({ account }) => account) : draftAccounts;
+    const loadedCount = Math.min(matches.length, mergeAccountPage * MERGE_ACCOUNT_PAGE_SIZE);
+    return { accounts: matches.slice(0, loadedCount), total: matches.length, loadedCount, hasMore: loadedCount < matches.length };
+  }, [draftAccounts, mergeAccountPage, mergeAccountSearch]);
+
+  const handleMergeAccountSearchChange = (value: string) => {
+    setMergeAccountSearch(value);
+    setMergeAccountPage(1);
+  };
+
+  const handleMergeAccountListScroll = (event: UIEvent<HTMLDivElement>) => {
+    const target = event.currentTarget;
+    if (!mergeAccountResults.hasMore || target.scrollTop + target.clientHeight < target.scrollHeight - 24) return;
+    setMergeAccountPage((current) => Math.min(current + 1, Math.ceil(mergeAccountResults.total / MERGE_ACCOUNT_PAGE_SIZE)));
+  };
 
   const resetMergeForm = () => {
     setMergeAccountPickerOpen(false);
+    setMergeAccountSearch("");
+    setMergeAccountPage(1);
     setMergeAccountIDs([]);
     setMergeGroup("");
     setMergeError("");
@@ -367,7 +395,8 @@ export default function CostConfigPage() {
                 <form className="aux-account-merge-form" onSubmit={(event) => { event.preventDefault(); void saveBillingGroup(); }}>
                   <div className="aux-account-merge-field">
                     <Label htmlFor="merge-account-picker">合并账号</Label>
-                    <Popover open={mergeAccountPickerOpen} onOpenChange={setMergeAccountPickerOpen}>
+                    {/* 嵌套弹窗使用模态 Popover，避免外层 Dialog 的滚动锁拦截选项列表。 */}
+                    <Popover modal open={mergeAccountPickerOpen} onOpenChange={(open) => { setMergeAccountPickerOpen(open); if (!open) { setMergeAccountSearch(""); setMergeAccountPage(1); } }}>
                       <PopoverTrigger asChild>
                         <Button id="merge-account-picker" type="button" variant="outline" role="combobox" aria-expanded={mergeAccountPickerOpen} className="aux-account-merge-trigger">
                           <span>{mergeAccountIDs.length ? `已选择 ${mergeAccountIDs.length} 个${selectedMergeLabel}账号` : "选择需要合并的账号"}</span>
@@ -375,13 +404,13 @@ export default function CostConfigPage() {
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent align="start" sideOffset={6} className="aux-account-merge-popover">
-                        <Command className="aux-account-merge-command">
-                          <CommandInput placeholder="搜索账号名、平台、计费组或 ID" aria-label="搜索可合并账号" wrapperClassName="aux-account-merge-command-input" />
-                          <CommandList className="aux-account-merge-command-list">
+                        <Command label="搜索可合并账号" className="aux-account-merge-command" shouldFilter={false}>
+                          <CommandInput value={mergeAccountSearch} onValueChange={handleMergeAccountSearchChange} placeholder="搜索账号名、平台、计费组或 ID" aria-label="搜索可合并账号" aria-describedby="merge-account-results-hint" wrapperClassName="aux-account-merge-command-input" />
+                          <CommandList className="aux-account-merge-command-list" onScroll={handleMergeAccountListScroll}>
                             <CommandEmpty>没有匹配账号</CommandEmpty>
                             <CommandGroup>
-                              {draftAccounts.map((account) => {
-                                const selected = mergeAccountIDs.includes(account.account_id);
+                              {mergeAccountResults.accounts.map((account) => {
+                                const selected = selectedMergeIDSet.has(account.account_id);
                                 return (
                                   <CommandItem
                                     key={account.account_id}
@@ -396,6 +425,11 @@ export default function CostConfigPage() {
                               })}
                             </CommandGroup>
                           </CommandList>
+                          <p id="merge-account-results-hint" role="status" className="border-t px-3 py-2 text-xs text-muted-foreground">
+                            {mergeAccountResults.hasMore
+                              ? `共 ${mergeAccountResults.total} 个匹配账号，已显示 ${mergeAccountResults.loadedCount} 条，滚动到底部加载下一页。`
+                              : `共 ${mergeAccountResults.total} 个匹配账号`}
+                          </p>
                         </Command>
                       </PopoverContent>
                     </Popover>

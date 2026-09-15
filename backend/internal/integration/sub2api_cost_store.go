@@ -40,10 +40,19 @@ func (s *Sub2APICostStore) ListAccounts(ctx context.Context) ([]ops.Sub2APIAccou
 	expires := nullableTimeColumnExpression("a", columns, "expires_at")
 	deleted := nullableTimeColumnExpression("a", columns, "deleted_at")
 	updated := timeColumnExpression("a", columns, "updated_at")
+	subscriptionExpires, parentSubscriptionExpires, parentJoin := "NULL::text", "NULL::text", ""
+	if columns["credentials"] {
+		// 只投影订阅日期，避免把完整凭据和可刷新的 token 过期时间带入成本核算。
+		subscriptionExpires = `a."credentials"->>'subscription_expires_at'`
+		if columns["parent_account_id"] {
+			parentJoin = ` LEFT JOIN accounts parent ON parent."id" = a."parent_account_id"`
+			parentSubscriptionExpires = `parent."credentials"->>'subscription_expires_at'`
+		}
+	}
 	// 同步保留软删除账号及删除时间，用于名称/ID 检索与历史对账；列表默认隐藏它们。
 	statement := fmt.Sprintf(`
-		SELECT a."id"::bigint, %s, %s, %s, %s::double precision, %s, %s, %s, %s
-		FROM accounts a ORDER BY %s DESC NULLS LAST, a."id" DESC`, name, typeExpr, platform, rate, created, updated, deleted, expires, created)
+		SELECT a."id"::bigint, %s, %s, %s, %s::double precision, %s, %s, %s, %s, %s, %s
+		FROM accounts a%s ORDER BY %s DESC NULLS LAST, a."id" DESC`, name, typeExpr, platform, rate, created, updated, deleted, expires, subscriptionExpires, parentSubscriptionExpires, parentJoin, created)
 	rows, err := s.db.QueryContext(ctx, statement)
 	if err != nil {
 		return nil, err
@@ -54,7 +63,8 @@ func (s *Sub2APICostStore) ListAccounts(ctx context.Context) ([]ops.Sub2APIAccou
 		var account ops.Sub2APIAccount
 		var rawType string
 		var createdAt, deletedAt, expiresAt sql.NullTime
-		if err := rows.Scan(&account.ID, &account.Name, &rawType, &account.Platform, &account.RateMultiplier, &createdAt, &account.UpdatedAt, &deletedAt, &expiresAt); err != nil {
+		var subscriptionExpiresAt, parentSubscriptionExpiresAt sql.NullString
+		if err := rows.Scan(&account.ID, &account.Name, &rawType, &account.Platform, &account.RateMultiplier, &createdAt, &account.UpdatedAt, &deletedAt, &expiresAt, &subscriptionExpiresAt, &parentSubscriptionExpiresAt); err != nil {
 			return nil, err
 		}
 		if createdAt.Valid {
@@ -67,6 +77,15 @@ func (s *Sub2APICostStore) ListAccounts(ctx context.Context) ([]ops.Sub2APIAccou
 			account.ExpiresAt = &expiresAt.Time
 		}
 		account.Type = classifyAccountType(rawType, account.Platform)
+		if account.ExpiresAt == nil && account.Type == "oauth" {
+			// 手填期限优先；影子账号沿用母账号订阅。无效日期仅视为未知，不中断全量同步。
+			for _, candidate := range []string{subscriptionExpiresAt.String, parentSubscriptionExpiresAt.String} {
+				if parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(candidate)); err == nil && !parsed.IsZero() && parsed.Year() > 0 {
+					account.ExpiresAt = &parsed
+					break
+				}
+			}
+		}
 		if account.RateMultiplier <= 0 {
 			account.RateMultiplier = 1
 		}

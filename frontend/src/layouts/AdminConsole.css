@@ -729,7 +729,7 @@ html.dark .aux-admin-shell {
 .aux-account-merge-command-input { border-color: hsl(var(--border)); }
 .aux-account-merge-command-list { max-height: min(300px, 42dvh); }
 .aux-account-merge-option { min-height: 48px; gap: 9px; padding: 7px 8px; cursor: pointer; }
-.aux-account-merge-option[data-disabled] { cursor: not-allowed; }
+.aux-account-merge-option[data-disabled="true"] { cursor: not-allowed; }
 .aux-account-merge-check { display: grid; width: 18px; height: 18px; flex: 0 0 auto; place-items: center; border: 1px solid hsl(var(--border)); border-radius: 5px; color: transparent; }
 .aux-account-merge-check svg { width: 13px; height: 13px; }
 .aux-account-merge-check.is-selected { border-color: hsl(var(--primary)); background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
