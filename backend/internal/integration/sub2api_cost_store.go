@@ -163,6 +163,7 @@ func (s *Sub2APICostStore) QueryConsumption(ctx context.Context, query ops.Consu
 	for _, account := range accountConfigs {
 		configs[account.AccountID] = account
 	}
+	oauthGroupCosts := explicitOAuthGroupCosts(accountConfigs)
 	result := &ops.ConsumptionResponse{
 		StartTime:     query.StartTime,
 		EndTime:       query.EndTime,
@@ -282,6 +283,10 @@ func (s *Sub2APICostStore) QueryConsumption(ctx context.Context, query ops.Consu
 		}
 		oauthGroups[groupKey] = true
 		cost := accountConfig.EffectiveOAuthCost(config.OAuthAccountCost)
+		if groupCost, ok := oauthGroupCosts[groupKey]; ok {
+			// 组内只有一个账号明确填写采购成本时，未填写的账号继承该组成本。
+			cost = groupCost
+		}
 		result.TotalOAuthCost += cost
 		result.OAuthAccountCount++
 		if accountIDValue != 0 {
@@ -430,6 +435,20 @@ func billingGroupKey(config ops.AccountCostConfig, accountID int64, kind string)
 		return "group:" + group
 	}
 	return kind + ":account:" + fmt.Sprintf("%d", accountID)
+}
+
+func explicitOAuthGroupCosts(accounts []ops.AccountCostConfig) map[string]float64 {
+	result := make(map[string]float64)
+	for _, account := range accounts {
+		if strings.ToLower(strings.TrimSpace(account.AccountType)) != "oauth" || strings.TrimSpace(account.BillingGroup) == "" || account.OAuthAccountCost == nil {
+			continue
+		}
+		key := billingGroupKey(account, account.AccountID, "oauth")
+		if _, exists := result[key]; !exists {
+			result[key] = *account.OAuthAccountCost
+		}
+	}
+	return result
 }
 
 func containsAccountID(ids []int64, id int64) bool {

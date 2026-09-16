@@ -180,16 +180,25 @@ func (s *CostService) SaveAccountConfig(ctx context.Context, config ops.AccountC
 		if err != nil {
 			return config, err
 		}
-		global, err := s.configStore.GetCostConfig(ctx)
-		if err != nil {
-			return config, err
+		var expected *float64
+		if config.OAuthAccountCost != nil {
+			cost := *config.OAuthAccountCost
+			expected = &cost
 		}
-		expected := config.EffectiveOAuthCost(global.OAuthAccountCost)
 		for _, account := range accounts {
 			if account.AccountID == config.AccountID || account.AccountType != "oauth" || !strings.EqualFold(strings.TrimSpace(account.BillingGroup), strings.TrimSpace(config.BillingGroup)) {
 				continue
 			}
-			if account.EffectiveOAuthCost(global.OAuthAccountCost) != expected {
+			// 未单独配置的账号继承计费组中唯一的明确采购成本，不能拿全局默认值参与冲突判断。
+			if account.OAuthAccountCost == nil {
+				continue
+			}
+			cost := *account.OAuthAccountCost
+			if expected == nil {
+				expected = &cost
+				continue
+			}
+			if *expected != cost {
 				return config, ErrBillingGroupOAuthCostConflict
 			}
 		}
@@ -198,7 +207,7 @@ func (s *CostService) SaveAccountConfig(ctx context.Context, config ops.AccountC
 }
 
 var ErrInvalidBillingGroupUpdate = errors.New("billing group requires at least two existing accounts")
-var ErrBillingGroupOAuthCostConflict = errors.New("oauth accounts in a billing group must use the same effective purchase cost")
+var ErrBillingGroupOAuthCostConflict = errors.New("explicit oauth purchase costs in a billing group must match")
 
 func (s *CostService) SaveBillingGroup(ctx context.Context, update ops.BillingGroupUpdate) (ops.CostConfigResponse, error) {
 	if s == nil || s.configStore == nil {
@@ -221,7 +230,7 @@ func (s *CostService) SaveBillingGroup(ctx context.Context, update ops.BillingGr
 	if err != nil {
 		return ops.CostConfigResponse{}, err
 	}
-	accounts, global := config.Accounts, config.Global
+	accounts := config.Accounts
 	wanted := make(map[int64]struct{}, len(ids))
 	for _, id := range ids {
 		wanted[id] = struct{}{}
@@ -236,7 +245,7 @@ func (s *CostService) SaveBillingGroup(ctx context.Context, update ops.BillingGr
 	if found != len(ids) {
 		return ops.CostConfigResponse{}, ErrInvalidBillingGroupUpdate
 	}
-	if err := validateOAuthBillingGroupCosts(accounts, wanted, group, global.OAuthAccountCost); err != nil {
+	if err := validateOAuthBillingGroupCosts(accounts, wanted, group); err != nil {
 		return ops.CostConfigResponse{}, err
 	}
 	selected := make([]ops.Sub2APIAccount, 0, len(ids))
@@ -261,7 +270,7 @@ func (s *CostService) SaveBillingGroup(ctx context.Context, update ops.BillingGr
 	return mergeLiveAccountConfig(saved, upstream), nil
 }
 
-func validateOAuthBillingGroupCosts(accounts []ops.AccountCostConfig, wanted map[int64]struct{}, group string, globalCost float64) error {
+func validateOAuthBillingGroupCosts(accounts []ops.AccountCostConfig, wanted map[int64]struct{}, group string) error {
 	var expected *float64
 	for _, account := range accounts {
 		_, selected := wanted[account.AccountID]
@@ -269,7 +278,11 @@ func validateOAuthBillingGroupCosts(accounts []ops.AccountCostConfig, wanted map
 		if (!selected && !inTargetGroup) || strings.ToLower(strings.TrimSpace(account.AccountType)) != "oauth" {
 			continue
 		}
-		cost := account.EffectiveOAuthCost(globalCost)
+		if account.OAuthAccountCost == nil {
+			// 空值继承组内明确成本；全组为空时才使用全局默认值。
+			continue
+		}
+		cost := *account.OAuthAccountCost
 		if expected == nil {
 			expected = &cost
 			continue

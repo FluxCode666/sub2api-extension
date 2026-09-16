@@ -26,8 +26,8 @@ type Sub2APIAccount struct {
 	ExpiresAt      *time.Time `json:"expires_at,omitempty"`
 }
 
-// AccountCostConfig is the extension-owned per-account cost policy. A nil
-// OAuth cost or API override means "use the global/default policy".
+// AccountCostConfig 保存附属系统的账号成本策略。OAuth 成本为空时先继承组内
+// 明确成本，再回退全局默认值；API 倍率为空时沿用同步或默认倍率。
 type AccountCostConfig struct {
 	AccountID             int64      `json:"account_id"`
 	AccountType           string     `json:"account_type"`

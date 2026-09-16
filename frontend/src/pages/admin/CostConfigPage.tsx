@@ -72,7 +72,6 @@ export default function CostConfigPage() {
   const [mergeAccountPage, setMergeAccountPage] = useState(1);
   const [mergeAccountIDs, setMergeAccountIDs] = useState<number[]>([]);
   const [mergeGroup, setMergeGroup] = useState("");
-  const [mergeError, setMergeError] = useState("");
   const [globalError, setGlobalError] = useState("");
   const [error, setError] = useState("");
 
@@ -165,7 +164,6 @@ export default function CostConfigPage() {
     setMergeAccountPage(1);
     setMergeAccountIDs([]);
     setMergeGroup("");
-    setMergeError("");
   };
 
   const handleMergeDialogOpenChange = (open: boolean) => {
@@ -219,11 +217,11 @@ export default function CostConfigPage() {
 
   const saveAccount = async (account: AccountCostConfig) => {
     if (account.account_type === "oauth" && account.oauth_account_cost != null && account.oauth_account_cost < 0) {
-      setError("OAuth 单号成本不能为负。");
+      toast.error("OAuth 单号成本不能为负。");
       return;
     }
     if (account.account_type === "api" && account.api_multiplier_mode === "manual" && (!account.api_multiplier_override || account.api_multiplier_override <= 0)) {
-      setError("手工 API 倍率必须大于 0。");
+      toast.error("手工 API 倍率必须大于 0。");
       return;
     }
     setSavingAccount(account.account_id);
@@ -240,14 +238,14 @@ export default function CostConfigPage() {
       setDraftAccounts((current) => current.map((item) => item.account_id === account.account_id ? envelope.data! : item));
       toast.success(`账号 ${account.account_id} 配置已保存`);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "保存失败");
+      const message = reason instanceof Error ? reason.message : "保存失败";
+      toast.error("账号成本保存失败", { description: message });
     } finally {
       setSavingAccount(null);
     }
   };
 
   const toggleMergeAccount = (account: AccountCostConfig) => {
-    setMergeError("");
     setMergeAccountIDs((current) => current.includes(account.account_id)
       ? current.filter((id) => id !== account.account_id)
       : [...current, account.account_id]);
@@ -256,15 +254,14 @@ export default function CostConfigPage() {
   const saveBillingGroup = async () => {
     const group = mergeGroup.trim();
     if (mergeAccountIDs.length < 2) {
-      setMergeError("请至少选择两个需要合并计费的账号。");
+      toast.error("请至少选择两个需要合并计费的账号。");
       return;
     }
     if (!group) {
-      setMergeError("请填写或选择计费组名称。");
+      toast.error("请填写或选择计费组名称。");
       return;
     }
     setSavingBillingGroup(true);
-    setMergeError("");
     try {
       const envelope = await apiClient.put<AuxEnvelope<CostConfigResponse>>("/admin/ops/cost-config/billing-groups", { account_ids: mergeAccountIDs, billing_group: group });
       if (envelope.code !== 0 || !envelope.data) throw new Error(envelope.message || "保存失败");
@@ -276,7 +273,8 @@ export default function CostConfigPage() {
       resetMergeForm();
       setMergeDialogOpen(false);
     } catch (reason) {
-      setMergeError(reason instanceof Error ? reason.message : "保存失败");
+      const message = reason instanceof Error ? reason.message : "保存失败";
+      toast.error("账号合并计费失败", { description: message });
     } finally {
       setSavingBillingGroup(false);
     }
@@ -340,7 +338,7 @@ export default function CostConfigPage() {
               <form className="aux-default-config-form" onSubmit={(event) => { event.preventDefault(); void saveGlobal(); }}>
                 <div className="aux-default-config-field">
                   <Label htmlFor="oauth-cost">OAuth 默认单号成本</Label>
-                  <p>仅用于没有单独采购成本的 OAuth 账号；已单独配置的账号优先使用自己的金额。</p>
+                  <p>独立账号未设置采购成本，或计费组内所有 OAuth 账号都未设置时，使用此默认值。</p>
                   <div className="aux-config-input-wrap"><span>{globalDraft.currency}</span><Input id="oauth-cost" type="number" min="0" step="0.01" value={globalDraft.oauth_account_cost} onChange={(event) => setGlobalDraft({ ...globalDraft, oauth_account_cost: Number(event.target.value) })} /><em> / 号</em></div>
                 </div>
                 <div className="aux-default-config-field">
@@ -433,24 +431,22 @@ export default function CostConfigPage() {
                         </Command>
                       </PopoverContent>
                     </Popover>
-                    <p className="aux-account-merge-field-hint">支持 API 与 OAuth 混合合并；统计时仍按各自成本口径计算。同组 OAuth 账号需使用相同有效采购成本。</p>
+                    <p className="aux-account-merge-field-hint">支持 API 与 OAuth 混合合并。同组 OAuth 采购成本只计一次，只需一个账号设置；多个已设置金额必须一致，全未设置时使用全局默认值。</p>
                   </div>
 
                   <div className="aux-account-merge-field-grid">
                     <div className="aux-account-merge-field">
                       <Label htmlFor="merge-existing-group">已有计费组</Label>
-                      <Select value={mergeGroupOptions.includes(mergeGroup) ? mergeGroup : ""} onValueChange={(value) => { setMergeGroup(value); setMergeError(""); }} disabled={!mergeGroupOptions.length}>
+                      <Select value={mergeGroupOptions.includes(mergeGroup) ? mergeGroup : ""} onValueChange={setMergeGroup} disabled={!mergeGroupOptions.length}>
                         <SelectTrigger id="merge-existing-group" className="aux-account-merge-select"><SelectValue placeholder={mergeGroupOptions.length ? "选择已有组" : "暂无可用计费组"} /></SelectTrigger>
                         <SelectContent>{mergeGroupOptions.map((group) => <SelectItem key={group} value={group}>{group}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
                     <div className="aux-account-merge-field">
                       <Label htmlFor="merge-group-name">计费组名称</Label>
-                      <Input id="merge-group-name" value={mergeGroup} maxLength={128} onChange={(event) => { setMergeGroup(event.target.value); setMergeError(""); }} placeholder="例如：主账号重新上号" className="aux-account-merge-input" />
+                      <Input id="merge-group-name" value={mergeGroup} maxLength={128} onChange={(event) => setMergeGroup(event.target.value)} placeholder="例如：主账号重新上号" className="aux-account-merge-input" />
                     </div>
                   </div>
-
-                  {mergeError && <div className="aux-account-merge-alert" role="alert">{mergeError}</div>}
 
                   <DialogFooter className="aux-account-merge-footer gap-2 sm:space-x-0">
                     <DialogClose asChild><Button type="button" variant="outline" className="aux-account-merge-cancel" disabled={savingBillingGroup}>取消</Button></DialogClose>

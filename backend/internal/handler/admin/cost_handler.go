@@ -122,7 +122,7 @@ func (h *CostHandler) UpdateAccountConfig(c *gin.Context) {
 	saved, err := h.provider.SaveAccountConfig(c.Request.Context(), config)
 	if err != nil {
 		if errors.Is(err, service.ErrBillingGroupOAuthCostConflict) {
-			response.BadRequest(c, "OAuth accounts in one billing group must use the same effective purchase cost")
+			response.BadRequest(c, "同一计费组内，已单独设置的 OAuth 采购成本必须一致；未设置的账号会继承组内唯一成本或全局默认值")
 			return
 		}
 		response.Error(c, http.StatusInternalServerError, "failed to save account cost config")
@@ -144,7 +144,7 @@ func (h *CostHandler) UpdateBillingGroup(c *gin.Context) {
 	data, err := h.provider.SaveBillingGroup(c.Request.Context(), update)
 	if err != nil {
 		if errors.Is(err, service.ErrBillingGroupOAuthCostConflict) {
-			response.BadRequest(c, "OAuth accounts in one billing group must use the same effective purchase cost")
+			response.BadRequest(c, "同一计费组内，已单独设置的 OAuth 采购成本必须一致；未设置的账号会继承组内唯一成本或全局默认值")
 			return
 		}
 		if errors.Is(err, service.ErrInvalidBillingGroupUpdate) {

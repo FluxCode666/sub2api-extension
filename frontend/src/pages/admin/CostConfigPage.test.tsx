@@ -3,9 +3,10 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import userEvent from "@testing-library/user-event";
 import { apiClient } from "@/lib/api-client";
 import CostConfigPage from "@/pages/admin/CostConfigPage";
+import { toast } from "sonner";
 
 vi.mock("@/lib/api-client", () => ({ apiClient: { get: vi.fn(), put: vi.fn(), post: vi.fn() } }));
-vi.mock("sonner", () => ({ toast: { success: vi.fn() } }));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 const accounts = Array.from({ length: 25 }, (_, index) => ({
   account_id: index + 1,
@@ -118,6 +119,19 @@ describe("成本配置列表", () => {
     await userEvent.click(within(visibleRows()[0]).getByRole("button", { name: "保存" }));
     expect(apiClient.put).toHaveBeenCalledWith("/admin/ops/cost-config/accounts/25", expect.objectContaining({ account_id: 25, oauth_account_cost: 42 }));
     await screen.findByRole("button", { name: "重置筛选" });
+  });
+
+  it("单账号保存失败使用 error 通知，保留编辑且不在页面顶部显示错误", async () => {
+    const message = "同一计费组内，已单独设置的 OAuth 采购成本必须一致";
+    vi.mocked(apiClient.put).mockRejectedValueOnce(new Error(message));
+    await openPage();
+    const input = screen.getByLabelText("账号 25 的 OAuth 单号成本");
+    fireEvent.change(input, { target: { value: "42" } });
+    await userEvent.click(within(visibleRows()[0]).getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("账号成本保存失败", { description: message }));
+    expect(input).toHaveValue(42);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(within(visibleRows()[0]).getByRole("button", { name: "保存" })).toBeEnabled();
   });
 
   it("改变类型、搜索和每页条数时回到第一页，正确处理无匹配结果", async () => {
@@ -366,5 +380,22 @@ describe("合并计费账号下拉", () => {
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "账号合并计费" })).not.toBeInTheDocument());
     await userEvent.click(screen.getByRole("button", { name: "账号合并计费" }));
     expect(screen.getByRole("combobox", { name: "合并账号" })).toHaveTextContent("选择需要合并的账号");
+  });
+
+  it("合并失败使用 error 通知，保留表单且不在页面顶部显示错误", async () => {
+    vi.mocked(apiClient.put).mockRejectedValueOnce(new Error("同一计费组内，已单独设置的 OAuth 采购成本必须一致"));
+    await openPage();
+    await userEvent.click(screen.getByRole("button", { name: "账号合并计费" }));
+    await userEvent.click(screen.getByRole("combobox", { name: "合并账号" }));
+    await userEvent.click(screen.getByRole("option", { name: "测试账号 1 #1 · OAuth · openai" }));
+    await userEvent.click(screen.getByRole("option", { name: "测试账号 3 #3 · OAuth · openai" }));
+    await userEvent.keyboard("{Escape}");
+    await userEvent.type(screen.getByLabelText("计费组名称"), "冲突组");
+    await userEvent.click(screen.getByRole("button", { name: "应用合并" }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("账号合并计费失败", { description: "同一计费组内，已单独设置的 OAuth 采购成本必须一致" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "账号合并计费" })).toBeInTheDocument();
+    expect(screen.getByLabelText("计费组名称")).toHaveValue("冲突组");
+    expect(screen.getByRole("combobox", { name: "合并账号" })).toHaveTextContent("已选择 2 个OAuth账号");
   });
 });
