@@ -10,6 +10,7 @@ import { ThinkingOrbRuntime } from '@/lib/thinkingOrbRuntime'
 import { TobNetworkMap } from '@/components/TobNetworkMap'
 import { HomepageQuickstart } from './HomepageQuickstart'
 import './HomepagePage.css'
+import { withAppBasePath } from '@/lib/app-base-path'
 
 gsap.registerPlugin(useGSAP, ScrollTrigger)
 
@@ -94,7 +95,7 @@ function formatMetricValue(metric: MetricValue, amount: number) {
 }
 
 function BrandMark({ logoUrl }: { logoUrl: string }) {
-  return <span className={`sub2api-brand-mark ${logoUrl ? 'sub2api-brand-mark--image' : ''}`}>{logoUrl ? <img src={logoUrl} alt="" /> : 'S2'}</span>
+  return <span className={`sub2api-brand-mark ${logoUrl ? 'sub2api-brand-mark--image' : ''}`}>{logoUrl ? <img src={withAppBasePath(logoUrl)} alt="" /> : 'S2'}</span>
 }
 
 function PartnerMark({ partner }: { partner: TrustedPartner }) {
@@ -102,7 +103,7 @@ function PartnerMark({ partner }: { partner: TrustedPartner }) {
   const monogram = partner.name.trim().slice(0, 1) || '·'
   return <span className="sub2api-partner-logo" aria-hidden="true">
     <span className="sub2api-partner-monogram">{monogram}</span>
-    {partner.logoUrl ? <img className={logoLoaded ? 'is-loaded' : ''} src={partner.logoUrl} alt="" onLoad={() => setLogoLoaded(true)} onError={() => setLogoLoaded(false)} /> : null}
+    {partner.logoUrl ? <img className={logoLoaded ? 'is-loaded' : ''} src={withAppBasePath(partner.logoUrl)} alt="" onLoad={() => setLogoLoaded(true)} onError={() => setLogoLoaded(false)} /> : null}
   </span>
 }
 
@@ -466,7 +467,7 @@ export default function HomepagePage({ variant = 'default' }: HomepagePageProps)
   }, { scope: rootRef, dependencies: [loading], revertOnUpdate: true })
 
   const linkProps = (href: string) => {
-    return { href, target: href.startsWith('#') ? undefined : '_top', rel: safeExternalHref(href) ? 'noreferrer' : undefined }
+    return { href: withAppBasePath(href), target: href.startsWith('#') ? undefined : '_top', rel: safeExternalHref(href) ? 'noreferrer' : undefined }
   }
   const secondaryCta = isTob
     ? { label: '了解企业能力', href: '#capabilities' }
@@ -519,7 +520,7 @@ export default function HomepagePage({ variant = 'default' }: HomepagePageProps)
       })}</div>
       <div className="sub2api-ecosystem-core"><span className="sub2api-ecosystem-core-ripple" aria-hidden="true" /><span className="sub2api-ecosystem-core-ripple" aria-hidden="true" /><span className="sub2api-ecosystem-core-ripple" aria-hidden="true" /><BrandMark logoUrl={config.siteLogoUrl} /></div>
       {config.integrations.slice(0, 8).map((integration, index, visibleIntegrations) => {
-        const content = <><span className="sub2api-ecosystem-node-icon">{integration.logoUrl ? <img src={integration.logoUrl} alt="" /> : integration.name.slice(0, 1)}</span><i /></>
+        const content = <><span className="sub2api-ecosystem-node-icon">{integration.logoUrl ? <img src={withAppBasePath(integration.logoUrl)} alt="" /> : integration.name.slice(0, 1)}</span><i /></>
         const className = 'sub2api-ecosystem-node'
         const style = integrationLayout(index, visibleIntegrations.length)
         const node = integration.documentationUrl ? <a className={className} {...linkProps(integration.documentationUrl)} aria-label={`查看 ${integration.name} 接入文档`}>{content}</a> : <div className={className}>{content}</div>

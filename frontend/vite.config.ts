@@ -6,6 +6,9 @@ import { resolve } from 'path'
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, resolve(__dirname), '')
+  const configuredBasePath = process.env.VITE_BASE_PATH || env.VITE_BASE_PATH || '/'
+  const normalizedBasePath = configuredBasePath.trim().replace(/^\/+|\/+$/g, '')
+  const basePath = normalizedBasePath ? `/${normalizedBasePath}/` : '/'
   // The standalone `cd backend && make dev` target listens on 8004. Use
   // localhost so the OS can select the available loopback family (on macOS
   // this avoids a stale IPv4 service shadowing the IPv6 development backend).
@@ -16,6 +19,7 @@ export default defineConfig(({ mode }) => {
   const backendTarget = configuredTarget || 'http://localhost:8004'
 
   return {
+    base: basePath,
     plugins: [react()],
     resolve: {
       alias: {

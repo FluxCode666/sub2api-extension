@@ -1,5 +1,6 @@
 import { getAdminSessionToken, ADMIN_SESSION_HEADER } from './admin-auth'
 import { getEmbeddedContext } from './embedded'
+import { withAppBasePath } from './app-base-path'
 
 export type InvoiceStatus = 'PENDING' | 'PROCESSING' | 'ISSUED' | 'REJECTED'
 
@@ -82,7 +83,7 @@ export async function downloadInvoiceFile(path: string): Promise<void> {
   if (session) headers[ADMIN_SESSION_HEADER] = session
   const embeddedToken = getEmbeddedContext()?.token
   if (embeddedToken) headers['X-Aux-Token'] = embeddedToken
-  const response = await fetch(path, { headers, cache: 'no-store' })
+  const response = await fetch(withAppBasePath(path), { headers, cache: 'no-store' })
   if (!response.ok) throw new Error(`下载失败（${response.status}）`)
   const blob = await response.blob()
   const disposition = response.headers.get('content-disposition') ?? ''

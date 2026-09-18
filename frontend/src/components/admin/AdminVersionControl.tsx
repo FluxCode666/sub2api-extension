@@ -5,6 +5,7 @@ import { marked } from 'marked'
 import { apiClient, type AuxEnvelope } from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { withAppBasePath } from '@/lib/app-base-path'
 
 interface Build { version: string; commit: string; buildTime: string }
 interface Job { id: string; version: string; phase: string; message: string; startedAt: string }
@@ -167,7 +168,7 @@ export default function AdminVersionControl({ children }: PropsWithChildren) {
     let retries = 0
     const pollHealth = async () => {
       try {
-        const response = await fetch('/health', { method: 'GET', cache: 'no-cache' })
+        const response = await fetch(withAppBasePath('/health'), { method: 'GET', cache: 'no-cache' })
         if (cancelled) return
         if (response.ok) {
           window.location.reload()

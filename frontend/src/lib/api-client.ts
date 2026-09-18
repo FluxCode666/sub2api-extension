@@ -12,6 +12,7 @@
 import { getEmbeddedContext } from './embedded'
 import { clearAdminSession, getAdminSessionToken, ADMIN_SESSION_HEADER } from './admin-auth'
 import { AUX_API_BASE_URL } from './api-base'
+import { withAppBasePath, withoutAppBasePath } from './app-base-path'
 
 /** 附属后端标准响应 envelope(镜像后端 response.Response)。 */
 export interface AuxEnvelope<T> {
@@ -146,12 +147,12 @@ export async function apiRequest<T>(
       // LoginPage 再次识别旧会话并跳回控制台，形成 /admin ↔ /login 循环。
       // iframe 场景必须保留 sub2api 注入的查询参数，否则 AdminGuard 无法
       // 重新 exchangeSession，只能让管理员再次手动登录。
-      if (response.status === 401 && window.location.pathname.startsWith('/admin')) {
+      if (response.status === 401 && withoutAppBasePath(window.location.pathname).startsWith('/admin')) {
         clearAdminSession()
         const embeddedSearch = window.location.search
         window.location.href = embeddedSearch
-          ? `/admin/dashboard${embeddedSearch}`
-          : '/login'
+          ? `${withAppBasePath('/admin/dashboard')}${embeddedSearch}`
+          : withAppBasePath('/login')
         throw new AuxApiError(response.status, 'Unauthorized: redirecting to login', payload?.reason)
       }
       throw apiError

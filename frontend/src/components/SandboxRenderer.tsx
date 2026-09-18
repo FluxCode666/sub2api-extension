@@ -16,6 +16,7 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { trackFeatureClick } from '@/lib/telemetry-sdk'
+import { withAppBasePath } from '@/lib/app-base-path'
 
 interface SandboxRendererProps {
   /** 用户提供的 HTML 内容。 */
@@ -165,7 +166,7 @@ export default function SandboxRenderer({
         const href = data.href.trim()
         if (!href) return
         try {
-          const target = new URL(href, window.location.href)
+          const target = new URL(withAppBasePath(href), window.location.href)
           if (!isSafeNavigationProtocol(target.protocol)) return
           const targetName = typeof data.target === 'string' ? data.target.toLowerCase() : '_self'
           if (targetName === '_blank') {

@@ -26,6 +26,9 @@ ARG NPM_CONFIG_REGISTRY=
 # --platform=$BUILDPLATFORM: 前端产物为 JS（架构无关），在宿主架构上构建以避免 QEMU 模拟。
 FROM --platform=${BUILDPLATFORM} ${NODE_IMAGE} AS frontend-builder
 ARG NPM_CONFIG_REGISTRY
+# 生产通过共享域名的 /aux/ 挂载；独立根域名构建时可显式传入 `/` 覆盖。
+ARG VITE_BASE_PATH=/aux/
+ENV VITE_BASE_PATH=${VITE_BASE_PATH}
 
 WORKDIR /app/frontend
 

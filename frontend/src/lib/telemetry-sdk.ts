@@ -19,8 +19,9 @@
 import { getMergedPageByPath } from './dynamic-pages'
 import { getPageByPath } from './page-registry'
 import { getVisitorId, isCurrentUserAdmin } from './visitor-id'
+import { withAppBasePath, withoutAppBasePath } from './app-base-path'
 
-const TELEMETRY_BASE_URL = '/api/aux/telemetry'
+const TELEMETRY_BASE_URL = withAppBasePath('/api/aux/telemetry')
 
 /** 是否已初始化(防止重复监听)。 */
 let initialized = false
@@ -96,13 +97,14 @@ export function trackFeatureClick(pageId: string, featureId: string): void {
  * 路径不在 registry(如 404) → 不上报(避免噪声)。
  */
 function handleRouteChange(pathname: string): void {
+  const appPathname = withoutAppBasePath(pathname)
   // 动态页清单异步加载，缓存命中后优先使用动态注册表；在 bootstrap 尚未完成时
   // 仍通过静态注册表识别核心页面，避免动态列表请求影响既有页面埋点。
-  const page = getMergedPageByPath(pathname) ?? getPageByPath(pathname)
+  const page = getMergedPageByPath(appPathname) ?? getPageByPath(appPathname)
   const isAdmin = isCurrentUserAdmin()
   const routeKey = page
-    ? `${pathname}:${isAdmin ? 'admin' : 'anonymous'}`
-    : `unregistered:${pathname}`
+    ? `${appPathname}:${isAdmin ? 'admin' : 'anonymous'}`
+    : `unregistered:${appPathname}`
   if (routeKey === lastRouteKey) return
   lastRouteKey = routeKey
 

@@ -22,6 +22,7 @@ import { apiClient, type AuxEnvelope } from '@/lib/api-client'
 import { DEFAULT_SUB2API_SYSTEM_NAME, resolveSystemName } from '@/lib/system-name'
 import '@fontsource-variable/geist'
 import './ApiDocsPage.css'
+import { withAppBasePath } from '@/lib/app-base-path'
 
 type EndpointGroup = 'OpenAI 兼容' | '多模态' | 'Anthropic 兼容' | 'Google 原生'
 type ExampleLanguage = 'curl' | 'python' | 'go' | 'java'
@@ -329,7 +330,7 @@ function configuredDomain(value?: string): string {
 function siteHrefProps(href: string): { href: string; target?: string; rel?: string } {
   return /^https?:\/\//i.test(href)
     ? { href, target: '_blank', rel: 'noreferrer' }
-    : { href }
+    : { href: withAppBasePath(href) }
 }
 
 function initialBaseURL(search: string): string {
@@ -630,7 +631,7 @@ export default function ApiDocsPage() {
       <footer className="aux-api-footer">
         <div className="aux-api-footer-brand">
           <span className={`aux-api-footer-mark${siteLogoUrl ? ' has-image' : ''}`}>
-            {siteLogoUrl ? <img src={siteLogoUrl} alt="" /> : <Terminal aria-hidden="true" />}
+            {siteLogoUrl ? <img src={withAppBasePath(siteLogoUrl)} alt="" /> : <Terminal aria-hidden="true" />}
           </span>
           <span>{systemName ? `${systemName} · API 文档` : 'API 文档'}</span>
         </div>

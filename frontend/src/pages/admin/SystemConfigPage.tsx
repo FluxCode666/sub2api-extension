@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import './SystemConfigPage.css'
+import { withAppBasePath } from '@/lib/app-base-path'
 
 const DEFAULT_MODEL = 'gpt-6-astra'
 const ALLOWED_LOGO_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
@@ -323,7 +324,7 @@ export default function SystemConfigPage() {
             >
               <div className={`aux-system-config-logo-preview${logoPreviewFailed ? ' is-error' : ''}`}>
                 {draftSiteLogoUrl && !logoPreviewFailed ? (
-                  <img src={draftSiteLogoUrl} alt="Sub2API 系统 Logo 预览" onError={() => setLogoPreviewFailed(true)} />
+                  <img src={withAppBasePath(draftSiteLogoUrl)} alt="Sub2API 系统 Logo 预览" onError={() => setLogoPreviewFailed(true)} />
                 ) : (
                   <ImageIcon aria-hidden="true" />
                 )}
@@ -409,7 +410,7 @@ export default function SystemConfigPage() {
 
         <aside className="aux-system-config-card aux-system-config-preview-card">
           <div className={`aux-system-config-preview-mark${draftSiteLogoUrl && !logoPreviewFailed ? ' has-image' : ''}`}>
-            {draftSiteLogoUrl && !logoPreviewFailed ? <img src={draftSiteLogoUrl} alt="" onError={() => setLogoPreviewFailed(true)} /> : <Settings2 aria-hidden="true" />}
+            {draftSiteLogoUrl && !logoPreviewFailed ? <img src={withAppBasePath(draftSiteLogoUrl)} alt="" onError={() => setLogoPreviewFailed(true)} /> : <Settings2 aria-hidden="true" />}
           </div>
           <span className="aux-system-config-card-kicker">Current value</span>
           <h2>示例将使用</h2>

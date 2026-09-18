@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { downloadInvoiceFile } from '@/lib/invoices'
+import { withAppBasePath } from '@/lib/app-base-path'
 
 interface FileAsset {
   source: 'image' | 'invoice'
@@ -104,7 +105,7 @@ export default function FileManagementPage() {
   }
 
   const copyURL = async (asset: FileAsset) => {
-    const url = new URL(`/api/aux/assets/${asset.source_id}`, window.location.origin).href
+    const url = new URL(withAppBasePath(`/api/aux/assets/${asset.source_id}`), window.location.origin).href
     try {
       await writeClipboardText(url)
       setCopiedId(fileKey(asset))
@@ -231,7 +232,7 @@ export default function FileManagementPage() {
             <tbody className="divide-y dark:divide-gray-800">
               {items.map((asset) => {
                 const key = fileKey(asset)
-                const imageURL = new URL(`/api/aux/assets/${asset.source_id}`, window.location.origin).href
+                const imageURL = new URL(withAppBasePath(`/api/aux/assets/${asset.source_id}`), window.location.origin).href
                 const originalName = asset.original_name || asset.name || '未命名文件'
                 const note = asset.note || ''
                 return (

@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
+import { withAppBasePath } from '@/lib/app-base-path'
 
 const EMPTY_PARTNER: TrustedPartner = { name: '', logoUrl: '', linkUrl: '' }
 const EMPTY_INTEGRATION: IntegrationApp = { name: '', logoUrl: '', documentationUrl: '' }
@@ -183,7 +184,7 @@ export default function HomepageConfigPage({ variant = 'default' }: HomepageConf
     <div className="aux-admin-page aux-homepage-config-page">
       <header className="aux-page-header">
         <div><p className="aux-page-kicker">品牌与内容</p><h1>{isTob ? 'ToB 官网配置' : 'ToC 官网配置'}</h1><p>{isTob ? '基于现有 Sub2API 官网的完整副本维护企业版内容，并配置全球主服务器、CDN 和客户节点。' : '维护 Sub2API 官网的品牌信息、顶部导航、合作伙伴与合规协议链接。保存后会同步到独立官网和嵌入页面。'}</p></div>
-        <a className="aux-config-preview" href={isTob ? '/tob-home' : '/sub2api-home'} target="_blank" rel="noreferrer">预览 {isTob ? 'ToB' : 'ToC'} 官网 <ArrowUpRight size={15} /></a>
+        <a className="aux-config-preview" href={withAppBasePath(isTob ? '/tob-home' : '/sub2api-home')} target="_blank" rel="noreferrer">预览 {isTob ? 'ToB' : 'ToC'} 官网 <ArrowUpRight size={15} /></a>
       </header>
       <section className="aux-config-card">
         <div className="aux-config-section-heading"><div><span>01</span><h2>品牌与 Hero</h2></div><p>首页首屏会优先使用这些内容，建议标题保持在两行以内。</p></div>

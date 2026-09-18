@@ -11,6 +11,7 @@ import { DEFAULT_HOMEPAGE_CONFIG, isHomepageNavigationHref, type HomepageConfig 
 import { DEFAULT_SUB2API_SYSTEM_NAME, resolveSystemName } from '@/lib/system-name'
 import '@fontsource-variable/geist'
 import './ClientDocsPage.css'
+import { withAppBasePath } from '@/lib/app-base-path'
 
 gsap.registerPlugin(useGSAP, ScrollToPlugin)
 const canAnimate = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
@@ -55,7 +56,7 @@ function subscribeToSystemTheme(onChange: () => void): () => void {
 function ClientMark({ id, small = false }: { id: ClientId; small?: boolean }) {
   const guide = getClientGuide(id)
   return <span className={`client-mark client-mark--${id}${small ? ' client-mark--small' : ''}`} aria-hidden="true">
-    <img src={guide.icon} alt="" width={small ? 20 : 38} height={small ? 20 : 38} draggable={false} />
+    <img src={withAppBasePath(guide.icon)} alt="" width={small ? 20 : 38} height={small ? 20 : 38} draggable={false} />
   </span>
 }
 
@@ -168,7 +169,7 @@ function Screenshot({ screenshot, clientName, feature }: { screenshot: GuideScre
 
   return <figure ref={figureRef} className="client-screenshot">
     {hasImage ? <button type="button" className="client-screenshot-image" onClick={() => { setExpanded(true); trackFeatureClick('client-docs', `screenshot-${feature}`) }} aria-label={`放大查看：${screenshot.caption}`}>
-      <img src={screenshot.src} alt={screenshot.alt} loading="lazy" onError={() => setFailed(true)} />
+      <img src={withAppBasePath(screenshot.src)} alt={screenshot.alt} loading="lazy" onError={() => setFailed(true)} />
       <span><ImageIcon size={14} aria-hidden="true" /> 点击放大</span>
     </button> : <div className="client-screenshot-placeholder" role="img" aria-label={`${clientName}：${screenshot.caption}（截图待补充）`}>
       <ImageIcon size={24} strokeWidth={1.5} aria-hidden="true" />
@@ -177,7 +178,7 @@ function Screenshot({ screenshot, clientName, feature }: { screenshot: GuideScre
     {hasImage && <figcaption>{clientName}<span>/</span>{screenshot.caption}</figcaption>}
     {hasImage && <dialog className="client-image-dialog" aria-label={screenshot.caption} ref={dialogRef} onClose={() => { setExpanded(false); setDialogOpen(false) }} onClick={event => { if (event.target === event.currentTarget) setExpanded(false) }}>
       <button type="button" autoFocus onClick={() => setExpanded(false)} aria-label="关闭大图"><X aria-hidden="true" /></button>
-      <img ref={dialogImageRef} src={screenshot.src} alt={screenshot.alt} /><p>{screenshot.caption}</p>
+      <img ref={dialogImageRef} src={withAppBasePath(screenshot.src)} alt={screenshot.alt} /><p>{screenshot.caption}</p>
     </dialog>}
   </figure>
 }
@@ -447,7 +448,7 @@ export default function ClientDocsPage() {
             </select>
             <ChevronDown size={12} className="client-theme-chevron" aria-hidden="true" />
           </div>
-          <a className="client-header-console" href={consoleHref} target={consoleHref.startsWith('#') ? undefined : '_top'} rel={/^https?:/i.test(consoleHref) ? 'noreferrer' : undefined} onClick={() => trackFeatureClick('client-docs', 'open-console')}>控制台 <ArrowUpRight size={16} aria-hidden="true" /></a>
+          <a className="client-header-console" href={withAppBasePath(consoleHref)} target={consoleHref.startsWith('#') ? undefined : '_top'} rel={/^https?:/i.test(consoleHref) ? 'noreferrer' : undefined} onClick={() => trackFeatureClick('client-docs', 'open-console')}>控制台 <ArrowUpRight size={16} aria-hidden="true" /></a>
         </div>
       </div>
     </header>

@@ -5,6 +5,7 @@ import App from './App'
 import { initEmbeddedContext } from '@/lib/embedded'
 import { applyTheme } from '@/lib/theme'
 import { initTelemetry } from '@/lib/telemetry-sdk'
+import { ROUTER_BASE_PATH } from '@/lib/app-base-path'
 import './index.css'
 import './pages/PageSurfaces.css'
 
@@ -21,6 +22,7 @@ initTelemetry()
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter
+      basename={ROUTER_BASE_PATH}
       future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
     >
       <App />
