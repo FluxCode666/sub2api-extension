@@ -174,6 +174,16 @@ describe('ClientDocsPage', () => {
     explicit.unmount()
   })
 
+  it('keeps a same-origin Sub2API console path unchanged', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ code: 0, data: { consoleHref: '/dashboard' } })
+
+    renderPage()
+
+    const consoleLink = await screen.findByRole('link', { name: '控制台' })
+    await waitFor(() => expect(consoleLink).toHaveAttribute('href', '/dashboard'))
+    expect(consoleLink).toHaveAttribute('target', '_top')
+  })
+
   it('uses the configured site name in the copyright footer', async () => {
     vi.mocked(apiClient.get).mockResolvedValue({ code: 0, data: { siteName: '示例平台' } })
     renderPage('/client-docs?client=codex')

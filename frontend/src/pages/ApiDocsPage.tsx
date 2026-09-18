@@ -328,9 +328,9 @@ function configuredDomain(value?: string): string {
 }
 
 function siteHrefProps(href: string): { href: string; target?: string; rel?: string } {
-  return /^https?:\/\//i.test(href)
-    ? { href, target: '_blank', rel: 'noreferrer' }
-    : { href: withAppBasePath(href) }
+  if (/^https?:\/\//i.test(href)) return { href, target: '_blank', rel: 'noreferrer' }
+  if (href.startsWith('#')) return { href }
+  return { href, target: '_top' }
 }
 
 function initialBaseURL(search: string): string {
@@ -638,7 +638,7 @@ export default function ApiDocsPage() {
         <span className="aux-api-footer-status">{endpoints.length} 个接口 · {systemDomain || configuredDomain(baseURL) || '当前页面服务地址'}</span>
         <span className="aux-api-footer-copyright">© 2026 {systemName || 'API 文档'}. All rights reserved.</span>
         <nav className="aux-api-footer-nav" aria-label="相关文档">
-          <a {...siteHrefProps('/sub2api-home')} onClick={() => trackFeatureClick('api-docs', 'open-home')}><Home aria-hidden="true" />官网首页</a>
+          <a href={withAppBasePath('/sub2api-home')} onClick={() => trackFeatureClick('api-docs', 'open-home')}><Home aria-hidden="true" />官网首页</a>
           <Link to={`/client-docs?${clientDocsParams}`} onClick={() => trackFeatureClick('api-docs', 'open-client-docs')}>客户端接入 <ArrowUpRight aria-hidden="true" /></Link>
           {termsUrl ? <a {...siteHrefProps(termsUrl)}>服务条款</a> : null}
           {privacyUrl ? <a {...siteHrefProps(privacyUrl)}>隐私协议</a> : null}

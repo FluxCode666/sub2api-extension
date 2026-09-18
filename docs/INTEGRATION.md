@@ -403,6 +403,8 @@ Sub2API 系统名称、系统域名和默认模型位于管理端 `/admin/system
 
 配置支持 `siteName` 系统名称（兼容旧配置 `heroTitle`）、`siteLogoUrl` 官网 Logo、`showDevelopersSection` 开关、`showQuickstartSection` 开关、`trustedPartners` 合作伙伴列表和 `integrations` 接入生态列表。`showDevelopersSection` 控制「从代码，到增长」开发者板块及其导航入口，`showQuickstartSection` 控制「START IN MINUTES」快速接入板块，两个开关默认开启；每个接入生态项包含 `name`、`logoUrl`、`documentationUrl`，官网会将其展示为可点击的应用节点；同时支持 `documentationUrl` 使用文档、`termsUrl` 服务条款、`userTermsUrl` 用户条款、`privacyUrl` 隐私协议等链接。链接会在后端保存前清洗，仅允许站内路径、锚点和 `http(s)` URL；所有 Logo 字段支持 `http(s)` URL 或站内绝对路径（例如文件管理页生成的 `/api/aux/assets/2`）。
 
+管理员配置的跳转链接不会自动添加 aux-system 的挂载前缀。根路径 URI 按当前浏览器域名原样跳转：`/login`、`/dashboard`、`/admin/users` 指向同域名的 Sub2API；只有显式填写 `/aux/login`、`/aux/admin/...` 才进入 aux-system。`#section` 继续作为当前页面锚点，跨域目标使用完整的 `https://...` 地址。此规则统一适用于首页主按钮和控制台按钮、顶部导航、使用文档、协议、合作伙伴、接入生态、API 文档与客户端文档中的控制台入口，以及动态 HTML 页面通过元数据声明的链接。API、图片、下载和其他 aux-system 自有资源仍由应用自动添加 `/aux` 前缀。
+
 `developersDocsUrl` 单独配置「BUILT FOR BUILDERS」板块的「接入文档」按钮链接，在后台「品牌与 Hero → 接入文档 URL」中维护。留空时沿用 `documentationUrl`，两者均为空时隐藏按钮；外部文档在新标签页打开。此配置同时适用于独立官网和嵌入页面。
 
 ## ToB 官网与全球网络地图

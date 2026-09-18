@@ -100,6 +100,29 @@ describe('HomepagePage', () => {
     }
   })
 
+  it('preserves configured Sub2API, aux, anchor and external destinations', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ code: 0, data: {
+      ...DEFAULT_HOMEPAGE_CONFIG,
+      primaryHref: '/login',
+      consoleHref: '/dashboard',
+      navigationItems: [
+        { label: '用户管理', href: '/admin/users' },
+        { label: 'Aux 登录', href: '/aux/login' },
+        { label: '服务指标', href: '#metrics' },
+        { label: '外部文档', href: 'https://docs.example.com' },
+      ],
+    } })
+
+    render(<MemoryRouter initialEntries={['/embed']}><HomepagePage /></MemoryRouter>)
+
+    expect((await screen.findAllByRole('link', { name: DEFAULT_HOMEPAGE_CONFIG.primaryCta }))[0]).toHaveAttribute('href', '/login')
+    expect(screen.getByRole('link', { name: /进入控制台/ })).toHaveAttribute('href', '/dashboard')
+    expect(screen.getByRole('link', { name: '用户管理' })).toHaveAttribute('href', '/admin/users')
+    expect(screen.getByRole('link', { name: 'Aux 登录' })).toHaveAttribute('href', '/aux/login')
+    expect(screen.getByRole('link', { name: '服务指标' })).not.toHaveAttribute('target')
+    expect(screen.getByRole('link', { name: '外部文档' })).toHaveAttribute('href', 'https://docs.example.com')
+  })
+
   it.each([
     { name: 'legacy defaults', data: {}, count: 6 },
     { name: 'explicitly empty menus', data: { navigationItems: [] }, count: 2 },

@@ -448,7 +448,7 @@ export default function ClientDocsPage() {
             </select>
             <ChevronDown size={12} className="client-theme-chevron" aria-hidden="true" />
           </div>
-          <a className="client-header-console" href={withAppBasePath(consoleHref)} target={consoleHref.startsWith('#') ? undefined : '_top'} rel={/^https?:/i.test(consoleHref) ? 'noreferrer' : undefined} onClick={() => trackFeatureClick('client-docs', 'open-console')}>控制台 <ArrowUpRight size={16} aria-hidden="true" /></a>
+          <a className="client-header-console" href={consoleHref} target={consoleHref.startsWith('#') ? undefined : '_top'} rel={/^https?:/i.test(consoleHref) ? 'noreferrer' : undefined} onClick={() => trackFeatureClick('client-docs', 'open-console')}>控制台 <ArrowUpRight size={16} aria-hidden="true" /></a>
         </div>
       </div>
     </header>

@@ -467,7 +467,8 @@ export default function HomepagePage({ variant = 'default' }: HomepagePageProps)
   }, { scope: rootRef, dependencies: [loading], revertOnUpdate: true })
 
   const linkProps = (href: string) => {
-    return { href: withAppBasePath(href), target: href.startsWith('#') ? undefined : '_top', rel: safeExternalHref(href) ? 'noreferrer' : undefined }
+    const targetHref = href.trim()
+    return { href: targetHref, target: targetHref.startsWith('#') ? undefined : '_top', rel: safeExternalHref(targetHref) ? 'noreferrer' : undefined }
   }
   const secondaryCta = isTob
     ? { label: '了解企业能力', href: '#capabilities' }

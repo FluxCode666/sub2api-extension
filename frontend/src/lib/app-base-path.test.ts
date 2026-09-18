@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeAppBasePath, withAppBasePath, withoutAppBasePath } from './app-base-path'
+import { isPathWithinAppBase, normalizeAppBasePath, withAppBasePath, withoutAppBasePath } from './app-base-path'
 
 describe('app base path', () => {
   it.each([
@@ -24,5 +24,16 @@ describe('app base path', () => {
     expect(withoutAppBasePath('/aux/admin/dashboard', '/aux/')).toBe('/admin/dashboard')
     expect(withoutAppBasePath('/aux', '/aux/')).toBe('/')
     expect(withoutAppBasePath('/admin/dashboard', '/aux/')).toBe('/admin/dashboard')
+  })
+
+  it.each([
+    ['/login', false],
+    ['/dashboard', false],
+    ['/admin/users', false],
+    ['/aux', true],
+    ['/aux/login', true],
+    ['/auxiliary/login', false],
+  ])('identifies whether %s belongs to the aux mount path', (pathname, expected) => {
+    expect(isPathWithinAppBase(pathname, '/aux/')).toBe(expected)
   })
 })

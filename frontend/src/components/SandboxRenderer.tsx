@@ -16,7 +16,7 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { trackFeatureClick } from '@/lib/telemetry-sdk'
-import { withAppBasePath } from '@/lib/app-base-path'
+import { APP_BASE_PATH, isPathWithinAppBase } from '@/lib/app-base-path'
 
 interface SandboxRendererProps {
   /** 用户提供的 HTML 内容。 */
@@ -166,7 +166,7 @@ export default function SandboxRenderer({
         const href = data.href.trim()
         if (!href) return
         try {
-          const target = new URL(withAppBasePath(href), window.location.href)
+          const target = new URL(href, window.location.href)
           if (!isSafeNavigationProtocol(target.protocol)) return
           const targetName = typeof data.target === 'string' ? data.target.toLowerCase() : '_self'
           if (targetName === '_blank') {
@@ -174,10 +174,11 @@ export default function SandboxRenderer({
             // 降级为顶层窗口导航，确保链接始终可用且不会回到 iframe。
             const opened = window.open(target.href, '_blank', 'noopener,noreferrer')
             if (!opened) navigateTopLevel(target.href)
-          } else if (target.origin !== window.location.origin) {
+          } else if (shouldNavigateTopLevel(target)) {
             // External links must leave the extension iframe. Navigating the
-            // nested document to the host application's own URL makes the
-            // host try to frame itself and violates its frame-src policy.
+            // nested document to the host application's own URL, including a
+            // same-origin Sub2API path outside the aux mount, violates the
+            // host frame policy or traps the destination inside the iframe.
             navigateTopLevel(target.href)
           } else {
             // Keep extension-local links inside the current extension frame.
@@ -298,6 +299,14 @@ function navigateTopLevel(href: string): void {
     console.error('[SandboxRenderer] top-level navigation blocked; using current window', error)
   }
   window.location.assign(href)
+}
+
+export function shouldNavigateTopLevel(
+  target: URL,
+  basePath = APP_BASE_PATH,
+  currentOrigin = window.location.origin,
+): boolean {
+  return target.origin !== currentOrigin || !isPathWithinAppBase(target.pathname, basePath)
 }
 
 function isSafeNavigationProtocol(protocol: string): boolean {

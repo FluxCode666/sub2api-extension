@@ -25,6 +25,17 @@ export function withAppBasePath(path: string, basePath = APP_BASE_PATH): string 
   return `${baseWithoutSlash}${path}`
 }
 
+/** 判断 URL pathname 是否属于当前应用挂载路径。 */
+export function isPathWithinAppBase(pathname: string, basePath = APP_BASE_PATH): boolean {
+  if (!pathname.startsWith('/')) return false
+
+  const normalizedBase = normalizeAppBasePath(basePath)
+  if (normalizedBase === '/') return true
+
+  const baseWithoutSlash = normalizedBase.slice(0, -1)
+  return pathname === baseWithoutSlash || pathname.startsWith(`${baseWithoutSlash}/`)
+}
+
 /** 匹配应用路由元数据前移除前端挂载路径。 */
 export function withoutAppBasePath(path: string, basePath = APP_BASE_PATH): string {
   const normalizedBase = normalizeAppBasePath(basePath)

@@ -37,6 +37,14 @@ describe('HomepageConfigPage', () => {
     expect(screen.getByRole('link', { name: '预览 ToC 官网' })).toHaveAttribute('href', '/sub2api-home')
   })
 
+  it('explains how same-origin Sub2API and aux paths are resolved', async () => {
+    render(<HomepageConfigPage />)
+
+    const help = await screen.findByText(/站内路径按当前域名原样跳转/)
+    expect(help).toHaveTextContent('填写 /login、/dashboard 会进入 Sub2API')
+    expect(help).toHaveTextContent('进入 aux-system 请显式填写 /aux/login、/aux/admin/...')
+  })
+
   it('keeps partner inputs focused while typing', async () => {
     const user = userEvent.setup()
 

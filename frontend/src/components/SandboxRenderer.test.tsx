@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render } from '@testing-library/react'
-import SandboxRenderer from './SandboxRenderer'
+import SandboxRenderer, { shouldNavigateTopLevel } from './SandboxRenderer'
 
 vi.mock('@/lib/telemetry-sdk', () => ({
   trackFeatureClick: vi.fn(),
@@ -25,5 +25,19 @@ describe('SandboxRenderer navigation bridge', () => {
     expect(srcdoc).toContain('type: \'aux-navigation\'')
     expect(srcdoc).toContain('opaque')
     expect(srcdoc).toContain('https?:|mailto:|tel:')
+  })
+
+  it.each([
+    ['/login', true],
+    ['/dashboard', true],
+    ['/admin/users', true],
+    ['/aux/login', false],
+    ['#section', false],
+    ['https://docs.example.com/guide', true],
+  ])('routes %s through the correct window boundary', (href, expected) => {
+    const origin = 'https://code.teralemo.com'
+    const target = new URL(href, `${origin}/aux/p/home`)
+
+    expect(shouldNavigateTopLevel(target, '/aux/', origin)).toBe(expected)
   })
 })

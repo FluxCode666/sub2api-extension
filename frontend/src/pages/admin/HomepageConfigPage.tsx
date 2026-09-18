@@ -195,12 +195,13 @@ export default function HomepageConfigPage({ variant = 'default' }: HomepageConf
           <label className="aux-config-span-2">Hero 标题<input value={draft.heroTitle} onChange={(event) => update('heroTitle', event.target.value)} /></label>
           <label className="aux-config-span-2">Hero 描述<textarea value={draft.heroDescription} onChange={(event) => update('heroDescription', event.target.value)} rows={3} /></label>
           <label>主按钮文字<input value={draft.primaryCta} onChange={(event) => update('primaryCta', event.target.value)} /></label>
-          <label>主按钮链接<input value={draft.primaryHref} onChange={(event) => update('primaryHref', event.target.value)} placeholder="/login 或 https://…" /></label>
+          <label>主按钮链接<input value={draft.primaryHref} onChange={(event) => update('primaryHref', event.target.value)} placeholder="/login 或 https://…" aria-describedby="configured-link-help" /></label>
           <label>文档按钮文字<input value={draft.docsCta} onChange={(event) => update('docsCta', event.target.value)} /></label>
           <label>文档按钮链接<input value={draft.docsHref} onChange={(event) => update('docsHref', event.target.value)} placeholder="#developers 或 https://…" /></label>
           <div className="aux-config-toggle aux-config-span-2"><div><strong>展示开发者板块</strong><span>控制首页「BUILT FOR BUILDERS · 从代码，到增长」板块及其导航入口是否显示。</span></div><Switch checked={draft.showDevelopersSection} onCheckedChange={(checked) => update('showDevelopersSection', checked)} aria-label="展示开发者板块" /></div>
           <label className="aux-config-span-2">接入文档 URL<input value={draft.developersDocsUrl} onChange={(event) => update('developersDocsUrl', event.target.value)} placeholder="https://docs.example.com/quickstart" aria-describedby="developers-docs-help" /></label>
           <p className="aux-config-section-note aux-config-span-2" id="developers-docs-help">用于「BUILT FOR BUILDERS」板块的接入文档按钮。留空时使用下方「资源与协议」中的使用文档 URL；两者均为空时隐藏按钮。</p>
+          <p className="aux-config-section-note aux-config-span-2" id="configured-link-help">站内路径按当前域名原样跳转：填写 <code>/login</code>、<code>/dashboard</code> 会进入 Sub2API；进入 aux-system 请显式填写 <code>/aux/login</code>、<code>/aux/admin/...</code>。页内位置使用 <code>#锚点</code>，跨域地址填写完整 HTTP/HTTPS URL。此规则同样适用于顶部导航、合作伙伴、接入生态以及资源与协议链接。</p>
           <div className="aux-config-toggle aux-config-span-2"><div><strong>展示快速接入板块</strong><span>控制首页「START IN MINUTES」三步接入板块是否显示。</span></div><Switch checked={draft.showQuickstartSection} onCheckedChange={(checked) => update('showQuickstartSection', checked)} aria-label="展示快速接入板块" /></div>
         </div>
       </section>

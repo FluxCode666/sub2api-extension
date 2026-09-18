@@ -211,6 +211,22 @@ describe('ApiDocsPage', () => {
     getConfig.mockRestore()
   })
 
+  it('keeps a root-relative Sub2API console link and opens it at the top level', async () => {
+    const getConfig = vi.spyOn(apiClient, 'get').mockResolvedValue({
+      code: 0,
+      message: 'ok',
+      data: { consoleHref: '/dashboard' },
+    } as never)
+
+    renderPage()
+
+    const consoleLink = await screen.findByRole('link', { name: '控制台' })
+    expect(consoleLink).toHaveAttribute('href', '/dashboard')
+    expect(consoleLink).toHaveAttribute('target', '_top')
+    expect(consoleLink).not.toHaveAttribute('rel')
+    getConfig.mockRestore()
+  })
+
   it('keeps deployment instructions out of the user-facing document', () => {
     renderPage()
 
