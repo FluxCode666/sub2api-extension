@@ -19,6 +19,7 @@ import {
   Terminal,
 } from 'lucide-react'
 import { apiClient, type AuxEnvelope } from '@/lib/api-client'
+import { DEFAULT_SUB2API_SYSTEM_NAME, resolveSystemName } from '@/lib/system-name'
 import '@fontsource-variable/geist'
 import './ApiDocsPage.css'
 
@@ -318,7 +319,7 @@ function currentPageOrigin(): string {
 }
 
 function configuredDocumentName(config?: { systemName?: string; siteName?: string; heroTitle?: string }): string {
-  return config?.systemName?.trim() || config?.siteName?.trim() || config?.heroTitle?.trim() || ''
+  return config?.systemName?.trim() || resolveSystemName(config)
 }
 
 function configuredDomain(value?: string): string {
@@ -373,7 +374,7 @@ export default function ApiDocsPage() {
   const ThemeIcon = themePreference === 'system' ? Monitor : themePreference === 'dark' ? Moon : Sun
   const [baseURL, setBaseURL] = useState(() => initialBaseURL(searchParams.toString()))
   const [exampleModel, setExampleModel] = useState(DEFAULT_EXAMPLE_MODEL)
-  const [systemName, setSystemName] = useState('')
+  const [systemName, setSystemName] = useState(DEFAULT_SUB2API_SYSTEM_NAME)
   const [siteLogoUrl, setSiteLogoUrl] = useState('')
   const [systemDomain, setSystemDomain] = useState('')
   const [consoleHref, setConsoleHref] = useState('')
@@ -418,6 +419,12 @@ export default function ApiDocsPage() {
     })
     return () => { active = false }
   }, [])
+
+  useEffect(() => {
+    const previous = document.title
+    document.title = `${systemName} · API 文档`
+    return () => { document.title = previous }
+  }, [systemName])
 
   const documentName = 'API 文档'
   const clientDocsParams = new URLSearchParams({ api_base: baseURL })

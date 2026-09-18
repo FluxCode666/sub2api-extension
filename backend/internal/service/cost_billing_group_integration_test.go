@@ -12,9 +12,9 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/stretchr/testify/require"
 
-	"sub2api-extension/ent"
-	"sub2api-extension/internal/integration"
-	"sub2api-extension/internal/ops"
+	"aux-system/ent"
+	"aux-system/internal/integration"
+	"aux-system/internal/ops"
 )
 
 func TestOAuthBillingGroupInheritsExplicitCost(t *testing.T) {

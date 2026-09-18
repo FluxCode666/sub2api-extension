@@ -1,10 +1,10 @@
 package service
 
 import (
+	"aux-system/internal/ops"
 	"context"
 	"errors"
 	"github.com/stretchr/testify/require"
-	"sub2api-extension/internal/ops"
 	"testing"
 	"time"
 )

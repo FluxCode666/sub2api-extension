@@ -12,8 +12,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	"sub2api-extension/internal/ops"
-	"sub2api-extension/internal/service"
+	"aux-system/internal/ops"
+	"aux-system/internal/service"
 )
 
 type costConfigErrorProvider struct {

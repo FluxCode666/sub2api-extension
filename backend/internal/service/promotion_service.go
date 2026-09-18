@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
+	"aux-system/ent"
+	"aux-system/ent/promotion"
+	"aux-system/ent/promotionclaim"
+	"aux-system/ent/systemmeta"
+	"aux-system/internal/invoice"
 	"entgo.io/ent/dialect/sql"
-	"sub2api-extension/ent"
-	"sub2api-extension/ent/promotion"
-	"sub2api-extension/ent/promotionclaim"
-	"sub2api-extension/ent/systemmeta"
-	"sub2api-extension/internal/invoice"
 )
 
 const (

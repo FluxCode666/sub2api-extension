@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"sub2api-extension/internal/ttft"
+	"aux-system/internal/ttft"
 )
 
 type ttftBandDefinition struct {

@@ -3,9 +3,9 @@
 package ent
 
 import (
+	"aux-system/ent/notificationdelivery"
+	"aux-system/ent/predicate"
 	"context"
-	"sub2api-extension/ent/notificationdelivery"
-	"sub2api-extension/ent/predicate"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"

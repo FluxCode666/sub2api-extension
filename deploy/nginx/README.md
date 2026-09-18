@@ -1,11 +1,11 @@
-# Sub2API Extension NGINX 生产配置
+# aux-system NGINX 生产配置
 
 这套配置参考 `upstream-hub/deploy/nginx`，假设 NGINX 安装在宿主机，
 `aux-backend` 由 `deploy/docker-compose.yml` 运行在宿主机 `127.0.0.1:8004`。
 
 ## 安装
 
-先将 `conf.d/sub2api-extension.conf` 中的 `aux.example.com` 替换为实际域名，
+`conf.d/sub2api-extension.conf` 为兼容旧部署保留文件名。先将其中的 `aux.example.com` 替换为实际域名，
 再将配置复制到 NGINX：
 
 ```bash

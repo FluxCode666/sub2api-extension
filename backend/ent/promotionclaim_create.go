@@ -3,10 +3,10 @@
 package ent
 
 import (
+	"aux-system/ent/promotionclaim"
 	"context"
 	"errors"
 	"fmt"
-	"sub2api-extension/ent/promotionclaim"
 	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"

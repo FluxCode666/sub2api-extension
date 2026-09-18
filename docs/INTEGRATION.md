@@ -1,27 +1,27 @@
 # sub2api 集成配置指南
 
-本指南说明如何在不修改 sub2api 代码的前提下，通过 `home_content` 嵌入 Sub2API 官网，并通过 `custom_menu_items` 将 sub2api-extension 管理页面和公开 API 文档嵌入 sub2api 控制台。
+本指南说明如何在不修改 Sub2API 代码的前提下，通过 `home_content` 嵌入 Sub2API 官网，并通过 `custom_menu_items` 将 aux-system 管理页面和公开 API 文档嵌入 Sub2API 控制台。
 
-sub2api-extension 根路径 `/` 会跳转到控制台 `/admin/dashboard`。Sub2API 官网是独立 React 页面 `/sub2api-home`，可通过 `/embed` 嵌入其他系统；公开 API 文档位于 `/api-docs`。管理员创建的动态页面通过 `/p/:slug` 按需加载，本系统不预置或依赖名为 `home` 的动态页面。
+aux-system 根路径 `/` 会跳转到控制台 `/admin/dashboard`。Sub2API 官网约定为数据库动态页 `/p/home`，公开 API 文档位于 `/api-docs`；`/sub2api-home` 与 `/embed` 仅作为旧版静态官网兼容入口保留。其他动态页面通过 `/p/:slug` 按需加载。
 
 ## 架构
 
 ```text
-sub2api 首页
-  home_content URL iframe -> sub2api-extension /embed 或 /sub2api-home
+Sub2API 首页
+  home_content URL iframe -> aux-system /p/home
 
-sub2api 控制台
+Sub2API 控制台
   custom_menu_items -> 带 token 的 iframe
-    -> sub2api-extension /admin/pages 或 /admin/dashboard
+    -> aux-system /admin/pages 或 /admin/dashboard
       -> AdminGuard 验证或换取 aux 会话
 
 公开动态页面（可选）
   /p/:slug -> pages 表中的已启用公开页面
 ```
 
-sub2api-extension 使用自己的 PostgreSQL 保存页面访问、功能点击和运营成本配置数据。管理员身份通过 sub2api iframe token 或独立账号密码登录验证。页面上架功能会额外使用具备读写权限的连接访问 sub2api PostgreSQL 的 `settings` 表，同步 `custom_menu_items`；运维首字延迟看板与运营中心则使用同一连接只读 `usage_logs`、`groups` 和 `accounts` 表，不会把 sub2api 的业务表映射到扩展 Ent schema。
+aux-system 使用自己的 PostgreSQL 保存页面访问、功能点击和运营成本配置数据。管理员身份通过 Sub2API iframe token 或独立账号密码登录验证。页面上架功能会额外使用具备读写权限的连接访问 Sub2API PostgreSQL 的 `settings` 表，同步 `custom_menu_items`；运维首字延迟看板与运营中心则使用同一连接只读 `usage_logs`、`groups` 和 `accounts` 表，不会把 Sub2API 的业务表映射到 aux-system Ent schema。
 
-## 1. 部署 sub2api-extension
+## 1. 部署 aux-system
 
 ### 1.1 开发或单机 Compose
 
@@ -40,7 +40,7 @@ docker compose -f docker-compose.dev.yml ps
 `SUB2API_DOCKER_NETWORK`。
 
 ```bash
-cd sub2api-extension/deploy
+cd aux-system/deploy
 cp .env.dev.example .env.dev
 ```
 
@@ -83,17 +83,17 @@ curl http://localhost:8787/health
 健康检查应返回：
 
 ```json
-{"status":"ok","service":"sub2api-extension"}
+{"status":"ok","service":"aux-system"}
 ```
 
-`aux-postgres` 是 sub2api-extension 的独立数据库，不是 sub2api PostgreSQL。
+`aux-postgres` 是 aux-system 的独立数据库，不是 Sub2API PostgreSQL。
 
 ### 1.2 生产部署
 
 生产 Compose 使用外部 PostgreSQL：
 
 ```bash
-cd sub2api-extension/deploy
+cd aux-system/deploy
 cp .env.example .env
 # 填写 SUB2API_EXTENSION_IMAGE、SUB2API_EXTENSION_IMAGE_TAG、DATABASE_*、SUB2API_BASE_URL、SUB2API_EXTENSION_JWT_SECRET
 docker compose -f docker-compose.yml --env-file .env up -d
@@ -106,10 +106,10 @@ docker compose -f docker-compose.yml --env-file .env up -d
 如需将 Sub2API 官网嵌入系统首页，在 sub2api「站点设置」的「首页内容」中填写：
 
 ```text
-https://aux.example.com/embed
+https://aux.example.com/p/home
 ```
 
-sub2api 会把 URL 作为 iframe 地址，官网内容通过 `/admin/homepage` 配置。
+Sub2API 会把 URL 作为 iframe 地址。官网内容通过 `/admin/pages` 维护；其中展示的 Sub2API 系统名称、系统域名和默认模型通过 `/admin/system-config` 维护，公开页面读取 `siteName`，并兼容旧配置中的 `heroTitle`。
 
 官网中跳转到其他页面的链接（导航菜单、接入按钮、控制台、文档、合作伙伴及协议）统一使用顶层导航（`target="_top"`），在当前浏览器标签页打开，不会在官网 iframe 内加载目标页面或新开标签页。`#metrics` 等页内锚点仍在官网内滚动。若宿主 iframe 使用 `sandbox`，需要允许用户点击触发顶层导航（`allow-top-navigation-by-user-activation`）。
 
@@ -140,12 +140,12 @@ sub2api 会把 URL 作为 iframe 地址，官网内容通过 `/admin/homepage` �
 |------|------|
 | `id` | 菜单唯一标识 |
 | `label` | 控制台显示名称 |
-| `url` | 浏览器可访问的 sub2api-extension `/admin/dashboard` 或 `/admin/pages` 完整 URL |
+| `url` | 浏览器可访问的 aux-system `/admin/dashboard` 或 `/admin/pages` 完整 URL |
 | `page_slug` | 必须留空，确保走 iframe 模式并附加 token |
 | `visibility` | 使用 `admin` |
 | `sort_order` | 菜单排序数字 |
 
-保存后，sub2api 会通过 `buildEmbeddedUrl` 附加 `user_id`、`token`、`theme`、`lang`、`ui_mode` 等参数。sub2api-extension 的 `AdminGuard` 使用 token 验证管理员身份并签发自己的会话。
+保存后，Sub2API 会通过 `buildEmbeddedUrl` 附加 `user_id`、`token`、`theme`、`lang`、`ui_mode` 等参数。aux-system 的 `AdminGuard` 使用 token 验证管理员身份并签发自己的会话。
 
 管理端必须从 sub2api 的这个菜单入口打开（推荐 URL 使用 `/admin/dashboard`）；不要把不带查询参数的扩展 URL 直接当作已登录入口收藏或访问。sub2api 的登录 JWT 保存在 sub2api 自身的浏览器 origin 中，浏览器不会允许扩展跨 origin 读取它；只有菜单 iframe 注入的 `token`（或扩展自身已有的 `X-Aux-Session`）可以完成免登录进入。扩展会保留入口 URL 上的嵌入参数，根路径重定向不会丢失 `token`。
 
@@ -202,7 +202,7 @@ https://aux.example.com/api-docs?embed=1&api_base=https%3A%2F%2Fapi.example.com
 
 ### 2.5 动态配置系统名称与示例模型
 
-管理员可以在扩展管理端的“系统配置”（`/admin/system-config`）修改系统名称和“API 文档调用示例默认模型”。系统名称使用官网配置的 `siteName`，兼容旧配置的 `heroTitle`；默认模型为 `gpt-6-astra`。保存名称时保留官网 Hero 标题。API 文档页眉、页脚、首页预览、快速开始和各接口的 cURL / Python / Go / Java 示例会在下一次打开或刷新时使用新值。配置保存在扩展的 `system_meta` 中，不需要重新部署页面。
+管理员可以在扩展管理端的“系统配置”（`/admin/system-config`）修改系统名称、系统 Logo 和“API 文档调用示例默认模型”。系统名称使用官网配置的 `siteName`，兼容旧配置的 `heroTitle`；Logo 保存为 `siteLogoUrl`，支持选择或拖拽 PNG、JPEG、GIF、WebP 图片上传，上传文件由现有图片资源服务校验并写入持久卷。默认模型为 `gpt-6-astra`。保存名称时保留官网 Hero 标题。官网与 API 文档会在下一次打开或刷新时使用新名称和 Logo，首页预览、快速开始及各接口的 cURL / Python / Go / Java 示例会使用新模型。配置保存在扩展的 `system_meta` 中，不需要重新部署页面。
 
 ## 3. 页面管理与 Dashboard
 
@@ -257,7 +257,7 @@ iframe URL 由用户的浏览器访问，必须使用浏览器能够解析的地
 https://aux.example.com/admin/dashboard
 ```
 
-生产 Compose 默认将 aux-backend 绑定在宿主机 `127.0.0.1:8787`，公网请求应由
+生产 Compose 默认将 aux-backend 绑定在宿主机 `127.0.0.1:8004`，公网请求应由
 宿主机 NGINX 终止 TLS 并反代到该端口。配置模板位于 `deploy/nginx/`；请将其中的
 `aux.example.com` 替换为实际域名，并将对应证书放到 `/etc/nginx/certs/<域名>/`。
 
@@ -268,7 +268,7 @@ https://aux.example.com/admin/dashboard
 https://aux.example.com/api/aux/assets/2
 ```
 
-sub2api-extension 到 sub2api 的服务端通信可继续使用 Docker 网络地址：
+aux-system 到 Sub2API 的服务端通信可继续使用 Docker 网络地址：
 
 ```text
 SUB2API_BASE_URL=http://sub2api:8080
@@ -330,10 +330,10 @@ Sub2API 用户下拉选项。管理员还可以调用 `POST /api/aux/admin/invoi
 
 ## 6. 验收清单
 
-- [ ] sub2api-extension `/health` 返回 200。
-- [ ] sub2api-extension 能连接自己的 PostgreSQL。
+- [ ] aux-system `/health` 返回 200，且 `service` 为 `aux-system`。
+- [ ] aux-system 能连接自己的 PostgreSQL。
 - [ ] `SUB2API_BASE_URL` 指向可用的 sub2api 后端。
-- [ ] 如需嵌入官网，sub2api `home_content` 已设置为 `/embed` 或 `/sub2api-home` 的完整 URL，首页能正常展示。
+- [ ] 如需嵌入官网，Sub2API `home_content` 已设置为 `/p/home` 的完整 URL，首页能正常展示配置中的 `siteName`。
 - [ ] sub2api `custom_menu_items` 已添加 `/admin/dashboard`。
 - [ ] sub2api `custom_menu_items` 已添加 `/admin/pages`。
 - [ ] sub2api `custom_menu_items` 已添加 `/api-docs`（如需在用户菜单展示文档）。
@@ -348,7 +348,7 @@ Sub2API 用户下拉选项。管理员还可以调用 `POST /api/aux/admin/invoi
 - [ ] 「成本配置」可以立即同步 Sub2API 账号倍率，并显示最近同步时间；定时同步间隔由 `SUB2API_EXTENSION_COST_SYNC_INTERVAL_SECONDS` 配置（默认 300 秒）。
 - [ ] 上游倍率变化后，历史记录仍按 `usage_logs.account_rate_multiplier` 快照核算，未带快照的新记录才使用当前账号配置。
 - [ ] 页面管理创建并启用公开页面后，`/p/<slug>` 可读取最新内容。
-- [ ] 未创建的 `/p/home` 不会被系统当作固定首页处理。
+- [ ] 约定官网动态页 `/p/home` 已创建、启用，并能读取公开系统配置。
 - [ ] Dashboard 中当前注册页面链接均可打开。
 - [ ] 交互示例的操作会进入 Dashboard 功能使用度。
 - [ ] API 示例能读取 `/api/aux/admin/examples/status`。
@@ -373,14 +373,14 @@ iframe 没有提供有效 token，或附属会话已经失效：
 
 ### 显示无法连接 sub2api
 
-- 从 sub2api-extension 运行环境检查 `SUB2API_BASE_URL`。
+- 从 aux-system 运行环境检查 `SUB2API_BASE_URL`。
 - 确认 sub2api `/api/v1/auth/me` 和登录接口可用。
 - 同 Docker 网络部署时优先使用 `http://sub2api:8080`。
 
 ### iframe 空白
 
 - 查看浏览器 Console 的 CSP 和网络错误。
-- 直接在浏览器访问菜单中的 sub2api-extension URL。
+- 直接在浏览器访问菜单中的 aux-system URL。
 - 确认 iframe URL 使用浏览器可解析的域名，而不是仅容器内部可解析的服务名。
 
 ### API 示例返回 401
@@ -389,20 +389,35 @@ iframe 没有提供有效 token，或附属会话已经失效：
 
 - 确认浏览器已有 aux 管理员会话。
 - 检查请求是否携带 `X-Aux-Session`。
-- 重新从 sub2api 菜单进入或在 sub2api-extension 登录页重新登录。
+- 重新从 Sub2API 菜单进入或在 aux-system 登录页重新登录。
 
-## Sub2API 官网配置
+## Sub2API 系统名称与官网配置
 
-Sub2API 官网的运营配置位于管理端 `/admin/homepage`，不影响当前系统官网 `/p/home`。配置保存到扩展的 `system_meta`，官网页面和其他嵌入方通过同一份配置读取：
+Sub2API 系统名称、系统域名和默认模型位于管理端 `/admin/system-config`，配置保存到 aux-system 的 `system_meta`。数据库动态官网 `/p/home` 会把 `siteName` 和 `systemDomain` 注入页面元数据；API 文档、客户端文档、发票与促销页也读取同一份公开配置。旧版完整官网编辑页 `/admin/homepage` 和静态入口 `/sub2api-home`、`/embed` 继续兼容现有部署：
 
 - 公开读取：`GET /api/aux/homepage/config`
 - 管理读取：`GET /api/aux/admin/homepage/config`
 - 管理保存：`PUT /api/aux/admin/homepage/config`（需要附属管理员会话）
-- 官网页面：`/sub2api-home`
-- 通用嵌入页面：`/embed`
+- 约定官网动态页：`/p/home`
+- 旧版静态兼容页：`/sub2api-home`、`/embed`
 
-配置支持 `siteName` 网站名称、`siteLogoUrl` 官网 Logo、`showDevelopersSection` 开关、`showQuickstartSection` 开关、`trustedPartners` 合作伙伴列表和 `integrations` 接入生态列表。`showDevelopersSection` 控制「从代码，到增长」开发者板块及其导航入口，`showQuickstartSection` 控制「START IN MINUTES」快速接入板块，两个开关默认开启；每个接入生态项包含 `name`、`logoUrl`、`documentationUrl`，官网会将其展示为可点击的应用节点；同时支持 `documentationUrl` 使用文档、`termsUrl` 服务条款、`userTermsUrl` 用户条款、`privacyUrl` 隐私协议等链接。链接会在后端保存前清洗，仅允许站内路径、锚点和 `http(s)` URL；所有 Logo 字段支持 `http(s)` URL 或站内绝对路径（例如文件管理页生成的 `/api/aux/assets/2`）。
+配置支持 `siteName` 系统名称（兼容旧配置 `heroTitle`）、`siteLogoUrl` 官网 Logo、`showDevelopersSection` 开关、`showQuickstartSection` 开关、`trustedPartners` 合作伙伴列表和 `integrations` 接入生态列表。`showDevelopersSection` 控制「从代码，到增长」开发者板块及其导航入口，`showQuickstartSection` 控制「START IN MINUTES」快速接入板块，两个开关默认开启；每个接入生态项包含 `name`、`logoUrl`、`documentationUrl`，官网会将其展示为可点击的应用节点；同时支持 `documentationUrl` 使用文档、`termsUrl` 服务条款、`userTermsUrl` 用户条款、`privacyUrl` 隐私协议等链接。链接会在后端保存前清洗，仅允许站内路径、锚点和 `http(s)` URL；所有 Logo 字段支持 `http(s)` URL 或站内绝对路径（例如文件管理页生成的 `/api/aux/assets/2`）。
 
 `developersDocsUrl` 单独配置「BUILT FOR BUILDERS」板块的「接入文档」按钮链接，在后台「品牌与 Hero → 接入文档 URL」中维护。留空时沿用 `documentationUrl`，两者均为空时隐藏按钮；外部文档在新标签页打开。此配置同时适用于独立官网和嵌入页面。
+
+## ToB 官网与全球网络地图
+
+ToB 企业官网是现有 Sub2API 完整官网的独立副本，公开入口为 `/tob-home`，嵌入入口为 `/embed-tob`，管理入口为 `/admin/tob-homepage`。它复用原官网的页面结构、样式和所有内容板块，只在指标与快速接入板块之间增加全球网络地图。地图使用 `react-simple-maps` 渲染世界地图、主服务器、CDN 集群和客户位置。
+
+- 公开读取：`GET /api/aux/tob-homepage/config`
+- 管理读取：`GET /api/aux/admin/tob-homepage/config`
+- 管理保存：`PUT /api/aux/admin/tob-homepage/config`（需要附属管理员会话）
+- 配置存储：附属系统 `system_meta` 的 `homepage.tob.config`，不新增 Ent 表或迁移。
+
+当 `homepage.tob.config` 尚不存在时，服务端读取当前 `homepage.config` 作为完整初始副本，并追加默认主服务器和「全球网络」导航；首次保存后，两套官网配置独立维护，修改 ToB 官网不会覆盖原官网。
+
+ToB 管理页包含原官网的品牌与 Hero、顶部导航、合作伙伴、接入生态、服务指标、资源与协议全部配置项，并追加 `primaryServers`、`cdnLocations` 和 `customerLocations` 三组节点。每个节点包含 `name`、`latitude`、`longitude` 和可选的 `description`。服务端会限制每组最多 32 个节点，并校验名称长度及经纬度范围（纬度 `-90..90`、经度 `-180..180`）。
+
+地图按「主服务器 → CDN 集群 → 客户位置」绘制跳跃线路；未配置 CDN 时，主服务器直接连接客户位置。线路用于表达配置的服务关系，不代表实时流量或精确网络路由。公开接口不会返回管理员会话或 Sub2API 凭据。
 
 管理端「顶部导航」维护 `navigationItems` 数组，每项包含 `label`（菜单名称，最多 24 个字符）和 `href`（跳转链接），最多 8 项。可以添加、编辑、上移、下移或删除菜单，官网桌面导航和移动菜单按配置顺序展示。「进入控制台」仍使用 `consoleHref` 单独配置。旧配置缺少该字段时沿用原有导航，显式保存空数组可清空左侧菜单。指向 `#developers`、`#quickstart` 的菜单随对应板块开关隐藏，合作伙伴为空时隐藏 `#partners` 菜单；外部 HTTP/HTTPS 链接在新标签页打开。

@@ -53,4 +53,13 @@ describe('HomepageQuickstart', () => {
     act(() => { gsap.globalTimeline.time(gsap.globalTimeline.time() + 1) })
     expect(progress()).toBeCloseTo(pausedProgress, 5)
   })
+
+  it('renders the enterprise delivery flow without developer onboarding copy', () => {
+    render(<HomepageQuickstart model="gpt-6-astra" variant="enterprise" />)
+
+    expect(screen.getByRole('heading', { name: '从方案确认， 到稳定上线。' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: '企业交付步骤' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '确认接入方案' })).toBeInTheDocument()
+    expect(screen.queryByText('注册并创建 API Key')).not.toBeInTheDocument()
+  })
 })

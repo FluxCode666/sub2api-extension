@@ -3,7 +3,7 @@
 package invoiceorder
 
 import (
-	"sub2api-extension/ent/predicate"
+	"aux-system/ent/predicate"
 	"time"
 
 	"entgo.io/ent/dialect/sql"

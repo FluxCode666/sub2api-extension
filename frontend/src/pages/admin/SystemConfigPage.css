@@ -155,9 +155,10 @@
 }
 
 .aux-system-config-field { display: block; }
-.aux-system-config-field > span { display: block; margin-bottom: 9px; font-size: 13px; font-weight: 680; }
+.aux-system-config-field + .aux-system-config-field { margin-top: 24px; }
+.aux-system-config-field > label { display: block; margin-bottom: 9px; font-size: 13px; font-weight: 680; }
 
-.aux-system-config-field input {
+.aux-system-config-field > input:not([type="file"]) {
   display: block;
   width: 100%;
   min-height: 52px;
@@ -172,9 +173,72 @@
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
-.aux-system-config-field input:focus { border-color: var(--console-accent); box-shadow: 0 0 0 4px var(--console-accent-soft); }
+.aux-system-config-field > input:not([type="file"]):focus { border-color: var(--console-accent); box-shadow: 0 0 0 4px var(--console-accent-soft); }
 .aux-system-config-field small { display: block; margin-top: 10px; color: var(--console-subtle); font-size: 12px; line-height: 1.6; }
 .aux-system-config-field small code { color: var(--console-accent); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+
+.aux-system-config-logo-upload {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  align-items: center;
+  gap: 17px;
+  min-height: 124px;
+  border: 1px dashed var(--console-line-strong);
+  border-radius: 13px;
+  padding: 18px;
+  background: color-mix(in srgb, var(--console-surface-strong) 78%, transparent);
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.aux-system-config-logo-upload.is-dragging {
+  border-color: var(--console-accent);
+  background: color-mix(in srgb, var(--console-accent) 10%, var(--console-surface-strong));
+  box-shadow: 0 0 0 4px var(--console-accent-soft);
+}
+
+.aux-system-config-logo-upload.is-uploading { cursor: wait; }
+
+.aux-system-config-logo-preview {
+  position: relative;
+  display: grid;
+  width: 82px;
+  height: 82px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--console-line);
+  border-radius: 13px;
+  background: var(--console-surface-strong);
+  color: var(--console-subtle);
+}
+
+.aux-system-config-logo-preview > img {
+  width: 100%;
+  height: 100%;
+  padding: 10px;
+  object-fit: contain;
+}
+
+.aux-system-config-logo-preview > svg { width: 24px; height: 24px; }
+.aux-system-config-logo-preview.is-error { border-color: color-mix(in srgb, #e66767 38%, var(--console-line)); color: #c23c4a; }
+
+.aux-system-config-logo-progress {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--console-surface-strong) 82%, transparent);
+  color: var(--console-accent);
+}
+
+.aux-system-config-logo-progress svg { width: 22px; height: 22px; animation: aux-system-config-spin 900ms linear infinite; }
+.aux-system-config-logo-copy { min-width: 0; }
+.aux-system-config-logo-copy > strong { display: block; color: var(--console-ink); font-size: 13px; font-weight: 690; }
+.aux-system-config-logo-copy > p { margin: 6px 0 0; color: var(--console-muted); font-size: 12px; line-height: 1.55; }
+.aux-system-config-logo-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
+.aux-system-config-logo-actions > .aux-system-config-logo-input { width: 1px; height: 1px; padding: 0; border: 0; }
+.aux-system-config-logo-actions > button { border-color: var(--console-line-strong); background: var(--console-surface-strong); color: var(--console-ink); }
+.aux-system-config-logo-actions > button:hover:not(:disabled) { border-color: var(--console-accent); background: var(--console-accent-soft); color: var(--console-accent); }
+.aux-system-config-logo-actions > .aux-system-config-logo-remove { color: #b64b54; }
 
 .aux-system-config-publication { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 24px; padding: 16px 17px; border: 1px solid var(--console-line-strong); border-radius: 13px; background: color-mix(in srgb, var(--console-surface-strong) 78%, transparent); }
 .aux-system-config-publication > div { display: grid; gap: 7px; }
@@ -208,6 +272,8 @@
 }
 
 .aux-system-config-preview-mark svg { width: 20px; height: 20px; }
+.aux-system-config-preview-mark.has-image { overflow: hidden; background: var(--console-surface-strong); }
+.aux-system-config-preview-mark.has-image img { width: 100%; height: 100%; padding: 6px; object-fit: contain; }
 .aux-system-config-model-preview { display: block; max-width: 100%; margin-top: 14px; overflow-wrap: anywhere; color: var(--console-accent); font: 650 clamp(1.2rem, 2.4vw, 1.65rem)/1.25 ui-monospace, SFMono-Regular, Consolas, monospace; }
 
 .aux-system-config-info {
@@ -231,6 +297,23 @@
   .aux-system-config-refresh { width: 100%; }
   .aux-system-config-layout { grid-template-columns: 1fr; margin-top: 28px; }
   .aux-system-config-preview-card { min-height: 220px; }
+  .aux-system-config-logo-upload { grid-template-columns: 64px minmax(0, 1fr); padding: 15px; }
+  .aux-system-config-logo-preview { width: 64px; height: 64px; }
   .aux-system-config-actions { flex-direction: column-reverse; }
   .aux-system-config-primary, .aux-system-config-secondary { width: 100%; }
+}
+
+@media (max-width: 430px) {
+  .aux-system-config-logo-upload { grid-template-columns: 1fr; }
+  .aux-system-config-logo-actions { flex-direction: column; }
+  .aux-system-config-logo-actions > button { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aux-system-config-logo-upload,
+  .aux-system-config-refresh,
+  .aux-system-config-primary,
+  .aux-system-config-secondary { transition: none; }
+  .aux-system-config-spin,
+  .aux-system-config-logo-progress svg { animation: none; }
 }

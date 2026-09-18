@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"sub2api-extension/internal/sub2apimenu"
+	"aux-system/internal/sub2apimenu"
 )
 
 // fakePageStore 内存实现, 用于服务层单测(不依赖数据库)。

@@ -1,4 +1,4 @@
-# sub2api-extension 的 Claude 工作规范
+# aux-system 的 Claude 工作规范
 
 你正在维护一个与 Sub2API 配套的独立 Go + React 附属系统。开始任何任务前必须阅读根目录的 [AGENTS.md](AGENTS.md)；它是本项目的完整规范和当前实现事实，本文件是 Claude 的启动入口与强制摘要。
 
@@ -24,15 +24,16 @@
 - 前端使用 `@/` 别名、同目录测试和现有 token。管理端保持 Geist、暖灰背景、白/深色表面、靛蓝主色和克制圆角；客户端/API 文档使用 `frontend/tokens.css` 的 OKLCH 变量与 `data-theme`；发票门户保持自己的 `invoice-*` 视觉域。
 - **全局业务控件必须使用 shadcn/ui**，执行 [AGENTS.md](AGENTS.md) 第 6.5 节：先查 `frontend/src/components/ui/` 和现有组合，使用 `@/components/ui/*` 导入；不得以裸原生控件、自绘控件或另一套 UI 库替代。组件底层、隐藏文件输入与必要表单桥接除外；旧页面的原生控件不能作为本次新增或改造的豁免依据。
 - **必须同时复用标准交互**：下拉用 `Select`，分页用 `Pagination`，日期范围用单个按钮与同一 `Popover + Calendar mode="range"`（区间高亮、桌面双月、窄屏单月、支持清除）；除用户明确要求分开输入外，不得拆成两个日期框或单日弹层。只换组件名不算完成统一。
+- **全局通知必须使用 Sonner 统一反馈**，执行 [AGENTS.md](AGENTS.md) 第 6.6 节：顶层 layout 通过 `@/components/ui/sonner` 单例挂载 `Toaster`，默认位于右上角；页面从 `sonner` 调用 `toast.success/error/warning/info`，类型必须匹配结果语义。保存、提交、上传、下载、复制和手动刷新等一次性结果使用通知，页面内 `Alert`/`ErrorState` 仅保留加载失败、持续降级或字段级错误；同一错误不得重复展示。
 - 使用 Lucide 图标和 `Tooltip`；保留各视觉域 token，处理加载、空数据、错误、禁用、成功、移动端和 `prefers-reduced-motion` 状态。交付前核对控件 diff，并在浏览器检查实际样式、键盘焦点及组合交互，发现偏离须先修正。
 
 ## Skill 速查
 
 - 管理控制台、运营看板：`gpt-taste` + `gsap-core` + `gsap-react`；滚动动画或性能问题再加 `gsap-scrolltrigger` / `gsap-performance`。
 - 客户端/API 文档、教程：`hallmark`，按需配合 `frontend-design`；优先阅读流、代码示例、主题和响应式。
-- 数据库动态页：先读 `.agents/skills/sub2api-extension-page-writer/SKILL.md`，再按内容选 `gpt-taste` 或 `hallmark`；牢记 HTML iframe 沙箱与 React `new Function` 信任边界。
-- Sub2API iframe、登录、菜单、域名和 CSP：`.agents/skills/sub2api-extension-integration/SKILL.md`。
-- Docker、Compose、NGINX、GHCR、发布和回滚：`.agents/skills/sub2api-extension-operations/SKILL.md`。
+- 数据库动态页：先读 `.agents/skills/aux-system-page-writer/SKILL.md`，再按内容选 `gpt-taste` 或 `hallmark`；牢记 HTML iframe 沙箱与 React `new Function` 信任边界。
+- Sub2API iframe、登录、菜单、域名和 CSP：`.agents/skills/aux-system-integration/SKILL.md`。
+- Docker、Compose、NGINX、GHCR、发布和回滚：`.agents/skills/aux-system-operations/SKILL.md`。
 - Go API/服务：`backend-engineering` + `api-engineering`；Ent/PostgreSQL：`database-engineering`；复杂 React：`react-development` + `frontend-ui-engineering`；ADR/仓库文档：`documentation-and-adrs`；安全审查：`code-audit` + `devsecops`。
 
 只加载与当前任务直接相关的 skill。skill 是方法参考，项目源码、测试和根目录 `AGENTS.md` 优先；完成后在交付说明中列出使用过的 skill 和验证命令。
@@ -50,7 +51,7 @@ cd ../frontend && pnpm install --frozen-lockfile && pnpm run typecheck && pnpm r
 
 1. 实际读取 `AGENTS.md` 与本文件，执行 `git status --short`、`rg --files`，确认并保留已有改动。
 2. 阅读相关源码、测试和 `.agents/skills/` 项目 skill。
-3. 先做最小实现，沿用现有命名、错误、响应和鉴权；前端新增或改造控件必须满足 `AGENTS.md` 第 6.5 节的组件与标准交互要求。
+3. 先做最小实现，沿用现有命名、错误、响应和鉴权；前端新增或改造控件必须满足 `AGENTS.md` 第 6.5 节的组件与标准交互要求，并按第 6.6 节统一操作结果通知。
 4. 为共享行为和安全边界补有意义的测试。
 5. 运行受影响层的检查，必要时运行完整 CI 等价命令；UI 变更还必须进行浏览器交互与样式验收。
 6. 若路由、配置、数据模型、部署或用户行为改变，同步 README/docs/CHANGELOG，并在结果中说明验证和剩余风险。

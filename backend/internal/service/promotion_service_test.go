@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"sub2api-extension/ent"
+	"aux-system/ent"
 
 	"github.com/stretchr/testify/require"
 )

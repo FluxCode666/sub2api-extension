@@ -1,4 +1,5 @@
 import { apiClient, type AuxEnvelope } from './api-client'
+import { DEFAULT_SUB2API_SYSTEM_NAME, resolveSystemName } from './system-name'
 
 export interface TrustedPartner {
   name: string
@@ -50,7 +51,7 @@ export interface HomepageConfig {
 }
 
 export const DEFAULT_HOMEPAGE_CONFIG: HomepageConfig = {
-  siteName: 'Sub2API',
+  siteName: DEFAULT_SUB2API_SYSTEM_NAME,
   systemDomain: '',
   siteLogoUrl: '',
   heroLabel: '面向生产环境的 AI 网关',
@@ -106,6 +107,7 @@ export async function fetchHomepageConfig(): Promise<HomepageConfig> {
   return {
     ...DEFAULT_HOMEPAGE_CONFIG,
     ...envelope.data,
+    siteName: resolveSystemName(envelope.data),
     navigationItems: envelope.data.navigationItems ?? DEFAULT_HOMEPAGE_CONFIG.navigationItems,
     trustedPartners: envelope.data.trustedPartners ?? [],
     integrations: envelope.data.integrations ?? [],

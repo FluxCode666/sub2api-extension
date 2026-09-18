@@ -3,30 +3,97 @@ import { ArrowDown, ArrowUp, ArrowUpRight, Check, Plus, Save, Trash2 } from 'luc
 import { toast } from 'sonner'
 import { apiClient, type AuxEnvelope } from '@/lib/api-client'
 import { DEFAULT_HOMEPAGE_CONFIG, isHomepageNavigationHref, type HomepageConfig, type HomepageNavigationItem, type IntegrationApp, type TrustedPartner } from '@/lib/homepage'
+import { DEFAULT_TOB_HOMEPAGE_CONFIG, DEFAULT_TOB_MAP_SETTINGS, type TobHomepageConfig, type TobMapNode, type TobMapSettings } from '@/lib/tob-homepage'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 
 const EMPTY_PARTNER: TrustedPartner = { name: '', logoUrl: '', linkUrl: '' }
 const EMPTY_INTEGRATION: IntegrationApp = { name: '', logoUrl: '', documentationUrl: '' }
 
-type ConfigDraft = HomepageConfig
+type ConfigDraft = HomepageConfig | TobHomepageConfig
+type NodeKey = 'primaryServers' | 'cdnLocations' | 'customerLocations'
+type MapColorKey = 'primaryServerColor' | 'cdnColor' | 'customerColor'
+type HomepageConfigPageProps = { variant?: 'default' | 'tob' }
 
-export default function HomepageConfigPage() {
-  const [draft, setDraft] = useState<ConfigDraft>(DEFAULT_HOMEPAGE_CONFIG)
+const EMPTY_NODE: TobMapNode = { name: '', latitude: Number.NaN, longitude: Number.NaN, description: '' }
+const NODE_SECTIONS: Array<{ key: NodeKey; title: string; description: string }> = [
+  { key: 'primaryServers', title: '主服务器', description: '核心 API 与控制面位置，可配置多个区域。' },
+  { key: 'cdnLocations', title: 'CDN 集群', description: '主服务器会先连接这些边缘节点，再由边缘节点指向客户位置。' },
+  { key: 'customerLocations', title: '客户位置', description: '企业客户所在的服务区域，只保存公开展示所需的名称和坐标。' },
+]
+const MAP_COLOR_FIELDS: Array<{ key: MapColorKey; label: string }> = [
+  { key: 'primaryServerColor', label: '主服务器颜色' },
+  { key: 'cdnColor', label: 'CDN 集群颜色' },
+  { key: 'customerColor', label: '客户节点颜色' },
+]
+const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/
+
+function isEmptyNode(node: TobMapNode): boolean {
+  return !node.name.trim()
+    && !(node.description ?? '').trim()
+    && !Number.isFinite(node.latitude)
+    && !Number.isFinite(node.longitude)
+}
+
+function withoutEmptyNodes(config: TobHomepageConfig): TobHomepageConfig {
+  return {
+    ...config,
+    primaryServers: config.primaryServers.filter((node) => !isEmptyNode(node)),
+    cdnLocations: config.cdnLocations.filter((node) => !isEmptyNode(node)),
+    customerLocations: config.customerLocations.filter((node) => !isEmptyNode(node)),
+  }
+}
+
+function getNodeValidationMessage(title: string, index: number, node: TobMapNode): string | null {
+  const prefix = `${title} ${index + 1}`
+  if (!node.name.trim()) return `${prefix}：请填写名称。`
+  if (!Number.isFinite(node.latitude)) return `${prefix}：请填写纬度。`
+  if (node.latitude < -90 || node.latitude > 90) return `${prefix}：纬度必须在 -90 到 90 之间。`
+  if (!Number.isFinite(node.longitude)) return `${prefix}：请填写经度。`
+  if (node.longitude < -180 || node.longitude > 180) return `${prefix}：经度必须在 -180 到 180 之间。`
+  return null
+}
+
+function mergeConfig(value: Partial<ConfigDraft> | undefined, isTob: boolean): ConfigDraft {
+  if (!isTob) {
+    const homepage = value as Partial<HomepageConfig> | undefined
+    return { ...DEFAULT_HOMEPAGE_CONFIG, ...(homepage ?? {}), navigationItems: homepage?.navigationItems ?? DEFAULT_HOMEPAGE_CONFIG.navigationItems, trustedPartners: homepage?.trustedPartners ?? [], integrations: homepage?.integrations ?? [] }
+  }
+  const tob = value as Partial<TobHomepageConfig> | undefined
+  return {
+    ...DEFAULT_TOB_HOMEPAGE_CONFIG,
+    ...(tob ?? {}),
+    navigationItems: tob?.navigationItems ?? DEFAULT_TOB_HOMEPAGE_CONFIG.navigationItems,
+    trustedPartners: tob?.trustedPartners ?? [],
+    integrations: tob?.integrations ?? [],
+    primaryServers: tob?.primaryServers ?? DEFAULT_TOB_HOMEPAGE_CONFIG.primaryServers,
+    cdnLocations: tob?.cdnLocations ?? [],
+    customerLocations: tob?.customerLocations ?? [],
+    mapSettings: { ...DEFAULT_TOB_MAP_SETTINGS, ...(tob?.mapSettings ?? {}) },
+  }
+}
+
+export default function HomepageConfigPage({ variant = 'default' }: HomepageConfigPageProps) {
+  const isTob = variant === 'tob'
+  const endpoint = isTob ? '/admin/tob-homepage/config' : '/admin/homepage/config'
+  const [draft, setDraft] = useState<ConfigDraft>(() => mergeConfig(undefined, isTob))
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
 
   useEffect(() => {
-    apiClient.get<AuxEnvelope<HomepageConfig>>('/admin/homepage/config')
+    apiClient.get<AuxEnvelope<ConfigDraft>>(endpoint)
       .then((envelope) => {
         if (envelope.code !== 0 || !envelope.data) throw new Error(envelope.message || '无法读取官网配置')
-        setDraft({ ...DEFAULT_HOMEPAGE_CONFIG, ...envelope.data, navigationItems: envelope.data.navigationItems ?? DEFAULT_HOMEPAGE_CONFIG.navigationItems, trustedPartners: envelope.data.trustedPartners ?? [], integrations: envelope.data.integrations ?? [] })
+        setDraft(mergeConfig(envelope.data, isTob))
       })
-      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : '无法读取官网配置'))
+      .catch((reason: unknown) => toast.error(reason instanceof Error ? reason.message : '无法读取官网配置'))
       .finally(() => setLoading(false))
-  }, [])
+  }, [endpoint, isTob])
 
-  const update = <K extends keyof ConfigDraft>(key: K, value: ConfigDraft[K]) => {
+  const update = <K extends keyof HomepageConfig>(key: K, value: HomepageConfig[K]) => {
     setDraft((current) => ({ ...current, [key]: value }))
   }
 
@@ -49,37 +116,75 @@ export default function HomepageConfigPage() {
     update('navigationItems', items)
   }
 
+  const updateNode = (key: NodeKey, index: number, field: keyof TobMapNode, value: string) => {
+    setDraft((current) => {
+      const tob = current as TobHomepageConfig
+      const nextValue = field === 'name' || field === 'description' ? value : value === '' ? Number.NaN : Number(value)
+      const nodes = tob[key].map((node, currentIndex) => currentIndex === index ? { ...node, [field]: nextValue } : node)
+      return { ...tob, [key]: nodes }
+    })
+  }
+
+  const addNode = (key: NodeKey) => setDraft((current) => {
+    const tob = current as TobHomepageConfig
+    return { ...tob, [key]: [...tob[key], { ...EMPTY_NODE }] }
+  })
+
+  const removeNode = (key: NodeKey, index: number) => setDraft((current) => {
+    const tob = current as TobHomepageConfig
+    return { ...tob, [key]: tob[key].filter((_, currentIndex) => currentIndex !== index) }
+  })
+
+  const updateMapSetting = <K extends keyof TobMapSettings>(key: K, value: TobMapSettings[K]) => setDraft((current) => {
+    const tob = current as TobHomepageConfig
+    return { ...tob, mapSettings: { ...tob.mapSettings, [key]: value } }
+  })
+
   const save = async () => {
     const invalidIndex = draft.navigationItems.findIndex((item) => !item.label.trim() || !isHomepageNavigationHref(item.href))
     if (invalidIndex !== -1) {
-      setError(`请为菜单 ${invalidIndex + 1} 填写名称和有效链接（页内锚点、站内路径或 HTTP/HTTPS 地址）。`)
+      toast.error(`请为菜单 ${invalidIndex + 1} 填写名称和有效链接（页内锚点、站内路径或 HTTP/HTTPS 地址）。`)
       return
     }
+    let payload = draft
+    if (isTob) {
+      const tob = withoutEmptyNodes(draft as TobHomepageConfig)
+      const invalidColor = MAP_COLOR_FIELDS.find(({ key }) => !HEX_COLOR_PATTERN.test(tob.mapSettings[key]))
+      if (invalidColor) {
+        toast.error(`${invalidColor.label}：请输入 #RRGGBB 格式的颜色值。`)
+        return
+      }
+      const invalidNode = NODE_SECTIONS
+        .flatMap(({ key, title }) => tob[key].map((node, index) => ({ message: getNodeValidationMessage(title, index, node) })))
+        .find(({ message }) => message !== null)
+      if (invalidNode) {
+        toast.error(invalidNode.message)
+        return
+      }
+      payload = tob
+    }
     setSaving(true)
-    setError('')
     try {
-      const envelope = await apiClient.put<AuxEnvelope<HomepageConfig>>('/admin/homepage/config', draft)
+      const envelope = await apiClient.put<AuxEnvelope<ConfigDraft>>(endpoint, payload)
       if (envelope.code !== 0 || !envelope.data) throw new Error(envelope.message || '保存失败')
-      setDraft({ ...DEFAULT_HOMEPAGE_CONFIG, ...envelope.data, navigationItems: envelope.data.navigationItems ?? DEFAULT_HOMEPAGE_CONFIG.navigationItems, trustedPartners: envelope.data.trustedPartners ?? [], integrations: envelope.data.integrations ?? [] })
-      toast.success('官网配置已保存')
+      setDraft(mergeConfig(envelope.data, isTob))
+      toast.success(isTob ? 'ToB 官网配置已保存' : 'ToC 官网配置已保存')
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : '保存失败'
-      setError(message)
       toast.error(message)
     } finally {
       setSaving(false)
     }
   }
 
-  if (loading) return <div className="aux-admin-page"><p>正在读取官网配置…</p></div>
+  if (loading) return <div className="aux-admin-page"><p>{isTob ? '正在读取 ToB 官网配置…' : '正在读取 ToC 官网配置…'}</p></div>
 
   return (
     <div className="aux-admin-page aux-homepage-config-page">
       <header className="aux-page-header">
-        <div><p className="aux-page-kicker">品牌与内容</p><h1>官网配置</h1><p>维护 Sub2API 官网的品牌信息、顶部导航、合作伙伴与合规协议链接。保存后会同步到独立官网和嵌入页面。</p></div>
-        <a className="aux-config-preview" href="/sub2api-home" target="_blank" rel="noreferrer">预览官网 <ArrowUpRight size={15} /></a>
+        <div><p className="aux-page-kicker">品牌与内容</p><h1>{isTob ? 'ToB 官网配置' : 'ToC 官网配置'}</h1><p>{isTob ? '基于现有 Sub2API 官网的完整副本维护企业版内容，并配置全球主服务器、CDN 和客户节点。' : '维护 Sub2API 官网的品牌信息、顶部导航、合作伙伴与合规协议链接。保存后会同步到独立官网和嵌入页面。'}</p></div>
+        <a className="aux-config-preview" href={isTob ? '/tob-home' : '/sub2api-home'} target="_blank" rel="noreferrer">预览 {isTob ? 'ToB' : 'ToC'} 官网 <ArrowUpRight size={15} /></a>
       </header>
-      {error ? <div className="aux-config-error" role="alert">{error}</div> : null}
       <section className="aux-config-card">
         <div className="aux-config-section-heading"><div><span>01</span><h2>品牌与 Hero</h2></div><p>首页首屏会优先使用这些内容，建议标题保持在两行以内。</p></div>
         <div className="aux-config-grid">
@@ -141,6 +246,60 @@ export default function HomepageConfigPage() {
           <label>控制台链接<input value={draft.consoleHref} onChange={(event) => update('consoleHref', event.target.value)} placeholder="/admin" /></label>
         </div>
       </section>
+      {isTob ? <section className="aux-config-card">
+        <div className="aux-config-section-heading"><div><span>07</span><h2>全球网络节点</h2></div><p>配置地图上的主服务器、CDN 集群和客户位置，每类最多保存 32 个节点。</p></div>
+        <div className="space-y-6">
+          <div className="grid gap-4 border-b pb-6 md:grid-cols-2">
+            <div className="aux-config-toggle"><div><strong>展示节点名称</strong><span>关闭后地图仍保留节点与悬停说明。</span></div><Switch checked={(draft as TobHomepageConfig).mapSettings.showNodeLabels} onCheckedChange={(checked) => updateMapSetting('showNodeLabels', checked)} aria-label="展示节点名称" /></div>
+            <div className="aux-config-toggle"><div><strong>数据流动效果</strong><span>沿连线展示持续流动的数据点。</span></div><Switch checked={(draft as TobHomepageConfig).mapSettings.flowAnimation} onCheckedChange={(checked) => updateMapSetting('flowAnimation', checked)} aria-label="数据流动效果" /></div>
+            <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
+              <div className="flex items-center justify-between gap-3"><Label htmlFor="tob-route-curvature">连线曲度</Label><output className="text-xs font-medium tabular-nums" htmlFor="tob-route-curvature">{(draft as TobHomepageConfig).mapSettings.routeCurvature}%</output></div>
+              <Slider id="tob-route-curvature" aria-label="连线曲度" min={0} max={100} step={1} value={[(draft as TobHomepageConfig).mapSettings.routeCurvature]} onValueChange={([value]) => updateMapSetting('routeCurvature', value)} />
+              <p className="text-xs text-muted-foreground">0 为直线，数值越高弧线跳跃感越强。</p>
+            </div>
+            <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
+              <div className="flex items-center justify-between gap-3"><Label htmlFor="tob-node-size">节点大小</Label><output className="text-xs font-medium tabular-nums" htmlFor="tob-node-size">{(draft as TobHomepageConfig).mapSettings.nodeSize}%</output></div>
+              <Slider id="tob-node-size" aria-label="节点大小" min={10} max={200} step={5} value={[(draft as TobHomepageConfig).mapSettings.nodeSize]} onValueChange={([value]) => updateMapSetting('nodeSize', value)} />
+              <p className="text-xs text-muted-foreground">统一缩放主服务器、CDN 和客户节点。</p>
+            </div>
+            <div className="space-y-3 rounded-lg border bg-muted/30 p-4 md:col-span-2">
+              <Label>连线样式</Label>
+              <div className="inline-flex rounded-md border bg-background p-1" role="group" aria-label="连线样式">
+                <Button type="button" size="sm" variant={(draft as TobHomepageConfig).mapSettings.routeStyle === 'solid' ? 'default' : 'ghost'} aria-pressed={(draft as TobHomepageConfig).mapSettings.routeStyle === 'solid'} onClick={() => updateMapSetting('routeStyle', 'solid')}>实线</Button>
+                <Button type="button" size="sm" variant={(draft as TobHomepageConfig).mapSettings.routeStyle === 'dashed' ? 'default' : 'ghost'} aria-pressed={(draft as TobHomepageConfig).mapSettings.routeStyle === 'dashed'} onClick={() => updateMapSetting('routeStyle', 'dashed')}>虚线</Button>
+              </div>
+            </div>
+            <div className="grid gap-4 md:col-span-2 md:grid-cols-3">
+              {MAP_COLOR_FIELDS.map(({ key, label }) => <div className="space-y-2 rounded-lg border bg-muted/30 p-4" key={key}>
+                <Label htmlFor={`tob-map-${key}`}>{label}</Label>
+                <div className="flex items-center gap-3">
+                  <Input className="h-9 w-12 shrink-0 cursor-pointer p-1" type="color" aria-label={`${label}色板`} value={(draft as TobHomepageConfig).mapSettings[key]} onChange={(event) => updateMapSetting(key, event.target.value)} />
+                  <Input id={`tob-map-${key}`} aria-label={label} value={(draft as TobHomepageConfig).mapSettings[key]} maxLength={7} spellCheck={false} onChange={(event) => updateMapSetting(key, event.target.value)} placeholder="#112233" />
+                </div>
+              </div>)}
+            </div>
+          </div>
+          {NODE_SECTIONS.map(({ key, title, description }) => {
+            const nodes = (draft as TobHomepageConfig)[key]
+            return <div className="border-t pt-5 first:border-t-0 first:pt-0" key={key}>
+              <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                <div><h3 className="text-sm font-semibold">{title}</h3><p className="mt-1 text-xs text-muted-foreground">{description}</p></div>
+                <Button type="button" variant="outline" size="sm" disabled={nodes.length >= 32} onClick={() => addNode(key)}><Plus size={15} />添加{title}节点</Button>
+              </div>
+              <div className="space-y-3">
+                {nodes.map((node, index) => <div className="grid gap-3 rounded-lg border bg-muted/30 p-4 md:grid-cols-[1.2fr_.7fr_.7fr_auto]" key={`${key}-${index}`}>
+                  <div className="space-y-2"><Label htmlFor={`${key}-${index}-name`}>名称</Label><Input id={`${key}-${index}-name`} aria-label={`${title} ${index + 1} 名称`} value={node.name} maxLength={80} onChange={(event) => updateNode(key, index, 'name', event.target.value)} placeholder="例如：东京 CDN" /></div>
+                  <div className="space-y-2"><Label htmlFor={`${key}-${index}-latitude`}>纬度</Label><Input id={`${key}-${index}-latitude`} aria-label={`${title} ${index + 1} 纬度`} type="number" step="any" min={-90} max={90} value={Number.isFinite(node.latitude) ? node.latitude : ''} onChange={(event) => updateNode(key, index, 'latitude', event.target.value)} /></div>
+                  <div className="space-y-2"><Label htmlFor={`${key}-${index}-longitude`}>经度</Label><Input id={`${key}-${index}-longitude`} aria-label={`${title} ${index + 1} 经度`} type="number" step="any" min={-180} max={180} value={Number.isFinite(node.longitude) ? node.longitude : ''} onChange={(event) => updateNode(key, index, 'longitude', event.target.value)} /></div>
+                  <div className="flex items-end justify-end"><Button type="button" variant="ghost" size="icon" aria-label={`删除${title} ${index + 1}`} onClick={() => removeNode(key, index)}><Trash2 size={16} /></Button></div>
+                  <div className="space-y-2 md:col-span-3"><Label htmlFor={`${key}-${index}-description`}>说明</Label><Input id={`${key}-${index}-description`} aria-label={`${title} ${index + 1} 说明`} value={node.description ?? ''} maxLength={160} onChange={(event) => updateNode(key, index, 'description', event.target.value)} placeholder="可选" /></div>
+                </div>)}
+                {nodes.length === 0 ? <p className="rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">暂未添加{title}</p> : null}
+              </div>
+            </div>
+          })}
+        </div>
+      </section> : null}
       <div className="aux-config-save-row"><span>{saving ? '正在保存…' : <><Check size={15} /> 更改会立即同步到公开页面</>}</span><button className="aux-config-save" type="button" onClick={() => void save()} disabled={saving}><Save size={16} />{saving ? '保存中' : '保存配置'}</button></div>
     </div>
   )

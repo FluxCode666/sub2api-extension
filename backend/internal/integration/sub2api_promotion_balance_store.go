@@ -10,8 +10,8 @@ import (
 	"math"
 	"time"
 
+	"aux-system/internal/ttft"
 	"github.com/redis/go-redis/v9"
-	"sub2api-extension/internal/ttft"
 )
 
 // Sub2APIPromotionBalanceStore 在 Sub2API 数据库中原子发放促销返利。
@@ -95,7 +95,7 @@ func (s *Sub2APIPromotionBalanceStore) CreditPromotionRebate(ctx context.Context
 	}
 
 	detail, err := json.Marshal(map[string]any{
-		"source":           "sub2api-extension",
+		"source":           "aux-system",
 		"promotion_id":     promotionID,
 		"payment_order_id": paymentOrderID,
 		"user_id":          userID,
@@ -106,7 +106,7 @@ func (s *Sub2APIPromotionBalanceStore) CreditPromotionRebate(ctx context.Context
 	}
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO payment_audit_logs (order_id, action, detail, operator, created_at)
-		VALUES ($1, $2, $3, 'sub2api-extension', NOW())
+		VALUES ($1, $2, $3, 'aux-system', NOW())
 	`, auditOrderID, auditAction, string(detail)); err != nil {
 		return fmt.Errorf("write promotion balance audit: %w", err)
 	}

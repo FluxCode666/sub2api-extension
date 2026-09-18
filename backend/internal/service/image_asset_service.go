@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"sub2api-extension/ent"
-	"sub2api-extension/ent/imageasset"
+	"aux-system/ent"
+	"aux-system/ent/imageasset"
 )
 
 // ImageAsset 是管理端需要展示的图片资源记录。

@@ -19,14 +19,14 @@ import (
 	"golang.org/x/mod/semver"
 )
 
+// DefaultRepository 在外部仓库实际重命名前保留旧坐标；应用和发布产物独立使用 aux-system 名称。
 const DefaultRepository = "FluxCode666/sub2api-extension"
 
-// DefaultImage is retained for compatibility with manifests from the previous
-// container-based updater. It is never used as an update execution target.
-const DefaultImage = "ghcr.io/fluxcode666/sub2api-extension"
+// DefaultImage 仅兼容旧版容器更新清单，不作为当前二进制更新目标。
+const DefaultImage = "ghcr.io/fluxcode666/aux-system"
 
 const (
-	archivePrefix       = "sub2api-extension"
+	archivePrefix       = "aux-system"
 	checksumsAssetName  = "checksums.txt"
 	manifestAssetName   = "release-manifest.json"
 	maxReleaseBodyBytes = 2 << 20
@@ -47,10 +47,11 @@ type Build struct {
 // Manifest is retained for older Releases. New updates use binary assets;
 // image metadata is informational and is never executed by the application.
 type Manifest struct {
-	Schema  int    `json:"schema"`
-	Version string `json:"version"`
-	Image   string `json:"image"`
-	Digest  string `json:"digest"`
+	Schema           int    `json:"schema"`
+	Version          string `json:"version"`
+	Image            string `json:"image"`
+	ApplicationImage string `json:"applicationImage,omitempty"`
+	Digest           string `json:"digest"`
 }
 
 type Asset struct {
@@ -143,7 +144,7 @@ func (g *GitHub) get(ctx context.Context, path, accept string, output any) error
 	}
 	req.Header.Set("Accept", accept)
 	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
-	req.Header.Set("User-Agent", "sub2api-extension-updater")
+	req.Header.Set("User-Agent", "aux-system-updater")
 	if g.Token != "" {
 		req.Header.Set("Authorization", "Bearer "+g.Token)
 	}
@@ -215,7 +216,7 @@ func (g *GitHub) Latest(ctx context.Context, force bool) (*Release, error) {
 			if err := g.get(ctx, fmt.Sprintf("/releases/assets/%d", asset.ID), "application/octet-stream", &manifest); err != nil {
 				return nil, err
 			}
-			if manifest.Schema != 1 || manifest.Version != release.Version || (g.Image != "" && manifest.Image != "" && manifest.Image != g.Image) {
+			if manifest.Schema != 1 || manifest.Version != release.Version || !compatibleManifestImage(g.Image, manifest.Image) {
 				return nil, errors.New("发布清单与版本不匹配，不能执行更新")
 			}
 			release.Manifest = &manifest
@@ -230,6 +231,23 @@ func (g *GitHub) Latest(ctx context.Context, force bool) (*Release, error) {
 	return release, nil
 }
 
+// compatibleManifestImage 只允许同一仓库路径下的新旧应用名互认。
+// 清单镜像不会被执行；保留旧坐标是为了让改名前的更新器完成首次二进制升级。
+func compatibleManifestImage(configured, manifest string) bool {
+	if configured == "" || manifest == "" || configured == manifest {
+		return true
+	}
+	for _, pair := range [][2]string{
+		{"/aux-system", "/sub2api-extension"},
+		{"/sub2api-extension", "/aux-system"},
+	} {
+		if strings.HasSuffix(configured, pair[0]) && manifest == strings.TrimSuffix(configured, pair[0])+pair[1] {
+			return true
+		}
+	}
+	return false
+}
+
 func (g *GitHub) DownloadFile(ctx context.Context, rawURL, dest string) error {
 	if err := validateDownloadURL(rawURL); err != nil {
 		return err
@@ -238,7 +256,7 @@ func (g *GitHub) DownloadFile(ctx context.Context, rawURL, dest string) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Set("User-Agent", "sub2api-extension-updater")
+	req.Header.Set("User-Agent", "aux-system-updater")
 	if g.Token != "" && isGitHubAPIURL(req.URL) {
 		req.Header.Set("Authorization", "Bearer "+g.Token)
 	}
@@ -286,7 +304,7 @@ func (g *GitHub) FetchChecksumFile(ctx context.Context, rawURL string) ([]byte, 
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "sub2api-extension-updater")
+	req.Header.Set("User-Agent", "aux-system-updater")
 	if g.Token != "" && isGitHubAPIURL(req.URL) {
 		req.Header.Set("Authorization", "Bearer "+g.Token)
 	}

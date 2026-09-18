@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: sub2api-extension-release
+  group: aux-system-release
   cancel-in-progress: false
 
 jobs:
@@ -59,8 +59,8 @@ jobs:
             VERSION=${{ github.ref_name }}
             COMMIT=${{ github.sha }}
             DATE=${{ steps.meta.outputs.date }}
-          cache-from: type=gha,scope=sub2api-extension-release
-          cache-to: type=gha,mode=max,scope=sub2api-extension-release
+          cache-from: type=gha,scope=aux-system-release
+          cache-to: type=gha,mode=max,scope=aux-system-release
 
       - name: 构建当前平台二进制更新包
         env:

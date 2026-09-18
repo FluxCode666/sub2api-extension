@@ -1,4 +1,4 @@
-module sub2api-extension
+module aux-system
 
 go 1.26.5
 

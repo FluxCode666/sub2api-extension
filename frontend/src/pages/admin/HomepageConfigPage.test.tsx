@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { toast } from 'sonner'
 import HomepageConfigPage from './HomepageConfigPage'
 import { apiClient } from '@/lib/api-client'
 import { DEFAULT_HOMEPAGE_CONFIG, type HomepageConfig } from '@/lib/homepage'
@@ -27,6 +28,13 @@ describe('HomepageConfigPage', () => {
       message: 'success',
       data: DEFAULT_HOMEPAGE_CONFIG,
     })
+  })
+
+  it('identifies the consumer website configuration separately from ToB', async () => {
+    render(<HomepageConfigPage />)
+
+    expect(await screen.findByRole('heading', { name: 'ToC 官网配置' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '预览 ToC 官网' })).toHaveAttribute('href', '/sub2api-home')
   })
 
   it('keeps partner inputs focused while typing', async () => {
@@ -195,7 +203,8 @@ describe('HomepageConfigPage', () => {
     await user.type(href, 'javascript:alert(1)')
     await user.click(screen.getByRole('button', { name: '保存配置' }))
 
-    expect(screen.getByRole('alert')).toHaveTextContent('菜单 1')
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('菜单 1'))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(apiClient.put).not.toHaveBeenCalled()
   })
 })

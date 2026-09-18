@@ -9,7 +9,7 @@ pnpm-lock.yaml.bak
 # ============ 构建产物 ============
 # Go
 /backend/server
-/backend/sub2api-extension
+/backend/aux-system
 /backend/bin/
 /backend/data/
 # 客户端接入文档截图与客户端图标是随仓库发布的种子资源，纳入版本管理；

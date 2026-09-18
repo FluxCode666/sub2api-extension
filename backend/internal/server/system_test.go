@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	adminhandler "sub2api-extension/internal/handler/admin"
-	"sub2api-extension/internal/integration"
-	"sub2api-extension/internal/update"
-	"sub2api-extension/internal/web"
+	adminhandler "aux-system/internal/handler/admin"
+	"aux-system/internal/integration"
+	"aux-system/internal/update"
+	"aux-system/internal/web"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"

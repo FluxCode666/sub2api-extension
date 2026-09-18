@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """管理员动态页面 API 工具。
 
-该工具只调用 sub2api-extension 已有的管理员 API，不直接访问数据库。
+该工具只调用 aux-system 已有的管理员 API，不直接访问数据库。
 会话通过 POST /admin/login 临时换取，默认不会写入文件；也可以通过
 --session-token 或 AUX_SESSION_TOKEN 复用一个已签发的附属会话。
 
@@ -199,7 +199,7 @@ def command(args: argparse.Namespace) -> Any:
 
 
 def make_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="sub2api-extension 管理员动态页面 API 工具")
+    parser = argparse.ArgumentParser(description="aux-system 管理员动态页面 API 工具")
     sub = parser.add_subparsers(dest="command", required=True)
     list_parser = sub.add_parser("list", help="列出页面")
     get_parser = sub.add_parser("get", help="获取页面详情")

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"sub2api-extension/internal/ops"
+	"aux-system/internal/ops"
 
 	"github.com/stretchr/testify/assert"
 )

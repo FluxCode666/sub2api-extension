@@ -3,9 +3,9 @@
 package ent
 
 import (
+	"aux-system/ent/promotionclaim"
 	"fmt"
 	"strings"
-	"sub2api-extension/ent/promotionclaim"
 	"time"
 
 	"entgo.io/ent"

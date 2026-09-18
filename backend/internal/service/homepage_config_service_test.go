@@ -52,6 +52,17 @@ func TestHomepageConfigService_MigratesLegacyDefaultModel(t *testing.T) {
 	assert.Equal(t, "gpt-6-astra", config.Model)
 }
 
+func TestHomepageConfigService_MigratesLegacyHeroTitleToSiteName(t *testing.T) {
+	store := &memoryHomepageConfigStore{config: &HomepageConfig{HeroTitle: "TERALEMO"}}
+	svc := NewHomepageConfigService(store)
+
+	config, err := svc.Get(context.Background())
+
+	require.NoError(t, err)
+	assert.Equal(t, "TERALEMO", config.SiteName)
+	assert.Equal(t, DefaultHomepageConfig().HeroTitle, config.HeroTitle)
+}
+
 func TestHomepageConfigService_NavigationCompatibility(t *testing.T) {
 	for _, test := range []struct {
 		name string

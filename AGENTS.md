@@ -1,6 +1,6 @@
-# sub2api-extension 统一开发规范
+# aux-system 统一开发规范
 
-本文件是 `sub2api-extension` 的项目级协作规范，面向人类开发者和代码代理。它描述当前源码、测试和部署文件已经形成的约定。新增功能、修复问题和重构都应遵守这些约束。
+本文件是 `aux-system` 的项目级协作规范，面向人类开发者和代码代理。它描述当前源码、测试和部署文件已经形成的约定。新增功能、修复问题和重构都应遵守这些约束。
 
 本规范持续优化中，不视为一次性定稿。用户在开发过程中提出额外的通用细节、重复出现的约束或新的团队习惯时，代理应先判断其是否适合沉淀为项目规范；适合时先询问用户是否要更新本文件及相关入口，得到确认后再修改 `AGENTS.md`、`CLAUDE.md` 或 `.claude/CLAUDE.md`，并同步校验链接、章节和命令示例。只针对单次任务的临时要求不自动写入规范。
 
@@ -28,7 +28,7 @@ rg --files -g '!node_modules' -g '!frontend/dist' -g '!backend/ent/*.go'
 
 ## 2. 系统定位
 
-`sub2api-extension` 是 [sub2api](https://github.com/Wei-Shaw/sub2api) 的独立附属内容承载与运营管理系统。它通过浏览器可访问的 iframe、HTTP 身份验证和少量只读/受控数据库集成接入 sub2api，不导入 sub2api 后端代码，也不修改 sub2api 源码。
+`aux-system` 是 [sub2api](https://github.com/Wei-Shaw/sub2api) 的独立附属内容承载与运营管理系统。它通过浏览器可访问的 iframe、HTTP 身份验证和少量只读/受控数据库集成接入 sub2api，不导入 sub2api 后端代码，也不修改 sub2api 源码。
 
 系统提供：
 
@@ -230,10 +230,23 @@ React/TSX 动态页由 Babel CDN 编译后在宿主上下文通过 `new Function
 | 日期范围筛选 | **单个范围按钮 + 同一个 Popover + Calendar 的 `mode="range"`**；按钮显示起止日期，日历连续高亮区间，桌面双月、窄屏单月，提供清除操作。不得默认拆成两个独立日期框或两套单日弹层；只有用户明确要求分开输入时才改变该交互 |
 | 分页 | `Pagination`、`PaginationContent`、`PaginationItem` 及其链接或 `Button`；保留真实的禁用语义和可访问名称 |
 | 弹窗、侧栏、提示、表格、页签、开关 | 按需使用现有 `Dialog`、`Sheet`、`Tooltip`、`Table`、`Tabs`、`Switch` |
+| 全局操作结果通知 | 使用 `@/components/ui/sonner` 的 `Toaster`，页面通过 `sonner` 的 `toast.success/error/warning/info` 触发；具体语义和边界见第 6.6 节 |
 
 - **允许调整密度，不得重造组件**：尺寸、间距、响应式和颜色通过现有 variant、token 与 `className` 调整；保留组件本身的语义和交互，不为追求“自定义样式”移除可访问性行为。
 - **旧代码不是豁免依据**：源码优先用于确认当前行为，不表示旧代码的原生控件符合新规范。本次新增或改造的控件必须遵守本节；未涉及的旧页面不做无关全量替换。
 - **交付前逐项核对**：检查本次 diff 中的控件导入、原生元素和组合方式；日期范围必须实测同日、跨月、重新选择、清除和移动端。类型检查、测试与构建通过不能替代浏览器交互及样式检查。发现偏离时须在交付前修正，不得等用户再次指出。
+
+### 6.6 全局通知提示框
+
+全局通知用于反馈用户刚刚发起的、无需占据页面固定位置的操作结果。宿主应用统一使用现有 Sonner 封装，不得在业务页面自行实现另一套 toast、固定顶部错误条或临时悬浮提示。
+
+- **统一挂载和位置**：在会触发全局通知的顶层 layout 中通过 `@/components/ui/sonner` 挂载一个且仅一个 `Toaster`，默认使用 `position="top-right"`；页面只从 `sonner` 导入 `toast` 触发通知，不得重复挂载 `Toaster`。新增公开页面通知前，先确认其所属 layout 已挂载该组件。
+- **按结果选择类型**：操作成功使用 `toast.success`；校验失败、请求失败或操作未完成使用 `toast.error`；主操作完成但存在可恢复的部分失败、降级或需要留意的结果使用 `toast.warning`；无成败含义的短状态说明才使用 `toast.info`。不得用普通样式或成功样式承载错误。
+- **适用范围**：保存、创建、删除、启停、上传、下载、复制、手动刷新等用户主动操作的成功或失败，默认使用右上角全局通知。异步操作期间同时保留按钮禁用和局部 loading 状态，完成后只发出一次最终结果通知；页面首次自动加载成功不弹通知，避免无意义打扰。
+- **与页面内错误分工**：首屏或列表加载失败、页面整体不可用、持续降级以及必须在上下文中长期保留的说明，继续使用页面内 `Alert`、`ErrorState` 或局部错误区；字段级校验应靠近对应字段或留在当前 Dialog/Form 中。一次性保存/提交失败不得再放到页面顶部。相同错误不能同时以全局通知和页面内错误重复展示。
+- **文案结构**：标题直接说明动作和结果，例如“系统配置已保存”或“账号成本保存失败”；只有确实有助于理解或恢复时才通过 `description` 补充原因、影响或下一步。文案不得泄漏 SQL、路径、凭据、内部堆栈或未清洗的后端错误，连续同类操作应避免堆叠重复通知。
+- **交互和可访问性**：保留 Sonner 的语义、键盘和读屏行为，不通过自定义样式移除类型图标、关闭能力或可读对比度；通知不能遮挡主要导航和关键操作，窄屏下必须完整可读且不得造成横向滚动。
+- **测试要求**：涉及全局通知的行为测试应 mock `sonner` 并断言正确的通知类型、标题和必要的 `description`；临时操作错误还要断言页面顶部没有重复错误条。修改挂载位置或全局样式时必须在浏览器检查桌面与移动端的位置、堆叠、长文案和明暗主题。
 
 ## 7. Skill 使用规范
 
@@ -245,9 +258,9 @@ Skill 是执行任务时的补充方法库，不是本项目事实来源。先�
 | --- | --- | --- | --- |
 | 管理控制台页面、运营看板、管理表单 | `gpt-taste`、`gsap-core`、`gsap-react` | `gsap-scrolltrigger`、`gsap-performance`、`react-development`、`frontend-ui-engineering` | 沿用项目的 Geist、暖灰背景、靛蓝主色、信息密度和 shadcn/Radix 组件。`gpt-taste` 用于视觉层级和交互质感，GSAP 只做局部反馈、进入态或数据变化过渡；不得机械套用营销页的巨大 Hero、AIDA 文案或装饰性卡片。需要滚动驱动动画时才加载 `gsap-scrolltrigger`，遇到复杂或高频动画才加载 `gsap-performance`。 |
 | 客户端接入文档、API 文档、帮助中心、教程页 | `hallmark` | `frontend-design`、`react-development` | 优先保证阅读流、标题层级、代码示例、复制操作、目录导航、主题和移动端排版。使用 `frontend/tokens.css` 与文档页面现有主题，不把控制台的运营密度或发票门户的视觉变量带入文档页。 |
-| 数据库动态 HTML/React 页面 | `sub2api-extension-page-writer` | 根据内容类型选择 `gpt-taste`（运营/展示页）或 `hallmark`（文档/教程页） | 先按页面 skill 校验 slug、字段、内容大小、资源 URL、seed 和渲染器约束，再做视觉实现。HTML 必须走 iframe 沙箱；动态 React/TSX 是受信任管理员内容，在宿主上下文执行，不能存放秘密。 |
-| Sub2API iframe、登录、菜单、域名、CSP、会话交换 | `sub2api-extension-integration` | `api-engineering`、`devsecops` | 先核对 `X-Aux-Token`、`X-Aux-Session`、Sub2API HTTP/数据库边界、`/` 与 `/p/home` 路由、iframe 头部和 CSP。任何身份、跨域或菜单改动都要补集成测试和文档。 |
-| Docker、Compose、NGINX、GHCR、发布、更新、回滚 | `sub2api-extension-operations` | `ci-cd-and-automation`、`release-engineering`、`observability` | 以 `deploy/`、`.github/` 和实际启动脚本为准，核对端口、外部 PostgreSQL、卷备份、健康检查、架构镜像和回滚路径。不要仅依据旧文档假定存在独立迁移容器。 |
+| 数据库动态 HTML/React 页面 | `aux-system-page-writer` | 根据内容类型选择 `gpt-taste`（运营/展示页）或 `hallmark`（文档/教程页） | 先按页面 skill 校验 slug、字段、内容大小、资源 URL、seed 和渲染器约束，再做视觉实现。HTML 必须走 iframe 沙箱；动态 React/TSX 是受信任管理员内容，在宿主上下文执行，不能存放秘密。 |
+| Sub2API iframe、登录、菜单、域名、CSP、会话交换 | `aux-system-integration` | `api-engineering`、`devsecops` | 先核对 `X-Aux-Token`、`X-Aux-Session`、Sub2API HTTP/数据库边界、`/` 与 `/p/home` 路由、iframe 头部和 CSP。任何身份、跨域或菜单改动都要补集成测试和文档。 |
+| Docker、Compose、NGINX、GHCR、发布、更新、回滚 | `aux-system-operations` | `ci-cd-and-automation`、`release-engineering`、`observability` | 以 `deploy/`、`.github/` 和实际启动脚本为准，核对端口、外部 PostgreSQL、卷备份、健康检查、架构镜像和回滚路径。不要仅依据旧文档假定存在独立迁移容器。 |
 | Go API、handler、service、中间件、错误响应 | `backend-engineering`、`api-engineering` | `code-review-and-quality`、`debugging-and-error-recovery` | 保持 `handler -> service -> Store/integration`，使用统一 response envelope、sentinel error、context 超时、鉴权和审计约定。skill 的通用 REST 建议必须服从当前 Gin 路由和中间件实现。 |
 | Ent schema、PostgreSQL、迁移、查询性能 | `database-engineering` | `backend-engineering`、`performance-optimization` | 只改 `backend/ent/schema/`，通过 Ent 生成代码；确认附属库与 Sub2API 库边界、迁移可回退性、索引和连接池。禁止手改 `backend/ent/` 生成文件。 |
 | 复杂 React 组件、路由、状态、测试 | `react-development`、`frontend-ui-engineering` | `gpt-taste`、`gsap-react`、`playwright` | 遵守 TypeScript strict、`@/` 别名、现有 registry、埋点、主题和可访问性；先复用现有组件，再引入新抽象。需要浏览器行为验证时使用 Playwright。 |
@@ -256,9 +269,9 @@ Skill 是执行任务时的补充方法库，不是本项目事实来源。先�
 
 表中的全局 skill 以 skill 名称加载；项目专用 skill 使用仓库内 `.agents/skills/<name>/SKILL.md`。目前仓库内已固定提供：
 
-- `.agents/skills/sub2api-extension-page-writer/SKILL.md`
-- `.agents/skills/sub2api-extension-integration/SKILL.md`
-- `.agents/skills/sub2api-extension-operations/SKILL.md`
+- `.agents/skills/aux-system-page-writer/SKILL.md`
+- `.agents/skills/aux-system-integration/SKILL.md`
+- `.agents/skills/aux-system-operations/SKILL.md`
 
 ### 7.2 Skill 加载和执行流程
 
@@ -274,11 +287,11 @@ Skill 是执行任务时的补充方法库，不是本项目事实来源。先�
 - `gpt-taste`、`hallmark`、`frontend-design` 的通用视觉建议不能覆盖本项目现有 token、页面身份、响应式断点、可访问性和信息密度。
 - `gsap-*` 只解决动效实现和性能，不决定页面结构、文案或业务流程；动画失败、禁用或 `prefers-reduced-motion` 时内容仍必须完整可用。
 - 一个页面只选一个主视觉方向：管理控制台优先 `gpt-taste`，文档/教程优先 `hallmark`。只有跨域页面确实包含两种内容时，才按页面区域拆分并明确各自 token。
-- 动态页面先满足 `sub2api-extension-page-writer` 的数据模型和安全约束，再套用视觉 skill；数据库内容不能反向改变宿主应用的鉴权和 CSP。
+- 动态页面先满足 `aux-system-page-writer` 的数据模型和安全约束，再套用视觉 skill；数据库内容不能反向改变宿主应用的鉴权和 CSP。
 
 ## 8. 动态页面操作约束
 
-创建或修改动态页面前先阅读 `.agents/skills/sub2api-extension-page-writer/SKILL.md`。关键规则：
+创建或修改动态页面前先阅读 `.agents/skills/aux-system-page-writer/SKILL.md`。关键规则：
 
 - slug 只允许小写字母、数字和连字符，单页 HTML/React 内容上限 256 KiB。
 - `visibility=public` 使用 `/p/<slug>`；`visibility=admin` 使用 `/admin/p/<slug>`。
@@ -358,6 +371,7 @@ Release 工作流只构建/发布镜像和 amd64/arm64 更新包，不直接连�
 - [ ] schema、迁移、seed、持久化卷和回退影响已说明。
 - [ ] 页面使用 registry、埋点、主题、响应式和可访问性约定。
 - [ ] 新增或改造的业务控件使用 shadcn/ui 及标准组合交互，无裸原生控件替代；日期范围采用单入口范围日历。
+- [ ] 保存、提交等临时操作结果使用右上角 Sonner 全局通知并匹配 `success/error/warning/info` 语义；页面内只保留字段级或持续性错误，且无重复提示。
 - [ ] 已在浏览器检查控件的实际样式、键盘焦点、禁用态、清除操作和移动端布局，不以类型检查或测试通过代替 UI 验收。
 - [ ] 未泄漏密码、JWT、Sub2API token、Webhook/SMTP 密钥或绝对路径。
 - [ ] 已运行对应的 Go/前端测试、类型检查、构建或部署健康检查。
@@ -372,6 +386,6 @@ Release 工作流只构建/发布镜像和 amd64/arm64 更新包，不直接连�
 - `docs/CLIENT_GUIDES.md`：客户端接入文档维护规则。
 - `.github/CICD.md`：CI、测试部署、Release 和通知。
 - `deploy/UPDATES.md`、`deploy/nginx/README.md`：生产安装、更新、NGINX 和回滚。
-- `.agents/skills/sub2api-extension-integration/SKILL.md`：集成排查。
-- `.agents/skills/sub2api-extension-operations/SKILL.md`：部署运维。
-- `.agents/skills/sub2api-extension-page-writer/SKILL.md`：页面和动态内容。
+- `.agents/skills/aux-system-integration/SKILL.md`：集成排查。
+- `.agents/skills/aux-system-operations/SKILL.md`：部署运维。
+- `.agents/skills/aux-system-page-writer/SKILL.md`：页面和动态内容。

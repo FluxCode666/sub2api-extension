@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"sub2api-extension/internal/invoice"
-	"sub2api-extension/internal/ttft"
+	"aux-system/internal/invoice"
+	"aux-system/internal/ttft"
 )
 
 // Sub2APIPaymentOrderStore is a read-only adapter for completed balance

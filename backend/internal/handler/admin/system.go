@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"time"
 
-	"sub2api-extension/internal/pkg/response"
-	"sub2api-extension/internal/pkg/sysutil"
-	"sub2api-extension/internal/update"
+	"aux-system/internal/pkg/response"
+	"aux-system/internal/pkg/sysutil"
+	"aux-system/internal/update"
 
 	"github.com/gin-gonic/gin"
 )

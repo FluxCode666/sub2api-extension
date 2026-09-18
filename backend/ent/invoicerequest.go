@@ -3,9 +3,9 @@
 package ent
 
 import (
+	"aux-system/ent/invoicerequest"
 	"fmt"
 	"strings"
-	"sub2api-extension/ent/invoicerequest"
 	"time"
 
 	"entgo.io/ent"

@@ -10,10 +10,10 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 
-	"sub2api-extension/ent"
-	"sub2api-extension/ent/accountcostconfig"
-	"sub2api-extension/ent/systemmeta"
-	"sub2api-extension/internal/ops"
+	"aux-system/ent"
+	"aux-system/ent/accountcostconfig"
+	"aux-system/ent/systemmeta"
+	"aux-system/internal/ops"
 )
 
 const CostConfigKey = "ops.cost.config"

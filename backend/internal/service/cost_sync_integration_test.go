@@ -14,9 +14,9 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/require"
 
-	"sub2api-extension/ent"
-	"sub2api-extension/internal/integration"
-	"sub2api-extension/internal/ops"
+	"aux-system/ent"
+	"aux-system/internal/integration"
+	"aux-system/internal/ops"
 )
 
 // 仅使用显式指定的临时测试库，避免在开发或生产 Sub2API 库创建测试表。

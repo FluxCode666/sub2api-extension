@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { apiClient, AuxApiError, type AuxEnvelope } from '@/lib/api-client'
 import { fetchHomepageConfig } from '@/lib/homepage'
+import { DEFAULT_SUB2API_SYSTEM_NAME, resolveSystemName } from '@/lib/system-name'
 import { formatPromotionMoney, promotionIsEnded, promotionRewardLabel, type Promotion, type PromotionClaim, type PromotionOrder } from '@/lib/promotions'
 import { renderPromotionMarkdown } from '@/lib/promotion-markdown'
 import './PromotionMarkdown.css'
@@ -19,7 +20,7 @@ export default function PromotionPortalPage() {
   const pageRef = useRef<HTMLElement>(null)
   const [promotions, setPromotions] = useState<Promotion[]>([])
   const [claims, setClaims] = useState<PromotionClaim[]>([])
-  const [siteName, setSiteName] = useState('')
+  const [siteName, setSiteName] = useState(DEFAULT_SUB2API_SYSTEM_NAME)
   const [endedOpen, setEndedOpen] = useState(false)
   const [selected, setSelected] = useState<Promotion | null>(null)
   // 说明、返利规则与订单必须属于同一活动，切换请求完成后整体替换。
@@ -65,7 +66,7 @@ export default function PromotionPortalPage() {
       const next = promotionResult.data?.items ?? []
       setPromotions(next)
       setClaims(claimResult.data?.items ?? [])
-      setSiteName(homepageConfig.siteName.trim() || homepageConfig.heroTitle.trim())
+      setSiteName(resolveSystemName(homepageConfig))
       const firstActive = next.find((promotion) => !promotionIsEnded(promotion))
       if (firstActive) void selectPromotion(firstActive)
     }).catch(() => {

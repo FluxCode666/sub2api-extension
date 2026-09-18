@@ -1,4 +1,4 @@
-# Sub2API Extension CI/CD 指南
+# aux-system CI/CD 指南
 
 应用镜像包含 Go 服务和已构建的 React 前端。版本 tag 触发发布，不触发生产部署；生产更新由管理员主动执行。
 
@@ -34,11 +34,13 @@ git push origin v0.6.0
 3. Release 工作流复用完整 CI，再构建 `linux/amd64` 和 `linux/arm64`：
 
 ```text
-ghcr.io/<owner>/sub2api-extension:<tag>
-sub2api-extension_linux_amd64.tar.gz
-sub2api-extension_linux_arm64.tar.gz
+ghcr.io/<owner>/aux-system:<tag>
+aux-system_linux_amd64.tar.gz
+aux-system_linux_arm64.tar.gz
 checksums.txt
 ```
+
+首次改名发布还会附带同内容的 `sub2api-extension_linux_*` 兼容别名，让仍运行旧更新器的实例可以升级；清单中的 `image` 保留旧坐标供旧更新器校验，实际应用镜像记录在 `applicationImage`，新版本只选择 `aux-system_linux_*` 主更新包。
 
 4. 应用镜像和两个平台二进制更新包都完成后发布中文 GitHub Release，附件包括 `checksums.txt`、镜像摘要清单、生产 Compose 文件和 `UPDATES.md`。`vX.Y.Z-rc.N` 等预发布不会成为最新正式版。
 5. 服务器此时仍保持原版本。在管理员控制台点击版本号查看发布，再决定更新时间。
@@ -86,9 +88,9 @@ SMTP 凭据在同一页面的 **Secrets** 中配置：
 
 详细步骤见 [deploy/UPDATES.md](../deploy/UPDATES.md)，包括旧版本升级、私有仓库令牌、管理员更新、故障恢复与手动镜像更新。
 
-生产 Compose 运行 `aux-migrate` 和 `aux-backend`，使用外部 PostgreSQL。应用自身负责下载和原子替换二进制，不需要额外 Compose 文件、更新容器或 Docker socket。配置示例见 [deploy/.env.example](../deploy/.env.example)。
+生产 Compose 运行单一 `aux-system` 服务并使用外部 PostgreSQL。应用自身负责下载和原子替换二进制，不需要额外 Compose 文件、更新容器或 Docker socket。配置示例见 [deploy/.env.example](../deploy/.env.example)。
 
-运行时不会自动迁移。二进制更新不会执行数据库迁移；发布包含 schema 变化时，仍需先按部署流程运行 `aux-migrate`，并考虑旧版兼容性。应用回退不撤销数据库变更。
+服务默认在启动时执行幂等 Ent 自动迁移；设置 `AUTO_MIGRATE=false` 时，发布包含 schema 变化需先显式执行迁移。应用回退不撤销数据库变更。
 
 ## 测试环境部署
 
@@ -109,11 +111,11 @@ SMTP 凭据在同一页面的 **Secrets** 中配置：
 每次构建推送两个标签：
 
 ```text
-ghcr.io/<owner>/sub2api-extension:test-<sha7>
-ghcr.io/<owner>/sub2api-extension:test-latest
+ghcr.io/<owner>/aux-system:test-<sha7>
+ghcr.io/<owner>/aux-system:test-latest
 ```
 
-测试部署并发组为 `sub2api-extension-test-deployment`。新提交到达时会取消仍在运行的旧测试部署，避免旧版本晚于新版本上线。
+测试部署并发组为 `aux-system-test-deployment`。新提交到达时会取消仍在运行的旧测试部署，避免旧版本晚于新版本上线。
 
 ### 测试服务器目录
 
@@ -125,7 +127,7 @@ ghcr.io/<owner>/sub2api-extension:test-latest
 └── .env.test                 # 服务器持有，流水线只更新镜像相关字段
 ```
 
-测试 Compose project 固定为 `sub2api-extension-test`，因此其命名卷与生产 project 隔离。
+测试服务器目录和 Compose project 继续使用兼容标识 `sub2api-extension-test`，避免改名后切换到空白数据卷；它仍与生产 project 隔离。
 
 
 ## 测试环境 Secrets

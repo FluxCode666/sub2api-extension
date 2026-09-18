@@ -1,7 +1,7 @@
 // Package main 是附属内容系统后端的入口。
 //
 // 镜像 sub2api backend/cmd/server/main.go 的入口结构。
-// 独立 module（sub2api-extension），不导入 sub2api 的包。
+// 独立 module（aux-system），不导入 sub2api 的包。
 package main
 
 import (
@@ -20,16 +20,16 @@ import (
 	"syscall"
 	"time"
 
-	"sub2api-extension/ent"
-	"sub2api-extension/ent/migrate"
-	"sub2api-extension/internal/config"
-	"sub2api-extension/internal/handler"
-	adminhandler "sub2api-extension/internal/handler/admin"
-	"sub2api-extension/internal/integration"
-	"sub2api-extension/internal/server"
-	"sub2api-extension/internal/service"
-	"sub2api-extension/internal/update"
-	"sub2api-extension/internal/web"
+	"aux-system/ent"
+	"aux-system/ent/migrate"
+	"aux-system/internal/config"
+	"aux-system/internal/handler"
+	adminhandler "aux-system/internal/handler/admin"
+	"aux-system/internal/integration"
+	"aux-system/internal/server"
+	"aux-system/internal/service"
+	"aux-system/internal/update"
+	"aux-system/internal/web"
 
 	entsql "entgo.io/ent/dialect/sql"
 	_ "github.com/lib/pq"
@@ -49,7 +49,7 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		log.Printf("sub2api-extension %s (commit: %s, built: %s)\n", Version, Commit, Date)
+		log.Printf("aux-system %s (commit: %s, built: %s)\n", Version, Commit, Date)
 		return
 	}
 
@@ -69,7 +69,7 @@ func main() {
 		return
 	}
 
-	log.Printf("sub2api-extension %s starting in %s mode", Version, cfg.Server.Mode)
+	log.Printf("aux-system %s starting in %s mode", Version, cfg.Server.Mode)
 
 	// 生产 embed 构建首次启动时，将客户端接入文档截图与客户端图标种子资源
 	// 复制进统一资源目录(持久卷)。失败不阻断启动——缺失文件只会让对应请求 404。
@@ -183,6 +183,9 @@ func main() {
 	homepageStore := service.NewEntHomepageConfigStore(entClient)
 	homepageService := service.NewHomepageConfigService(homepageStore)
 	homepageHandler := adminhandler.NewHomepageConfigHandler(homepageService, homepageMenuPublisher)
+	tobHomepageStore := service.NewEntTobHomepageConfigStore(entClient)
+	tobHomepageService := service.NewTobHomepageConfigService(tobHomepageStore, homepageService)
+	tobHomepageHandler := adminhandler.NewTobHomepageConfigHandler(tobHomepageService)
 
 	// 动态页面管理链: ent client → page store → page service → handlers(public + admin)
 	pageStore := service.NewEntPageStore(entClient)
@@ -259,7 +262,7 @@ func main() {
 		releaseSource,
 		update.NewManager(releaseSource, releaseSource, Version),
 	)
-	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, imageAssetHandler, fileAssetHandler, ttftHandler, costHandler, invoiceUserHandler, invoiceAdminHandler, promotionUserHandler, promotionAdminHandler, notificationAdminHandler, logService, logHandler, systemHandler)
+	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, tobHomepageHandler, imageAssetHandler, fileAssetHandler, ttftHandler, costHandler, invoiceUserHandler, invoiceAdminHandler, promotionUserHandler, promotionAdminHandler, notificationAdminHandler, logService, logHandler, systemHandler)
 
 	// 启动 HTTP 服务器
 	addr := cfg.Server.Address()

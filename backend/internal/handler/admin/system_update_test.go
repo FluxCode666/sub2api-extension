@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"sub2api-extension/internal/update"
+	"aux-system/internal/update"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"

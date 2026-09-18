@@ -71,7 +71,7 @@ func mustRead(t *testing.T, path string) []byte {
 }
 
 func testArchiveName() string {
-	return fmt.Sprintf("sub2api-extension_%s_%s.tar.gz", runtime.GOOS, runtime.GOARCH)
+	return fmt.Sprintf("aux-system_%s_%s.tar.gz", runtime.GOOS, runtime.GOARCH)
 }
 
 func TestManagerAtomicallyReplacesBinaryAndKeepsBackup(t *testing.T) {

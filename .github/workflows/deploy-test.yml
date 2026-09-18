@@ -1,5 +1,5 @@
 # =============================================================================
-# Sub2API Extension - 测试环境部署
+# aux-system - 测试环境部署
 # =============================================================================
 # test 分支推送自动触发；也支持手动触发。
 # 流程：完整 CI 门禁 → 多架构镜像 → GHCR → SSH → Compose → 健康检查。
@@ -40,7 +40,7 @@ permissions:
   packages: write
 
 concurrency:
-  group: sub2api-extension-test-deployment
+  group: aux-system-test-deployment
   cancel-in-progress: true
 
 env:
@@ -85,7 +85,7 @@ jobs:
           BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           {
             echo "image_tag=$TAG"
-            echo "ghcr_image=ghcr.io/$OWNER_LOWER/sub2api-extension"
+            echo "ghcr_image=ghcr.io/$OWNER_LOWER/aux-system"
             echo "build_date=$BUILD_DATE"
           } >> "$GITHUB_OUTPUT"
 
@@ -116,8 +116,8 @@ jobs:
             VERSION=${{ steps.meta.outputs.image_tag }}
             COMMIT=${{ github.sha }}
             DATE=${{ steps.meta.outputs.build_date }}
-          cache-from: type=gha,scope=sub2api-extension-test
-          cache-to: type=gha,mode=max,scope=sub2api-extension-test
+          cache-from: type=gha,scope=aux-system-test
+          cache-to: type=gha,mode=max,scope=aux-system-test
 
       - name: Build summary
         run: |
@@ -188,6 +188,7 @@ jobs:
             fi
 
             compose() {
+              # 兼容现有服务器目录和数据卷，避免改名后创建空白 Compose project。
               docker compose --project-name sub2api-extension-test -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
             }
             update_env() {
@@ -202,7 +203,7 @@ jobs:
             wait_healthy() {
               retries=0
               while [ "$retries" -lt 30 ]; do
-                if compose ps aux-backend | grep -q "healthy"; then
+                if compose ps aux-system | grep -q "healthy"; then
                   return 0
                 fi
                 retries=$((retries + 1))
@@ -211,13 +212,6 @@ jobs:
               done
               return 1
             }
-            run_migration() {
-              echo "Running database migration for $IMAGE_TAG"
-              # Always execute the migration image being deployed. This avoids
-              # treating a stale completed Compose dependency as a fresh run.
-              compose run --rm --no-deps aux-migrate
-            }
-
             PREVIOUS_TAG=$(sed -n 's/^SUB2API_EXTENSION_IMAGE_TAG=//p' "$ENV_FILE" | tail -n 1)
             update_env SUB2API_EXTENSION_IMAGE "$GHCR_IMAGE"
             update_env SUB2API_EXTENSION_IMAGE_TAG "$IMAGE_TAG"
@@ -228,17 +222,17 @@ jobs:
               printf '%s' "$GHCR_PAT" | docker login ghcr.io -u "$GHCR_OWNER" --password-stdin
             fi
 
-            compose pull aux-backend aux-migrate
-            if run_migration && compose up -d --no-deps --force-recreate --remove-orphans aux-backend && wait_healthy; then
+            compose pull aux-system
+            if compose up -d --no-deps --force-recreate --remove-orphans aux-system && wait_healthy; then
               echo "Test deployment healthy: $IMAGE_TAG"
             else
               echo "Test deployment failed; collecting logs" >&2
-              compose logs --tail=100 aux-migrate aux-backend || true
+              compose logs --tail=100 aux-system || true
               if [ -n "$PREVIOUS_TAG" ] && [ "$PREVIOUS_TAG" != "$IMAGE_TAG" ]; then
                 echo "Rolling back to $PREVIOUS_TAG"
                 update_env SUB2API_EXTENSION_IMAGE_TAG "$PREVIOUS_TAG"
-                compose pull aux-backend aux-migrate || true
-                compose up -d --no-deps --force-recreate --remove-orphans aux-backend || true
+                compose pull aux-system || true
+                compose up -d --no-deps --force-recreate --remove-orphans aux-system || true
                 wait_healthy || true
               fi
               exit 1

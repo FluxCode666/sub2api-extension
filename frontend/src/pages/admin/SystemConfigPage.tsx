@@ -1,16 +1,27 @@
-import { useCallback, useEffect, useState } from 'react'
-import { CircleCheck, Info, RefreshCw, Save, Settings2 } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react'
+import { CircleCheck, ImageIcon, Info, Loader2, RefreshCw, Save, Settings2, Trash2, UploadCloud } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiClient, type AuxEnvelope } from '@/lib/api-client'
+import { DEFAULT_SUB2API_SYSTEM_NAME, resolveSystemName } from '@/lib/system-name'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import './SystemConfigPage.css'
 
 const DEFAULT_MODEL = 'gpt-6-astra'
+const ALLOWED_LOGO_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
+
+interface UploadedImageAsset {
+  id: number
+  url?: string
+}
 
 /** 系统名称优先使用 siteName，兼容旧版 system_meta 配置中的 heroTitle。 */
 interface HomepageConfig {
   siteName?: string
   systemDomain?: string
+  siteLogoUrl?: string
   heroLabel?: string
   heroTitle?: string
   heroDescription?: string
@@ -26,9 +37,11 @@ interface HomepageConfig {
 }
 
 const DEFAULT_CONFIG: HomepageConfig = {
+  siteName: DEFAULT_SUB2API_SYSTEM_NAME,
   heroLabel: '面向生产环境的 AI 网关',
-  heroTitle: 'TERALEMO',
+  heroTitle: 'AI API 网关，面向下一次调用',
   systemDomain: '',
+  siteLogoUrl: '',
   heroDescription: '将安全准入、智能路由、稳定保障、用量管理与运行观测统一到同一网关层。',
   model: DEFAULT_MODEL,
   primaryCta: '获取接入方案',
@@ -41,18 +54,29 @@ const DEFAULT_CONFIG: HomepageConfig = {
 }
 
 function mergeConfig(value?: HomepageConfig): HomepageConfig {
-  return { ...DEFAULT_CONFIG, ...(value ?? {}), model: value?.model?.trim() || DEFAULT_MODEL }
+  return {
+    ...DEFAULT_CONFIG,
+    ...(value ?? {}),
+    siteName: resolveSystemName(value),
+    model: value?.model?.trim() || DEFAULT_MODEL,
+  }
 }
 
 export default function SystemConfigPage() {
+  const logoInputRef = useRef<HTMLInputElement>(null)
+  const logoDragDepthRef = useRef(0)
   const [config, setConfig] = useState<HomepageConfig>(DEFAULT_CONFIG)
-  const [draftSystemName, setDraftSystemName] = useState(DEFAULT_CONFIG.heroTitle ?? '')
+  const [draftSystemName, setDraftSystemName] = useState(DEFAULT_CONFIG.siteName ?? DEFAULT_SUB2API_SYSTEM_NAME)
   const [draftSystemDomain, setDraftSystemDomain] = useState(DEFAULT_CONFIG.systemDomain ?? '')
+  const [draftSiteLogoUrl, setDraftSiteLogoUrl] = useState(DEFAULT_CONFIG.siteLogoUrl ?? '')
   const [draftModel, setDraftModel] = useState(DEFAULT_MODEL)
   const [draftSub2APIPublished, setDraftSub2APIPublished] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [logoDragActive, setLogoDragActive] = useState(false)
+  const [logoPreviewFailed, setLogoPreviewFailed] = useState(false)
   const [error, setError] = useState('')
   const systemNameLimit = config.siteName !== undefined ? 80 : 160
 
@@ -64,10 +88,12 @@ export default function SystemConfigPage() {
       if (response.code !== 0 || !response.data) throw new Error(response.message || '无法读取系统配置')
       const nextConfig = mergeConfig(response.data)
       setConfig(nextConfig)
-      setDraftSystemName(nextConfig.siteName ?? nextConfig.heroTitle ?? DEFAULT_CONFIG.heroTitle ?? '')
+      setDraftSystemName(resolveSystemName(nextConfig))
       setDraftSystemDomain(nextConfig.systemDomain ?? DEFAULT_CONFIG.systemDomain ?? '')
+      setDraftSiteLogoUrl(nextConfig.siteLogoUrl?.trim() ?? '')
       setDraftModel(nextConfig.model)
       setDraftSub2APIPublished(nextConfig.sub2apiPublished === true)
+      setLogoPreviewFailed(false)
       if (showToast) toast.success('系统配置已刷新')
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : '无法读取系统配置'
@@ -82,6 +108,76 @@ export default function SystemConfigPage() {
   useEffect(() => {
     void loadConfig()
   }, [loadConfig])
+
+  const uploadLogo = async (file: File) => {
+    setError('')
+    if (!ALLOWED_LOGO_TYPES.has(file.type)) {
+      const message = '只能上传 PNG、JPEG、GIF 或 WebP 图片。'
+      setError(message)
+      toast.error(message)
+      if (logoInputRef.current) logoInputRef.current.value = ''
+      return
+    }
+    if (uploadingLogo || saving) return
+
+    setUploadingLogo(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const response = await apiClient.upload<AuxEnvelope<UploadedImageAsset>>('/admin/assets', formData, { timeout: 0 })
+      const uploadedURL = response.data?.url?.trim() || (response.data?.id ? `/api/aux/assets/${response.data.id}` : '')
+      if (response.code !== 0 || !uploadedURL) throw new Error(response.message || 'Logo 上传失败')
+      setDraftSiteLogoUrl(uploadedURL)
+      setLogoPreviewFailed(false)
+      toast.success('Logo 上传成功', { description: '保存系统配置后，公开页面将使用新 Logo。' })
+    } catch (reason) {
+      console.error('[SystemConfigPage] failed to upload logo', reason)
+      const message = reason instanceof Error ? reason.message : 'Logo 上传失败，请稍后重试。'
+      setError(message)
+      toast.error(message)
+    } finally {
+      setUploadingLogo(false)
+      if (logoInputRef.current) logoInputRef.current.value = ''
+    }
+  }
+
+  const handleLogoFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) void uploadLogo(file)
+  }
+
+  const handleLogoDragEnter = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    if (uploadingLogo || saving) return
+    logoDragDepthRef.current += 1
+    setLogoDragActive(true)
+  }
+
+  const handleLogoDragOver = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    if (!uploadingLogo && !saving) event.dataTransfer.dropEffect = 'copy'
+  }
+
+  const handleLogoDragLeave = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    logoDragDepthRef.current = Math.max(0, logoDragDepthRef.current - 1)
+    if (logoDragDepthRef.current === 0) setLogoDragActive(false)
+  }
+
+  const handleLogoDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    logoDragDepthRef.current = 0
+    setLogoDragActive(false)
+    if (uploadingLogo || saving) return
+    const file = event.dataTransfer.files?.[0]
+    if (file) void uploadLogo(file)
+  }
+
+  const removeLogo = () => {
+    setDraftSiteLogoUrl('')
+    setLogoPreviewFailed(false)
+    setError('')
+  }
 
   const saveConfig = async () => {
     const systemName = draftSystemName.trim()
@@ -126,17 +222,20 @@ export default function SystemConfigPage() {
         ...config,
         [config.siteName !== undefined ? 'siteName' : 'heroTitle']: systemName,
         systemDomain,
+        siteLogoUrl: draftSiteLogoUrl,
         model,
         sub2apiPublished: draftSub2APIPublished,
       })
       if (response.code !== 0 || !response.data) throw new Error(response.message || '系统配置保存失败')
       const savedConfig = mergeConfig(response.data)
       setConfig(savedConfig)
-      setDraftSystemName(savedConfig.siteName ?? savedConfig.heroTitle ?? DEFAULT_CONFIG.heroTitle ?? '')
+      setDraftSystemName(resolveSystemName(savedConfig))
       setDraftSystemDomain(savedConfig.systemDomain ?? DEFAULT_CONFIG.systemDomain ?? '')
+      setDraftSiteLogoUrl(savedConfig.siteLogoUrl?.trim() ?? '')
       setDraftModel(savedConfig.model)
       setDraftSub2APIPublished(savedConfig.sub2apiPublished === true)
-      toast.success('系统配置已保存', { description: 'Sub2API 系统名称和 API 文档中的调用示例会立即更新。' })
+      setLogoPreviewFailed(false)
+      toast.success('系统配置已保存', { description: 'Sub2API 系统名称、Logo 和 API 文档中的调用示例会立即更新。' })
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : '系统配置保存失败'
       setError(message)
@@ -147,12 +246,20 @@ export default function SystemConfigPage() {
   }
 
   const restoreDefault = () => {
-    setDraftSystemName(DEFAULT_CONFIG.heroTitle ?? '')
+    setDraftSystemName(DEFAULT_CONFIG.siteName ?? DEFAULT_SUB2API_SYSTEM_NAME)
     setDraftSystemDomain(DEFAULT_CONFIG.systemDomain ?? '')
+    setDraftSiteLogoUrl(DEFAULT_CONFIG.siteLogoUrl ?? '')
     setDraftModel(DEFAULT_MODEL)
     setDraftSub2APIPublished(false)
+    setLogoPreviewFailed(false)
     setError('')
   }
+
+  const draftIsDefault = draftSystemName === (DEFAULT_CONFIG.siteName ?? DEFAULT_SUB2API_SYSTEM_NAME)
+    && draftSystemDomain === (DEFAULT_CONFIG.systemDomain ?? '')
+    && draftSiteLogoUrl === (DEFAULT_CONFIG.siteLogoUrl ?? '')
+    && draftModel === DEFAULT_MODEL
+    && !draftSub2APIPublished
 
   if (loading) {
     return (
@@ -169,12 +276,12 @@ export default function SystemConfigPage() {
         <div>
           <p className="aux-system-config-eyebrow"><Settings2 aria-hidden="true" />控制台设置 / 系统配置</p>
           <h1>系统配置</h1>
-          <p>统一管理 Sub2API 系统名称与开发者文档中展示的默认调用模型。保存后无需重新部署页面。</p>
+          <p>统一管理 Sub2API 系统名称、Logo 与开发者文档中展示的默认调用模型。保存后无需重新部署页面。</p>
         </div>
-        <button type="button" className="aux-system-config-refresh" onClick={() => void loadConfig(true)} disabled={refreshing || saving}>
+        <Button type="button" variant="outline" className="aux-system-config-refresh" onClick={() => void loadConfig(true)} disabled={refreshing || saving || uploadingLogo}>
           <RefreshCw className={refreshing ? 'aux-system-config-spin' : ''} aria-hidden="true" />
           {refreshing ? '刷新中…' : '刷新配置'}
-        </button>
+        </Button>
       </header>
 
       {error && <div className="aux-system-config-alert" role="alert">{error}</div>}
@@ -184,14 +291,14 @@ export default function SystemConfigPage() {
           <div className="aux-system-config-card-heading">
             <div>
               <span className="aux-system-config-card-kicker">Developer defaults</span>
-              <h2>Sub2API 系统名称与 API 文档默认值</h2>
+              <h2>Sub2API 品牌与 API 文档默认值</h2>
             </div>
             <span className="aux-system-config-status"><CircleCheck aria-hidden="true" />实时生效</span>
           </div>
-          <p className="aux-system-config-description">系统名称会显示在 API 文档和客户端接入文档页脚；系统域名会作为接入文档 API 基础地址的默认值；默认模型会显示在首页预览、快速开始 cURL，以及各接口的多语言示例中。</p>
-          <label className="aux-system-config-field" htmlFor="system-name">
-            <span>Sub2API 系统名称</span>
-            <input
+          <p className="aux-system-config-description">系统名称和 Logo 会显示在官网与 API 文档中；系统域名会作为接入文档 API 基础地址的默认值；默认模型会显示在首页预览、快速开始 cURL，以及各接口的多语言示例中。</p>
+          <div className="aux-system-config-field">
+            <Label htmlFor="system-name">Sub2API 系统名称</Label>
+            <Input
               id="system-name"
               aria-label="Sub2API 系统名称"
               value={draftSystemName}
@@ -199,11 +306,62 @@ export default function SystemConfigPage() {
               autoComplete="organization"
               onChange={(event) => setDraftSystemName(event.target.value)}
             />
-            <small>用于 API 文档的 Sub2API 品牌标识，例如 <code>TERALEMO</code>。</small>
-          </label>
-          <label className="aux-system-config-field" htmlFor="system-domain">
-            <span>Sub2API 系统域名</span>
-            <input
+            <small>填写 Sub2API「系统设置」中使用的系统名称，公开页面会统一读取此值。</small>
+          </div>
+          <div className="aux-system-config-field aux-system-config-logo-field">
+            <Label htmlFor="system-logo-file">Sub2API 系统 Logo</Label>
+            <div
+              className={`aux-system-config-logo-upload${logoDragActive ? ' is-dragging' : ''}${uploadingLogo ? ' is-uploading' : ''}`}
+              role="group"
+              aria-label="Logo 上传区域"
+              aria-busy={uploadingLogo}
+              data-dragging={logoDragActive}
+              onDragEnter={handleLogoDragEnter}
+              onDragOver={handleLogoDragOver}
+              onDragLeave={handleLogoDragLeave}
+              onDrop={handleLogoDrop}
+            >
+              <div className={`aux-system-config-logo-preview${logoPreviewFailed ? ' is-error' : ''}`}>
+                {draftSiteLogoUrl && !logoPreviewFailed ? (
+                  <img src={draftSiteLogoUrl} alt="Sub2API 系统 Logo 预览" onError={() => setLogoPreviewFailed(true)} />
+                ) : (
+                  <ImageIcon aria-hidden="true" />
+                )}
+                {uploadingLogo && <span className="aux-system-config-logo-progress"><Loader2 aria-hidden="true" /></span>}
+              </div>
+              <div className="aux-system-config-logo-copy">
+                <strong>{logoPreviewFailed ? '当前 Logo 无法预览' : draftSiteLogoUrl ? '替换当前 Logo' : '拖拽图片到这里上传'}</strong>
+                <p>{logoPreviewFailed ? '请重新上传有效图片。' : '支持 PNG、JPEG、GIF、WebP，一次上传一张图片。'}</p>
+                <div className="aux-system-config-logo-actions">
+                  <Input
+                    ref={logoInputRef}
+                    id="system-logo-file"
+                    type="file"
+                    accept="image/png,image/jpeg,image/gif,image/webp"
+                    className="aux-system-config-logo-input sr-only"
+                    aria-label="上传 Sub2API 系统 Logo"
+                    tabIndex={-1}
+                    onChange={handleLogoFileChange}
+                    disabled={uploadingLogo || saving}
+                  />
+                  <Button type="button" variant="outline" size="sm" onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo || saving}>
+                    {uploadingLogo ? <Loader2 className="aux-system-config-spin" aria-hidden="true" /> : <UploadCloud aria-hidden="true" />}
+                    {uploadingLogo ? '正在上传…' : draftSiteLogoUrl ? '选择新图片' : '选择图片'}
+                  </Button>
+                  {draftSiteLogoUrl && (
+                    <Button type="button" variant="outline" size="sm" className="aux-system-config-logo-remove" onClick={removeLogo} disabled={uploadingLogo || saving}>
+                      <Trash2 aria-hidden="true" />移除 Logo
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+            <small>图片上传后会进入文件管理；点击“保存配置”后，官网与 API 文档会统一使用此 Logo。</small>
+            <span className="sr-only" aria-live="polite">{uploadingLogo ? 'Logo 正在上传' : draftSiteLogoUrl ? 'Logo 已选择，等待保存配置' : '当前未配置 Logo'}</span>
+          </div>
+          <div className="aux-system-config-field">
+            <Label htmlFor="system-domain">Sub2API 系统域名</Label>
+            <Input
               id="system-domain"
               aria-label="Sub2API 系统域名"
               value={draftSystemDomain}
@@ -214,10 +372,10 @@ export default function SystemConfigPage() {
               onChange={(event) => setDraftSystemDomain(event.target.value)}
             />
             <small>用于客户端接入文档的「API 基础地址」默认值，请填写完整的 HTTP(S) 域名。</small>
-          </label>
-          <label className="aux-system-config-field" htmlFor="system-example-model">
-            <span>模型名称</span>
-            <input
+          </div>
+          <div className="aux-system-config-field">
+            <Label htmlFor="system-example-model">模型名称</Label>
+            <Input
               id="system-example-model"
               aria-label="模型名称"
               value={draftModel}
@@ -228,7 +386,7 @@ export default function SystemConfigPage() {
               onChange={(event) => setDraftModel(event.target.value)}
             />
             <small>填写当前可用的模型 ID，例如 <code>gpt-6-astra</code>。</small>
-          </label>
+          </div>
           <div className="aux-system-config-publication">
             <div>
               <span>上架到 Sub2API</span>
@@ -242,19 +400,21 @@ export default function SystemConfigPage() {
             />
           </div>
           <div className="aux-system-config-actions">
-            <button type="button" className="aux-system-config-secondary" onClick={restoreDefault} disabled={saving || (draftSystemName === (DEFAULT_CONFIG.heroTitle ?? '') && draftSystemDomain === (DEFAULT_CONFIG.systemDomain ?? '') && draftModel === DEFAULT_MODEL)}>恢复默认</button>
-            <button type="button" className="aux-system-config-primary" onClick={() => void saveConfig()} disabled={saving || !draftSystemName.trim() || !draftModel.trim()}>
+            <Button type="button" variant="outline" className="aux-system-config-secondary" onClick={restoreDefault} disabled={saving || uploadingLogo || draftIsDefault}>恢复默认</Button>
+            <Button type="button" className="aux-system-config-primary" onClick={() => void saveConfig()} disabled={saving || uploadingLogo || !draftSystemName.trim() || !draftModel.trim()}>
               <Save aria-hidden="true" />{saving ? '保存中…' : '保存配置'}
-            </button>
+            </Button>
           </div>
         </section>
 
         <aside className="aux-system-config-card aux-system-config-preview-card">
-          <div className="aux-system-config-preview-mark"><Settings2 aria-hidden="true" /></div>
+          <div className={`aux-system-config-preview-mark${draftSiteLogoUrl && !logoPreviewFailed ? ' has-image' : ''}`}>
+            {draftSiteLogoUrl && !logoPreviewFailed ? <img src={draftSiteLogoUrl} alt="" onError={() => setLogoPreviewFailed(true)} /> : <Settings2 aria-hidden="true" />}
+          </div>
           <span className="aux-system-config-card-kicker">Current value</span>
           <h2>示例将使用</h2>
           <code className="aux-system-config-model-preview">{draftModel.trim() || DEFAULT_MODEL}</code>
-          <div className="aux-system-config-info"><Info aria-hidden="true" /><span>配置保存在附属系统的 system_meta 中，公开 API 文档只读取 Sub2API 系统名称和模型名称，不会暴露管理会话。</span></div>
+          <div className="aux-system-config-info"><Info aria-hidden="true" /><span>配置保存在附属系统的 system_meta 中，公开页面只读取 Sub2API 系统名称、Logo 和模型名称，不会暴露管理会话。</span></div>
         </aside>
       </div>
     </div>

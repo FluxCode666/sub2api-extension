@@ -3,9 +3,9 @@
 package hook
 
 import (
+	"aux-system/ent"
 	"context"
 	"fmt"
-	"sub2api-extension/ent"
 )
 
 // The AccountCostConfigFunc type is an adapter to allow the use of ordinary

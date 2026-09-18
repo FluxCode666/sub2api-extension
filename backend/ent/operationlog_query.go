@@ -3,11 +3,11 @@
 package ent
 
 import (
+	"aux-system/ent/operationlog"
+	"aux-system/ent/predicate"
 	"context"
 	"fmt"
 	"math"
-	"sub2api-extension/ent/operationlog"
-	"sub2api-extension/ent/predicate"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"

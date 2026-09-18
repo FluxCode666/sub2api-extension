@@ -3,9 +3,9 @@
 package ent
 
 import (
+	"aux-system/ent/predicate"
+	"aux-system/ent/promotionclaim"
 	"context"
-	"sub2api-extension/ent/predicate"
-	"sub2api-extension/ent/promotionclaim"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"

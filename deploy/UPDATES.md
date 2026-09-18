@@ -9,7 +9,7 @@
 3. 在部署目录的 `.env` 中配置应用镜像、外部 PostgreSQL、Sub2API 地址和固定 JWT 密钥：
 
 ```dotenv
-SUB2API_EXTENSION_IMAGE=ghcr.io/fluxcode666/sub2api-extension
+SUB2API_EXTENSION_IMAGE=ghcr.io/fluxcode666/aux-system
 SUB2API_EXTENSION_IMAGE_TAG=v0.7.0
 SUB2API_EXTENSION_RELEASE_REPOSITORY=FluxCode666/sub2api-extension
 SUB2API_EXTENSION_GITHUB_TOKEN=
@@ -40,7 +40,7 @@ curl --fail http://127.0.0.1:8004/health
 
 1. 点击控制台左上角版本号，查看当前版本、最新正式 Release 和中文发布说明。
 2. 确认备份后点击“更新到最新版本”。服务端会重新读取正式 Release，拒绝过期目标、降级目标和无效版本。
-3. 应用进程下载当前平台的 `sub2api-extension_linux_amd64.tar.gz` 或 `sub2api-extension_linux_arm64.tar.gz`，验证 GitHub 下载地址和 `checksums.txt` 的 SHA-256，然后在可执行文件同一目录原子替换 `aux-server`，并保留 `aux-server.backup`。
+3. 应用进程下载当前平台的 `aux-system_linux_amd64.tar.gz` 或 `aux-system_linux_arm64.tar.gz`，验证 GitHub 下载地址和 `checksums.txt` 的 SHA-256，然后在可执行文件同一目录原子替换 `aux-server`，并保留 `aux-server.backup`。改名过渡期的 Release 同时提供 `sub2api-extension_linux_*` 兼容别名，并在清单中保留旧镜像坐标供旧更新器校验；实际应用镜像记录在 `applicationImage`，旧版本更新器仍可完成首次升级。
 4. 替换成功后服务自动重启并加载新版本（与 sub2api 一致：进程优雅退出，由进程管理器自动拉起），管理员无需登录服务器操作，页面会自动检测服务恢复并刷新。
    - Docker 部署依赖 `restart: unless-stopped` / `always` 策略；请勿删除该配置，否则服务退出后不会自动拉起。
    - systemd 部署依赖单元文件中的 `Restart=always`。

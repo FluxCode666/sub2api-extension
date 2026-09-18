@@ -18,9 +18,9 @@ import (
 	"strings"
 	"time"
 
-	"sub2api-extension/ent"
-	"sub2api-extension/ent/page"
-	"sub2api-extension/internal/sub2apimenu"
+	"aux-system/ent"
+	"aux-system/ent/page"
+	"aux-system/internal/sub2apimenu"
 )
 
 // PageVisibility 页面可见性。

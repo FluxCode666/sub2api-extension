@@ -1,12 +1,12 @@
-# sub2api-extension · sub2api 附属管理与动态页面系统
+# aux-system · Sub2API 附属管理与动态页面系统
 
 [![Go](https://img.shields.io/badge/Go-1.26.5-00ADD8?logo=go)]() [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)]() [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript)]()
 
-`sub2api-extension` 是 [sub2api](https://github.com/Wei-Shaw/sub2api) 的附属系统，不是独立官网，也不提供内置官网首页。它以独立 Web 应用运行，通过 sub2api 现有的 iframe 和菜单配置接入，**无需修改 sub2api 代码**。
+`aux-system` 是 [Sub2API](https://github.com/Wei-Shaw/sub2api) 的附属系统，不是独立官网，也不提供内置官网首页。它以独立 Web 应用运行，通过 Sub2API 现有的 iframe 和菜单配置接入，**无需修改 Sub2API 代码**。
 
 sub2api本地项目路径：`/Users/duegin/project/sub2api`
 
-系统的默认入口是管理端：访问 `/` 会跳转到 `/admin/dashboard`。公开页面不是固定的官网首页，而是由管理员创建和维护的数据库动态页面；需要公开内容时，使用 `/p/:slug` 访问对应页面。
+系统的默认入口是管理端：访问 `/` 会跳转到 `/admin/dashboard`。公开内容由管理员创建和维护的数据库动态页面提供，约定官网首页为 `/p/home`，其他公开页面使用 `/p/:slug`。
 
 ## 定位与入口
 
@@ -14,7 +14,7 @@ sub2api本地项目路径：`/Users/duegin/project/sub2api`
 
 - **附属管理端** —— 通过 sub2api 的 `custom_menu_items` 以 iframe 方式打开，也支持独立登录。
 - **Sub2API API 文档** —— 内置 OpenAI/Anthropic/Gemini 兼容接口说明，可挂载到 sub2api 菜单，也可作为公开 iframe 嵌入其他系统。
-- **系统配置** —— 在管理端动态设置系统名称与 API 文档调用示例的默认模型，默认模型为 `gpt-6-astra`。
+- **系统配置** —— 在管理端动态设置系统名称、系统 Logo、系统域名与 API 文档调用示例的默认模型；Logo 支持选择或拖拽 PNG、JPEG、GIF、WebP 图片上传。
 - **动态页面编写** —— 管理员可以创建、编辑、启停和删除数据库页面，不需要改动前端源码。
 - **页面分析与埋点** —— 统计当前页面的访问量和功能点击，在分析仪表盘中查看使用情况。
   - 客户端接入页与 API 文档页统计章节导航、客户端/平台选择、安装下载、截图查看、端点展开、参数/语言切换及成功复制；兼容入口 `/docs` 的访问归入 `api-docs`。统计口径和事件 ID 见 [文档页埋点与统计](docs/DOCS_TELEMETRY.md)。
@@ -29,18 +29,19 @@ sub2api本地项目路径：`/Users/duegin/project/sub2api`
 | `/` | 重定向到 `/admin/dashboard`，不是官网首页 |
 | `/admin/dashboard` | 分析仪表盘，展示页面访问和功能使用度 |
 | `/admin/pages` | 动态页面管理，管理员编写和维护页面 |
-| `/admin/system-config` | 系统配置，动态设置 API 文档示例默认模型 |
+| `/admin/system-config` | 系统配置，设置 Sub2API 系统名称、Logo、系统域名和文档示例默认模型 |
 | `/admin/files` | 文件管理（图片与发票文件） |
 | `/admin/ops/ttft` | 运维看板：首字延迟火焰图（直读 Sub2API 数据库） |
 | `/admin/logs/system` | 系统日志：请求、运行状态和错误事件 |
 | `/admin/logs/operation` | 操作日志：管理员变更审计 |
 | `/admin/p/:slug` | 需要管理员会话的动态页面 |
 | `/p/:slug` | 公开动态页面；仅当数据库中存在并启用对应页面时可访问 |
+| `/p/home` | 约定的 Sub2API 官网动态页，品牌名称读取公开系统配置 |
 | `/api-docs`（`/docs`） | Sub2API API 文档，可挂载菜单或嵌入其他系统 |
 | `/client-docs` | Claude Code、Codex、Pi、Hermes、OpenClaw、Paseo、ZCode、DeepSeek Harness、Obsidian（Claudian）接入指南，支持 `?client=codex` 直达与 `?embed=1` 嵌入 |
 | `/login` | 独立管理员登录入口 |
 
-项目不会为 `/` 渲染官网内容，也不会把某个固定页面视为官网首页。若 sub2api 需要展示公开内容，应由管理员创建公开动态页面后，再将该页面 URL 配置到 sub2api 的相应设置中。
+项目不会为 `/` 渲染官网内容。若 Sub2API 需要展示官网，应创建并启用 `/p/home`，再把其完整 URL 配置到 Sub2API `home_content`；页面中的系统名称读取公开配置 `siteName`，兼容旧字段 `heroTitle`。
 
 ## 架构
 
@@ -49,7 +50,7 @@ sub2api本地项目路径：`/Users/duegin/project/sub2api`
 │  控制台菜单 custom_menu_items → 带 token iframe                       │
 └───────────────────────────────┬──────────────────────────────────────┘
                                 ▼
-┌──────────────── sub2api-extension（独立部署）─────────────────────────────────┐
+┌──────────────────── aux-system（独立部署）────────────────────────────────────┐
 │  前端 React SPA                     后端 Go + Gin + Ent                │
 │  /                    → /admin/dashboard   /api/aux/*       公开页面/埋点 │
 │  /admin/dashboard     分析仪表盘          /api/aux/admin/*  AdminGuard   │
@@ -81,7 +82,7 @@ sub2api本地项目路径：`/Users/duegin/project/sub2api`
 
 ## 管理员动态页面编写能力
 
-项目现有的页面编写能力由页面管理界面、数据库页面模型和动态渲染宿主组成。管理员在 `/admin/pages` 中即可完成以下操作；仓库同时提供 [`sub2api-extension-page-writer`](.agents/skills/sub2api-extension-page-writer/SKILL.md) skill，供开发者或协作代理按项目约束创建、修改和检查动态页面。该 skill 是仓库协作规范，不会替代管理员登录或绕过页面权限。
+项目现有的页面编写能力由页面管理界面、数据库页面模型和动态渲染宿主组成。管理员在 `/admin/pages` 中即可完成以下操作；仓库同时提供 [`aux-system-page-writer`](.agents/skills/aux-system-page-writer/SKILL.md) skill，供开发者或协作代理按项目约束创建、修改和检查动态页面。该 skill 是仓库协作规范，不会替代管理员登录或绕过页面权限。
 
 1. 创建页面并填写 `slug`、标题、可见性和启用状态。
 2. 选择 `HTML` 或 `React/TSX` 内容类型，在 Monaco 编辑器中编写页面内容。
@@ -104,7 +105,7 @@ sub2api本地项目路径：`/Users/duegin/project/sub2api`
 ## 目录结构
 
 ```
-sub2api-extension/
+aux-system/
 ├── Makefile                     # Docker 开发部署统一入口（dev-up/status/logs/down）
 ├── backend/
 │   ├── cmd/server/              # 程序入口 + VERSION 文件
@@ -126,7 +127,7 @@ sub2api-extension/
 │       └── pages/               # 动态页面宿主、Dashboard 与示例页面
 ├── deploy/
 │   ├── docker-compose.dev.yml   # 开发用（含 postgres，从源码 build）
-│   ├── docker-compose.yml       # 生产用（迁移与应用，GHCR 镜像，无数据库）
+│   ├── docker-compose.yml       # 生产用（应用自动迁移，GHCR 镜像，无数据库）
 │   ├── .env.dev.example         # 开发环境变量示例
 │   ├── .env.test.example        # 测试环境变量示例
 │   ├── .env.example             # 生产环境变量示例
@@ -178,7 +179,7 @@ cd /Users/duegin/project/aux-system
 make dev-config
 make dev-up
 curl http://localhost:8787/health
-# 预期: {"status":"ok","service":"sub2api-extension"}
+# 预期: {"status":"ok","service":"aux-system"}
 ```
 
 后续可使用 `make dev-status`、`make dev-logs`、`make dev-health` 和
@@ -200,7 +201,7 @@ docker compose --project-name sub2api-extension-test \
 
 测试环境应使用独立数据库、JWT 密钥、sub2api 实例、域名和数据卷，禁止复用生产数据。
 
-生产用 `deploy/docker-compose.yml`，运行一次性迁移服务 `aux-migrate` 和应用 `aux-backend`（从 GHCR 拉取镜像），**不含数据库镜像**——PostgreSQL 由外部提供。
+生产用 `deploy/docker-compose.yml`，运行单一 `aux-system` 服务（从 GHCR 拉取镜像并在启动时自动迁移），**不含数据库镜像**——PostgreSQL 由外部提供。
 
 ```bash
 cd deploy
@@ -209,7 +210,7 @@ cp .env.example .env
 docker compose -f docker-compose.yml --env-file .env up -d
 ```
 
-上传文件不会写入 PostgreSQL：生产 Compose 将命名卷 `sub2api-extension-data` 挂载到容器
+上传文件不会写入 PostgreSQL：生产 Compose 将宿主机 `/root/docker-data/aux` 挂载到容器
 `/app/data`，图片文件保存在 `/app/data/assets/photos`，发票文件保存在
 `/app/data/assets/invoices`。文件的原始名称和备注作为元数据分别保存到
 `image_assets.original_name` / `image_assets.note` 与
@@ -219,8 +220,8 @@ docker compose -f docker-compose.yml --env-file .env up -d
 `/app/data/assets/client-icons`），发布镜像首启自动灌入持久卷，之后可直接在卷上替换文件，
 无需重建前端。
 
-生产环境建议由宿主机 NGINX 对外提供 HTTPS，Compose 中的 aux-backend 默认只绑定
-`127.0.0.1:8787`，避免公网绕过 TLS 直接访问应用端口。NGINX 配置和安装步骤见
+生产环境建议由宿主机 NGINX 对外提供 HTTPS，Compose 中的 `aux-system` 默认只绑定
+`127.0.0.1:8004`，避免公网绕过 TLS 直接访问应用端口。NGINX 配置和安装步骤见
 [deploy/nginx/README.md](deploy/nginx/README.md)。
 
 测试部署仍由 `test` 分支 push 触发。推送新的版本 tag 后，Release 工作流会先执行完整 CI，再构建 amd64/arm64 应用镜像和二进制更新包，发布中文 GitHub Release；不会连接或部署生产服务器。管理员可点击控制台左上角版本号查看最新发布并主动更新，应用会原子替换自身二进制，完成后按部署方式重启。安装与更新见 [安装与更新指南](deploy/UPDATES.md)；流水线与测试环境配置见 [.github/CICD.md](.github/CICD.md)。
@@ -255,7 +256,7 @@ make dev
 和 `operation_logs` 表；
 `SUB2API_EXTENSION_ASSET_DIR` 是上传资源根目录；图片写入其 `photos` 子目录，
 数据库只保存相对路径、原始文件名和备注。
-Docker 生产环境默认先运行 `aux-migrate`，为新增的文件元数据字段执行幂等迁移。
+Docker 生产环境默认在 `aux-system` 启动时执行幂等 Ent 自动迁移；设置 `AUTO_MIGRATE=false` 时需先显式执行 `make migrate`。
 
 通知渠道管理位于管理端 `/admin/notifications`。邮箱 SMTP 和 Resend 渠道只保存发件人、连接信息和凭据；收件人需要在具体业务事件（当前为发票申请通知）中填写，可填写多个邮箱地址，支持逗号、分号或空格分隔。
 消息通知日志支持开始/结束日期时间查询及分页浏览。
@@ -266,7 +267,7 @@ Docker 生产环境默认先运行 `aux-migrate`，为新增的文件元数据�
 
 `make dev` 通过环境变量注入开发配置：
 
-> 项目展示名和镜像名已统一为 `sub2api-extension`。为兼容已有部署，Compose 服务名 `aux-backend`、配置变量 `AUX_*` 以及 `/api/aux/*` API 前缀暂时保持不变。
+> 项目展示名、Go module、镜像和更新包统一为 `aux-system`。为兼容已有部署，Compose project、开发数据卷与开发服务名 `aux-backend`、`SUB2API_EXTENSION_*` 环境变量、`AUX_*` 配置和 `/api/aux/*` API 前缀保持不变；生产 Compose 服务名为 `aux-system`。
 
 | 变量 | 默认 | 说明 |
 |------|------|------|
@@ -327,9 +328,9 @@ pnpm dev        # 开发服务器 http://localhost:3100
 `sub2api/deploy/.env` 的 `ADMIN_EMAIL` / `ADMIN_PASSWORD` 配置：
 
 - **邮箱**: `admin@sub2api.local`
-- **密码**: 不在仓库文档中记录，请使用 Sub2API 环境文件中的值
+- **密码**: 123456
 
-登录 sub2api 控制台（`http://localhost:8003`）后，可通过 iframe token 自动转发验证到 sub2api-extension 管理端。
+登录 Sub2API 控制台（`http://localhost:8003`）后，可通过 iframe token 自动转发验证到 aux-system 管理端。
 
 ### 端口约定
 

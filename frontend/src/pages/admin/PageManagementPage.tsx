@@ -89,7 +89,7 @@ interface PageTransferItem {
 }
 
 interface PageTransferDocument {
-  format: 'sub2api-extension-pages'
+  format: 'aux-system-pages'
   version: 1
   exported_at: string
   pages: PageTransferItem[]
@@ -201,7 +201,7 @@ function parseTransferDocument(value: unknown): PageTransferItem[] {
   const source = asRecord(value)
   const rawPages = Array.isArray(value)
     ? value
-    : source.format === 'sub2api-extension-pages' && Array.isArray(source.pages)
+    : (source.format === 'aux-system-pages' || source.format === 'sub2api-extension-pages') && Array.isArray(source.pages)
       ? source.pages
       : null
   if (!rawPages) {
@@ -350,7 +350,7 @@ export default function PageManagementPage() {
         return createTransferItem(response.data)
       }))
       const document: PageTransferDocument = {
-        format: 'sub2api-extension-pages',
+        format: 'aux-system-pages',
         version: 1,
         exported_at: new Date().toISOString(),
         pages: details,

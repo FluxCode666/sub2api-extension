@@ -12,8 +12,8 @@ import (
 	"log"
 	"strings"
 
-	"sub2api-extension/internal/pkg/response"
-	"sub2api-extension/internal/service"
+	"aux-system/internal/pkg/response"
+	"aux-system/internal/service"
 
 	"github.com/gin-gonic/gin"
 )

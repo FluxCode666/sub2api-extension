@@ -20,8 +20,8 @@ import (
 	"log"
 	"os"
 
-	"sub2api-extension/ent"
-	"sub2api-extension/ent/page"
+	"aux-system/ent"
+	"aux-system/ent/page"
 
 	_ "github.com/lib/pq"
 )

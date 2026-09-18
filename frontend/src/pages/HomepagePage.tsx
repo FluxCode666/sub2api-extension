@@ -2,10 +2,12 @@ import { useEffect, useId, useRef, useState, type CSSProperties } from 'react'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { ArrowDown, ArrowUpRight, Check, ExternalLink, LockKeyhole, Menu, ScanSearch, ShieldCheck, X } from 'lucide-react'
+import { ArrowDown, ArrowUpRight, ChartNoAxesCombined, Check, ExternalLink, KeyRound, LockKeyhole, Menu, Route, ScanSearch, ShieldCheck, WalletCards, X } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
-import { DEFAULT_HOMEPAGE_CONFIG, fetchHomepageConfig, isHomepageNavigationHref, type HomepageConfig } from '@/lib/homepage'
+import { DEFAULT_HOMEPAGE_CONFIG, fetchHomepageConfig, isHomepageNavigationHref, type HomepageConfig, type TrustedPartner } from '@/lib/homepage'
+import { DEFAULT_TOB_HOMEPAGE_CONFIG, fetchTobHomepageConfig, type TobHomepageConfig } from '@/lib/tob-homepage'
 import { ThinkingOrbRuntime } from '@/lib/thinkingOrbRuntime'
+import { TobNetworkMap } from '@/components/TobNetworkMap'
 import { HomepageQuickstart } from './HomepageQuickstart'
 import './HomepagePage.css'
 
@@ -15,6 +17,21 @@ const securityCards = [
   { index: '01', title: '不用于蒸馏与训练', text: '你的提示词、输入输出与业务数据，仅用于完成当前请求，不用于模型蒸馏、训练或改进基础模型。', Icon: ShieldCheck },
   { index: '02', title: '数据边界清晰', text: '按合作约定明确数据范围、处理方式与访问边界，减少不必要的数据暴露与留存。', Icon: LockKeyhole },
   { index: '03', title: '支持签署保密协议', text: '商务合作可按项目需要签署 NDA，明确双方保密义务与数据使用责任。', Icon: ScanSearch },
+]
+
+const enterpriseCapabilities = [
+  { index: '01', title: '安全准入', text: '统一承接访问入口与身份校验，让团队在清晰边界内接入模型能力。', Icon: KeyRound },
+  { index: '02', title: '智能路由', text: '将模型选择与请求路径集中管理，减少业务侧重复适配和切换成本。', Icon: Route },
+  { index: '03', title: '稳定保障', text: '围绕服务可用性与首 Token 响应持续观测，及时识别调用链路异常。', Icon: ChartNoAxesCombined },
+  { index: '04', title: '用量管理', text: '集中查看调用用量、缓存命中与运行状态，帮助团队掌握资源消耗。', Icon: WalletCards },
+]
+
+const TOB_SECTION_NAVIGATION_ITEMS = [
+  { label: '企业能力', href: '#capabilities' },
+  { label: '全球网络', href: '#network' },
+  { label: '数据安全', href: '#security' },
+  { label: '接入生态', href: '#ecosystem' },
+  { label: '交付流程', href: '#quickstart' },
 ]
 
 function safeExternalHref(value: string) {
@@ -80,6 +97,15 @@ function BrandMark({ logoUrl }: { logoUrl: string }) {
   return <span className={`sub2api-brand-mark ${logoUrl ? 'sub2api-brand-mark--image' : ''}`}>{logoUrl ? <img src={logoUrl} alt="" /> : 'S2'}</span>
 }
 
+function PartnerMark({ partner }: { partner: TrustedPartner }) {
+  const [logoLoaded, setLogoLoaded] = useState(false)
+  const monogram = partner.name.trim().slice(0, 1) || '·'
+  return <span className="sub2api-partner-logo" aria-hidden="true">
+    <span className="sub2api-partner-monogram">{monogram}</span>
+    {partner.logoUrl ? <img className={logoLoaded ? 'is-loaded' : ''} src={partner.logoUrl} alt="" onLoad={() => setLogoLoaded(true)} onError={() => setLogoLoaded(false)} /> : null}
+  </span>
+}
+
 function ThinkingOrb() {
   const stageRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -121,23 +147,61 @@ function ThinkingOrb() {
   return <div ref={stageRef} className="sub2api-thinking-orb-stage"><canvas ref={canvasRef} className="sub2api-thinking-orb" role="img" aria-label="AI thinking orb" /></div>
 }
 
-export default function HomepagePage() {
+type HomepagePageProps = {
+  variant?: 'default' | 'tob'
+}
+
+function TobNetworkSection({ config }: { config: TobHomepageConfig }) {
+  return <section className="sub2api-section sub2api-global-network" id="network" aria-labelledby="network-title">
+    <div className="sub2api-global-network-heading">
+      <div><p className="sub2api-eyebrow">GLOBAL DELIVERY NETWORK</p><h2 id="network-title">全球节点覆盖，<br /><em>连接更快、更稳。</em></h2></div>
+      <p>我们在全球部署主服务器与 CDN 集群，让客户就近接入，缩短数据传输路径，获得通畅、快速的网络体验；同时提供国内优化节点，对中国大陆用户同样友好。</p>
+    </div>
+    <TobNetworkMap primaryServers={config.primaryServers} cdnLocations={config.cdnLocations} customerLocations={config.customerLocations} settings={config.mapSettings} />
+  </section>
+}
+
+function EnterpriseCapabilitiesSection() {
+  return <section className="sub2api-section sub2api-capabilities" id="capabilities" aria-labelledby="capabilities-title">
+    <div className="sub2api-capabilities-heading">
+      <div><p className="sub2api-eyebrow">ENTERPRISE CONTROL PLANE</p><h2 id="capabilities-title">把企业级 AI 调用，<br /><em>收进一个控制面。</em></h2></div>
+      <p>从身份、路由到用量与运行状态，将分散的接入环节集中管理，让技术团队更容易上线、维护和扩展。</p>
+    </div>
+    <div className="sub2api-capability-grid">
+      {enterpriseCapabilities.map(({ index, title, text, Icon }) => <article className="sub2api-capability" key={index}>
+        <div><span>{index}</span><Icon size={20} strokeWidth={1.7} /></div>
+        <h3>{title}</h3>
+        <p>{text}</p>
+      </article>)}
+    </div>
+  </section>
+}
+
+export default function HomepagePage({ variant = 'default' }: HomepagePageProps) {
   const location = useLocation()
   const flowGradientPrefix = useId()
-  const isEmbedded = location.pathname === '/embed' || new URLSearchParams(location.search).get('ui_mode') === 'embedded'
+  const isTob = variant === 'tob'
+  const isEmbedded = location.pathname === (isTob ? '/embed-tob' : '/embed') || new URLSearchParams(location.search).get('ui_mode') === 'embedded'
   const rootRef = useRef<HTMLDivElement>(null)
-  const [config, setConfig] = useState<HomepageConfig>(DEFAULT_HOMEPAGE_CONFIG)
+  const [config, setConfig] = useState<HomepageConfig | TobHomepageConfig>(() => isTob ? DEFAULT_TOB_HOMEPAGE_CONFIG : DEFAULT_HOMEPAGE_CONFIG)
   const [loading, setLoading] = useState(true)
   const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
     let active = true
-    fetchHomepageConfig()
+    const loadConfig = isTob ? fetchTobHomepageConfig : fetchHomepageConfig
+    loadConfig()
       .then((next) => { if (active) setConfig(next) })
-      .catch((error: unknown) => console.warn('[HomepagePage] using defaults', error))
+      .catch((error: unknown) => console.warn(`[HomepagePage] using ${isTob ? 'ToB ' : ''}defaults`, error))
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [])
+  }, [isTob])
+
+  useEffect(() => {
+    const previous = document.title
+    document.title = `${config.siteName} · AI 网关`
+    return () => { document.title = previous }
+  }, [config.siteName])
 
   useGSAP((_, contextSafe) => {
     if (loading) return
@@ -152,7 +216,14 @@ export default function HomepagePage() {
       if (!nav) return
 
       if (reduceMotion) {
-        gsap.set(nav, { autoAlpha: 1 })
+        const animatedContent = rootRef.current?.querySelectorAll([
+          '.sub2api-nav', '.sub2api-hero-kicker', '.sub2api-hero-title', '.sub2api-hero-description', '.sub2api-hero-actions', '.sub2api-hero-art',
+          '.sub2api-trust > *', '.sub2api-metrics-heading > *', '.sub2api-metric', '.sub2api-capabilities-heading > *', '.sub2api-capability',
+          '.sub2api-steps-heading > *', '.sub2api-step-node', '.sub2api-ecosystem-copy > *', '.sub2api-ecosystem-network', '.sub2api-ecosystem-node',
+          '.sub2api-security .sub2api-section-heading > *', '.sub2api-security-card', '.sub2api-security-card-top svg',
+          '.sub2api-story-copy > *', '.sub2api-story-art', '.sub2api-final-cta > *', '.sub2api-footer > *',
+        ].join(','))
+        if (animatedContent) gsap.set(animatedContent, { clearProps: 'opacity,visibility,transform' })
         return
       }
 
@@ -200,6 +271,8 @@ export default function HomepagePage() {
       reveal('.sub2api-trust > *', '.sub2api-trust', { y: 20, stagger: 0.16 })
       reveal('.sub2api-metrics-heading > *', '.sub2api-metrics', { y: 26, stagger: 0.08 })
       reveal('.sub2api-metric', '.sub2api-metrics-grid', { y: 42, stagger: 0.14 })
+      reveal('.sub2api-capabilities-heading > *', '.sub2api-capabilities', { y: 28, stagger: 0.08 })
+      reveal('.sub2api-capability', '.sub2api-capability-grid', { y: 36, stagger: 0.1 })
 
       gsap.utils.toArray<HTMLElement>('.sub2api-metric-value').forEach((element, index) => {
         const metric = parseMetricValue(element.dataset.value ?? element.textContent ?? '')
@@ -395,10 +468,13 @@ export default function HomepagePage() {
   const linkProps = (href: string) => {
     return { href, target: href.startsWith('#') ? undefined : '_top', rel: safeExternalHref(href) ? 'noreferrer' : undefined }
   }
-  const showDocsButton = config.showDevelopersSection || config.docsHref !== '#developers'
+  const secondaryCta = isTob
+    ? { label: '了解企业能力', href: '#capabilities' }
+    : { label: config.docsCta, href: config.docsHref }
+  const showSecondaryCta = isTob || config.showDevelopersSection || config.docsHref !== '#developers'
   const developersDocsHref = [config.developersDocsUrl, config.documentationUrl]
     .find((href) => isHomepageNavigationHref(href))?.trim()
-  const navigationItems = config.navigationItems.filter((item) => {
+  const configuredNavigationItems = config.navigationItems.filter((item) => {
     if (!item.label.trim() || !isHomepageNavigationHref(item.href)) return false
     const href = item.href.trim()
     if (href === '#developers') return config.showDevelopersSection
@@ -406,6 +482,12 @@ export default function HomepagePage() {
     if (href === '#partners') return config.trustedPartners.length > 0
     return true
   })
+  const navigationItems = isTob
+    ? [
+        ...TOB_SECTION_NAVIGATION_ITEMS.filter((item) => item.href !== '#quickstart' || config.showQuickstartSection),
+        ...configuredNavigationItems.filter((item) => !item.href.trim().startsWith('#')),
+      ]
+    : configuredNavigationItems
   const curlExample = `curl https://api.example.com/v1/chat/completions \\
   -H "Authorization: Bearer your-api-key" \\
   -H "Content-Type: application/json" \\
@@ -419,8 +501,44 @@ export default function HomepagePage() {
     ]
   }'`
 
+  const quickstartSection = config.showQuickstartSection
+    ? <HomepageQuickstart model={config.model} variant={isTob ? 'enterprise' : 'developer'} />
+    : null
+  const ecosystemSection = <section className="sub2api-section sub2api-ecosystem" id="ecosystem">
+    <div className="sub2api-ecosystem-copy"><p className="sub2api-eyebrow">ONE ENTRY, EVERY WORKFLOW</p><h2>一个入口，<br />接入你的工作流。</h2><p>连接模型、工具和开发环境。点击一个应用，查看对应的接入文档。</p></div>
+    <div className="sub2api-ecosystem-network" aria-label="Sub2API 接入生态">
+      <div className="sub2api-ecosystem-spokes" aria-hidden="true">{config.integrations.slice(0, 8).map((_, index, visibleIntegrations) => {
+        const coordinates = integrationCoordinates(index, visibleIntegrations.length)
+        const gradientId = `${flowGradientPrefix}-flow-${index}`
+        return <svg className="sub2api-ecosystem-spoke-svg" viewBox="0 0 100 100" preserveAspectRatio="none" key={`spoke-${index}`}>
+          <defs><linearGradient id={gradientId} gradientUnits="userSpaceOnUse" x1={coordinates.x} y1={coordinates.y} x2="50" y2="50"><stop offset="0%" stopColor="#bdebd7" /><stop offset="49%" stopColor="#b9dfce" /><stop offset="100%" stopColor="#ffe4a5" /></linearGradient></defs>
+          <line className="sub2api-ecosystem-spoke" x1="50" y1="50" x2={coordinates.x} y2={coordinates.y} />
+          <line className="sub2api-ecosystem-flow-beam" stroke={`url(#${gradientId})`} x1={coordinates.x} y1={coordinates.y} x2="50" y2="50" />
+          <line className="sub2api-ecosystem-flow-core" stroke={`url(#${gradientId})`} x1={coordinates.x} y1={coordinates.y} x2="50" y2="50" />
+        </svg>
+      })}</div>
+      <div className="sub2api-ecosystem-core"><span className="sub2api-ecosystem-core-ripple" aria-hidden="true" /><span className="sub2api-ecosystem-core-ripple" aria-hidden="true" /><span className="sub2api-ecosystem-core-ripple" aria-hidden="true" /><BrandMark logoUrl={config.siteLogoUrl} /></div>
+      {config.integrations.slice(0, 8).map((integration, index, visibleIntegrations) => {
+        const content = <><span className="sub2api-ecosystem-node-icon">{integration.logoUrl ? <img src={integration.logoUrl} alt="" /> : integration.name.slice(0, 1)}</span><i /></>
+        const className = 'sub2api-ecosystem-node'
+        const style = integrationLayout(index, visibleIntegrations.length)
+        const node = integration.documentationUrl ? <a className={className} {...linkProps(integration.documentationUrl)} aria-label={`查看 ${integration.name} 接入文档`}>{content}</a> : <div className={className}>{content}</div>
+        return <div className="sub2api-ecosystem-item" style={style} key={`${integration.name}-${index}`}>{node}</div>
+      })}
+      {config.integrations.length === 0 ? <div className="sub2api-ecosystem-empty">在官网配置中添加应用节点</div> : null}
+    </div>
+  </section>
+  const securitySection = <section className="sub2api-section sub2api-security" id="security">
+    <div className="sub2api-section-heading"><p className="sub2api-eyebrow">DATA SECURITY &amp; PRIVACY</p><h2>你的数据，<br /><em>只用于完成你的请求。</em></h2><p className="sub2api-security-lede">我们尊重每一份模型调用数据，不将你的业务内容用于蒸馏或训练，并支持在商务合作中签署保密协议。</p></div>
+    <div className="sub2api-security-grid">{securityCards.map((card) => { const Icon = card.Icon; return <article className="sub2api-security-card" key={card.index}><div className="sub2api-security-card-top"><span>{card.index}</span><Icon size={21} strokeWidth={1.7} /></div><h3>{card.title}</h3><p>{card.text}</p></article> })}</div>
+  </section>
+  const developerSection = config.showDevelopersSection ? <section className="sub2api-section sub2api-story" id="developers">
+    <div className="sub2api-story-copy"><p className="sub2api-eyebrow">BUILT FOR BUILDERS</p><h2>从代码，<br />到增长。</h2><p>清晰 API，快速接入，专注业务增长。</p>{developersDocsHref ? <a className="sub2api-button sub2api-button--dark sub2api-developers-docs" {...linkProps(developersDocsHref)}>接入文档 <ArrowUpRight size={16} /></a> : null}</div>
+    <div className="sub2api-story-art" aria-hidden="true"><div className="sub2api-code-window"><div className="sub2api-code-top"><span /><span /><span /><b>request.sh</b></div><pre><code>{curlExample}</code></pre><div className="sub2api-code-status"><Check size={14} /> OpenAI-compatible API <span>POST /v1/chat/completions</span></div></div></div>
+  </section> : null
+
   return (
-    <div ref={rootRef} className={`sub2api-home ${isEmbedded ? 'sub2api-home--embedded' : ''}`} data-loading={loading}>
+    <div ref={rootRef} className={`sub2api-home ${isTob ? 'sub2api-home--tob' : ''} ${isEmbedded ? 'sub2api-home--embedded' : ''}`} data-loading={loading}>
       <nav className="sub2api-nav" aria-label="主导航">
         <a href="#top" className="sub2api-brand"><BrandMark logoUrl={config.siteLogoUrl} /><span>{config.siteName}</span></a>
         <div className={`sub2api-nav-links ${menuOpen ? 'is-open' : ''}`}>
@@ -438,25 +556,25 @@ export default function HomepagePage() {
             <p className="sub2api-hero-description">{config.heroDescription}</p>
             <div className="sub2api-hero-actions">
               <a className="sub2api-button sub2api-button--dark" {...linkProps(config.primaryHref)}>{config.primaryCta}<ArrowUpRight size={17} /></a>
-              {showDocsButton ? <a className="sub2api-button sub2api-button--line" {...linkProps(config.docsHref)}>{config.docsCta}<ArrowDown size={16} /></a> : null}
+              {showSecondaryCta ? <a className="sub2api-button sub2api-button--line" {...linkProps(secondaryCta.href)}>{secondaryCta.label}<ArrowDown size={16} /></a> : null}
             </div>
           </div>
           <div className="sub2api-hero-art"><ThinkingOrb /><span className="sub2api-orb-label sub2api-orb-label--one">THINKING / LIVE</span><span className="sub2api-orb-label sub2api-orb-label--two">STREAM / READY</span></div>
-          <a href="#metrics" className="sub2api-scroll-cue"><span>Scroll to explore</span><ArrowDown size={15} /></a>
+          {!isTob ? <a href="#metrics" className="sub2api-scroll-cue"><span>Scroll to explore</span><ArrowDown size={15} /></a> : null}
         </section>
 
         {config.trustedPartners.length ? <section className="sub2api-trust" id="partners">
           <p>合作伙伴</p>
           <div className="sub2api-partner-row">
             {config.trustedPartners.map((partner) => {
-              const content = <>{partner.logoUrl ? <img src={partner.logoUrl} alt="" /> : <span className="sub2api-partner-monogram">{partner.name.slice(0, 1)}</span>}<strong>{partner.name}</strong></>
+              const content = <><PartnerMark partner={partner} /><strong>{partner.name}</strong></>
               return partner.linkUrl ? <a key={partner.name} {...linkProps(partner.linkUrl)}>{content}</a> : <div key={partner.name}>{content}</div>
             })}
           </div>
         </section> : null}
 
         <section className="sub2api-metrics" id="metrics" aria-labelledby="metrics-title">
-          <div className="sub2api-metrics-heading"><p className="sub2api-eyebrow">SERVICE SIGNALS</p><h2 id="metrics-title">关键指标，<br /><em>一眼可见。</em></h2><p>用真实可读的运行数据，帮助你快速判断服务是否适合当前业务。</p></div>
+          <div className="sub2api-metrics-heading"><p className="sub2api-eyebrow">SERVICE SIGNALS</p><h2 id="metrics-title">关键指标，<br /><em>一眼可见。</em></h2><p>用真实可读的运行数据，帮助你快速判断服务是否适合当前业务。指标以当前配置与控制台监控口径为准。</p></div>
           <div className="sub2api-metrics-grid">
             <article className="sub2api-metric"><span className="sub2api-metric-label">SERVICE AVAILABILITY</span><strong className="sub2api-metric-value" data-value={config.availability} aria-label={config.availability}>{config.availability}</strong><h3>服务可用性</h3><p>{config.availabilityDescription}</p></article>
             <article className="sub2api-metric"><span className="sub2api-metric-label">TIME TO FIRST TOKEN</span><strong className="sub2api-metric-value" data-value={config.firstTokenResponseTime} aria-label={config.firstTokenResponseTime}>{config.firstTokenResponseTime}</strong><h3>首 Token 响应时间</h3><p>{config.firstTokenResponseTimeDescription}</p></article>
@@ -464,47 +582,23 @@ export default function HomepagePage() {
           </div>
         </section>
 
-      {config.showQuickstartSection ? <HomepageQuickstart model={config.model} /> : null}
+        {isTob ? <>
+          <EnterpriseCapabilitiesSection />
+          <TobNetworkSection config={config as TobHomepageConfig} />
+          {securitySection}
+          {ecosystemSection}
+          {quickstartSection}
+        </> : <>
+          {quickstartSection}
+          {ecosystemSection}
+          {securitySection}
+          {developerSection}
+        </>}
 
-        <section className="sub2api-section sub2api-ecosystem" id="ecosystem">
-          <div className="sub2api-ecosystem-copy"><p className="sub2api-eyebrow">ONE ENTRY, EVERY WORKFLOW</p><h2>一个入口，<br />接入你的工作流。</h2><p>连接模型、工具和开发环境。点击一个应用，查看对应的接入文档。</p></div>
-          <div className="sub2api-ecosystem-network" aria-label="Sub2API 接入生态">
-            <div className="sub2api-ecosystem-spokes" aria-hidden="true">{config.integrations.slice(0, 8).map((_, index, visibleIntegrations) => {
-              const coordinates = integrationCoordinates(index, visibleIntegrations.length)
-              const gradientId = `${flowGradientPrefix}-flow-${index}`
-              return <svg className="sub2api-ecosystem-spoke-svg" viewBox="0 0 100 100" preserveAspectRatio="none" key={`spoke-${index}`}>
-                <defs><linearGradient id={gradientId} gradientUnits="userSpaceOnUse" x1={coordinates.x} y1={coordinates.y} x2="50" y2="50"><stop offset="0%" stopColor="#bdebd7" /><stop offset="49%" stopColor="#b9dfce" /><stop offset="100%" stopColor="#ffe4a5" /></linearGradient></defs>
-                <line className="sub2api-ecosystem-spoke" x1="50" y1="50" x2={coordinates.x} y2={coordinates.y} />
-                <line className="sub2api-ecosystem-flow-beam" stroke={`url(#${gradientId})`} x1={coordinates.x} y1={coordinates.y} x2="50" y2="50" />
-                <line className="sub2api-ecosystem-flow-core" stroke={`url(#${gradientId})`} x1={coordinates.x} y1={coordinates.y} x2="50" y2="50" />
-              </svg>
-            })}</div>
-            <div className="sub2api-ecosystem-core"><span className="sub2api-ecosystem-core-ripple" aria-hidden="true" /><span className="sub2api-ecosystem-core-ripple" aria-hidden="true" /><span className="sub2api-ecosystem-core-ripple" aria-hidden="true" /><BrandMark logoUrl={config.siteLogoUrl} /></div>
-            {config.integrations.slice(0, 8).map((integration, index, visibleIntegrations) => {
-              const content = <><span className="sub2api-ecosystem-node-icon">{integration.logoUrl ? <img src={integration.logoUrl} alt="" /> : integration.name.slice(0, 1)}</span><i /></>
-              const className = 'sub2api-ecosystem-node'
-              const style = integrationLayout(index, visibleIntegrations.length)
-              const node = integration.documentationUrl ? <a className={className} {...linkProps(integration.documentationUrl)} aria-label={`查看 ${integration.name} 接入文档`}>{content}</a> : <div className={className}>{content}</div>
-              return <div className="sub2api-ecosystem-item" style={style} key={`${integration.name}-${index}`}>{node}</div>
-            })}
-            {config.integrations.length === 0 ? <div className="sub2api-ecosystem-empty">在官网配置中添加应用节点</div> : null}
-          </div>
-        </section>
-
-        <section className="sub2api-section sub2api-security" id="security">
-          <div className="sub2api-section-heading"><p className="sub2api-eyebrow">DATA SECURITY &amp; PRIVACY</p><h2>你的数据，<br /><em>只用于完成你的请求。</em></h2><p className="sub2api-security-lede">我们尊重每一份模型调用数据，不将你的业务内容用于蒸馏或训练，并支持在商务合作中签署保密协议。</p></div>
-          <div className="sub2api-security-grid">{securityCards.map((card) => { const Icon = card.Icon; return <article className="sub2api-security-card" key={card.index}><div className="sub2api-security-card-top"><span>{card.index}</span><Icon size={21} strokeWidth={1.7} /></div><h3>{card.title}</h3><p>{card.text}</p></article> })}</div>
-        </section>
-
-        {config.showDevelopersSection ? <section className="sub2api-section sub2api-story" id="developers">
-          <div className="sub2api-story-copy"><p className="sub2api-eyebrow">BUILT FOR BUILDERS</p><h2>从代码，<br />到增长。</h2><p>清晰 API，快速接入，专注业务增长。</p>{developersDocsHref ? <a className="sub2api-button sub2api-button--dark sub2api-developers-docs" {...linkProps(developersDocsHref)}>接入文档 <ArrowUpRight size={16} /></a> : null}</div>
-          <div className="sub2api-story-art" aria-hidden="true"><div className="sub2api-code-window"><div className="sub2api-code-top"><span /><span /><span /><b>request.sh</b></div><pre><code>{curlExample}</code></pre><div className="sub2api-code-status"><Check size={14} /> OpenAI-compatible API <span>POST /v1/chat/completions</span></div></div></div>
-        </section> : null}
-
-        <section className="sub2api-final-cta"><p className="sub2api-eyebrow">READY WHEN YOU ARE</p><h2>让下一次调用，<br /><em>更有把握。</em></h2><a className="sub2api-button sub2api-button--light" {...linkProps(config.primaryHref)}>{config.primaryCta}<ArrowUpRight size={17} /></a></section>
+        <section className="sub2api-final-cta"><p className="sub2api-eyebrow">{isTob ? 'READY FOR PRODUCTION' : 'READY WHEN YOU ARE'}</p><h2>{isTob ? <>让企业 AI 调用，<br /><em>稳定进入生产。</em></> : <>让下一次调用，<br /><em>更有把握。</em></>}</h2><a className="sub2api-button sub2api-button--light" {...linkProps(config.primaryHref)}>{config.primaryCta}<ArrowUpRight size={17} /></a></section>
       </main>
 
-      <footer className="sub2api-footer"><div className="sub2api-footer-brand"><BrandMark logoUrl={config.siteLogoUrl} /><strong>{config.siteName}</strong><p>为每一次 AI 调用<br />提供可靠的起点。</p></div><div className="sub2api-footer-links"><div><span>资源</span>{config.documentationUrl ? <a {...linkProps(config.documentationUrl)}>使用文档 <ExternalLink size={13} /></a> : null}{config.showDevelopersSection ? <a href="#developers">开发者</a> : null}</div><div><span>协议</span>{config.termsUrl ? <a {...linkProps(config.termsUrl)}>服务条款</a> : null}{config.userTermsUrl ? <a {...linkProps(config.userTermsUrl)}>用户条款</a> : null}{config.privacyUrl ? <a {...linkProps(config.privacyUrl)}>隐私协议</a> : null}</div></div><p className="sub2api-footer-copy">© {new Date().getFullYear()} {config.siteName}. All rights reserved.</p></footer>
+      <footer className="sub2api-footer"><div className="sub2api-footer-brand"><BrandMark logoUrl={config.siteLogoUrl} /><strong>{config.siteName}</strong><p>为每一次 AI 调用<br />提供可靠的起点。</p></div><div className="sub2api-footer-links"><div><span>资源</span>{config.documentationUrl ? <a {...linkProps(config.documentationUrl)}>使用文档 <ExternalLink size={13} /></a> : null}{config.showDevelopersSection && !isTob ? <a href="#developers">开发者</a> : null}</div><div><span>协议</span>{config.termsUrl ? <a {...linkProps(config.termsUrl)}>服务条款</a> : null}{config.userTermsUrl ? <a {...linkProps(config.userTermsUrl)}>用户条款</a> : null}{config.privacyUrl ? <a {...linkProps(config.privacyUrl)}>隐私协议</a> : null}</div></div><p className="sub2api-footer-copy">© {new Date().getFullYear()} {config.siteName}. All rights reserved.</p></footer>
     </div>
   )
 }

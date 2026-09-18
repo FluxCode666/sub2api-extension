@@ -1,5 +1,5 @@
 # =============================================================================
-# Sub2API Extension Multi-Stage Dockerfile
+# aux-system multi-stage Dockerfile
 # =============================================================================
 # 附属内容承载系统。零侵入 sub2api，独立部署。
 #
@@ -106,8 +106,8 @@ LABEL org.opencontainers.image.version="${VERSION}"
 LABEL org.opencontainers.image.revision="${COMMIT}"
 LABEL org.opencontainers.image.source="https://github.com/FluxCode666/sub2api-extension"
 
-LABEL maintainer="sub2api-extension"
-LABEL description="Sub2API Extension - sub2api auxiliary content carrier"
+LABEL maintainer="aux-system"
+LABEL description="aux-system - Sub2API auxiliary content carrier"
 
 # 运行时依赖：ca-certificates + tzdata + libpq（后端用 lib/pq 连 PostgreSQL）
 # su-exec 仅用于入口脚本修正挂载目录权限后降权运行服务。

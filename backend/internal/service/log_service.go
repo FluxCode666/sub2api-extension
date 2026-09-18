@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"sub2api-extension/ent"
-	"sub2api-extension/ent/operationlog"
-	"sub2api-extension/ent/systemlog"
+	"aux-system/ent"
+	"aux-system/ent/operationlog"
+	"aux-system/ent/systemlog"
 )
 
 const (

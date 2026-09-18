@@ -32,8 +32,10 @@ for arch in amd64 arm64; do
   cp "${root}/app/aux-server" "${staging}/aux-server"
   tar --sort=name --owner=0 --group=0 --numeric-owner \
     -C "${staging}" \
-    -czf "release-assets/sub2api-extension_linux_${arch}.tar.gz" \
+    -czf "release-assets/aux-system_linux_${arch}.tar.gz" \
     aux-server
+  cp "release-assets/aux-system_linux_${arch}.tar.gz" \
+    "release-assets/sub2api-extension_linux_${arch}.tar.gz"
 done
 
-(cd release-assets && sha256sum sub2api-extension_linux_*.tar.gz > checksums.txt)
+(cd release-assets && sha256sum aux-system_linux_*.tar.gz sub2api-extension_linux_*.tar.gz > checksums.txt)

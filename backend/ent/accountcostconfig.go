@@ -3,9 +3,9 @@
 package ent
 
 import (
+	"aux-system/ent/accountcostconfig"
 	"fmt"
 	"strings"
-	"sub2api-extension/ent/accountcostconfig"
 	"time"
 
 	"entgo.io/ent"

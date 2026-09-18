@@ -3,9 +3,9 @@
 package ent
 
 import (
+	"aux-system/ent/imageasset"
+	"aux-system/ent/predicate"
 	"context"
-	"sub2api-extension/ent/imageasset"
-	"sub2api-extension/ent/predicate"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"sub2api-extension/internal/service"
+	"aux-system/internal/service"
 
 	"github.com/gin-gonic/gin"
 )

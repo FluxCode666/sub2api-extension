@@ -174,7 +174,7 @@ func (m *Manager) perform(ctx context.Context, version string, release *Release)
 		return fmt.Errorf("无法定位当前可执行文件：%w", err)
 	}
 	dir := filepath.Dir(path)
-	tempDir, err := os.MkdirTemp(dir, ".sub2api-extension-update-")
+	tempDir, err := os.MkdirTemp(dir, ".aux-system-update-")
 	if err != nil {
 		return fmt.Errorf("无法创建更新临时目录：%w", err)
 	}

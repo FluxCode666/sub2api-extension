@@ -13,13 +13,20 @@ def run(*args):
 def main():
     tag = os.environ["RELEASE_TAG"]
     image = os.environ["RELEASE_IMAGE"]
+    if not image.endswith("/aux-system"):
+        raise RuntimeError("RELEASE_IMAGE 必须使用 aux-system 镜像名")
+    legacy_image = image.removesuffix("/aux-system") + "/sub2api-extension"
     if not re.fullmatch(r"sha256:[0-9a-f]{64}", os.environ["APP_DIGEST"]):
         raise RuntimeError("镜像构建未返回有效摘要，禁止发布")
-    assets = sorted(str(path) for path in Path("release-assets").glob("sub2api-extension_linux_*.tar.gz"))
-    if len(assets) != 2 or not Path("release-assets/checksums.txt").is_file():
-        raise RuntimeError("缺少 linux/amd64 和 linux/arm64 更新包或 checksums.txt")
+    primary_assets = sorted(str(path) for path in Path("release-assets").glob("aux-system_linux_*.tar.gz"))
+    compatibility_assets = sorted(str(path) for path in Path("release-assets").glob("sub2api-extension_linux_*.tar.gz"))
+    assets = primary_assets + compatibility_assets
+    if len(primary_assets) != 2 or len(compatibility_assets) != 2 or not Path("release-assets/checksums.txt").is_file():
+        raise RuntimeError("缺少 aux-system 主更新包、旧版兼容更新包或 checksums.txt")
     Path("release-manifest.json").write_text(json.dumps({
-        "schema": 1, "version": tag, "image": image,
+        # 旧版更新器会校验 image 字段；兼容坐标仅用于完成首次二进制升级。
+        "schema": 1, "version": tag, "image": legacy_image,
+        "applicationImage": image,
         "digest": os.environ["APP_DIGEST"],
         "commit": os.environ["GITHUB_SHA"],
     }, indent=2) + "\n")
@@ -28,8 +35,8 @@ def main():
         if not json.loads(existing.stdout)["isDraft"]:
             raise RuntimeError("此版本已公开，不允许覆盖")
     else:
-        run("gh", "release", "create", tag, "--verify-tag", "--draft", "--title", f"{tag} · Sub2API 扩展系统", "--notes-file", "release-notes.md")
-    run("gh", "release", "edit", tag, "--notes-file", "release-notes.md", "--title", f"{tag} · Sub2API 扩展系统", f"--prerelease={os.environ['IS_PRERELEASE']}")
+        run("gh", "release", "create", tag, "--verify-tag", "--draft", "--title", f"{tag} · aux-system", "--notes-file", "release-notes.md")
+    run("gh", "release", "edit", tag, "--notes-file", "release-notes.md", "--title", f"{tag} · aux-system", f"--prerelease={os.environ['IS_PRERELEASE']}")
     run("gh", "release", "upload", tag, "release-manifest.json", *assets, "release-assets/checksums.txt", "deploy/docker-compose.yml", "deploy/UPDATES.md", "--clobber")
     run("gh", "release", "edit", tag, "--draft=false", f"--latest={os.environ['IS_LATEST']}")
     with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as output:

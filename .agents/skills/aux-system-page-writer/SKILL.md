@@ -1,11 +1,11 @@
 ---
-name: sub2api-extension-page-writer
-description: 创建或修改 sub2api-extension 的静态核心页面、数据库动态页面和页面元数据时使用。覆盖路由、页面注册、AdminGuard、埋点、HTML 沙箱、动态 React 编译、图片资源和嵌入 sub2api 的约束。
+name: aux-system-page-writer
+description: 创建或修改 aux-system 的静态核心页面、数据库动态页面和页面元数据时使用。覆盖路由、页面注册、AdminGuard、埋点、HTML 沙箱、动态 React 编译、图片资源和嵌入 Sub2API 的约束。
 ---
 
-# sub2api-extension 页面编写规范
+# aux-system 页面编写规范
 
-sub2api-extension 是 sub2api 的独立内容承载与页面管理项目。页面分为两类：静态核心页面（随前端代码发布）和数据库动态页面（通过管理端创建/编辑）。两者共用页面身份与埋点模型，但渲染安全边界不同。只做管理端视觉调整时，优先使用现有前端设计/界面 skill；本 skill 关注页面身份、内容持久化、路由和运行时约束。
+aux-system 是 Sub2API 的独立内容承载与页面管理项目。页面分为两类：静态核心页面（随前端代码发布）和数据库动态页面（通过管理端创建/编辑）。两者共用页面身份与埋点模型，但渲染安全边界不同。只做管理端视觉调整时，优先使用现有前端设计/界面 skill；本 skill 关注页面身份、内容持久化、路由和运行时约束。
 
 ## 先选择页面类型
 
@@ -72,7 +72,7 @@ export default function MyPage() {
 |---|---|---|
 | `/p/:slug` | 已启用的公开动态页 | 无 |
 | `/admin/p/:slug` | 已启用的 admin 动态页 | `AdminGuard` |
-| `/p/home` | TERALEMO 官网数据库动态页 | 无 |
+| `/p/home` | Sub2API 官网数据库动态页，名称读取公开系统配置 | 无 |
 | `/p/sub2api-home` | Sub2API 官网数据库动态页 | 无 |
 
 slug 规则：小写字母、数字和连字符，必须以字母或数字开头。内容单页上限为 256KB。公开动态页不要存放管理员密钥、内部接口凭据或任何需要登录才能读取的数据。
@@ -114,7 +114,7 @@ React 动态页面已经实现，不再是“尚未实现”的占位能力：`f
 {
   "full_bleed": "true",
   "scroll_mode": "frame",
-  "site_name": "TERALEMO",
+  "site_name": "由系统配置注入，无需手工填写",
   "logo": "https://example.com/api/aux/assets/1",
   "trusted_partners": "{\"enabled\":true,\"items\":[{\"icon\":\"\",\"name\":\"星辰互娱\"}]}"
 }
@@ -138,7 +138,7 @@ React 动态页面已经实现，不再是“尚未实现”的占位能力：`f
 
 ## AdminGuard、嵌入与会话
 
-`/admin/*` 页面由 `AdminGuard` 保护。sub2api iframe 传入的 token 发送到 `/api/aux/admin/session`，后端向 sub2api 验证后签发 sub2api-extension 自有会话，前端通过 `X-Aux-Session` 自动附加到管理 API。
+`/admin/*` 页面由 `AdminGuard` 保护。Sub2API iframe 传入的 token 发送到 `/api/aux/admin/session`，后端向 Sub2API 验证后签发 aux-system 自有会话，前端通过 `X-Aux-Session` 自动附加到管理 API。
 
 在 sub2api 控制台嵌入 admin 动态页面时，将完整公网 URL 加入 `custom_menu_items`；公开官网使用 `home_content` 指向 `/p/home`。不要把 `http://aux-backend:8787` 这类 Docker 内部地址直接配置给浏览器。
 
@@ -169,7 +169,7 @@ React 动态页面已经实现，不再是“尚未实现”的占位能力：`f
 
 ### 数据库与 seed
 
-- [ ] 新部署先执行一次显式 Ent migration（`make migrate` 或 `go run ./cmd/server -migrate`）；正式服务启动不会自动迁移
+- [ ] 新部署确认 Ent migration 已完成；正式服务默认启动时自动执行幂等迁移，设置 `AUTO_MIGRATE=false` 时需先显式运行 `make migrate` 或 `go run ./cmd/server -migrate`
 - [ ] seed 脚本使用目标环境数据库配置，确认 slug 已存在时是更新而不是重复创建
 
 ## 相关文件
@@ -186,4 +186,4 @@ React 动态页面已经实现，不再是“尚未实现”的占位能力：`f
 | `frontend/src/pages/admin/FileManagementPage.tsx` | 图片上传、文件列表、备注与 URL 复制 |
 | `backend/internal/service/page_service.go` | 页面校验和持久化 |
 | `backend/internal/service/image_asset_service.go` | 图片文件落盘和索引 |
-| `backend/scripts/seed_homepage.go` | TERALEMO 官网首次/幂等 seed |
+| `backend/scripts/seed_homepage.go` | Sub2API 官网首次/幂等 seed；品牌名由公开系统配置注入 |

@@ -38,8 +38,8 @@ def main():
     notes = next((section for section in sections[1:] if re.match(r"\[?" + re.escape(tag.lstrip("v")) + r"\]?(?:\s|$)", section) or re.match(r"\[?" + re.escape(tag) + r"\]?(?:\s|$)", section)), None)
     if not notes:
         raise RuntimeError(f"请先在 CHANGELOG.md 添加 ## [{tag}] 及本次中文变更说明")
-    image = f"ghcr.io/{repository.split('/')[0].lower()}/sub2api-extension"
-    Path("release-notes.md").write_text("## " + notes.strip() + f"\n\n### 镜像与更新\n\n- 应用镜像：`{image}:{tag}`\n- 二进制更新包：`linux/amd64`、`linux/arm64`，附带 `checksums.txt`。\n- 本次发布不连接服务器、不自动部署；管理员可点击控制台左上角版本号更新。\n- 更新由应用进程下载并原子替换，完成后按部署方式重启服务。\n- 首次安装或更新，请查看 [更新指南](https://github.com/{repository}/blob/{tag}/deploy/UPDATES.md)。\n- 更新前备份数据库和上传资源；二进制回退不会撤销数据库迁移。\n")
+    image = f"ghcr.io/{repository.split('/')[0].lower()}/aux-system"
+    Path("release-notes.md").write_text("## " + notes.strip() + f"\n\n### 镜像与更新\n\n- 应用镜像：`{image}:{tag}`\n- 二进制更新包：`linux/amd64`、`linux/arm64`，附带 `checksums.txt`。\n- 改名过渡期同时提供旧文件名兼容包，现有实例可完成首次升级。\n- 本次发布不连接服务器、不自动部署；管理员可点击控制台左上角版本号更新。\n- 更新由应用进程下载并原子替换，完成后按部署方式重启服务。\n- 首次安装或更新，请查看 [更新指南](https://github.com/{repository}/blob/{tag}/deploy/UPDATES.md)。\n- 更新前备份数据库和上传资源；二进制回退不会撤销数据库迁移。\n")
     with open(os.environ["GITHUB_OUTPUT"], "a") as output:
         output.write(f"image={image}\ndate={datetime.datetime.now(datetime.timezone.utc).isoformat()}\nlatest={str(is_latest).lower()}\nprerelease={str(prerelease).lower()}\n")
 

@@ -18,7 +18,7 @@ import (
 	"sync"
 	"time"
 
-	"sub2api-extension/internal/integration"
+	"aux-system/internal/integration"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -216,7 +216,7 @@ func (s *AuthService) issueSessionWithExpiry(user *integration.Sub2APIUserInfo, 
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(dur)),
-			Issuer:    "sub2api-extension",
+			Issuer:    "aux-system",
 			Subject:   fmt.Sprintf("%d", user.ID),
 		},
 	}

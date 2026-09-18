@@ -3,11 +3,11 @@
 package ent
 
 import (
+	"aux-system/ent/accountcostconfig"
+	"aux-system/ent/predicate"
 	"context"
 	"errors"
 	"fmt"
-	"sub2api-extension/ent/accountcostconfig"
-	"sub2api-extension/ent/predicate"
 	"time"
 
 	"entgo.io/ent/dialect/sql"

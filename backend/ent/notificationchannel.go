@@ -3,10 +3,10 @@
 package ent
 
 import (
+	"aux-system/ent/notificationchannel"
 	"encoding/json"
 	"fmt"
 	"strings"
-	"sub2api-extension/ent/notificationchannel"
 	"time"
 
 	"entgo.io/ent"

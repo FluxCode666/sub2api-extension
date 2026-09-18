@@ -1,0 +1,132 @@
+.sub2api-section.sub2api-global-network {
+  padding-top: 92px;
+  padding-bottom: 24px;
+}
+
+.sub2api-global-network + .sub2api-steps {
+  padding-top: 40px;
+}
+
+.sub2api-global-network-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, .65fr);
+  align-items: end;
+  gap: 8vw;
+}
+
+.sub2api-global-network-heading h2 {
+  margin: 0;
+  font-size: 4.5rem;
+  font-weight: 650;
+  line-height: .98;
+}
+
+.sub2api-global-network-heading > p {
+  max-width: 390px;
+  margin: 0 0 5px;
+  color: var(--s2-muted);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.tob-network-map {
+  position: relative;
+  width: 100vw;
+  aspect-ratio: 1200 / 510;
+  margin-top: 58px;
+  margin-left: calc(50% - 50vw);
+  overflow: hidden;
+}
+
+.tob-network-map svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.tob-network-particle {
+  fill: #8f938e;
+  stroke: #8f938e;
+  stroke-width: .35;
+  opacity: .9;
+  vector-effect: non-scaling-stroke;
+  shape-rendering: geometricPrecision;
+}
+
+.tob-network-route {
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  opacity: .78;
+}
+
+.tob-network-route--dashed { stroke-dasharray: 7 5; }
+.tob-network-route--solid { stroke-dasharray: none; }
+.tob-network-route--flowing { animation: tob-dashed-route-flow 1.1s linear infinite; }
+
+.tob-network-route--edge {
+  opacity: .58;
+}
+
+.tob-network-pulse {
+  fill: none;
+  stroke-width: 1;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: tob-node-pulse 2.4s ease-out infinite;
+}
+
+.tob-network-flow {
+  fill: none;
+  stroke-width: 3;
+  stroke-dasharray: 2 18;
+  stroke-linecap: round;
+  opacity: .9;
+  animation: tob-route-flow 1.45s linear infinite;
+}
+
+.tob-network-flow--edge { opacity: .68; }
+
+.tob-network-label {
+  fill: var(--s2-ink);
+  font-size: 11px;
+  font-weight: 650;
+  paint-order: stroke;
+  stroke: rgba(243, 242, 238, .96);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.tob-network-label--customer {
+  font-size: 9px;
+}
+
+@keyframes tob-route-flow {
+  /* 位移必须等于 2 + 18 的虚线周期，保证循环首尾帧完全重合。 */
+  to { stroke-dashoffset: -20; }
+}
+
+@keyframes tob-dashed-route-flow {
+  /* 位移必须等于 7 + 5 的虚线周期，保证虚线连续向前流动。 */
+  to { stroke-dashoffset: -12; }
+}
+
+@keyframes tob-node-pulse {
+  0% { opacity: .58; transform: scale(.72); }
+  72%, 100% { opacity: 0; transform: scale(1.45); }
+}
+
+@media (max-width: 760px) {
+  .sub2api-section.sub2api-global-network { padding-top: 68px; padding-bottom: 20px; }
+  .sub2api-global-network + .sub2api-steps { padding-top: 36px; }
+  .sub2api-global-network-heading { display: block; }
+  .sub2api-global-network-heading h2 { font-size: 3rem; }
+  .sub2api-global-network-heading > p { margin-top: 28px; }
+  .tob-network-map { margin-top: 42px; }
+  .tob-network-label { font-size: 8px; }
+  .tob-network-label--customer { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tob-network-flow, .tob-network-route--flowing, .tob-network-pulse { animation: none; }
+}

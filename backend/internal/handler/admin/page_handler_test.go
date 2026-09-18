@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"sub2api-extension/internal/service"
+	"aux-system/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"

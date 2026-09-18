@@ -13,8 +13,8 @@ import (
 	"log"
 	"os"
 
-	"sub2api-extension/ent"
-	"sub2api-extension/ent/page"
+	"aux-system/ent"
+	"aux-system/ent/page"
 
 	_ "github.com/lib/pq"
 )
@@ -60,8 +60,8 @@ func main() {
 		"logo":       "",
 		// frame 模式让动态官网在沙箱内部滚动，使 fixed 导航与内容处于同一滚动上下文。
 		"scroll_mode":        "frame",
-		"source":             "TERALEMO homepage implementation (migrated to database HTML)",
-		"site_name":          "TERALEMO",
+		"source":             "homepage implementation (migrated to database HTML)",
+		"site_name":          "Sub2API",
 		"copyright_year":     "2026",
 		"console_href":       "/admin/dashboard",
 		"api_docs_href":      "",
@@ -79,7 +79,7 @@ func main() {
 
 	if err == nil {
 		updated, updateErr := existing.Update().
-			SetTitle("TERALEMO 官网").
+			SetTitle("官网首页").
 			SetVisibility("public").
 			SetContentType("html").
 			SetContentHTML(homeHTML).
@@ -100,7 +100,7 @@ func main() {
 
 	page, err := client.Page.Create().
 		SetSlug(slug).
-		SetTitle("TERALEMO 官网").
+		SetTitle("官网首页").
 		SetVisibility("public").
 		SetContentType("html").
 		SetContentHTML(homeHTML).
@@ -117,7 +117,7 @@ func main() {
 }
 
 func getHomePageHTML() string {
-	// TERALEMO 官网首页的完整 HTML 内容。
+	// 官网首页的完整 HTML 内容。
 	// 这段内容只负责首次/幂等 seed；运行时页面始终从 pages.content_html 读取，
 	// 管理员可以在 /admin/pages 中继续编辑，不依赖前端首页组件。
 	return `<!DOCTYPE html>
@@ -125,7 +125,7 @@ func getHomePageHTML() string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TERALEMO - 生产级 AI 网关</title>
+  <title>Sub2API - 生产级 AI 网关</title>
   <style>
     :root {
       --home-surface: #05070C;
@@ -781,7 +781,7 @@ func getHomePageHTML() string {
       <div class="teralemo-nav-frame">
           <a class="teralemo-brand" href="#top">
           <span class="teralemo-mark" data-brand-logo aria-hidden="true">T</span>
-          <span class="teralemo-wordmark">TERALEMO</span>
+          <span class="teralemo-wordmark">Sub2API</span>
         </a>
         <nav class="teralemo-nav-links">
           <a href="#platform">平台能力</a>
@@ -817,7 +817,7 @@ func getHomePageHTML() string {
         </div>
         <div class="teralemo-hero-inner">
           <span class="teralemo-eyebrow">面向生产环境的 AI 网关</span>
-          <h1><span class="teralemo-wordmark">TERALEMO</span></h1>
+          <h1><span class="teralemo-wordmark">Sub2API</span></h1>
           <p class="teralemo-hero-copy">将安全准入、智能路由、稳定保障、用量管理与运行观测统一到同一网关层。</p>
           <div class="teralemo-hero-actions">
             <a class="teralemo-button teralemo-button--primary" href="#contact" data-feature-id="hero-primary">
@@ -937,7 +937,7 @@ func getHomePageHTML() string {
           <div class="teralemo-developer-copy">
             <p class="teralemo-kicker">开发者体验</p>
             <h2>接入一次，网关持续演进。</h2>
-            <p>应用侧保持熟悉的调用方式，策略、路由和治理能力由 TERALEMO 统一承接。</p>
+            <p>应用侧保持熟悉的调用方式，策略、路由和治理能力由 <span class="teralemo-wordmark">Sub2API</span> 统一承接。</p>
             <a class="teralemo-text-link" href="#contact" data-feature-id="developer-docs" data-metadata-href="api_docs_href">查看 API 文档 ↗</a>
           </div>
           <div class="teralemo-code-block" aria-label="接口示例">
@@ -955,7 +955,7 @@ func getHomePageHTML() string {
               <button type="button" class="teralemo-code-copy" data-copy-code>复制</button>
             </div>
             <div class="teralemo-code-caption"><span data-code-caption>OPENAI-COMPATIBLE API</span><span data-code-file>request.sh</span></div>
-            <pre id="teralemo-code-panel" role="tabpanel"><code data-code-output>export TERALEMO_API_KEY="your-api-key"\n\ncurl https://api.teralemo.com/v1/chat/completions \\\n  -H "Authorization: Bearer $TERALEMO_API_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "model": "gpt-5.6-sol",\n    "messages": [\n      {\n        "role": "user",\n        "content": "你好，请介绍一下 TERALEMO。"\n      }\n    ]\n  }'</code></pre>
+            <pre id="teralemo-code-panel" role="tabpanel"><code data-code-output>export SUB2API_API_KEY="your-api-key"\n\ncurl https://api.example.com/v1/chat/completions \\\n  -H "Authorization: Bearer $SUB2API_API_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "model": "gpt-5.6-sol",\n    "messages": [\n      {\n        "role": "user",\n        "content": "你好，请介绍一下当前平台。"\n      }\n    ]\n  }'</code></pre>
           </div>
         </div>
       </section>
@@ -970,7 +970,7 @@ func getHomePageHTML() string {
     </main>
 
     <footer class="teralemo-footer teralemo-shell">
-      <div><strong class="teralemo-wordmark">TERALEMO</strong><p>生产级 AI 网关，为产品、Agent 和研发平台提供统一的接入、治理与运行能力。</p><p class="teralemo-copyright" data-copyright>© 2026 TERALEMO. 保留所有权利。</p></div>
+      <div><strong class="teralemo-wordmark">Sub2API</strong><p>生产级 AI 网关，为产品、Agent 和研发平台提供统一的接入、治理与运行能力。</p><p class="teralemo-copyright" data-copyright>© 2026 Sub2API. 保留所有权利。</p></div>
       <div><strong>产品</strong><a href="#platform">平台能力</a><a href="#capabilities">治理能力</a></div>
       <div><strong>资源</strong><a href="#developers" data-metadata-href="api_docs_href">API 文档</a><a href="#developers" data-metadata-href="usage_guide_href">使用指南</a></div>
       <div><strong>服务支持</strong><a href="#contact" data-metadata-href="contact_sales_href">联系商务</a><a href="#contact" data-metadata-href="terms_href">服务条款</a></div>
@@ -1036,7 +1036,7 @@ func getHomePageHTML() string {
         image.src = logo;
         image.alt = '';
         image.loading = 'eager';
-        image.addEventListener('error', function () { el.textContent = 'T'; });
+        image.addEventListener('error', function () { el.textContent = 'A'; });
         el.textContent = '';
         el.appendChild(image);
       });
@@ -1046,12 +1046,13 @@ func getHomePageHTML() string {
       var metadata = window.__AUX_METADATA__ || {};
       var siteName = typeof metadata.site_name === 'string' ? metadata.site_name.trim() : '';
       var year = metadata.copyright_year == null ? '' : String(metadata.copyright_year).trim();
-      if (!siteName) siteName = 'TERALEMO';
+      if (!siteName) siteName = 'Sub2API';
       if (!/^\d{4}$/.test(year)) year = String(new Date().getFullYear());
 
       document.querySelectorAll('.teralemo-wordmark').forEach(function (el) {
         el.textContent = siteName;
       });
+      document.title = siteName + ' - 生产级 AI 网关';
       var copyright = document.querySelector('[data-copyright]');
       if (copyright) copyright.textContent = '© ' + year + ' ' + siteName + '. 保留所有权利。';
     }
@@ -1141,21 +1142,21 @@ func getHomePageHTML() string {
     var examples = {
       chat: {
         caption: 'OPENAI-COMPATIBLE API', endpoint: '/v1/chat/completions',
-        curl: 'export TERALEMO_API_KEY="your-api-key"\\n\\ncurl https://api.teralemo.com/v1/chat/completions \\\\n  -H "Authorization: Bearer $TERALEMO_API_KEY" \\\\n  -H "Content-Type: application/json" \\\\n  -d \'{\\n    "model": "gpt-5.6-sol",\\n    "messages": [\\n      {\\n        "role": "user",\\n        "content": "你好，请介绍一下 TERALEMO。"\\n      }\\n    ]\\n  }\'',
-        python: 'import os\\nimport requests\\n\\nresponse = requests.post(\\n  "https://api.teralemo.com/v1/chat/completions",\\n  headers={\\n    "Authorization": f"Bearer {os.environ[\\"TERALEMO_API_KEY\\"]}",\\n    "Content-Type": "application/json",\\n  },\\n  json={\\n    "model": "gpt-5.6-sol",\\n    "messages": [\\n      {\\n        "role": "user",\\n        "content": "你好，请介绍一下 TERALEMO。",\\n      },\\n    ],\\n  },\\n  timeout=60,\\n)\\nprint(response.json())',
-        go: 'package main\\n\\nimport (\\n  "bytes"\\n  "encoding/json"\\n  "net/http"\\n)\\n\\nfunc main() {\\n  payload := map[string]any{\\n    "model": "gpt-5.6-sol",\\n    "messages": []map[string]string{\\n      {\\n        "role": "user",\\n        "content": "你好，请介绍一下 TERALEMO。",\\n      },\\n    },\\n  }\\n  body, _ := json.Marshal(payload)\\n  req, _ := http.NewRequest(http.MethodPost, "https://api.teralemo.com/v1/chat/completions", bytes.NewReader(body))\\n  req.Header.Set("Authorization", "Bearer $TERALEMO_API_KEY")\\n  req.Header.Set("Content-Type", "application/json")\\n  http.DefaultClient.Do(req)\\n}'
+        curl: 'export SUB2API_API_KEY="your-api-key"\\n\\ncurl https://api.example.com/v1/chat/completions \\\\n  -H "Authorization: Bearer $SUB2API_API_KEY" \\\\n  -H "Content-Type: application/json" \\\\n  -d \'{\\n    "model": "gpt-5.6-sol",\\n    "messages": [\\n      {\\n        "role": "user",\\n        "content": "你好，请介绍一下当前平台。"\\n      }\\n    ]\\n  }\'',
+        python: 'import os\\nimport requests\\n\\nresponse = requests.post(\\n  "https://api.example.com/v1/chat/completions",\\n  headers={\\n    "Authorization": f"Bearer {os.environ[\\"SUB2API_API_KEY\\"]}",\\n    "Content-Type": "application/json",\\n  },\\n  json={\\n    "model": "gpt-5.6-sol",\\n    "messages": [\\n      {\\n        "role": "user",\\n        "content": "你好，请介绍一下当前平台。",\\n      },\\n    ],\\n  },\\n  timeout=60,\\n)\\nprint(response.json())',
+        go: 'package main\\n\\nimport (\\n  "bytes"\\n  "encoding/json"\\n  "net/http"\\n)\\n\\nfunc main() {\\n  payload := map[string]any{\\n    "model": "gpt-5.6-sol",\\n    "messages": []map[string]string{\\n      {\\n        "role": "user",\\n        "content": "你好，请介绍一下当前平台。",\\n      },\\n    },\\n  }\\n  body, _ := json.Marshal(payload)\\n  req, _ := http.NewRequest(http.MethodPost, "https://api.example.com/v1/chat/completions", bytes.NewReader(body))\\n  req.Header.Set("Authorization", "Bearer $SUB2API_API_KEY")\\n  req.Header.Set("Content-Type", "application/json")\\n  http.DefaultClient.Do(req)\\n}'
       },
       responses: {
         caption: 'OPENAI RESPONSES API', endpoint: '/v1/responses',
-        curl: 'export TERALEMO_API_KEY="your-api-key"\\n\\ncurl https://api.teralemo.com/v1/responses \\\\n  -H "Authorization: Bearer $TERALEMO_API_KEY" \\\\n  -H "Content-Type: application/json" \\\\n  -d \'{\\n    "model": "gpt-5.6-sol",\\n    "input": "你好，请介绍一下 TERALEMO。"\\n  }\'',
-        python: 'import requests\\n\\nresponse = requests.post(\\n  "https://api.teralemo.com/v1/responses",\\n  headers={\\n    "Authorization": "Bearer " + "your-api-key",\\n    "Content-Type": "application/json",\\n  },\\n  json={\\n    "model": "gpt-5.6-sol",\\n    "input": "你好，请介绍一下 TERALEMO。",\\n  },\\n)\\nprint(response.json())',
-        go: 'package main\\n\\nimport (\\n  "bytes"\\n  "encoding/json"\\n  "net/http"\\n)\\n\\nfunc main() {\\n  payload := map[string]any{\\n    "model": "gpt-5.6-sol",\\n    "input": "你好，请介绍一下 TERALEMO。",\\n  }\\n  body, _ := json.Marshal(payload)\\n  req, _ := http.NewRequest(http.MethodPost, "https://api.teralemo.com/v1/responses", bytes.NewReader(body))\\n  req.Header.Set("Authorization", "Bearer $TERALEMO_API_KEY")\\n  req.Header.Set("Content-Type", "application/json")\\n  http.DefaultClient.Do(req)\\n}'
+        curl: 'export SUB2API_API_KEY="your-api-key"\\n\\ncurl https://api.example.com/v1/responses \\\\n  -H "Authorization: Bearer $SUB2API_API_KEY" \\\\n  -H "Content-Type: application/json" \\\\n  -d \'{\\n    "model": "gpt-5.6-sol",\\n    "input": "你好，请介绍一下当前平台。"\\n  }\'',
+        python: 'import requests\\n\\nresponse = requests.post(\\n  "https://api.example.com/v1/responses",\\n  headers={\\n    "Authorization": "Bearer " + "your-api-key",\\n    "Content-Type": "application/json",\\n  },\\n  json={\\n    "model": "gpt-5.6-sol",\\n    "input": "你好，请介绍一下当前平台。",\\n  },\\n)\\nprint(response.json())',
+        go: 'package main\\n\\nimport (\\n  "bytes"\\n  "encoding/json"\\n  "net/http"\\n)\\n\\nfunc main() {\\n  payload := map[string]any{\\n    "model": "gpt-5.6-sol",\\n    "input": "你好，请介绍一下当前平台。",\\n  }\\n  body, _ := json.Marshal(payload)\\n  req, _ := http.NewRequest(http.MethodPost, "https://api.example.com/v1/responses", bytes.NewReader(body))\\n  req.Header.Set("Authorization", "Bearer $SUB2API_API_KEY")\\n  req.Header.Set("Content-Type", "application/json")\\n  http.DefaultClient.Do(req)\\n}'
       },
       anthropic: {
         caption: 'ANTHROPIC MESSAGES API', endpoint: '/v1/messages',
-        curl: 'export TERALEMO_API_KEY="your-api-key"\\n\\ncurl https://api.teralemo.com/v1/messages \\\\n  -H "x-api-key: $TERALEMO_API_KEY" \\\\n  -H "anthropic-version: 2023-06-01" \\\\n  -H "content-type: application/json" \\\\n  -d \'{\\n    "model": "gpt-5.6-sol",\\n    "max_tokens": 1024,\\n    "messages": [\\n      {\\n        "role": "user",\\n        "content": "你好，请介绍一下 TERALEMO。"\\n      }\\n    ]\\n  }\'',
-        python: 'import requests\\n\\nresponse = requests.post(\\n  "https://api.teralemo.com/v1/messages",\\n  headers={\\n    "x-api-key": "your-api-key",\\n    "anthropic-version": "2023-06-01",\\n    "content-type": "application/json",\\n  },\\n  json={\\n    "model": "gpt-5.6-sol",\\n    "max_tokens": 1024,\\n    "messages": [\\n      {\\n        "role": "user",\\n        "content": "你好，请介绍一下 TERALEMO。",\\n      },\\n    ],\\n  },\\n)\\nprint(response.json())',
-        go: 'package main\\n\\nimport (\\n  "bytes"\\n  "encoding/json"\\n  "net/http"\\n)\\n\\nfunc main() {\\n  payload := map[string]any{\\n    "model": "gpt-5.6-sol",\\n    "max_tokens": 1024,\\n    "messages": []map[string]string{\\n      {\\n        "role": "user",\\n        "content": "你好，请介绍一下 TERALEMO。",\\n      },\\n    },\\n  }\\n  body, _ := json.Marshal(payload)\\n  req, _ := http.NewRequest(http.MethodPost, "https://api.teralemo.com/v1/messages", bytes.NewReader(body))\\n  req.Header.Set("x-api-key", "your-api-key")\\n  req.Header.Set("anthropic-version", "2023-06-01")\\n  req.Header.Set("content-type", "application/json")\\n  http.DefaultClient.Do(req)\\n}'
+        curl: 'export SUB2API_API_KEY="your-api-key"\\n\\ncurl https://api.example.com/v1/messages \\\\n  -H "x-api-key: $SUB2API_API_KEY" \\\\n  -H "anthropic-version: 2023-06-01" \\\\n  -H "content-type: application/json" \\\\n  -d \'{\\n    "model": "gpt-5.6-sol",\\n    "max_tokens": 1024,\\n    "messages": [\\n      {\\n        "role": "user",\\n        "content": "你好，请介绍一下当前平台。"\\n      }\\n    ]\\n  }\'',
+        python: 'import requests\\n\\nresponse = requests.post(\\n  "https://api.example.com/v1/messages",\\n  headers={\\n    "x-api-key": "your-api-key",\\n    "anthropic-version": "2023-06-01",\\n    "content-type": "application/json",\\n  },\\n  json={\\n    "model": "gpt-5.6-sol",\\n    "max_tokens": 1024,\\n    "messages": [\\n      {\\n        "role": "user",\\n        "content": "你好，请介绍一下当前平台。",\\n      },\\n    ],\\n  },\\n)\\nprint(response.json())',
+        go: 'package main\\n\\nimport (\\n  "bytes"\\n  "encoding/json"\\n  "net/http"\\n)\\n\\nfunc main() {\\n  payload := map[string]any{\\n    "model": "gpt-5.6-sol",\\n    "max_tokens": 1024,\\n    "messages": []map[string]string{\\n      {\\n        "role": "user",\\n        "content": "你好，请介绍一下当前平台。",\\n      },\\n    },\\n  }\\n  body, _ := json.Marshal(payload)\\n  req, _ := http.NewRequest(http.MethodPost, "https://api.example.com/v1/messages", bytes.NewReader(body))\\n  req.Header.Set("x-api-key", "your-api-key")\\n  req.Header.Set("anthropic-version", "2023-06-01")\\n  req.Header.Set("content-type", "application/json")\\n  http.DefaultClient.Do(req)\\n}'
       }
     };
     var activeProtocol = 'chat';

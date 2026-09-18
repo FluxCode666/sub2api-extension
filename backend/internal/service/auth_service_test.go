@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"sub2api-extension/internal/integration"
+	"aux-system/internal/integration"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -137,7 +137,7 @@ func TestIssueAndValidateSession(t *testing.T) {
 	assert.Equal(t, int64(42), claims.UserID)
 	assert.Equal(t, "admin@example.com", claims.Email)
 	assert.Equal(t, "admin", claims.Role)
-	assert.Equal(t, "sub2api-extension", claims.Issuer)
+	assert.Equal(t, "aux-system", claims.Issuer)
 }
 
 func TestValidateSession_Invalid(t *testing.T) {

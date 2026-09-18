@@ -1,5 +1,5 @@
 # =============================================================================
-# Sub2API Extension Development Docker Compose Configuration
+# aux-system development Docker Compose configuration
 # =============================================================================
 # 附属内容承载系统部署。零侵入 sub2api，独立运行。
 #
@@ -76,7 +76,7 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
-    image: sub2api-extension:latest
+    image: aux-system:latest
     restart: "no"
     command: ["-migrate"]
     environment:
@@ -109,7 +109,7 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
-    image: sub2api-extension:latest
+    image: aux-system:latest
     container_name: aux-backend
     restart: unless-stopped
     security_opt:

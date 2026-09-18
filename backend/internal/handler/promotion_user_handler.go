@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"strconv"
 
-	"sub2api-extension/internal/integration"
-	"sub2api-extension/internal/pkg/response"
-	"sub2api-extension/internal/server/middleware"
-	"sub2api-extension/internal/service"
+	"aux-system/internal/integration"
+	"aux-system/internal/pkg/response"
+	"aux-system/internal/server/middleware"
+	"aux-system/internal/service"
 
 	"github.com/gin-gonic/gin"
 )

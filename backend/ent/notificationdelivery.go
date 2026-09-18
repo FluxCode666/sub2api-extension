@@ -3,9 +3,9 @@
 package ent
 
 import (
+	"aux-system/ent/notificationdelivery"
 	"fmt"
 	"strings"
-	"sub2api-extension/ent/notificationdelivery"
 	"time"
 
 	"entgo.io/ent"

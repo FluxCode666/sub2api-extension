@@ -3,10 +3,10 @@
 package ent
 
 import (
+	"aux-system/ent/accountcostconfig"
 	"context"
 	"errors"
 	"fmt"
-	"sub2api-extension/ent/accountcostconfig"
 	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"

@@ -3,11 +3,11 @@
 package ent
 
 import (
+	"aux-system/ent/notificationdelivery"
+	"aux-system/ent/predicate"
 	"context"
 	"fmt"
 	"math"
-	"sub2api-extension/ent/notificationdelivery"
-	"sub2api-extension/ent/predicate"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"

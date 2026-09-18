@@ -32,6 +32,7 @@ import {
   SlidersHorizontal,
   Settings2,
   Terminal,
+  MapPinned,
 } from 'lucide-react'
 import { fetchDynamicPages, getMergedRegistry, subscribeDynamicPages } from '@/lib/dynamic-pages'
 import { getMenuIcon } from '@/lib/menu-icons'
@@ -98,7 +99,7 @@ export default function AdminLayout() {
             </div>
             <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
               <span className="aux-admin-brand-title truncate text-sm font-semibold">
-                Aux Admin
+                aux-system
               </span>
               <AdminVersionButton />
             </div>
@@ -183,7 +184,15 @@ export default function AdminLayout() {
                   <SidebarMenuButton asChild>
                     <NavLink to="/admin/homepage" end>
                       <PanelsTopLeft className="h-4 w-4" />
-                      <span>官网配置</span>
+                      <span>ToC 官网配置</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink to="/admin/tob-homepage" end>
+                      <MapPinned className="h-4 w-4" />
+                      <span>ToB 官网配置</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -310,7 +319,7 @@ export default function AdminLayout() {
           <SidebarTrigger className="-ml-1" />
           <div className="flex items-center gap-2">
             <span className="aux-admin-topbar-title">
-              Aux Admin
+              aux-system
             </span>
             <AdminVersionButton />
           </div>

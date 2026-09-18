@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"sub2api-extension/internal/ttft"
+	"aux-system/internal/ttft"
 )
 
 // Aliases keep the service API readable while the neutral data package avoids

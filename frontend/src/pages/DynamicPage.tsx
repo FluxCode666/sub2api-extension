@@ -17,6 +17,7 @@ import ErrorState from '@/components/ErrorState'
 import SandboxRenderer from '@/components/SandboxRenderer'
 import { trackPageView } from '@/lib/telemetry-sdk'
 import { compileAndCreateComponent } from '@/lib/dynamic-react-compiler'
+import { DEFAULT_SUB2API_SYSTEM_NAME, resolveSystemName, type SystemNameConfig } from '@/lib/system-name'
 
 // 使用 Vite 的 import.meta.glob 预先注册所有页面组件（文件组件模式）
 export type DynamicComponentProps = { metadata?: Record<string, unknown>; pageId?: string }
@@ -37,6 +38,10 @@ interface DynamicPageData {
   page_id: string
 }
 
+interface PublicSystemConfig extends SystemNameConfig {
+  systemDomain?: string
+}
+
 type LoadState = 'loading' | 'loaded' | 'error'
 
 export default function DynamicPage() {
@@ -47,6 +52,7 @@ export default function DynamicPage() {
   // React 组件动态加载 state（必须在组件顶层声明）
   const [ReactComponent, setReactComponent] = useState<DynamicComponent | null>(null)
   const [componentError, setComponentError] = useState('')
+  const [homepageMetadata, setHomepageMetadata] = useState<Record<string, unknown>>({ site_name: DEFAULT_SUB2API_SYSTEM_NAME })
 
   useEffect(() => {
     let cancelled = false
@@ -74,6 +80,25 @@ export default function DynamicPage() {
     return () => {
       cancelled = true
     }
+  }, [slug])
+
+  useEffect(() => {
+    let cancelled = false
+    if (slug !== 'home') {
+      setHomepageMetadata({})
+      return () => { cancelled = true }
+    }
+    setHomepageMetadata({ site_name: DEFAULT_SUB2API_SYSTEM_NAME })
+    void apiClient.get<AuxEnvelope<PublicSystemConfig>>('/homepage/config').then((response) => {
+      if (cancelled || response.code !== 0) return
+      setHomepageMetadata({
+        site_name: resolveSystemName(response.data),
+        system_domain: response.data?.systemDomain?.trim() || '',
+      })
+    }).catch(() => {
+      // 官网品牌配置失败时使用中性默认名称，不影响动态页面内容加载。
+    })
+    return () => { cancelled = true }
   }, [slug])
 
   useEffect(() => {
@@ -145,11 +170,13 @@ export default function DynamicPage() {
         </main>
       )
     }
-    return <ReactComponent metadata={page.metadata ?? {}} pageId={page.page_id} />
+    const metadata = slug === 'home' ? { ...(page.metadata ?? {}), ...homepageMetadata } : (page.metadata ?? {})
+    return <ReactComponent metadata={metadata} pageId={page.page_id} />
   }
 
   // HTML 类型通过隔离 iframe 渲染，避免动态内容接触宿主应用会话。
   const htmlContent = page.content_html ?? ''
+  const metadata = slug === 'home' ? { ...(page.metadata ?? {}), ...homepageMetadata } : page.metadata
   const fullBleed = page.metadata?.full_bleed === 'true'
   const scrollWithinFrame = fullBleed && page.metadata?.scroll_mode === 'frame'
   return (
@@ -165,7 +192,7 @@ export default function DynamicPage() {
           content={htmlContent}
           pageId={page.page_id}
           title={page.title}
-          metadata={page.metadata}
+          metadata={metadata}
           fullBleed={fullBleed}
           scrollWithinFrame={scrollWithinFrame}
         />

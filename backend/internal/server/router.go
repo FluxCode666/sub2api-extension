@@ -15,13 +15,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"sub2api-extension/internal/config"
-	"sub2api-extension/internal/handler"
-	adminhandler "sub2api-extension/internal/handler/admin"
-	"sub2api-extension/internal/pkg/response"
-	"sub2api-extension/internal/server/middleware"
-	"sub2api-extension/internal/service"
-	"sub2api-extension/internal/web"
+	"aux-system/internal/config"
+	"aux-system/internal/handler"
+	adminhandler "aux-system/internal/handler/admin"
+	"aux-system/internal/pkg/response"
+	"aux-system/internal/server/middleware"
+	"aux-system/internal/service"
+	"aux-system/internal/web"
 
 	"github.com/gin-gonic/gin"
 )
@@ -244,6 +244,7 @@ func SetPageHandlers(public *handler.PagePublicHandler, admin *adminhandler.Page
 // /api/aux/admin/*（其余）     —— 受 AdminGuard 保护(U4+ 实现具体路由)
 func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authService *service.AuthService, telemetryHandler *handler.TelemetryHandler, analyticsHandler *adminhandler.AnalyticsHandler, pagePublicHandler *handler.PagePublicHandler, pageAdminHandler *adminhandler.PageHandler, optionalHandlers ...any) {
 	var homepageHandler *adminhandler.HomepageConfigHandler
+	var tobHomepageHandler *adminhandler.TobHomepageConfigHandler
 	var imageAssetHandler *adminhandler.ImageAssetHandler
 	var fileAssetHandler *adminhandler.FileAssetHandler
 	var ttftHandler *adminhandler.TTFTHandler
@@ -262,6 +263,8 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			systemHandler = typed
 		case *adminhandler.HomepageConfigHandler:
 			homepageHandler = typed
+		case *adminhandler.TobHomepageConfigHandler:
+			tobHomepageHandler = typed
 		case *adminhandler.ImageAssetHandler:
 			imageAssetHandler = typed
 		case *adminhandler.FileAssetHandler:
@@ -290,6 +293,9 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 		// 测试或最小启动场景没有数据库时，公开首页仍返回默认文案。
 		homepageHandler = adminhandler.NewHomepageConfigHandler(nil)
 	}
+	if tobHomepageHandler == nil {
+		tobHomepageHandler = adminhandler.NewTobHomepageConfigHandler(nil)
+	}
 	// 公开 + 埋点上报分组（U5 实现具体路由）
 	aux := r.Group("/api/aux")
 	{
@@ -297,6 +303,7 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			response.Success(c, gin.H{"group": "aux", "status": "ok"})
 		})
 		aux.GET("/homepage/config", homepageHandler.GetPublicConfig)
+		aux.GET("/tob-homepage/config", tobHomepageHandler.GetPublicConfig)
 		if imageAssetHandler != nil {
 			aux.GET("/assets/:id", imageAssetHandler.ServePublic)
 		}
@@ -380,6 +387,8 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			}
 			guarded.GET("/homepage/config", homepageHandler.GetConfig)
 			guarded.PUT("/homepage/config", homepageHandler.UpdateConfig)
+			guarded.GET("/tob-homepage/config", tobHomepageHandler.GetConfig)
+			guarded.PUT("/tob-homepage/config", tobHomepageHandler.UpdateConfig)
 
 			// 动态页面管理 CRUD(受 AdminGuard 保护)
 			if pageAdminHandler != nil {

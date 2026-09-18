@@ -3,11 +3,11 @@
 package ent
 
 import (
+	"aux-system/ent/predicate"
+	"aux-system/ent/systemmeta"
 	"context"
 	"fmt"
 	"math"
-	"sub2api-extension/ent/predicate"
-	"sub2api-extension/ent/systemmeta"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"

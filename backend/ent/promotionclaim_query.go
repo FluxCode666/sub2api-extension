@@ -3,11 +3,11 @@
 package ent
 
 import (
+	"aux-system/ent/predicate"
+	"aux-system/ent/promotionclaim"
 	"context"
 	"fmt"
 	"math"
-	"sub2api-extension/ent/predicate"
-	"sub2api-extension/ent/promotionclaim"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"

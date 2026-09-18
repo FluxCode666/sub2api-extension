@@ -3,10 +3,10 @@
 package ent
 
 import (
+	"aux-system/ent/invoiceorder"
 	"context"
 	"errors"
 	"fmt"
-	"sub2api-extension/ent/invoiceorder"
 	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"

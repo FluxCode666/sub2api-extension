@@ -3,10 +3,10 @@
 package ent
 
 import (
+	"aux-system/ent/notificationdelivery"
 	"context"
 	"errors"
 	"fmt"
-	"sub2api-extension/ent/notificationdelivery"
 	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"

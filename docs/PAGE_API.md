@@ -1,6 +1,6 @@
 # 动态页面管理员 API
 
-sub2api-extension 已支持通过 HTTP API 管理数据库中的动态页面。页面内容不会在访问时执行 seed 脚本；API 直接读写 extension 自己的 PostgreSQL `pages` 表。
+aux-system 已支持通过 HTTP API 管理数据库中的动态页面。页面内容不会在访问时执行 seed 脚本；API 直接读写 aux-system 自己的 PostgreSQL `pages` 表。
 
 ## 鉴权
 

@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"sub2api-extension/internal/ops"
+	"aux-system/internal/ops"
 )
 
 type billingGroupTestStore struct {

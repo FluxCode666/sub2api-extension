@@ -3,11 +3,11 @@
 package ent
 
 import (
+	"aux-system/ent/imageasset"
+	"aux-system/ent/predicate"
 	"context"
 	"fmt"
 	"math"
-	"sub2api-extension/ent/imageasset"
-	"sub2api-extension/ent/predicate"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"

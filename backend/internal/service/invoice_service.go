@@ -18,12 +18,12 @@ import (
 	"strings"
 	"time"
 
-	"sub2api-extension/ent"
-	"sub2api-extension/ent/invoiceorder"
-	"sub2api-extension/ent/invoiceprofile"
-	"sub2api-extension/ent/invoicerequest"
-	"sub2api-extension/ent/systemmeta"
-	"sub2api-extension/internal/invoice"
+	"aux-system/ent"
+	"aux-system/ent/invoiceorder"
+	"aux-system/ent/invoiceprofile"
+	"aux-system/ent/invoicerequest"
+	"aux-system/ent/systemmeta"
+	"aux-system/internal/invoice"
 )
 
 const InvoiceFeatureSettingKey = "invoice.feature.enabled"

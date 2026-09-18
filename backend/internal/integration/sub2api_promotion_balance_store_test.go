@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"sub2api-extension/internal/ttft"
+	"aux-system/internal/ttft"
 
 	"github.com/stretchr/testify/require"
 )

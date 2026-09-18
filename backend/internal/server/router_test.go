@@ -10,12 +10,12 @@ import (
 	"strings"
 	"testing"
 
-	"sub2api-extension/internal/config"
-	"sub2api-extension/internal/handler"
-	adminhandler "sub2api-extension/internal/handler/admin"
-	"sub2api-extension/internal/integration"
-	"sub2api-extension/internal/service"
-	"sub2api-extension/internal/web"
+	"aux-system/internal/config"
+	"aux-system/internal/handler"
+	adminhandler "aux-system/internal/handler/admin"
+	"aux-system/internal/integration"
+	"aux-system/internal/service"
+	"aux-system/internal/web"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -95,7 +95,7 @@ func TestSetupRouter_HealthEndpoint(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "ok")
-	assert.Contains(t, w.Body.String(), "sub2api-extension")
+	assert.Contains(t, w.Body.String(), "aux-system")
 }
 
 func TestSetupRouter_AuxGroupExists(t *testing.T) {
@@ -130,6 +130,40 @@ func TestSetupRouter_PublicHomepageConfigReturnsDefaults(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "gpt-6-astra")
 	assert.Contains(t, w.Body.String(), "consoleHref")
 	assert.Contains(t, w.Body.String(), "trustedPartners")
+}
+
+func TestSetupRouter_PublicTobHomepageConfigReturnsDefaults(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cfg := newTestConfig()
+	healthHandler := web.NewHealthHandler()
+	authHandler, authService := newTestAuthDeps()
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler(), nil, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/aux/tob-homepage/config", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "primaryServers")
+	assert.Contains(t, w.Body.String(), "latitude")
+	assert.Contains(t, w.Body.String(), "availability")
+	assert.Contains(t, w.Body.String(), "trustedPartners")
+	assert.Contains(t, w.Body.String(), "mapSettings")
+	assert.Contains(t, w.Body.String(), "showNodeLabels")
+}
+
+func TestSetupRouter_TobHomepageAdminRouteIsGuarded(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cfg := newTestConfig()
+	healthHandler := web.NewHealthHandler()
+	authHandler, authService := newTestAuthDeps()
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler(), nil, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/aux/admin/tob-homepage/config", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusUnauthorized, w.Code)
 }
 
 func TestSetupRouter_AuxAdminGuardedWithoutSession(t *testing.T) {
@@ -426,7 +460,7 @@ func TestSetupRouter_ExamplesStatusEndpointRegistered(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, w.Body.String(), "sub2api-extension")
+	assert.Contains(t, w.Body.String(), "aux-system")
 	assert.Contains(t, w.Body.String(), "server_time")
 }
 
@@ -561,7 +595,7 @@ func TestSetupRouter_FrontendStaticServesIndexForSPARoutes(t *testing.T) {
 	w3 := httptest.NewRecorder()
 	r.ServeHTTP(w3, req3)
 	require.Equal(t, http.StatusOK, w3.Code)
-	assert.Contains(t, w3.Body.String(), "sub2api-extension")
+	assert.Contains(t, w3.Body.String(), "aux-system")
 
 	// /api/* 未匹配路径仍返回 404 JSON(不被 index.html 接管)
 	req4 := httptest.NewRequest(http.MethodGet, "/api/aux/nonexistent", nil)

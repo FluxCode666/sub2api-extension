@@ -1,16 +1,16 @@
 ---
-name: sub2api-extension-operations
-description: 修改或排查 sub2api-extension 的 Docker、Compose、GitHub Actions、GHCR、NGINX、测试/生产部署、图片持久化和回滚时使用。覆盖环境隔离、Secrets、健康检查与证书路径。
+name: aux-system-operations
+description: 修改或排查 aux-system 的 Docker、Compose、GitHub Actions、GHCR、NGINX、测试/生产部署、图片持久化和回滚时使用。覆盖环境隔离、Secrets、健康检查与证书路径。
 ---
 
-# sub2api-extension 部署与运维规范
+# aux-system 部署与运维规范
 
 ## 项目与兼容标识
 
-- 项目展示名和 GHCR 镜像名：`sub2api-extension`。
-- 测试镜像：`ghcr.io/<owner>/sub2api-extension:test-<sha7>` 与 `test-latest`。
-- 生产镜像：`ghcr.io/<owner>/sub2api-extension:<version>` 与 `latest`。
-- 为兼容既有 sub2api 集成，Compose 服务名仍是 `aux-backend`，API 前缀仍是 `/api/aux/*`；项目环境变量统一使用 `SUB2API_EXTENSION_*` 前缀。GitHub Environment 的部署密钥和变量继续使用无项目前缀的名称。
+- 项目展示名和 GHCR 镜像名：`aux-system`。
+- 测试镜像：`ghcr.io/<owner>/aux-system:test-<sha7>` 与 `test-latest`。
+- 生产镜像：`ghcr.io/<owner>/aux-system:<version>` 与 `latest`。
+- 为兼容既有 Sub2API 集成，Compose project、开发数据卷、开发服务名 `aux-backend`、API 前缀 `/api/aux/*` 和 `SUB2API_EXTENSION_*` 环境变量继续保留旧标识。生产 Compose 服务名为 `aux-system`。GitHub Release 仓库在外部实际重命名前仍使用 `FluxCode666/sub2api-extension`。
 - 不要把数据库密码、JWT、PAT 或 SSH 私钥写入仓库、页面元数据或动态 HTML。
 
 ## GitHub Actions 与更新
@@ -21,9 +21,11 @@ description: 修改或排查 sub2api-extension 的 Docker、Compose、GitHub Act
 - `release.yml`：semver tag 触发，CI 后构建 amd64/arm64 应用镜像和二进制更新包，再发布中文 GitHub Release、镜像摘要清单和部署附件。不连接生产服务器，不使用生产 SSH Secrets 或 deployment job。
 - 已公开 tag 不允许覆盖；预发布不覆盖 latest。发布说明从 CHANGELOG.md 中与 tag 对应的中文章节提取。
 
-生产使用基础 `deploy/docker-compose.yml`（aux-migrate、aux-backend、外部 PostgreSQL）。应用进程从固定仓库的最新正式 Release 下载当前平台二进制，校验后原子替换自身并在重启后生效；不需要额外更新容器、Compose override 或 Docker socket。详细安装与故障恢复步骤遵循 `deploy/UPDATES.md`，不要绕过鉴权、版本校验和质量门禁。
+生产使用基础 `deploy/docker-compose.yml`（单一 `aux-system` 服务、外部 PostgreSQL），启动时默认执行幂等 Ent 自动迁移。应用进程从固定仓库的最新正式 Release 下载当前平台二进制，校验后原子替换自身并在重启后生效；不需要额外更新容器、Compose override 或 Docker socket。详细安装与故障恢复步骤遵循 `deploy/UPDATES.md`，不要绕过鉴权、版本校验和质量门禁。
 
-更新请求只接受可选的旧页面版本校验，目标版本、下载 URL 和校验文件全部由服务端从 Release 元数据解析；不接受浏览器传入任意镜像、URL 或 shell 命令。应用使用 15 分钟操作上下文、并发互斥、SHA-256 校验和同目录原子替换，失败时恢复旧二进制并保留 `.backup`。更新不会执行数据库迁移；schema 变化仍需通过 `aux-migrate` 发布和部署。
+更新请求只接受可选的旧页面版本校验，目标版本、下载 URL 和校验文件全部由服务端从 Release 元数据解析；不接受浏览器传入任意镜像、URL 或 shell 命令。应用使用 15 分钟操作上下文、并发互斥、SHA-256 校验和同目录原子替换，失败时恢复旧二进制并保留 `.backup`。服务重启后默认自动迁移；若设置 `AUTO_MIGRATE=false`，schema 变化需在启动前显式执行迁移。
+
+改名过渡期同时发布 `sub2api-extension_linux_*` 兼容别名；`release-manifest.json.image` 保留旧镜像坐标供旧更新器校验，`applicationImage` 记录实际 `aux-system` 镜像，现有实例可完成首次升级。
 
 必须保留部署目录的 .env、既有 Compose project、容器名称、网络、端口、数据库、JWT 和资源卷。已有 aux-system 部署要先核对实际 project 和卷，不可擅自改成新的默认名。测试与生产各使用独立配置和数据；开发 Compose 的 PostgreSQL 不带入生产。
 
@@ -43,7 +45,8 @@ description: 修改或排查 sub2api-extension 的 Docker、Compose、GitHub Act
 
 - `deploy/nginx/nginx.conf`
 - `deploy/nginx/conf.d/sub2api-extension.conf`
-- `deploy/nginx/snippets/sub2api-extension-proxy.conf`
+
+站点配置文件名为兼容旧部署继续保留 `sub2api-extension.conf`；文件内的服务标识、日志名和示例域名使用 aux-system 约定。
 
 生产 Compose 默认只绑定 `127.0.0.1:8004`，公网 HTTPS 由 NGINX 反代。证书路径必须使用：
 
@@ -68,7 +71,7 @@ curl --fail https://<domain>/health
 
 ```bash
 docker compose -f docker-compose.yml --env-file .env ps
-docker compose -f docker-compose.yml --env-file .env logs --tail=200 aux-backend
+docker compose -f docker-compose.yml --env-file .env logs --tail=200 aux-system
 curl -v http://127.0.0.1:8004/health
 docker network inspect sub2api-network
 ```

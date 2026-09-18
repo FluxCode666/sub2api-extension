@@ -27,7 +27,7 @@ class ReleaseTests(unittest.TestCase):
             'GITHUB_REF_TYPE': 'tag', 'RELEASE_TAG': 'v0.6.0',
             'GITHUB_REPOSITORY': 'FluxCode666/sub2api-extension',
             'GITHUB_OUTPUT': 'output', 'GITHUB_STEP_SUMMARY': 'summary',
-            'RELEASE_IMAGE': 'ghcr.io/fluxcode666/sub2api-extension',
+            'RELEASE_IMAGE': 'ghcr.io/fluxcode666/aux-system',
             'APP_DIGEST': 'sha256:' + 'a' * 64,
             'GITHUB_SHA': 'c' * 40, 'IS_LATEST': 'true', 'IS_PRERELEASE': 'false',
         })
@@ -35,6 +35,7 @@ class ReleaseTests(unittest.TestCase):
         Path('CHANGELOG.md').write_text('# Changelog\n\n## [0.6.0] - 2026-09-09\n\n新增管理员更新功能。\n\n## [0.5.0]\n旧内容\n')
         Path('release-assets').mkdir()
         for arch in ('amd64', 'arm64'):
+            Path(f'release-assets/aux-system_linux_{arch}.tar.gz').write_bytes(b'archive')
             Path(f'release-assets/sub2api-extension_linux_{arch}.tar.gz').write_bytes(b'archive')
         Path('release-assets/checksums.txt').write_text('checksums\n')
 
@@ -91,9 +92,20 @@ class ReleaseTests(unittest.TestCase):
         manifest = json.loads(Path('release-manifest.json').read_text())
         self.assertEqual(manifest['version'], 'v0.6.0')
         self.assertEqual(manifest['digest'], 'sha256:' + 'a' * 64)
+        self.assertEqual(manifest['image'], 'ghcr.io/fluxcode666/sub2api-extension')
+        self.assertEqual(manifest['applicationImage'], 'ghcr.io/fluxcode666/aux-system')
+        self.assertTrue(any(any('aux-system_linux_amd64.tar.gz' in arg for arg in args) for args in commands))
+        self.assertTrue(any(any('sub2api-extension_linux_amd64.tar.gz' in arg for arg in args) for args in commands))
+        self.assertTrue(any('v0.6.0 · aux-system' in args for args in commands))
 
     def test_missing_digest_never_publishes(self):
         os.environ['APP_DIGEST'] = ''
+        with patch.object(publish.subprocess, 'run') as run, self.assertRaises(RuntimeError):
+            publish.main()
+        run.assert_not_called()
+
+    def test_non_aux_image_never_publishes(self):
+        os.environ['RELEASE_IMAGE'] = 'ghcr.io/fluxcode666/other'
         with patch.object(publish.subprocess, 'run') as run, self.assertRaises(RuntimeError):
             publish.main()
         run.assert_not_called()

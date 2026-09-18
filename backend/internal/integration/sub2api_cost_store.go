@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"sub2api-extension/internal/ops"
-	"sub2api-extension/internal/ttft"
+	"aux-system/internal/ops"
+	"aux-system/internal/ttft"
 )
 
 // Sub2APICostStore reads Sub2API's read-only usage/account tables. Account

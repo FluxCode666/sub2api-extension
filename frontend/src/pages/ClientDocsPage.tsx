@@ -8,6 +8,7 @@ import { CC_SWITCH_DOCS_URL, CC_SWITCH_DOWNLOAD_URL, CLIENT_GUIDES, getCCSwitchE
 import { trackFeatureClick } from '@/lib/telemetry-sdk'
 import { apiClient, type AuxEnvelope } from '@/lib/api-client'
 import { DEFAULT_HOMEPAGE_CONFIG, isHomepageNavigationHref, type HomepageConfig } from '@/lib/homepage'
+import { DEFAULT_SUB2API_SYSTEM_NAME, resolveSystemName } from '@/lib/system-name'
 import '@fontsource-variable/geist'
 import './ClientDocsPage.css'
 
@@ -200,7 +201,7 @@ export default function ClientDocsPage() {
   const [models, setModels] = useState<Partial<Record<ClientId, string>>>({})
   const [searchQuery, setSearchQuery] = useState('')
   const [activeSection, setActiveSection] = useState('prepare')
-  const [systemName, setSystemName] = useState('')
+  const [systemName, setSystemName] = useState(DEFAULT_SUB2API_SYSTEM_NAME)
   const [consoleHref, setConsoleHref] = useState(DEFAULT_HOMEPAGE_CONFIG.consoleHref)
   const embedded = params.get('embed') === '1' || params.get('ui_mode') === 'embedded'
   const baseURL = normalizeGatewayURL(baseInput)
@@ -281,16 +282,15 @@ export default function ClientDocsPage() {
 
   useEffect(() => {
     const previous = document.title
-    document.title = `${guide.name} 接入指南 · 客户端文档`
+    document.title = `${guide.name} 接入指南 · ${systemName}`
     return () => { document.title = previous }
-  }, [guide.name])
+  }, [guide.name, systemName])
 
   useEffect(() => {
     let active = true
     void apiClient.get<AuxEnvelope<Partial<HomepageConfig>>>('/homepage/config').then(envelope => {
-      const name = envelope.data?.siteName?.trim() || envelope.data?.heroTitle?.trim()
-      if (active && envelope.code === 0 && name) {
-        setSystemName(name)
+      if (active && envelope.code === 0) {
+        setSystemName(resolveSystemName(envelope.data))
       }
       const configuredDomain = envelope.data?.systemDomain?.trim()
       if (active && envelope.code === 0 && configuredDomain && !baseInputDirty.current) {
@@ -553,6 +553,6 @@ export default function ClientDocsPage() {
         <div className="client-reading-note"><Check size={18} aria-hidden="true" /><p>接入完成后<br />发送「当前时间」<br />确认收到正常回复。</p></div>
       </div></aside>
     </main>
-    <footer className="client-footer client-shell"><div className="client-footer-brand"><Terminal size={18} aria-hidden="true" /><span>{systemName ? `${systemName} · 客户端接入文档` : '客户端接入文档'}</span></div><span>{CLIENT_GUIDES.length} 种客户端 · 持续更新</span><span className="client-footer-copyright">© 2026 {systemName || 'TERALEMO'}. All rights reserved.</span><nav aria-label="相关文档"><Link to={apiDocsHref} onClick={() => trackFeatureClick('client-docs', 'open-api-docs')}>API 参考 <ArrowUpRight size={16} aria-hidden="true" /></Link><a href="#top" onClick={event => { event.preventDefault(); scrollTopRef.current() }}>回到顶部 <ArrowUp size={16} aria-hidden="true" /></a></nav></footer>
+    <footer className="client-footer client-shell"><div className="client-footer-brand"><Terminal size={18} aria-hidden="true" /><span>{systemName} · 客户端接入文档</span></div><span>{CLIENT_GUIDES.length} 种客户端 · 持续更新</span><span className="client-footer-copyright">© 2026 {systemName}. All rights reserved.</span><nav aria-label="相关文档"><Link to={apiDocsHref} onClick={() => trackFeatureClick('client-docs', 'open-api-docs')}>API 参考 <ArrowUpRight size={16} aria-hidden="true" /></Link><a href="#top" onClick={event => { event.preventDefault(); scrollTopRef.current() }}>回到顶部 <ArrowUp size={16} aria-hidden="true" /></a></nav></footer>
   </div>
 }

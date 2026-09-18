@@ -20,10 +20,10 @@ import (
 	"time"
 	"unicode"
 
-	"sub2api-extension/ent"
-	"sub2api-extension/ent/notificationchannel"
-	"sub2api-extension/ent/notificationdelivery"
-	"sub2api-extension/ent/systemmeta"
+	"aux-system/ent"
+	"aux-system/ent/notificationchannel"
+	"aux-system/ent/notificationdelivery"
+	"aux-system/ent/systemmeta"
 )
 
 const InvoiceApplicationNotificationEvent = "invoice.application.created"

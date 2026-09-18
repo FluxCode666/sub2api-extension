@@ -25,6 +25,7 @@ import { apiClient, type AuxEnvelope } from '@/lib/api-client'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { downloadInvoiceFile, formatDate, formatMoney, invoiceStatusClass, invoiceStatusLabel, type InvoiceOrder, type InvoiceProfile, type InvoiceRequest } from '@/lib/invoices'
+import { DEFAULT_SUB2API_SYSTEM_NAME, resolveSystemName, type SystemNameConfig } from '@/lib/system-name'
 
 gsap.registerPlugin(useGSAP)
 if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
@@ -42,6 +43,7 @@ const emptyForm = {
 }
 
 export default function InvoicePortalPage() {
+  const [siteName, setSiteName] = useState(DEFAULT_SUB2API_SYSTEM_NAME)
   const [enabled, setEnabled] = useState<boolean | null>(null)
   const [orders, setOrders] = useState<InvoiceOrder[]>([])
   const [requests, setRequests] = useState<InvoiceRequest[]>([])
@@ -157,6 +159,22 @@ export default function InvoicePortalPage() {
 
   useEffect(() => { void load() }, [load])
 
+  useEffect(() => {
+    let active = true
+    void apiClient.get<AuxEnvelope<SystemNameConfig>>('/homepage/config').then((response) => {
+      if (active && response.code === 0) setSiteName(resolveSystemName(response.data))
+    }).catch(() => {
+      // 品牌配置读取失败不应阻断发票业务。
+    })
+    return () => { active = false }
+  }, [])
+
+  useEffect(() => {
+    const previous = document.title
+    document.title = `${siteName} · 发票中心`
+    return () => { document.title = previous }
+  }, [siteName])
+
   const selectedOrder = useMemo(() => orders.find((order) => order.payment_order_id === selected) ?? null, [orders, selected])
   const total = selectedOrder?.amount ?? 0
 
@@ -270,7 +288,7 @@ export default function InvoicePortalPage() {
 
         <section className="invoice-section invoice-history-section invoice-shell"><div className="invoice-section-heading"><div><p className="invoice-section-kicker">申请记录</p><h2>我的开票申请</h2><p>管理员上传发票后，你可以在这里下载文件。</p></div><button type="button" onClick={() => void refreshRequests()} disabled={refreshingRequests} className="invoice-section-action" aria-label="刷新我的开票申请"><RefreshCw className={refreshingRequests ? 'invoice-spin-icon' : ''} /><span>{refreshingRequests ? '刷新中…' : '刷新记录'}</span></button></div>{requests.length === 0 ? <div className="invoice-panel invoice-empty-history"><FileText className="h-8 w-8 text-slate-300" /><p>暂无开票申请记录</p><span>提交第一笔申请后，处理进度会显示在这里。</span></div> : <><div className="max-h-[760px] overflow-y-auto pr-1" onScroll={handleRequestScroll}><div className="grid gap-3 md:grid-cols-2">{requests.map((request) => <article key={request.id} className="invoice-panel invoice-request-card" onPointerEnter={hoverIn} onPointerLeave={hoverOut}><div className="flex items-start justify-between gap-4"><div><p className="font-mono text-xs text-slate-400">申请 #{request.id}</p><h3 className="mt-2 text-lg font-semibold text-slate-950">{request.invoice_title}</h3></div><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${invoiceStatusClass(request.status)}`}>{invoiceStatusLabel(request.status)}</span></div><div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-500"><span>{formatMoney(request.amount)}</span><span>{request.orders.length > 0 ? `${request.orders.length} 笔订单` : '线下支付'}</span><span>{formatDate(request.created_at)}</span></div>{request.admin_note && <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">管理员备注：{request.admin_note}</p>}<div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">{request.document_available ? <button type="button" onClick={() => void download(request.id)} disabled={downloading === request.id} className="invoice-download-button">{downloading === request.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}下载发票</button> : <span className="text-sm text-slate-400">{request.status === 'REJECTED' ? '申请已驳回，请联系管理员处理' : '等待管理员开具'}</span>}<span className="text-xs text-slate-400">{request.document_name || '未上传文件'}</span></div></article>)}</div></div><div className="mt-4 flex items-center justify-between text-xs text-slate-400"><span>已显示 {requests.length} / {requestTotal} 条</span>{requestPage < requestTotalPages ? <button type="button" onClick={() => void loadMoreRequests()} disabled={loadingMoreRequests} className="invoice-section-action invoice-section-action--compact">{loadingMoreRequests ? <Loader2 className="invoice-spin-icon" /> : <ArrowDownRight />}{loadingMoreRequests ? '加载中…' : '加载更多记录'}</button> : <span>已加载全部记录</span>}</div></>}</section>
       </main>
-      <footer className="invoice-footer"><div className="invoice-shell flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><span>TERALEMO 企业客户服务</span><span>开票资料仅用于本次发票处理</span></div></footer>
+      <footer className="invoice-footer"><div className="invoice-shell flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><span>{siteName} 企业客户服务</span><span>开票资料仅用于本次发票处理</span></div></footer>
     </div>
   )
 }

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"sub2api-extension/internal/sub2apimenu"
+	"aux-system/internal/sub2apimenu"
 )
 
 const customMenuItemsSettingKey = "custom_menu_items"

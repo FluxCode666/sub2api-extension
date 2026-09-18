@@ -3,10 +3,10 @@
 package ent
 
 import (
+	"aux-system/ent/page"
 	"context"
 	"errors"
 	"fmt"
-	"sub2api-extension/ent/page"
 	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"

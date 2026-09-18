@@ -3,9 +3,9 @@
 package ent
 
 import (
+	"aux-system/ent/featureclick"
+	"aux-system/ent/predicate"
 	"context"
-	"sub2api-extension/ent/featureclick"
-	"sub2api-extension/ent/predicate"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"

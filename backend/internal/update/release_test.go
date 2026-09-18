@@ -35,6 +35,7 @@ func TestGitHubReleaseValidationAndCache(t *testing.T) {
 		hasManifest            bool
 	}{
 		{"valid", `{"tag_name":"v0.6.0","body":"中文发布说明","assets":[{"id":12,"name":"release-manifest.json"}]}`, `{"schema":1,"version":"v0.6.0","image":"` + DefaultImage + `","digest":"sha256:` + strings.Repeat("a", 64) + `"}`, false, true},
+		{"legacy image compatibility", `{"tag_name":"v0.6.0","assets":[{"id":12,"name":"release-manifest.json"}]}`, `{"schema":1,"version":"v0.6.0","image":"ghcr.io/fluxcode666/sub2api-extension","applicationImage":"` + DefaultImage + `","digest":"sha256:` + strings.Repeat("a", 64) + `"}`, false, true},
 		{"old release", `{"tag_name":"v0.5.0"}`, "", false, false},
 		{"prerelease", `{"tag_name":"v0.6.0-rc.1","prerelease":true}`, "", true, false},
 		{"draft", `{"tag_name":"v0.6.0","draft":true}`, "", true, false},
@@ -70,6 +71,12 @@ func TestGitHubReleaseValidationAndCache(t *testing.T) {
 			require.Greater(t, calls, before)
 		})
 	}
+}
+
+func TestCompatibleManifestImage(t *testing.T) {
+	require.True(t, compatibleManifestImage("ghcr.io/example/aux-system", "ghcr.io/example/sub2api-extension"))
+	require.True(t, compatibleManifestImage("ghcr.io/example/sub2api-extension", "ghcr.io/example/aux-system"))
+	require.False(t, compatibleManifestImage("ghcr.io/example/aux-system", "ghcr.io/other/sub2api-extension"))
 }
 
 func TestGitHubErrorDoesNotExposeResponseOrToken(t *testing.T) {

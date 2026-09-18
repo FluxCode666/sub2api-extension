@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.8.0] - 2026-09-18
+
+### 变更
+
+- 项目展示名、Go module、健康检查服务名、JWT 新签发 issuer、前端包名、GHCR 镜像和二进制更新包统一由 `sub2api-extension` 改为 `aux-system`。
+- 移除公开页面中的 `TERALEMO` 硬编码；API 文档、客户端文档、动态官网、发票和促销页面统一读取公开系统配置的 `siteName`，并兼容旧配置中的 `heroTitle`。
+- 系统配置页支持选择或拖拽上传 Sub2API 系统 Logo，提供上传状态、预览、替换和移除操作；保存后官网与 API 文档统一读取 `siteLogoUrl`。
+- 仓库内项目 skill 统一改名为 `aux-system-page-writer`、`aux-system-integration` 和 `aux-system-operations`。
+- 复制现有 Sub2API 完整官网作为独立 ToB 官网 `/tob-home` 与 `/embed-tob`，保留原官网的 Hero、指标、快速接入、生态、安全、开发者、页脚和配置项，并新增 React Simple Maps 全球网络板块；管理端 `/admin/tob-homepage` 在完整官网配置基础上支持多个主服务器、CDN 集群和客户位置。
+- ToB 全球网络配置新增节点名称开关、连线曲度和 `10%–200%` 节点大小滑块、三类节点颜色、实线/虚线以及数据流动效果开关；旧配置自动使用兼容默认值。
+- ToB 官网调整为企业能力、全球网络、交付流程、生态与安全的阅读顺序，补充全球主服务器与 CDN 覆盖、中国大陆优化节点和企业交付说明；ToC 官网配置入口明确标记为「ToC 官网配置」。
+- 全局操作结果通知统一使用右上角 Sonner toast，并在 `AGENTS.md` 与 `CLAUDE.md` 中补充 success、error、warning、info 的语义和使用边界。
+
+### 修复
+
+- ToB 官网配置保存时忽略尚未填写的新增节点行；已填写一部分的节点会提示具体类型、序号和无效字段。配置加载、校验与保存失败统一使用右上角 `error` 通知，不再在页面顶部显示错误条。
+- ToB 全球网络地图改用完整覆盖全球经纬范围的高密度小粒子投影，美洲保持显示在右侧且不展示南极洲；地图横向铺满页面，移除节点统计条、图例、外框、独立底色和节点白色外圈，并缓存点阵计算以改善加载速度。
+- ToB 官网优化标题行高、板块留白、移动端导航和响应式排版，统一「连接更快、更稳。」等强调文案的主题渐变效果。
+
+### 兼容性与升级
+
+- `/api/aux/*`、`SUB2API_EXTENSION_*`、Compose project/数据卷、服务名 `aux-backend` 与 GitHub 仓库 `FluxCode666/sub2api-extension` 保持兼容，无数据库迁移。
+- ToB 配置继续独立保存到现有 `system_meta`；首次尚无 `homepage.tob.config` 时以当前 `homepage.config` 作为完整副本，不修改原官网配置。
+- 新 Release 以 `aux-system_linux_*` 为主更新包，并在改名过渡期同时发布 `sub2api-extension_linux_*` 兼容别名；清单保留旧镜像坐标用于旧更新器校验，并单独记录实际 `aux-system` 镜像，现有实例可继续使用管理员更新完成首次升级。
+- 容器部署升级时将 `SUB2API_EXTENSION_IMAGE` 改为 `ghcr.io/fluxcode666/aux-system`；不要更换已有 Compose project 或数据卷。回滚旧二进制不会撤销配置，旧 JWT 仍可按现有验签规则使用。
+
+### 已知限制
+
+- GitHub 仓库尚未执行外部重命名，因此源码标签与更新检查仍指向旧仓库地址；待仓库实际迁移后再单独调整该坐标。
+- ToB 地图底图由浏览器从 jsDelivr 加载 world-atlas 数据；离线部署需要将该底图资源纳入同源静态资源并调整 `TobNetworkMap` 的 `GEO_URL`。
+
 ## [0.7.11] - 2026-09-16
 
 ### 修复

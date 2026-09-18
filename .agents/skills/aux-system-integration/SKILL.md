@@ -1,11 +1,11 @@
 ---
-name: sub2api-extension-integration
-description: 配置或排查 sub2api 与 sub2api-extension 的 iframe、登录会话、custom_menu_items、home_content、域名、CSP 和反向代理集成时使用。不用于普通页面 CRUD 或单纯 Docker 发布。
+name: aux-system-integration
+description: 配置或排查 Sub2API 与 aux-system 的 iframe、登录会话、custom_menu_items、home_content、域名、CSP 和反向代理集成时使用。不用于普通页面 CRUD 或单纯 Docker 发布。
 ---
 
-# sub2api-extension 集成与会话规范
+# aux-system 集成与会话规范
 
-sub2api-extension 是独立服务，不导入 sub2api 后端代码，业务数据保存在自有数据库。两者通过 HTTP 身份验证和 iframe 配置连接；`SUB2API_DATABASE_*` 独立连接用于明确的账号、消费等只读查询与菜单等受控同步。修改集成时先确认请求发生在浏览器还是容器内：浏览器需要公网/可解析域名，后端到 sub2api 才可以使用 Docker 内网地址。
+aux-system 是独立服务，不导入 Sub2API 后端代码，业务数据保存在自有数据库。两者通过 HTTP 身份验证和 iframe 配置连接；`SUB2API_DATABASE_*` 独立连接用于明确的账号、消费等只读查询与菜单等受控同步。修改集成时先确认请求发生在浏览器还是容器内：浏览器需要公网/可解析域名，后端到 Sub2API 才可以使用 Docker 内网地址。
 
 ## 两条嵌入链路
 
@@ -41,7 +41,7 @@ sub2api-extension 是独立服务，不导入 sub2api 后端代码，业务数�
 ## 域名、CSP 与 NGINX
 
 - iframe URL 的域名来自 `custom_menu_items`/`home_content` 配置，不会自动从 Docker 服务名推断公网域名。
-- 生产推荐由宿主机 NGINX 终止 HTTPS，再反代到 `127.0.0.1:8787`；证书使用 `/etc/nginx/certs/<domain>/`。
+- 生产推荐由宿主机 NGINX 终止 HTTPS，再反代到 `127.0.0.1:8004`；证书使用 `/etc/nginx/certs/<domain>/`。
 - NGINX 不要添加 `X-Frame-Options`，否则 sub2api iframe 会被阻断；保留 HTTPS、`nosniff`、HSTS 和严格 referrer policy。
 - sub2api 的 CSP `frame-src` 通常从菜单 URL 提取 origin；修改域名后重新保存菜单配置并检查浏览器 Console。
 - 同一个公开页被别的站点 iframe 嵌入时，请求仍然发往 extension 配置的域名；父页面不会改变该页面的 origin。

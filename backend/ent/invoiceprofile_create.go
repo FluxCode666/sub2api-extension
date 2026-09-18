@@ -3,10 +3,10 @@
 package ent
 
 import (
+	"aux-system/ent/invoiceprofile"
 	"context"
 	"errors"
 	"fmt"
-	"sub2api-extension/ent/invoiceprofile"
 	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"

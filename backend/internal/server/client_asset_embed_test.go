@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
-	"sub2api-extension/internal/web"
+	"aux-system/internal/web"
 )
 
 // TestEmbedFallbackServesClientAssetsFromSeed 验证资源目录为空时，

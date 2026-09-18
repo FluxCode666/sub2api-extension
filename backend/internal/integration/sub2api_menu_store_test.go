@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"sub2api-extension/internal/sub2apimenu"
+	"aux-system/internal/sub2apimenu"
 
 	"github.com/stretchr/testify/require"
 )

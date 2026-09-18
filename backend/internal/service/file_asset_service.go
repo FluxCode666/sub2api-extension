@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"sub2api-extension/ent"
-	"sub2api-extension/ent/invoicerequest"
+	"aux-system/ent"
+	"aux-system/ent/invoicerequest"
 )
 
 // MaxFileAssetNoteLength limits the administrator note stored with a file

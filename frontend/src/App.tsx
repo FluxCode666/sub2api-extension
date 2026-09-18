@@ -36,6 +36,8 @@ import InteractionExamplePage from '@/pages/examples/InteractionExamplePage'
 import APIExamplePage from '@/pages/examples/APIExamplePage'
 import HomepagePage from '@/pages/HomepagePage'
 import HomepageConfigPage from '@/pages/admin/HomepageConfigPage'
+import TobHomepagePage from '@/pages/TobHomepagePage'
+import TobHomepageConfigPage from '@/pages/admin/TobHomepageConfigPage'
 import ApiDocsPage from '@/pages/ApiDocsPage'
 import { fetchDynamicPages } from '@/lib/dynamic-pages'
 
@@ -88,6 +90,8 @@ export default function App() {
       <Route path="/" element={<AdminEntryRedirect />} />
       <Route path="/sub2api-home" element={<HomepagePage />} />
       <Route path="/embed" element={<HomepagePage />} />
+      <Route path="/tob-home" element={<TobHomepagePage />} />
+      <Route path="/embed-tob" element={<TobHomepagePage />} />
       {/* 独立登录入口: AdminGuard 的 no-embedded-token 分支重定向到此。
           功能路由, 不登记到 page-registry (非内容页, 不污染埋点仪表盘)。 */}
       <Route element={<PublicLayout />}>
@@ -110,6 +114,7 @@ export default function App() {
         <Route index element={<AdminEntryRedirect />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="homepage" element={<HomepageConfigPage />} />
+        <Route path="tob-homepage" element={<TobHomepageConfigPage />} />
         <Route path="pages" element={<PageManagementPage />} />
         <Route path="files" element={<FileManagementPage />} />
         {/* Legacy bookmark: the former image resource route now points to the same file manager. */}

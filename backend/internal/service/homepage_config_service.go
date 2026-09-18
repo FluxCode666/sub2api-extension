@@ -10,8 +10,8 @@ import (
 	"net/url"
 	"strings"
 
-	"sub2api-extension/ent"
-	"sub2api-extension/ent/systemmeta"
+	"aux-system/ent"
+	"aux-system/ent/systemmeta"
 )
 
 const HomepageConfigKey = "homepage.config"
@@ -166,6 +166,11 @@ func (s *HomepageConfigService) Save(ctx context.Context, config HomepageConfig)
 
 func normalizeHomepageConfig(config HomepageConfig) HomepageConfig {
 	defaults := DefaultHomepageConfig()
+	legacySystemName := strings.TrimSpace(config.HeroTitle)
+	if strings.TrimSpace(config.SiteName) == "" && legacySystemName != "" && legacySystemName != legacyHomepageHeroTitle {
+		config.SiteName = legacySystemName
+		config.HeroTitle = defaults.HeroTitle
+	}
 	if config.ShowDevelopersSection == nil {
 		config.ShowDevelopersSection = defaults.ShowDevelopersSection
 	}

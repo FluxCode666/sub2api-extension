@@ -3,9 +3,9 @@
 package ent
 
 import (
+	"aux-system/ent/operationlog"
 	"fmt"
 	"strings"
-	"sub2api-extension/ent/operationlog"
 	"time"
 
 	"entgo.io/ent"

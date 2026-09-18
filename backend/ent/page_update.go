@@ -3,11 +3,11 @@
 package ent
 
 import (
+	"aux-system/ent/page"
+	"aux-system/ent/predicate"
 	"context"
 	"errors"
 	"fmt"
-	"sub2api-extension/ent/page"
-	"sub2api-extension/ent/predicate"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
