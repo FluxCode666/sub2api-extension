@@ -78,8 +78,8 @@ describe('TobHomepagePage', () => {
 
     render(<MemoryRouter initialEntries={['/tob-home']}><TobHomepagePage /></MemoryRouter>)
 
-    const navigation = within(await screen.findByRole('navigation', { name: '主导航' }))
-    expect(navigation.getByRole('link', { name: '企业方案' })).toHaveAttribute('href', '#capabilities')
+    const navigation = within(screen.getByRole('navigation', { name: '主导航' }))
+    expect(await navigation.findByRole('link', { name: '企业方案' })).toHaveAttribute('href', '#capabilities')
     expect(navigation.getByRole('link', { name: '交付路线' })).toHaveAttribute('href', '#quickstart')
     expect(navigation.getByRole('link', { name: '客户案例' })).toHaveAttribute('href', 'https://example.com/cases')
     expect(navigation.queryByRole('link', { name: '企业能力' })).not.toBeInTheDocument()
