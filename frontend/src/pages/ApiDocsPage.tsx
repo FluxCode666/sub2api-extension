@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { trackFeatureClick } from '@/lib/telemetry-sdk'
 import gsap from 'gsap'
 import {
@@ -22,7 +22,8 @@ import { apiClient, type AuxEnvelope } from '@/lib/api-client'
 import { DEFAULT_SUB2API_SYSTEM_NAME, resolveSystemName } from '@/lib/system-name'
 import '@fontsource-variable/geist'
 import './ApiDocsPage.css'
-import { withAppBasePath } from '@/lib/app-base-path'
+import { toCurrentOriginURI, toSameOriginPath, withAppBasePath } from '@/lib/app-base-path'
+import { DEFAULT_SYSTEM_POSITION, homepagePathForPosition, normalizeSystemPosition, type SystemPosition } from '@/lib/system-position'
 
 type EndpointGroup = 'OpenAI 兼容' | '多模态' | 'Anthropic 兼容' | 'Google 原生'
 type ExampleLanguage = 'curl' | 'python' | 'go' | 'java'
@@ -41,6 +42,7 @@ interface Endpoint {
   group: EndpointGroup
   method: 'GET' | 'POST'
   path: string
+  exampleModel?: string
   title: string
   description: string
   auth: string
@@ -201,6 +203,7 @@ const endpoints: Endpoint[] = [
     group: '多模态',
     method: 'POST',
     path: '/v1/images/generations',
+    exampleModel: 'gpt-image-1',
     title: '生成图片',
     description: '使用 OpenAI 兼容格式发起图片生成请求。返回 URL 或 base64 数据取决于服务端配置。',
     auth: '需要 API Key',
@@ -226,6 +229,130 @@ const endpoints: Endpoint[] = [
       { name: 'data', type: 'array', required: true, defaultValue: '[]', description: '生成结果数组。' },
       { name: 'data[].url', type: 'string', required: false, defaultValue: 'null', description: '图片临时 URL，与 b64_json 二选一。' },
       { name: 'data[].b64_json', type: 'string', required: false, defaultValue: 'null', description: 'Base64 图片数据，与 url 二选一。' },
+    ],
+  },
+  {
+    id: 'images-async',
+    group: '多模态',
+    method: 'POST',
+    path: '/v1/images/generations/async',
+    exampleModel: 'gpt-image-1',
+    title: '异步生成图片',
+    description: '提交长耗时图片生成任务并立即获得任务 ID，避免 CDN 或代理连接超时。接口返回 202 Accepted，并通过 Location 与 Retry-After: 3 指引轮询。仅 OpenAI、Grok 分组可用，且服务端必须已启用对象存储，否则返回 404；不支持 stream=true。',
+    auth: '需要 API Key',
+    request: `{
+  "model": "gpt-image-1",
+  "prompt": "A lighthouse during a winter storm",
+  "size": "1536x1024",
+  "n": 1
+}`,
+    response: `{
+  "id": "imgtask_0123456789abcdef",
+  "task_id": "imgtask_0123456789abcdef",
+  "object": "image.generation.task",
+  "status": "processing",
+  "created_at": 1784092800,
+  "expires_at": 1784179200,
+  "poll_url": "/v1/images/tasks/imgtask_0123456789abcdef"
+}`,
+    requestParams: [
+      { name: 'model', type: 'string', required: true, defaultValue: '-', description: '图片生成模型 ID。' },
+      { name: 'prompt', type: 'string', required: true, defaultValue: '-', description: '用于生成图片的自然语言描述。' },
+      { name: 'size', type: 'string', required: false, defaultValue: '"1024x1024"', description: '输出尺寸，可用值由模型决定。' },
+      { name: 'n', type: 'integer', required: false, defaultValue: '1', description: '生成图片数量。' },
+      { name: 'response_format', type: 'string', required: false, defaultValue: '服务端默认', description: '接受同步接口的相同参数；任务完成后统一返回对象存储 URL。' },
+      { name: 'stream', type: 'boolean', required: false, defaultValue: 'false', description: '异步任务不支持流式图片响应，传入 true 将返回 400。' },
+    ],
+    responseParams: [
+      { name: 'id', type: 'string', required: true, defaultValue: '-', description: '异步图片任务 ID，与 task_id 相同。' },
+      { name: 'task_id', type: 'string', required: true, defaultValue: '-', description: '用于查询任务状态的 ID。' },
+      { name: 'object', type: 'string', required: true, defaultValue: '"image.generation.task"', description: '异步图片任务对象类型。' },
+      { name: 'status', type: 'string', required: true, defaultValue: '"processing"', description: '任务已接收并进入处理状态。' },
+      { name: 'created_at', type: 'integer', required: true, defaultValue: '-', description: '任务创建时间，Unix 秒时间戳。' },
+      { name: 'expires_at', type: 'integer', required: true, defaultValue: '-', description: '任务记录过期时间，Unix 秒时间戳。' },
+      { name: 'poll_url', type: 'string', required: true, defaultValue: '-', description: '后续查询任务状态的相对路径。' },
+    ],
+  },
+  {
+    id: 'image-edits-async',
+    group: '多模态',
+    method: 'POST',
+    path: '/v1/images/edits/async',
+    exampleModel: 'gpt-image-1',
+    title: '异步编辑图片',
+    description: '异步提交图片编辑任务，支持与同步编辑接口相同的 JSON 图片 URL 或 multipart/form-data 文件上传。返回 202 Accepted；仅 OpenAI、Grok 分组且已启用对象存储时可用，未启用时返回 404。',
+    auth: '需要 API Key',
+    request: `{
+  "model": "gpt-image-1",
+  "prompt": "Replace the background with a snowy mountain",
+  "images": [{ "image_url": "https://example.com/source.png" }],
+  "size": "1536x1024"
+}`,
+    response: `{
+  "id": "imgtask_0123456789abcdef",
+  "task_id": "imgtask_0123456789abcdef",
+  "object": "image.generation.task",
+  "status": "processing",
+  "created_at": 1784092800,
+  "expires_at": 1784179200,
+  "poll_url": "/v1/images/tasks/imgtask_0123456789abcdef"
+}`,
+    requestParams: [
+      { name: 'model', type: 'string', required: true, defaultValue: '-', description: '图片编辑模型 ID。' },
+      { name: 'prompt', type: 'string', required: true, defaultValue: '-', description: '描述希望对输入图片执行的编辑。' },
+      { name: 'images[].image_url', type: 'string', required: true, defaultValue: '-', description: 'JSON 请求中的输入图片 URL；也可改用 multipart 的 image 文件字段。' },
+      { name: 'mask.image_url', type: 'string', required: false, defaultValue: 'null', description: '可选遮罩图片 URL；multipart 请求可使用 mask 文件字段。' },
+      { name: 'size', type: 'string', required: false, defaultValue: '模型默认', description: '输出尺寸，可用值由模型决定。' },
+      { name: 'response_format', type: 'string', required: false, defaultValue: '服务端默认', description: '接受同步接口的相同参数；任务完成后统一返回对象存储 URL。' },
+    ],
+    responseParams: [
+      { name: 'id', type: 'string', required: true, defaultValue: '-', description: '异步图片任务 ID，与 task_id 相同。' },
+      { name: 'task_id', type: 'string', required: true, defaultValue: '-', description: '用于查询任务状态的 ID。' },
+      { name: 'object', type: 'string', required: true, defaultValue: '"image.generation.task"', description: '异步图片任务对象类型。' },
+      { name: 'status', type: 'string', required: true, defaultValue: '"processing"', description: '任务已接收并进入处理状态。' },
+      { name: 'created_at', type: 'integer', required: true, defaultValue: '-', description: '任务创建时间，Unix 秒时间戳。' },
+      { name: 'expires_at', type: 'integer', required: true, defaultValue: '-', description: '任务记录过期时间，Unix 秒时间戳。' },
+      { name: 'poll_url', type: 'string', required: true, defaultValue: '-', description: '后续查询任务状态的相对路径。' },
+    ],
+  },
+  {
+    id: 'image-task',
+    group: '多模态',
+    method: 'GET',
+    path: '/v1/images/tasks/{task_id}',
+    title: '查询异步图片任务',
+    description: '使用提交任务时的同一个 API Key 查询状态。processing 响应会携带 Retry-After: 3；completed 返回对象存储中的图片 URL，failed 返回 OpenAI 兼容错误对象。任务结果默认保留 24 小时。',
+    auth: '需要原提交 API Key',
+    response: `{
+  "id": "imgtask_0123456789abcdef",
+  "task_id": "imgtask_0123456789abcdef",
+  "object": "image.generation.task",
+  "status": "completed",
+  "http_status": 200,
+  "image_url": "https://cdn.example.com/images/result.png",
+  "result": {
+    "created": 1784092923,
+    "data": [{ "url": "https://cdn.example.com/images/result.png" }]
+  },
+  "created_at": 1784092800,
+  "completed_at": 1784092923,
+  "expires_at": 1784179323
+}`,
+    requestParams: [
+      { name: 'task_id', type: 'path string', required: true, defaultValue: '-', description: '异步提交响应中的 task_id。' },
+    ],
+    responseParams: [
+      { name: 'id', type: 'string', required: true, defaultValue: '-', description: '异步图片任务 ID。' },
+      { name: 'task_id', type: 'string', required: true, defaultValue: '-', description: '与 id 相同的兼容任务 ID。' },
+      { name: 'object', type: 'string', required: true, defaultValue: '"image.generation.task"', description: '异步图片任务对象类型。' },
+      { name: 'status', type: 'string', required: true, defaultValue: '-', description: 'processing、completed 或 failed。' },
+      { name: 'http_status', type: 'integer', required: false, defaultValue: 'null', description: '任务完成或失败时的原始图片接口状态码。' },
+      { name: 'image_url', type: 'string', required: false, defaultValue: 'null', description: '完成时第一张图片的便捷 URL。' },
+      { name: 'result', type: 'object', required: false, defaultValue: 'null', description: '完成时的图片接口结果；data[].url 指向对象存储，且不包含 b64_json。' },
+      { name: 'error', type: 'object', required: false, defaultValue: 'null', description: '失败时的 OpenAI 兼容错误对象。' },
+      { name: 'created_at', type: 'integer', required: true, defaultValue: '-', description: '任务创建时间，Unix 秒时间戳。' },
+      { name: 'completed_at', type: 'integer', required: false, defaultValue: 'null', description: '任务完成或失败时间，Unix 秒时间戳。' },
+      { name: 'expires_at', type: 'integer', required: true, defaultValue: '-', description: '任务记录过期时间，Unix 秒时间戳。' },
     ],
   },
   {
@@ -376,6 +503,7 @@ export default function ApiDocsPage() {
   const [baseURL, setBaseURL] = useState(() => initialBaseURL(searchParams.toString()))
   const [exampleModel, setExampleModel] = useState(DEFAULT_EXAMPLE_MODEL)
   const [systemName, setSystemName] = useState(DEFAULT_SUB2API_SYSTEM_NAME)
+  const [systemPosition, setSystemPosition] = useState<SystemPosition>(DEFAULT_SYSTEM_POSITION)
   const [siteLogoUrl, setSiteLogoUrl] = useState('')
   const [systemDomain, setSystemDomain] = useState('')
   const [consoleHref, setConsoleHref] = useState('')
@@ -403,12 +531,13 @@ export default function ApiDocsPage() {
 
   useEffect(() => {
     let active = true
-    void apiClient.get<AuxEnvelope<{ model?: string; systemName?: string; siteName?: string; heroTitle?: string; siteLogoUrl?: string; systemDomain?: string; consoleHref?: string; termsUrl?: string; privacyUrl?: string }>>('/homepage/config').then((envelope) => {
+    void apiClient.get<AuxEnvelope<{ model?: string; systemName?: string; siteName?: string; heroTitle?: string; systemPosition?: string; siteLogoUrl?: string; systemDomain?: string; consoleHref?: string; termsUrl?: string; privacyUrl?: string }>>('/homepage/config').then((envelope) => {
       const model = envelope.data?.model?.trim()
       const name = configuredDocumentName(envelope.data)
       if (active && envelope.code === 0) {
         if (model) setExampleModel(model)
         if (name) setSystemName(name)
+        setSystemPosition(normalizeSystemPosition(envelope.data?.systemPosition))
         if (envelope.data?.siteLogoUrl?.trim()) setSiteLogoUrl(envelope.data.siteLogoUrl.trim())
         if (envelope.data?.systemDomain?.trim()) setSystemDomain(configuredDomain(envelope.data.systemDomain))
         if (envelope.data?.consoleHref?.trim()) setConsoleHref(envelope.data.consoleHref.trim())
@@ -433,6 +562,9 @@ export default function ApiDocsPage() {
     const value = searchParams.get(key)
     if (value) clientDocsParams.set(key, value)
   }
+  const clientDocsHref = toCurrentOriginURI(`/client-docs?${clientDocsParams}`)
+  const homeHref = toCurrentOriginURI(homepagePathForPosition(systemPosition))
+  const consoleURI = toCurrentOriginURI(toSameOriginPath(consoleHref, '/admin'), { includeAppBasePath: false })
 
   function selectTheme(value: string) {
     const preference = parseThemePreference(value)
@@ -505,8 +637,8 @@ export default function ApiDocsPage() {
             <span><strong>API 文档</strong><small>配置你的模型接口</small></span>
           </a>
           <div className="aux-api-header-tools">
-            <Link className="aux-api-header-home" to="/sub2api-home" aria-label="返回官网" onClick={() => trackFeatureClick('api-docs', 'open-home')}><Home aria-hidden="true" /><span>官网</span></Link>
-            <Link className="aux-api-header-api" to={`/client-docs?${clientDocsParams}`} onClick={() => trackFeatureClick('api-docs', 'open-client-docs')} aria-label="查看客户端接入文档">客户端接入 <ArrowUpRight aria-hidden="true" /></Link>
+            <a className="aux-api-header-home" href={homeHref} target="_top" aria-label="返回官网" onClick={() => trackFeatureClick('api-docs', 'open-home')}><Home aria-hidden="true" /><span>官网</span></a>
+            <a className="aux-api-header-api" href={clientDocsHref} target="_top" onClick={() => trackFeatureClick('api-docs', 'open-client-docs')} aria-label="查看客户端接入文档">客户端接入 <ArrowUpRight aria-hidden="true" /></a>
             <div className="aux-api-theme-picker">
               <ThemeIcon size={15} aria-hidden="true" />
               <select aria-label="外观主题" value={themePreference} onChange={event => selectTheme(event.target.value)}>
@@ -514,7 +646,7 @@ export default function ApiDocsPage() {
               </select>
               <ChevronDown size={12} className="aux-api-theme-chevron" aria-hidden="true" />
             </div>
-            {consoleHref ? <a {...siteHrefProps(consoleHref)} onClick={() => trackFeatureClick('api-docs', 'open-console')} className="aux-api-header-console"><span>控制台</span> <ArrowUpRight aria-hidden="true" /></a> : null}
+            {consoleHref ? <a href={consoleURI} target={consoleURI.startsWith('#') ? undefined : '_top'} onClick={() => trackFeatureClick('api-docs', 'open-console')} className="aux-api-header-console"><span>控制台</span> <ArrowUpRight aria-hidden="true" /></a> : null}
           </div>
         </div>
       </header>
@@ -638,8 +770,8 @@ export default function ApiDocsPage() {
         <span className="aux-api-footer-status">{endpoints.length} 个接口 · {systemDomain || configuredDomain(baseURL) || '当前页面服务地址'}</span>
         <span className="aux-api-footer-copyright">© 2026 {systemName || 'API 文档'}. All rights reserved.</span>
         <nav className="aux-api-footer-nav" aria-label="相关文档">
-          <a href={withAppBasePath('/sub2api-home')} onClick={() => trackFeatureClick('api-docs', 'open-home')}><Home aria-hidden="true" />官网首页</a>
-          <Link to={`/client-docs?${clientDocsParams}`} onClick={() => trackFeatureClick('api-docs', 'open-client-docs')}>客户端接入 <ArrowUpRight aria-hidden="true" /></Link>
+          <a href={homeHref} target="_top" onClick={() => trackFeatureClick('api-docs', 'open-home')}><Home aria-hidden="true" />官网首页</a>
+          <a href={clientDocsHref} target="_top" onClick={() => trackFeatureClick('api-docs', 'open-client-docs')}>客户端接入 <ArrowUpRight aria-hidden="true" /></a>
           {termsUrl ? <a {...siteHrefProps(termsUrl)}>服务条款</a> : null}
           {privacyUrl ? <a {...siteHrefProps(privacyUrl)}>隐私协议</a> : null}
           <a href="#top">回到顶部 <ArrowUp aria-hidden="true" /></a>
@@ -657,8 +789,11 @@ const exampleLanguages: Array<{ id: ExampleLanguage; label: string }> = [
 ]
 
 function buildExampleCode(endpoint: Endpoint, baseURL: string, exampleModel: string, language: ExampleLanguage): string {
-  const model = exampleModel.trim() || DEFAULT_EXAMPLE_MODEL
-  const url = `${baseURL || '$API_BASE'}${endpoint.path.replace('{model}', model)}`
+  const model = (endpoint.exampleModel ?? exampleModel.trim()) || DEFAULT_EXAMPLE_MODEL
+  const examplePath = endpoint.path
+    .replace('{model}', model)
+    .replace('{task_id}', 'imgtask_0123456789abcdef')
+  const url = `${baseURL || '$API_BASE'}${examplePath}`
   const requestBody = endpoint.request?.trim().replace(/("model"\s*:\s*)"[^"]+"/, `$1"${model}"`)
   const isGoogle = endpoint.group === 'Google 原生'
   const headerName = isGoogle ? 'x-goog-api-key' : 'Authorization'
@@ -766,7 +901,8 @@ function markdownParameterTable(parameters: Parameter[]): string {
 }
 
 function buildMarkdownDocument(endpoint: Endpoint, baseURL: string, exampleModel: string): string {
-  const requestBody = endpoint.request?.trim().replace(/("model"\s*:\s*)"[^"]+"/, `$1"${exampleModel.trim() || DEFAULT_EXAMPLE_MODEL}"`)
+  const model = (endpoint.exampleModel ?? exampleModel.trim()) || DEFAULT_EXAMPLE_MODEL
+  const requestBody = endpoint.request?.trim().replace(/("model"\s*:\s*)"[^"]+"/, `$1"${model}"`)
   const examples = (['curl', 'python', 'go', 'java'] as const).map((language) => {
     const label = language === 'curl' ? 'cURL' : language === 'python' ? 'Python' : language === 'go' ? 'Go' : 'Java'
     return `### ${label}\n\n\`\`\`${language}\n${buildExampleCode(endpoint, baseURL, exampleModel, language)}\n\`\`\``

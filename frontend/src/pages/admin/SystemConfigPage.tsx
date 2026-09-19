@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react'
-import { CircleCheck, ImageIcon, Info, Loader2, RefreshCw, Save, Settings2, Trash2, UploadCloud } from 'lucide-react'
+import { CircleCheck, ImageIcon, Loader2, RefreshCw, Save, Settings2, Trash2, UploadCloud } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiClient, type AuxEnvelope } from '@/lib/api-client'
 import { DEFAULT_SUB2API_SYSTEM_NAME, resolveSystemName } from '@/lib/system-name'
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { DEFAULT_SYSTEM_POSITION, normalizeSystemPosition, type SystemPosition } from '@/lib/system-position'
 import './SystemConfigPage.css'
 import { withAppBasePath } from '@/lib/app-base-path'
 
@@ -21,6 +22,7 @@ interface UploadedImageAsset {
 /** 系统名称优先使用 siteName，兼容旧版 system_meta 配置中的 heroTitle。 */
 interface HomepageConfig {
   siteName?: string
+  systemPosition?: SystemPosition
   systemDomain?: string
   siteLogoUrl?: string
   heroLabel?: string
@@ -39,6 +41,7 @@ interface HomepageConfig {
 
 const DEFAULT_CONFIG: HomepageConfig = {
   siteName: DEFAULT_SUB2API_SYSTEM_NAME,
+  systemPosition: DEFAULT_SYSTEM_POSITION,
   heroLabel: '面向生产环境的 AI 网关',
   heroTitle: 'AI API 网关，面向下一次调用',
   systemDomain: '',
@@ -59,6 +62,7 @@ function mergeConfig(value?: HomepageConfig): HomepageConfig {
     ...DEFAULT_CONFIG,
     ...(value ?? {}),
     siteName: resolveSystemName(value),
+    systemPosition: normalizeSystemPosition(value?.systemPosition),
     model: value?.model?.trim() || DEFAULT_MODEL,
   }
 }
@@ -68,6 +72,7 @@ export default function SystemConfigPage() {
   const logoDragDepthRef = useRef(0)
   const [config, setConfig] = useState<HomepageConfig>(DEFAULT_CONFIG)
   const [draftSystemName, setDraftSystemName] = useState(DEFAULT_CONFIG.siteName ?? DEFAULT_SUB2API_SYSTEM_NAME)
+  const [draftSystemPosition, setDraftSystemPosition] = useState<SystemPosition>(DEFAULT_SYSTEM_POSITION)
   const [draftSystemDomain, setDraftSystemDomain] = useState(DEFAULT_CONFIG.systemDomain ?? '')
   const [draftSiteLogoUrl, setDraftSiteLogoUrl] = useState(DEFAULT_CONFIG.siteLogoUrl ?? '')
   const [draftModel, setDraftModel] = useState(DEFAULT_MODEL)
@@ -90,6 +95,7 @@ export default function SystemConfigPage() {
       const nextConfig = mergeConfig(response.data)
       setConfig(nextConfig)
       setDraftSystemName(resolveSystemName(nextConfig))
+      setDraftSystemPosition(normalizeSystemPosition(nextConfig.systemPosition))
       setDraftSystemDomain(nextConfig.systemDomain ?? DEFAULT_CONFIG.systemDomain ?? '')
       setDraftSiteLogoUrl(nextConfig.siteLogoUrl?.trim() ?? '')
       setDraftModel(nextConfig.model)
@@ -222,6 +228,7 @@ export default function SystemConfigPage() {
       const response = await apiClient.put<AuxEnvelope<HomepageConfig>>('/admin/homepage/config', {
         ...config,
         [config.siteName !== undefined ? 'siteName' : 'heroTitle']: systemName,
+        systemPosition: draftSystemPosition,
         systemDomain,
         siteLogoUrl: draftSiteLogoUrl,
         model,
@@ -231,6 +238,7 @@ export default function SystemConfigPage() {
       const savedConfig = mergeConfig(response.data)
       setConfig(savedConfig)
       setDraftSystemName(resolveSystemName(savedConfig))
+      setDraftSystemPosition(normalizeSystemPosition(savedConfig.systemPosition))
       setDraftSystemDomain(savedConfig.systemDomain ?? DEFAULT_CONFIG.systemDomain ?? '')
       setDraftSiteLogoUrl(savedConfig.siteLogoUrl?.trim() ?? '')
       setDraftModel(savedConfig.model)
@@ -248,6 +256,7 @@ export default function SystemConfigPage() {
 
   const restoreDefault = () => {
     setDraftSystemName(DEFAULT_CONFIG.siteName ?? DEFAULT_SUB2API_SYSTEM_NAME)
+    setDraftSystemPosition(DEFAULT_SYSTEM_POSITION)
     setDraftSystemDomain(DEFAULT_CONFIG.systemDomain ?? '')
     setDraftSiteLogoUrl(DEFAULT_CONFIG.siteLogoUrl ?? '')
     setDraftModel(DEFAULT_MODEL)
@@ -257,6 +266,7 @@ export default function SystemConfigPage() {
   }
 
   const draftIsDefault = draftSystemName === (DEFAULT_CONFIG.siteName ?? DEFAULT_SUB2API_SYSTEM_NAME)
+    && draftSystemPosition === DEFAULT_SYSTEM_POSITION
     && draftSystemDomain === (DEFAULT_CONFIG.systemDomain ?? '')
     && draftSiteLogoUrl === (DEFAULT_CONFIG.siteLogoUrl ?? '')
     && draftModel === DEFAULT_MODEL
@@ -277,7 +287,7 @@ export default function SystemConfigPage() {
         <div>
           <p className="aux-system-config-eyebrow"><Settings2 aria-hidden="true" />控制台设置 / 系统配置</p>
           <h1>系统配置</h1>
-          <p>统一管理 Sub2API 系统名称、Logo 与开发者文档中展示的默认调用模型。保存后无需重新部署页面。</p>
+          <p>统一管理 Sub2API 系统名称、Logo、系统定位与开发者文档中展示的默认调用模型。保存后无需重新部署页面。</p>
         </div>
         <Button type="button" variant="outline" className="aux-system-config-refresh" onClick={() => void loadConfig(true)} disabled={refreshing || saving || uploadingLogo}>
           <RefreshCw className={refreshing ? 'aux-system-config-spin' : ''} aria-hidden="true" />
@@ -296,7 +306,7 @@ export default function SystemConfigPage() {
             </div>
             <span className="aux-system-config-status"><CircleCheck aria-hidden="true" />实时生效</span>
           </div>
-          <p className="aux-system-config-description">系统名称和 Logo 会显示在官网与 API 文档中；系统域名会作为接入文档 API 基础地址的默认值；默认模型会显示在首页预览、快速开始 cURL，以及各接口的多语言示例中。</p>
+          <p className="aux-system-config-description">系统名称和 Logo 会显示在官网与 API 文档中；系统定位决定文档页“官网”按钮进入 ToC 还是 ToB 官网；系统域名会作为接入文档 API 基础地址的默认值；默认模型会显示在首页预览、快速开始 cURL，以及各接口的多语言示例中。</p>
           <div className="aux-system-config-field">
             <Label htmlFor="system-name">Sub2API 系统名称</Label>
             <Input
@@ -388,6 +398,21 @@ export default function SystemConfigPage() {
             />
             <small>填写当前可用的模型 ID，例如 <code>gpt-6-astra</code>。</small>
           </div>
+          <div className="aux-system-config-position">
+            <div>
+              <span>系统定位</span>
+              <small>{draftSystemPosition === 'tob' ? '当前为 ToB 企业端，API 文档与接入文档的官网按钮进入 ToB 官网。' : '当前为 ToC 用户端，API 文档与接入文档的官网按钮进入 ToC 官网。'}</small>
+            </div>
+            <div className="aux-system-config-position-control">
+              <span aria-hidden="true">{draftSystemPosition === 'tob' ? 'ToB' : 'ToC'}</span>
+              <Switch
+                checked={draftSystemPosition === 'tob'}
+                onCheckedChange={(checked) => setDraftSystemPosition(checked ? 'tob' : 'toc')}
+                disabled={saving}
+                aria-label="系统定位 ToB"
+              />
+            </div>
+          </div>
           <div className="aux-system-config-publication">
             <div>
               <span>上架到 Sub2API</span>
@@ -408,15 +433,6 @@ export default function SystemConfigPage() {
           </div>
         </section>
 
-        <aside className="aux-system-config-card aux-system-config-preview-card">
-          <div className={`aux-system-config-preview-mark${draftSiteLogoUrl && !logoPreviewFailed ? ' has-image' : ''}`}>
-            {draftSiteLogoUrl && !logoPreviewFailed ? <img src={withAppBasePath(draftSiteLogoUrl)} alt="" onError={() => setLogoPreviewFailed(true)} /> : <Settings2 aria-hidden="true" />}
-          </div>
-          <span className="aux-system-config-card-kicker">Current value</span>
-          <h2>示例将使用</h2>
-          <code className="aux-system-config-model-preview">{draftModel.trim() || DEFAULT_MODEL}</code>
-          <div className="aux-system-config-info"><Info aria-hidden="true" /><span>配置保存在附属系统的 system_meta 中，公开页面只读取 Sub2API 系统名称、Logo 和模型名称，不会暴露管理会话。</span></div>
-        </aside>
       </div>
     </div>
   )

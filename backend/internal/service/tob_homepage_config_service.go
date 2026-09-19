@@ -61,7 +61,19 @@ func defaultTobMapSettings() TobMapSettings {
 }
 
 func DefaultTobHomepageConfig() TobHomepageConfig {
-	return newTobHomepageConfig(DefaultHomepageConfig())
+	homepage := DefaultHomepageConfig()
+	homepage.NavigationItems = defaultTobNavigationItems()
+	return newTobHomepageConfig(homepage)
+}
+
+func defaultTobNavigationItems() []HomepageNavigationItem {
+	return []HomepageNavigationItem{
+		{Label: "企业能力", Href: "#capabilities"},
+		{Label: "全球网络", Href: "#network"},
+		{Label: "数据安全", Href: "#security"},
+		{Label: "接入生态", Href: "#ecosystem"},
+		{Label: "交付流程", Href: "#quickstart"},
+	}
 }
 
 func newTobHomepageConfig(homepage HomepageConfig) TobHomepageConfig {
@@ -156,6 +168,9 @@ func (s *TobHomepageConfigService) Save(ctx context.Context, config TobHomepageC
 }
 
 func normalizeTobHomepageConfig(config TobHomepageConfig) TobHomepageConfig {
+	if config.NavigationItems == nil {
+		config.NavigationItems = defaultTobNavigationItems()
+	}
 	config.HomepageConfig = normalizeHomepageConfig(config.HomepageConfig)
 	if !hasHomepageNavigationHref(config.NavigationItems, "#network") && len(config.NavigationItems) < 8 {
 		config.NavigationItems = append(config.NavigationItems, HomepageNavigationItem{Label: "全球网络", Href: "#network"})

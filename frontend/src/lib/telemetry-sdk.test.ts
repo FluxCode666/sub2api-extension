@@ -60,7 +60,7 @@ describe('telemetry-sdk', () => {
 
       expect(fetchMock).toHaveBeenCalledTimes(1)
       const [url, init] = fetchMock.mock.calls[0]
-      expect(url).toBe('/api/aux/telemetry/page-view')
+      expect(url).toBe('/aux/api/aux/telemetry/page-view')
       expect(init.method).toBe('POST')
 
       const body = JSON.parse(init.body as string)
@@ -81,7 +81,7 @@ describe('telemetry-sdk', () => {
 
       expect(fetchMock).toHaveBeenCalledTimes(1)
       const [url, init] = fetchMock.mock.calls[0]
-      expect(url).toBe('/api/aux/telemetry/feature-click')
+      expect(url).toBe('/aux/api/aux/telemetry/feature-click')
 
       const body = JSON.parse(init.body as string)
       expect(body.page_id).toBe('dashboard')
@@ -150,7 +150,7 @@ describe('telemetry-sdk', () => {
       window.dispatchEvent(new PopStateEvent('popstate'))
       expect(fetchMock).toHaveBeenCalledTimes(1)
       const [url, options] = fetchMock.mock.calls[0]
-      expect(url).toBe('/api/aux/telemetry/page-view')
+      expect(url).toBe('/aux/api/aux/telemetry/page-view')
       expect(JSON.parse(options.body)).toEqual({ page_id: pageId, visitor_id: expect.any(String), is_admin: false })
       expect(options.headers).toEqual({ 'Content-Type': 'application/json' })
 
@@ -194,7 +194,7 @@ describe('telemetry-sdk', () => {
 
       expect(fetchMock).toHaveBeenCalledTimes(1)
       const [url, init] = fetchMock.mock.calls[0]
-      expect(url).toBe('/api/aux/telemetry/page-view')
+      expect(url).toBe('/aux/api/aux/telemetry/page-view')
       const body = JSON.parse(init.body as string)
       expect(body.page_id).toBe('dashboard')
     })

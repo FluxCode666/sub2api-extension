@@ -6,9 +6,10 @@ import { resolve } from 'path'
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, resolve(__dirname), '')
-  const configuredBasePath = process.env.VITE_BASE_PATH || env.VITE_BASE_PATH || '/'
+  const configuredBasePath = process.env.VITE_BASE_PATH || env.VITE_BASE_PATH || '/aux/'
   const normalizedBasePath = configuredBasePath.trim().replace(/^\/+|\/+$/g, '')
   const basePath = normalizedBasePath ? `/${normalizedBasePath}/` : '/'
+  const basePrefix = basePath === '/' ? '' : basePath.slice(0, -1)
   // The standalone `cd backend && make dev` target listens on 8004. Use
   // localhost so the OS can select the available loopback family (on macOS
   // this avoids a stale IPv4 service shadowing the IPv6 development backend).
@@ -17,6 +18,17 @@ export default defineConfig(({ mode }) => {
   // backend is running via `make dev-up` (or on another local port).
   const configuredTarget = env.VITE_AUX_BACKEND_URL || env.AUX_BACKEND_URL
   const backendTarget = configuredTarget || 'http://localhost:8004'
+
+  const proxyPath = (path: string) => `${basePrefix}${path}`
+  const stripBasePath = (url: string) => {
+    if (!basePrefix || (url !== basePrefix && !url.startsWith(`${basePrefix}/`))) return url
+    return url.slice(basePrefix.length) || '/'
+  }
+  const backendProxy = () => ({
+    target: backendTarget,
+    changeOrigin: true,
+    rewrite: stripBasePath,
+  })
 
   return {
     base: basePath,
@@ -35,20 +47,12 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       port: 3100,
       proxy: {
-        '/api/': {
-          target: backendTarget,
-          changeOrigin: true,
-        },
+        [proxyPath('/api/')]: backendProxy(),
         // 客户端接入文档截图与客户端图标已挪到后端统一资源目录(assets.dir)，
         // dev 下 public 目录不再包含它们，转由后端从资源目录提供。
-        '/client-docs/': {
-          target: backendTarget,
-          changeOrigin: true,
-        },
-        '/client-icons/': {
-          target: backendTarget,
-          changeOrigin: true,
-        },
+        [proxyPath('/client-docs/')]: backendProxy(),
+        [proxyPath('/client-icons/')]: backendProxy(),
+        [proxyPath('/health')]: backendProxy(),
       },
     },
     build: {

@@ -11,7 +11,8 @@ import { DEFAULT_HOMEPAGE_CONFIG, isHomepageNavigationHref, type HomepageConfig 
 import { DEFAULT_SUB2API_SYSTEM_NAME, resolveSystemName } from '@/lib/system-name'
 import '@fontsource-variable/geist'
 import './ClientDocsPage.css'
-import { withAppBasePath } from '@/lib/app-base-path'
+import { toCurrentOriginURI, toSameOriginPath, withAppBasePath } from '@/lib/app-base-path'
+import { DEFAULT_SYSTEM_POSITION, homepagePathForPosition, normalizeSystemPosition, type SystemPosition } from '@/lib/system-position'
 
 gsap.registerPlugin(useGSAP, ScrollToPlugin)
 const canAnimate = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
@@ -203,6 +204,7 @@ export default function ClientDocsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeSection, setActiveSection] = useState('prepare')
   const [systemName, setSystemName] = useState(DEFAULT_SUB2API_SYSTEM_NAME)
+  const [systemPosition, setSystemPosition] = useState<SystemPosition>(DEFAULT_SYSTEM_POSITION)
   const [consoleHref, setConsoleHref] = useState(DEFAULT_HOMEPAGE_CONFIG.consoleHref)
   const embedded = params.get('embed') === '1' || params.get('ui_mode') === 'embedded'
   const baseURL = normalizeGatewayURL(baseInput)
@@ -220,7 +222,9 @@ export default function ClientDocsPage() {
   const apiParams = new URLSearchParams()
   for (const key of ['embed', 'ui_mode', 'theme']) { const value = params.get(key); if (value) apiParams.set(key, value) }
   if (baseURL) apiParams.set('api_base', baseURL)
-  const apiDocsHref = `/api-docs${apiParams.size ? `?${apiParams}` : ''}`
+  const apiDocsHref = toCurrentOriginURI(`/api-docs${apiParams.size ? `?${apiParams}` : ''}`)
+  const homeHref = toCurrentOriginURI(homepagePathForPosition(systemPosition))
+  const consoleURI = toCurrentOriginURI(toSameOriginPath(consoleHref, '/admin'), { includeAppBasePath: false })
   const prerequisiteGuides = (guide.prerequisiteClients ?? []).map(getClientGuide)
   const prerequisites = prerequisiteGuides.length > 0 && <div className="client-prerequisite">
     <strong>{prerequisiteGuides.length === 1 ? `前置条件：先配置 ${prerequisiteGuides[0].name}` : '前置条件：先配置你要使用的客户端'}</strong>
@@ -292,6 +296,7 @@ export default function ClientDocsPage() {
     void apiClient.get<AuxEnvelope<Partial<HomepageConfig>>>('/homepage/config').then(envelope => {
       if (active && envelope.code === 0) {
         setSystemName(resolveSystemName(envelope.data))
+        setSystemPosition(normalizeSystemPosition(envelope.data?.systemPosition))
       }
       const configuredDomain = envelope.data?.systemDomain?.trim()
       if (active && envelope.code === 0 && configuredDomain && !baseInputDirty.current) {
@@ -439,8 +444,8 @@ export default function ClientDocsPage() {
       <div className="client-header-inner client-shell">
         <a className="client-brand" href="#top" aria-label="客户端接入文档首页" onClick={event => { event.preventDefault(); scrollTopRef.current() }}><BookOpen size={22} aria-hidden="true" /><strong>接入文档</strong><span className="client-brand-caption">配置你的工作方式</span></a>
         <div className="client-header-tools">
-          <Link className="client-header-home" to="/sub2api-home" aria-label="返回官网" onClick={() => trackFeatureClick('client-docs', 'open-home')}><Home size={17} aria-hidden="true" /><span>官网</span></Link>
-          <Link className="client-header-api" to={apiDocsHref} onClick={() => trackFeatureClick('client-docs', 'open-api-docs')} aria-label="查看 API 文档">API 参考 <ArrowUpRight size={16} aria-hidden="true" /></Link>
+          <a className="client-header-home" href={homeHref} target="_top" aria-label="返回官网" onClick={() => trackFeatureClick('client-docs', 'open-home')}><Home size={17} aria-hidden="true" /><span>官网</span></a>
+          <a className="client-header-api" href={apiDocsHref} target="_top" onClick={() => trackFeatureClick('client-docs', 'open-api-docs')} aria-label="查看 API 文档">API 参考 <ArrowUpRight size={16} aria-hidden="true" /></a>
           <div className="client-theme-picker">
             <ThemeIcon size={16} aria-hidden="true" />
             <select aria-label="外观主题" value={themePreference} onChange={event => selectTheme(event.target.value)}>
@@ -448,7 +453,7 @@ export default function ClientDocsPage() {
             </select>
             <ChevronDown size={12} className="client-theme-chevron" aria-hidden="true" />
           </div>
-          <a className="client-header-console" href={consoleHref} target={consoleHref.startsWith('#') ? undefined : '_top'} rel={/^https?:/i.test(consoleHref) ? 'noreferrer' : undefined} onClick={() => trackFeatureClick('client-docs', 'open-console')}>控制台 <ArrowUpRight size={16} aria-hidden="true" /></a>
+          <a className="client-header-console" href={consoleURI} target={consoleURI.startsWith('#') ? undefined : '_top'} onClick={() => trackFeatureClick('client-docs', 'open-console')}>控制台 <ArrowUpRight size={16} aria-hidden="true" /></a>
         </div>
       </div>
     </header>
@@ -464,7 +469,7 @@ export default function ClientDocsPage() {
         <nav aria-label="客户端目录">{visibleGuides.map(client => <button key={client.id} type="button" className={guide.id === client.id ? 'is-current' : ''} aria-current={guide.id === client.id ? 'page' : undefined} onClick={() => selectClient(client.id)}><ClientMark id={client.id} small /><span>{client.name}</span>{guide.id === client.id && <ArrowRight size={15} aria-hidden="true" />}</button>)}</nav>
         {visibleGuides.length === 0 && <div className="client-search-empty" role="status"><p>未找到匹配的客户端</p><button type="button" className="client-inline-link" onClick={clearSearch}>显示全部客户端</button></div>}
         <p className="client-sidebar-note">选择你正在使用的工具，<br />从安装、配置到第一次对话。</p>
-        <Link className="client-sidebar-reference" to={apiDocsHref} onClick={() => trackFeatureClick('client-docs', 'open-api-docs')}>查阅 API 参考 <ArrowUpRight size={15} aria-hidden="true" /></Link>
+        <a className="client-sidebar-reference" href={apiDocsHref} target="_top" onClick={() => trackFeatureClick('client-docs', 'open-api-docs')}>查阅 API 参考 <ArrowUpRight size={15} aria-hidden="true" /></a>
       </div></aside>
 
       <article id="guide" ref={articleRef} className="client-article" aria-labelledby="guide-title" tabIndex={-1}>
@@ -554,6 +559,6 @@ export default function ClientDocsPage() {
         <div className="client-reading-note"><Check size={18} aria-hidden="true" /><p>接入完成后<br />发送「当前时间」<br />确认收到正常回复。</p></div>
       </div></aside>
     </main>
-    <footer className="client-footer client-shell"><div className="client-footer-brand"><Terminal size={18} aria-hidden="true" /><span>{systemName} · 客户端接入文档</span></div><span>{CLIENT_GUIDES.length} 种客户端 · 持续更新</span><span className="client-footer-copyright">© 2026 {systemName}. All rights reserved.</span><nav aria-label="相关文档"><Link to={apiDocsHref} onClick={() => trackFeatureClick('client-docs', 'open-api-docs')}>API 参考 <ArrowUpRight size={16} aria-hidden="true" /></Link><a href="#top" onClick={event => { event.preventDefault(); scrollTopRef.current() }}>回到顶部 <ArrowUp size={16} aria-hidden="true" /></a></nav></footer>
+    <footer className="client-footer client-shell"><div className="client-footer-brand"><Terminal size={18} aria-hidden="true" /><span>{systemName} · 客户端接入文档</span></div><span>{CLIENT_GUIDES.length} 种客户端 · 持续更新</span><span className="client-footer-copyright">© 2026 {systemName}. All rights reserved.</span><nav aria-label="相关文档"><a href={apiDocsHref} target="_top" onClick={() => trackFeatureClick('client-docs', 'open-api-docs')}>API 参考 <ArrowUpRight size={16} aria-hidden="true" /></a><a href="#top" onClick={event => { event.preventDefault(); scrollTopRef.current() }}>回到顶部 <ArrowUp size={16} aria-hidden="true" /></a></nav></footer>
   </div>
 }

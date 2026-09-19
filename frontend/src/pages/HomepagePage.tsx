@@ -27,14 +27,6 @@ const enterpriseCapabilities = [
   { index: '04', title: '用量管理', text: '集中查看调用用量、缓存命中与运行状态，帮助团队掌握资源消耗。', Icon: WalletCards },
 ]
 
-const TOB_SECTION_NAVIGATION_ITEMS = [
-  { label: '企业能力', href: '#capabilities' },
-  { label: '全球网络', href: '#network' },
-  { label: '数据安全', href: '#security' },
-  { label: '接入生态', href: '#ecosystem' },
-  { label: '交付流程', href: '#quickstart' },
-]
-
 function safeExternalHref(value: string) {
   return /^(https?:|mailto:)/i.test(value) ? value : undefined
 }
@@ -479,17 +471,12 @@ export default function HomepagePage({ variant = 'default' }: HomepagePageProps)
   const configuredNavigationItems = config.navigationItems.filter((item) => {
     if (!item.label.trim() || !isHomepageNavigationHref(item.href)) return false
     const href = item.href.trim()
-    if (href === '#developers') return config.showDevelopersSection
+    if (href === '#developers') return !isTob && config.showDevelopersSection
     if (href === '#quickstart') return config.showQuickstartSection
     if (href === '#partners') return config.trustedPartners.length > 0
     return true
   })
-  const navigationItems = isTob
-    ? [
-        ...TOB_SECTION_NAVIGATION_ITEMS.filter((item) => item.href !== '#quickstart' || config.showQuickstartSection),
-        ...configuredNavigationItems.filter((item) => !item.href.trim().startsWith('#')),
-      ]
-    : configuredNavigationItems
+  const navigationItems = configuredNavigationItems
   const curlExample = `curl https://api.example.com/v1/chat/completions \\
   -H "Authorization: Bearer your-api-key" \\
   -H "Content-Type: application/json" \\

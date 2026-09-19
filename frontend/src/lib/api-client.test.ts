@@ -55,7 +55,7 @@ describe('api-client', () => {
   })
 
   it('points baseURL at the aux backend', () => {
-    expect(AUX_API_BASE_URL).toBe('/api/aux')
+    expect(AUX_API_BASE_URL).toBe('/aux/api/aux')
   })
 
   describe('buildHeaders via apiRequest', () => {
@@ -112,7 +112,7 @@ describe('api-client', () => {
       })
 
       const [url, init] = fetchMock.mock.calls[0]
-      expect(url).toBe('/api/aux/telemetry/page-view')
+      expect(url).toBe('/aux/api/aux/telemetry/page-view')
       expect(init.method).toBe('POST')
       expect(init.headers['Content-Type']).toBe('application/json')
       expect(JSON.parse(init.body)).toEqual({ page_id: 'home', visitor_id: 'v1' })

@@ -4,6 +4,8 @@
 
 页尾站点名称读取「系统配置 → Sub2API 系统名称」，通过公开接口 `/api/aux/homepage/config` 获取 `siteName`，兼容旧配置的 `heroTitle`。保存系统名称后重新打开或刷新文档页即可更新，无需重新部署；配置读取失败时显示通用的「客户端接入文档」。
 
+页头「官网」按钮读取同一接口的 `systemPosition`：`toc`（默认）跳转 `/sub2api-home`，`tob` 跳转 `/tob-home`；按钮会保留当前 aux-system 的挂载前缀并在顶层窗口打开。
+
 「系统配置 → Sub2API 系统域名」保存到公开配置的 `systemDomain` 字段。接入文档加载配置后，会将该 HTTP(S) 地址作为「API 基础地址」默认值；URL 中显式传入 `api_base`，或用户在当前页面手动编辑过地址时优先使用用户值。未配置域名时仍使用示例地址 `https://api.example.com`。
 
 可用参数：

@@ -16,6 +16,14 @@ import (
 
 const HomepageConfigKey = "homepage.config"
 
+// SystemPosition controls which public homepage receives documentation links.
+type SystemPosition string
+
+const (
+	SystemPositionToC SystemPosition = "toc"
+	SystemPositionToB SystemPosition = "tob"
+)
+
 const (
 	legacyHomepageHeroTitle       = "AI 网关，让接入、治理与运行统一"
 	legacyHomepageHeroDescription = "TERALEMO 将安全准入、智能路由、稳定保障、用量管理与运行观测统一到同一网关层。"
@@ -45,30 +53,31 @@ type HomepageNavigationItem struct {
 
 // HomepageConfig 是可在管理端调整的官网首页内容。
 type HomepageConfig struct {
-	SiteName                          string `json:"siteName"`
-	SystemDomain                      string `json:"systemDomain"`
-	SiteLogoURL                       string `json:"siteLogoUrl"`
-	HeroLabel                         string `json:"heroLabel"`
-	HeroTitle                         string `json:"heroTitle"`
-	HeroDescription                   string `json:"heroDescription"`
-	Model                             string `json:"model"`
-	Availability                      string `json:"availability"`
-	AvailabilityDescription           string `json:"availabilityDescription"`
-	FirstTokenResponseTime            string `json:"firstTokenResponseTime"`
-	FirstTokenResponseTimeDescription string `json:"firstTokenResponseTimeDescription"`
-	PromptCacheRate                   string `json:"promptCacheRate"`
-	PromptCacheRateDescription        string `json:"promptCacheRateDescription"`
-	PrimaryCTA                        string `json:"primaryCta"`
-	PrimaryHref                       string `json:"primaryHref"`
-	DocsCTA                           string `json:"docsCta"`
-	DocsHref                          string `json:"docsHref"`
-	ConsoleHref                       string `json:"consoleHref"`
-	DocumentationURL                  string `json:"documentationUrl"`
-	DevelopersDocsURL                 string `json:"developersDocsUrl"`
-	TermsURL                          string `json:"termsUrl"`
-	UserTermsURL                      string `json:"userTermsUrl"`
-	PrivacyURL                        string `json:"privacyUrl"`
-	Sub2APIPublished                  bool   `json:"sub2apiPublished"`
+	SiteName                          string         `json:"siteName"`
+	SystemPosition                    SystemPosition `json:"systemPosition"`
+	SystemDomain                      string         `json:"systemDomain"`
+	SiteLogoURL                       string         `json:"siteLogoUrl"`
+	HeroLabel                         string         `json:"heroLabel"`
+	HeroTitle                         string         `json:"heroTitle"`
+	HeroDescription                   string         `json:"heroDescription"`
+	Model                             string         `json:"model"`
+	Availability                      string         `json:"availability"`
+	AvailabilityDescription           string         `json:"availabilityDescription"`
+	FirstTokenResponseTime            string         `json:"firstTokenResponseTime"`
+	FirstTokenResponseTimeDescription string         `json:"firstTokenResponseTimeDescription"`
+	PromptCacheRate                   string         `json:"promptCacheRate"`
+	PromptCacheRateDescription        string         `json:"promptCacheRateDescription"`
+	PrimaryCTA                        string         `json:"primaryCta"`
+	PrimaryHref                       string         `json:"primaryHref"`
+	DocsCTA                           string         `json:"docsCta"`
+	DocsHref                          string         `json:"docsHref"`
+	ConsoleHref                       string         `json:"consoleHref"`
+	DocumentationURL                  string         `json:"documentationUrl"`
+	DevelopersDocsURL                 string         `json:"developersDocsUrl"`
+	TermsURL                          string         `json:"termsUrl"`
+	UserTermsURL                      string         `json:"userTermsUrl"`
+	PrivacyURL                        string         `json:"privacyUrl"`
+	Sub2APIPublished                  bool           `json:"sub2apiPublished"`
 	// ShowDevelopersSection 使用指针区分旧配置中缺失字段与明确关闭。
 	ShowDevelopersSection *bool                    `json:"showDevelopersSection"`
 	ShowQuickstartSection *bool                    `json:"showQuickstartSection"`
@@ -83,6 +92,7 @@ func DefaultHomepageConfig() HomepageConfig {
 	showQuickstartSection := true
 	return HomepageConfig{
 		SiteName:                          "Sub2API",
+		SystemPosition:                    SystemPositionToC,
 		SystemDomain:                      "",
 		SiteLogoURL:                       "",
 		HeroLabel:                         "面向生产环境的 AI 网关",
@@ -188,6 +198,7 @@ func normalizeHomepageConfig(config HomepageConfig) HomepageConfig {
 	}
 	config.HeroLabel = boundedText(config.HeroLabel, defaults.HeroLabel, 120)
 	config.SiteName = boundedText(config.SiteName, defaults.SiteName, 80)
+	config.SystemPosition = normalizeSystemPosition(config.SystemPosition)
 	config.SystemDomain = safeHref(config.SystemDomain, defaults.SystemDomain)
 	config.SiteLogoURL = safeAssetURL(config.SiteLogoURL)
 	config.HeroTitle = boundedText(config.HeroTitle, defaults.HeroTitle, 160)
@@ -261,6 +272,13 @@ func normalizeHomepageConfig(config HomepageConfig) HomepageConfig {
 	}
 	config.Integrations = integrations
 	return config
+}
+
+func normalizeSystemPosition(value SystemPosition) SystemPosition {
+	if value == SystemPositionToB {
+		return SystemPositionToB
+	}
+	return SystemPositionToC
 }
 
 func boundedText(value, fallback string, max int) string {

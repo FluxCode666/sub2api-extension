@@ -37,6 +37,7 @@ describe('SystemConfigPage', () => {
     render(<SystemConfigPage />)
 
     expect(await screen.findByDisplayValue('gpt-5.6-sol')).toBeInTheDocument()
+    expect(screen.queryByText('示例将使用')).not.toBeInTheDocument()
     const input = screen.getByDisplayValue('gpt-5.6-sol')
     fireEvent.change(input, { target: { value: 'gpt-6-astra' } })
     fireEvent.click(screen.getByRole('button', { name: '保存配置' }))
@@ -89,6 +90,21 @@ describe('SystemConfigPage', () => {
     await waitFor(() => expect(putConfig).toHaveBeenCalledWith('/admin/homepage/config', expect.objectContaining({ systemDomain: 'https://api.example.com' })))
   })
 
+  it('switches the system positioning and persists the ToB destination', async () => {
+    const config = { siteName: 'Sub2API', systemPosition: 'toc', model: 'gpt-6-astra' }
+    getConfig.mockResolvedValue({ code: 0, data: config })
+    putConfig.mockResolvedValue({ code: 0, data: { ...config, systemPosition: 'tob' } })
+    render(<SystemConfigPage />)
+
+    const toggle = await screen.findByRole('switch', { name: '系统定位 ToB' })
+    expect(toggle).not.toBeChecked()
+    fireEvent.click(toggle)
+    expect(toggle).toBeChecked()
+    fireEvent.click(screen.getByRole('button', { name: '保存配置' }))
+
+    await waitFor(() => expect(putConfig).toHaveBeenCalledWith('/admin/homepage/config', expect.objectContaining({ systemPosition: 'tob' })))
+  })
+
   it('uploads a dropped logo and saves the returned asset URL', async () => {
     const config = { siteName: 'Sub2API', siteLogoUrl: '', model: 'gpt-6-astra' }
     getConfig.mockResolvedValue({ code: 0, data: config })
@@ -105,7 +121,7 @@ describe('SystemConfigPage', () => {
     await waitFor(() => expect(uploadAsset).toHaveBeenCalledWith('/admin/assets', expect.any(FormData), { timeout: 0 }))
     const formData = uploadAsset.mock.calls[0][1] as FormData
     expect(formData.get('file')).toBe(logo)
-    expect(await screen.findByRole('img', { name: 'Sub2API 系统 Logo 预览' })).toHaveAttribute('src', '/api/aux/assets/7')
+    expect(await screen.findByRole('img', { name: 'Sub2API 系统 Logo 预览' })).toHaveAttribute('src', '/aux/api/aux/assets/7')
 
     fireEvent.click(screen.getByRole('button', { name: '保存配置' }))
     await waitFor(() => expect(putConfig).toHaveBeenCalledWith('/admin/homepage/config', expect.objectContaining({ siteLogoUrl: '/api/aux/assets/7' })))
@@ -127,7 +143,7 @@ describe('SystemConfigPage', () => {
     putConfig.mockResolvedValue({ code: 0, data: { ...config, siteLogoUrl: '' } })
     render(<SystemConfigPage />)
 
-    expect(await screen.findByRole('img', { name: 'Sub2API 系统 Logo 预览' })).toHaveAttribute('src', '/api/aux/assets/3')
+    expect(await screen.findByRole('img', { name: 'Sub2API 系统 Logo 预览' })).toHaveAttribute('src', '/aux/api/aux/assets/3')
     fireEvent.click(screen.getByRole('button', { name: '移除 Logo' }))
     expect(screen.queryByRole('img', { name: 'Sub2API 系统 Logo 预览' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '保存配置' }))
@@ -145,6 +161,6 @@ describe('SystemConfigPage', () => {
     fireEvent.change(input, { target: { files: [new File(['png'], 'brand.png', { type: 'image/png' })] } })
 
     expect(await screen.findByRole('alert')).toHaveTextContent('上传目录不可写，请检查服务器挂载目录权限。')
-    expect(screen.getByRole('img', { name: 'Sub2API 系统 Logo 预览' })).toHaveAttribute('src', '/api/aux/assets/3')
+    expect(screen.getByRole('img', { name: 'Sub2API 系统 Logo 预览' })).toHaveAttribute('src', '/aux/api/aux/assets/3')
   })
 })

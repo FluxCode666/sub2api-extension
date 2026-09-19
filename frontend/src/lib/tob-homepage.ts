@@ -41,7 +41,13 @@ export const DEFAULT_TOB_MAP_SETTINGS: TobMapSettings = {
 
 export const DEFAULT_TOB_HOMEPAGE_CONFIG: TobHomepageConfig = {
   ...DEFAULT_HOMEPAGE_CONFIG,
-  navigationItems: [...DEFAULT_HOMEPAGE_CONFIG.navigationItems, { label: '全球网络', href: '#network' }],
+  navigationItems: [
+    { label: '企业能力', href: '#capabilities' },
+    { label: '全球网络', href: '#network' },
+    { label: '数据安全', href: '#security' },
+    { label: '接入生态', href: '#ecosystem' },
+    { label: '交付流程', href: '#quickstart' },
+  ],
   primaryServers: [{ name: '华东主站', latitude: 31.23, longitude: 121.47, description: '核心 API 与控制面' }],
   cdnLocations: [],
   customerLocations: [],

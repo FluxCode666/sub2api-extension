@@ -22,6 +22,8 @@ describe('SandboxRenderer navigation bridge', () => {
     const srcdoc = iframe?.getAttribute('srcdoc') ?? ''
 
     expect(srcdoc).toContain('data-metadata-href="api_docs_href"')
+    expect(srcdoc).toContain('renderHomepageConfig')
+    expect(srcdoc).toContain('data-metadata-text="docs_cta"')
     expect(srcdoc).toContain('type: \'aux-navigation\'')
     expect(srcdoc).toContain('opaque')
     expect(srcdoc).toContain('https?:|mailto:|tel:')

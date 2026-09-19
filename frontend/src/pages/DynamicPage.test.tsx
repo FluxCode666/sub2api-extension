@@ -33,7 +33,15 @@ describe('DynamicPage', () => {
         enabled: true,
         page_id: 'page:home',
       } }
-      if (path === '/homepage/config') return { code: 0, data: { siteName: '示例平台', systemDomain: 'https://api.example.com' } }
+      if (path === '/homepage/config') return { code: 0, data: {
+        siteName: '示例平台',
+        systemDomain: 'https://api.example.com',
+        siteLogoUrl: 'https://cdn.example.com/logo.svg',
+        docsCta: '查看 API 参考',
+        docsHref: '/api-docs',
+        consoleHref: '/dashboard',
+        navigationItems: [{ label: '价格', href: '#pricing' }],
+      } }
       throw new Error(`Unexpected request: ${path}`)
     })
 
@@ -44,6 +52,11 @@ describe('DynamicPage', () => {
       metadata: expect.objectContaining({
         site_name: '示例平台',
         system_domain: 'https://api.example.com',
+        logo: 'https://cdn.example.com/logo.svg',
+        docs_cta: '查看 API 参考',
+        docs_href: '/api-docs',
+        console_href: '/dashboard',
+        navigation_items: [{ label: '价格', href: '#pricing' }],
       }),
     })))
   })

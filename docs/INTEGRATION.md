@@ -202,7 +202,7 @@ https://aux.example.com/api-docs?embed=1&api_base=https%3A%2F%2Fapi.example.com
 
 ### 2.5 动态配置系统名称与示例模型
 
-管理员可以在扩展管理端的“系统配置”（`/admin/system-config`）修改系统名称、系统 Logo 和“API 文档调用示例默认模型”。系统名称使用官网配置的 `siteName`，兼容旧配置的 `heroTitle`；Logo 保存为 `siteLogoUrl`，支持选择或拖拽 PNG、JPEG、GIF、WebP 图片上传，上传文件由现有图片资源服务校验并写入持久卷。默认模型为 `gpt-6-astra`。保存名称时保留官网 Hero 标题。官网与 API 文档会在下一次打开或刷新时使用新名称和 Logo，首页预览、快速开始及各接口的 cURL / Python / Go / Java 示例会使用新模型。配置保存在扩展的 `system_meta` 中，不需要重新部署页面。
+管理员可以在扩展管理端的“系统配置”（`/admin/system-config`）修改系统名称、系统 Logo、系统定位（ToC/ToB）和“API 文档调用示例默认模型”。系统名称使用官网配置的 `siteName`，兼容旧配置的 `heroTitle`；Logo 保存为 `siteLogoUrl`，支持选择或拖拽 PNG、JPEG、GIF、WebP 图片上传，上传文件由现有图片资源服务校验并写入持久卷。`systemPosition` 保存为 `toc`（默认）或 `tob`，决定 API 文档和客户端接入文档的官网入口分别使用 `/sub2api-home` 或 `/tob-home`。默认模型为 `gpt-6-astra`。保存名称时保留官网 Hero 标题。官网与 API 文档会在下一次打开或刷新时使用新名称和 Logo，首页预览、快速开始及各接口的 cURL / Python / Go / Java 示例会使用新模型。配置保存在扩展的 `system_meta` 中，不需要重新部署页面。
 
 ## 3. 页面管理与 Dashboard
 
@@ -393,7 +393,7 @@ iframe 没有提供有效 token，或附属会话已经失效：
 
 ## Sub2API 系统名称与官网配置
 
-Sub2API 系统名称、系统域名和默认模型位于管理端 `/admin/system-config`，配置保存到 aux-system 的 `system_meta`。数据库动态官网 `/p/home` 会把 `siteName` 和 `systemDomain` 注入页面元数据；API 文档、客户端文档、发票与促销页也读取同一份公开配置。旧版完整官网编辑页 `/admin/homepage` 和静态入口 `/sub2api-home`、`/embed` 继续兼容现有部署：
+Sub2API 系统名称、系统域名和默认模型位于管理端 `/admin/system-config`，配置保存到 aux-system 的 `system_meta`。数据库动态官网 `/p/home` 会把公开配置中的系统名称、Logo、文档按钮和顶部导航注入页面元数据；API 文档、客户端文档、发票与促销页也读取同一份公开配置。旧版完整官网编辑页 `/admin/homepage` 和静态入口 `/sub2api-home`、`/embed` 继续兼容现有部署：
 
 - 公开读取：`GET /api/aux/homepage/config`
 - 管理读取：`GET /api/aux/admin/homepage/config`
@@ -401,9 +401,9 @@ Sub2API 系统名称、系统域名和默认模型位于管理端 `/admin/system
 - 约定官网动态页：`/p/home`
 - 旧版静态兼容页：`/sub2api-home`、`/embed`
 
-配置支持 `siteName` 系统名称（兼容旧配置 `heroTitle`）、`siteLogoUrl` 官网 Logo、`showDevelopersSection` 开关、`showQuickstartSection` 开关、`trustedPartners` 合作伙伴列表和 `integrations` 接入生态列表。`showDevelopersSection` 控制「从代码，到增长」开发者板块及其导航入口，`showQuickstartSection` 控制「START IN MINUTES」快速接入板块，两个开关默认开启；每个接入生态项包含 `name`、`logoUrl`、`documentationUrl`，官网会将其展示为可点击的应用节点；同时支持 `documentationUrl` 使用文档、`termsUrl` 服务条款、`userTermsUrl` 用户条款、`privacyUrl` 隐私协议等链接。链接会在后端保存前清洗，仅允许站内路径、锚点和 `http(s)` URL；所有 Logo 字段支持 `http(s)` URL 或站内绝对路径（例如文件管理页生成的 `/api/aux/assets/2`）。
+配置支持 `siteName` 系统名称（兼容旧配置 `heroTitle`）、`systemPosition` 系统定位、`siteLogoUrl` 官网 Logo、`showDevelopersSection` 开关、`showQuickstartSection` 开关、`trustedPartners` 合作伙伴列表和 `integrations` 接入生态列表。`systemPosition` 可设为 `toc`（ToC，默认）或 `tob`（ToB）；API 文档和客户端接入文档页眉、页脚中所有“官网”入口会分别跳转 `/sub2api-home` 或 `/tob-home`。`showDevelopersSection` 控制「从代码，到增长」开发者板块及其导航入口，`showQuickstartSection` 控制「START IN MINUTES」快速接入板块，两个开关默认开启；每个接入生态项包含 `name`、`logoUrl`、`documentationUrl`，官网会将其展示为可点击的应用节点；同时支持 `documentationUrl` 使用文档、`termsUrl` 服务条款、`userTermsUrl` 用户条款、`privacyUrl` 隐私协议等链接。链接会在后端保存前清洗，仅允许站内路径、锚点和 `http(s)` URL；所有 Logo 字段支持 `http(s)` URL 或站内绝对路径（例如文件管理页生成的 `/api/aux/assets/2`）。
 
-管理员配置的跳转链接不会自动添加 aux-system 的挂载前缀。根路径 URI 按当前浏览器域名原样跳转：`/login`、`/dashboard`、`/admin/users` 指向同域名的 Sub2API；只有显式填写 `/aux/login`、`/aux/admin/...` 才进入 aux-system。`#section` 继续作为当前页面锚点，跨域目标使用完整的 `https://...` 地址。此规则统一适用于首页主按钮和控制台按钮、顶部导航、使用文档、协议、合作伙伴、接入生态、API 文档与客户端文档中的控制台入口，以及动态 HTML 页面通过元数据声明的链接。API、图片、下载和其他 aux-system 自有资源仍由应用自动添加 `/aux` 前缀。
+管理员配置的跳转链接不会自动添加 aux-system 的挂载前缀。根路径 URI 按当前浏览器域名原样跳转：`/login`、`/dashboard`、`/admin/users` 指向同域名的 Sub2API；只有显式填写 `/aux/login`、`/aux/admin/...` 才进入 aux-system。`#section` 继续作为当前页面锚点。官网和动态 HTML 页面保留配置的完整 `https://...` 外部目标；API 文档与客户端接入文档中的控制台按钮会提取配置 URL 的路径、查询参数和锚点，并绑定当前浏览器域名，以便嵌入场景始终在当前站点打开。此规则统一适用于首页主按钮和控制台按钮、顶部导航、使用文档、协议、合作伙伴、接入生态、API 文档与客户端文档中的控制台入口，以及动态 HTML 页面通过元数据声明的链接。API、图片、下载和其他 aux-system 自有资源仍由应用自动添加 `/aux` 前缀。
 
 `developersDocsUrl` 单独配置「BUILT FOR BUILDERS」板块的「接入文档」按钮链接，在后台「品牌与 Hero → 接入文档 URL」中维护。留空时沿用 `documentationUrl`，两者均为空时隐藏按钮；外部文档在新标签页打开。此配置同时适用于独立官网和嵌入页面。
 
@@ -422,4 +422,4 @@ ToB 管理页包含原官网的品牌与 Hero、顶部导航、合作伙伴、�
 
 地图按「主服务器 → CDN 集群 → 客户位置」绘制跳跃线路；未配置 CDN 时，主服务器直接连接客户位置。线路用于表达配置的服务关系，不代表实时流量或精确网络路由。公开接口不会返回管理员会话或 Sub2API 凭据。
 
-管理端「顶部导航」维护 `navigationItems` 数组，每项包含 `label`（菜单名称，最多 24 个字符）和 `href`（跳转链接），最多 8 项。可以添加、编辑、上移、下移或删除菜单，官网桌面导航和移动菜单按配置顺序展示。「进入控制台」仍使用 `consoleHref` 单独配置。旧配置缺少该字段时沿用原有导航，显式保存空数组可清空左侧菜单。指向 `#developers`、`#quickstart` 的菜单随对应板块开关隐藏，合作伙伴为空时隐藏 `#partners` 菜单；外部 HTTP/HTTPS 链接在新标签页打开。
+管理端「顶部导航」维护 `navigationItems` 数组，每项包含 `label`（菜单名称，最多 24 个字符）和 `href`（跳转链接），最多 8 项。可以添加、编辑、上移、下移或删除菜单，静态官网和数据库动态首页的桌面导航、移动菜单按配置顺序展示。「进入控制台」仍使用 `consoleHref` 单独配置。旧配置缺少该字段时沿用原有导航，显式保存空数组可清空左侧菜单。指向 `#developers`、`#quickstart` 的菜单随对应板块开关隐藏，合作伙伴为空时隐藏 `#partners` 菜单；外部 HTTP/HTTPS 链接在新标签页打开。

@@ -5,6 +5,7 @@ import ClientDocsPage from './ClientDocsPage'
 import { CLIENT_GUIDES } from '@/lib/client-guides'
 import { apiClient } from '@/lib/api-client'
 import { trackFeatureClick } from '@/lib/telemetry-sdk'
+import { withAppBasePath } from '@/lib/app-base-path'
 
 vi.mock('@gsap/react', () => ({ useGSAP: vi.fn() }))
 vi.mock('gsap', () => ({ default: { registerPlugin: vi.fn() } }))
@@ -113,7 +114,18 @@ describe('ClientDocsPage', () => {
 
   it('links back to the public website from the top navigation', () => {
     renderPage()
-    expect(screen.getByRole('link', { name: '返回官网' })).toHaveAttribute('href', '/sub2api-home')
+    expect(screen.getByRole('link', { name: '返回官网' })).toHaveAttribute('href', `${window.location.origin}/aux/sub2api-home`)
+    expect(screen.getByRole('link', { name: '返回官网' })).toHaveAttribute('target', '_top')
+  })
+
+  it('uses the ToB homepage for every website link when the system is positioned for ToB', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ code: 0, data: { systemPosition: 'tob' } })
+
+    renderPage()
+
+    await waitFor(() => expect(screen.getByRole('link', { name: '返回官网' })).toHaveAttribute('href', `${window.location.origin}/aux/tob-home`))
+    const footer = screen.getByRole('contentinfo')
+    expect(within(footer).getByRole('link', { name: /API 参考/ })).toBeInTheDocument()
   })
 
   it('follows system appearance by default and reacts to live system changes', () => {
@@ -180,7 +192,17 @@ describe('ClientDocsPage', () => {
     renderPage()
 
     const consoleLink = await screen.findByRole('link', { name: '控制台' })
-    await waitFor(() => expect(consoleLink).toHaveAttribute('href', '/dashboard'))
+    await waitFor(() => expect(consoleLink).toHaveAttribute('href', `${window.location.origin}/dashboard`))
+    expect(consoleLink).toHaveAttribute('target', '_top')
+  })
+
+  it('maps an external console URL to the current browser origin', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ code: 0, data: { consoleHref: 'https://console.example.com/dashboard?tab=home' } })
+
+    renderPage()
+
+    const consoleLink = await screen.findByRole('link', { name: '控制台' })
+    await waitFor(() => expect(consoleLink).toHaveAttribute('href', `${window.location.origin}/dashboard?tab=home`))
     expect(consoleLink).toHaveAttribute('target', '_top')
   })
 
@@ -200,7 +222,7 @@ describe('ClientDocsPage', () => {
       for (const screenshot of Object.values(client.screenshots)) {
         const image = screen.getByRole('img', { name: screenshot.src ? screenshot.alt : `${client.name}：${screenshot.caption}（截图待补充）` })
         expect(image).toBeInTheDocument()
-        if (screenshot.src) expect(image).toHaveAttribute('src', screenshot.src)
+        if (screenshot.src) expect(image).toHaveAttribute('src', withAppBasePath(screenshot.src))
       }
       expect(screen.getByText('当前时间', { selector: 'code' })).toBeInTheDocument()
       expect(document.body.textContent).not.toContain('/status')

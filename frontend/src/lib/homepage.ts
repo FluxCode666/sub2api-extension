@@ -1,5 +1,6 @@
 import { apiClient, type AuxEnvelope } from './api-client'
 import { DEFAULT_SUB2API_SYSTEM_NAME, resolveSystemName } from './system-name'
+import { DEFAULT_SYSTEM_POSITION, normalizeSystemPosition, type SystemPosition } from './system-position'
 
 export interface TrustedPartner {
   name: string
@@ -20,6 +21,7 @@ export interface HomepageNavigationItem {
 
 export interface HomepageConfig {
   siteName: string
+  systemPosition: SystemPosition
   systemDomain: string
   siteLogoUrl: string
   heroLabel: string
@@ -52,6 +54,7 @@ export interface HomepageConfig {
 
 export const DEFAULT_HOMEPAGE_CONFIG: HomepageConfig = {
   siteName: DEFAULT_SUB2API_SYSTEM_NAME,
+  systemPosition: DEFAULT_SYSTEM_POSITION,
   systemDomain: '',
   siteLogoUrl: '',
   heroLabel: '面向生产环境的 AI 网关',
@@ -108,6 +111,7 @@ export async function fetchHomepageConfig(): Promise<HomepageConfig> {
     ...DEFAULT_HOMEPAGE_CONFIG,
     ...envelope.data,
     siteName: resolveSystemName(envelope.data),
+    systemPosition: normalizeSystemPosition(envelope.data.systemPosition),
     navigationItems: envelope.data.navigationItems ?? DEFAULT_HOMEPAGE_CONFIG.navigationItems,
     trustedPartners: envelope.data.trustedPartners ?? [],
     integrations: envelope.data.integrations ?? [],

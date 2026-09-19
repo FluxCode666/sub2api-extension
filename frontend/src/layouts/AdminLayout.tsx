@@ -20,7 +20,6 @@ import {
   Bell,
   Calculator,
   ClipboardList,
-  ExternalLink,
   FilePlus2,
   Files,
   FileText,
@@ -300,14 +299,6 @@ export default function AdminLayout() {
                 <NavLink to="/api-docs" end>
                   <FileText className="h-4 w-4" />
                   <span>API 文档</span>
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <NavLink to="/sub2api-home" end>
-                  <ExternalLink className="h-4 w-4" />
-                  <span>Sub2API 官网</span>
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>

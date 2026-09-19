@@ -65,4 +65,23 @@ describe('TobHomepagePage', () => {
     ])
     expect(screen.getAllByRole('link', { name: DEFAULT_TOB_HOMEPAGE_CONFIG.primaryCta })).toHaveLength(2)
   })
+
+  it('renders the configured ToB navigation labels and destinations', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ code: 0, data: {
+      ...DEFAULT_TOB_HOMEPAGE_CONFIG,
+      navigationItems: [
+        { label: '企业方案', href: '#capabilities' },
+        { label: '交付路线', href: '#quickstart' },
+        { label: '客户案例', href: 'https://example.com/cases' },
+      ],
+    } })
+
+    render(<MemoryRouter initialEntries={['/tob-home']}><TobHomepagePage /></MemoryRouter>)
+
+    const navigation = within(await screen.findByRole('navigation', { name: '主导航' }))
+    expect(navigation.getByRole('link', { name: '企业方案' })).toHaveAttribute('href', '#capabilities')
+    expect(navigation.getByRole('link', { name: '交付路线' })).toHaveAttribute('href', '#quickstart')
+    expect(navigation.getByRole('link', { name: '客户案例' })).toHaveAttribute('href', 'https://example.com/cases')
+    expect(navigation.queryByRole('link', { name: '企业能力' })).not.toBeInTheDocument()
+  })
 })

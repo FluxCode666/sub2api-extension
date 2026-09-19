@@ -97,6 +97,52 @@ const METADATA_LINK_BOOTSTRAP = `
     var value = String(metadata[key]).trim();
     if (value && isSafeNavigation(value)) el.setAttribute('href', value);
   });
+
+  function setLabel(element, value) {
+    var icon = element.querySelector('svg');
+    if (!icon) {
+      element.textContent = value;
+      return;
+    }
+    element.textContent = '';
+    element.appendChild(document.createTextNode(value + ' '));
+    element.appendChild(icon);
+  }
+
+  function parseNavigationItems(raw) {
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (error) { return null; }
+    }
+    if (!Array.isArray(raw)) return null;
+    return raw.filter(function(item) {
+      return item && typeof item.label === 'string' && item.label.trim() && typeof item.href === 'string' && isSafeNavigation(item.href);
+    }).map(function(item) {
+      return { label: item.label.trim(), href: item.href.trim() };
+    });
+  }
+
+  function renderHomepageConfig() {
+    var docsButton = document.querySelector('[data-metadata-text="docs_cta"]') || document.querySelector('.teralemo-hero .teralemo-button--secondary');
+    var docsLabel = typeof metadata.docs_cta === 'string' ? metadata.docs_cta.trim() : '';
+    var docsHref = typeof metadata.docs_href === 'string' ? metadata.docs_href.trim() : '';
+    if (docsButton && docsLabel) setLabel(docsButton, docsLabel);
+    if (docsButton && docsHref && isSafeNavigation(docsHref)) docsButton.setAttribute('href', docsHref);
+
+    var items = parseNavigationItems(metadata.navigation_items);
+    var nav = document.querySelector('[data-homepage-navigation]') || document.querySelector('.teralemo-nav-links');
+    if (!nav || !items) return;
+    nav.textContent = '';
+    items.forEach(function(item, index) {
+      var link = document.createElement('a');
+      link.href = item.href;
+      link.textContent = item.label;
+      link.setAttribute('data-feature-id', 'nav-config-' + index);
+      if (item.href.charAt(0) !== '#') link.target = '_top';
+      nav.appendChild(link);
+    });
+  }
+
+  renderHomepageConfig();
 })();
 </script>`
 

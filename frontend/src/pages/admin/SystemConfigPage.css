@@ -92,7 +92,7 @@
 
 .aux-system-config-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(260px, .72fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
   max-width: 1160px;
   margin: 38px auto 0;
@@ -245,48 +245,17 @@
 .aux-system-config-publication > div > span { font-size: 13px; font-weight: 680; }
 .aux-system-config-publication small { color: var(--console-subtle); font-size: 12px; line-height: 1.55; }
 
+.aux-system-config-position { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 24px; padding: 16px 17px; border: 1px solid var(--console-line-strong); border-radius: 13px; background: color-mix(in srgb, var(--console-surface-strong) 78%, transparent); }
+.aux-system-config-position > div:first-child { display: grid; gap: 7px; min-width: 0; }
+.aux-system-config-position > div:first-child > span { font-size: 13px; font-weight: 680; }
+.aux-system-config-position small { color: var(--console-subtle); font-size: 12px; line-height: 1.55; }
+.aux-system-config-position-control { display: inline-flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.aux-system-config-position-control > span { min-width: 30px; color: var(--console-accent); font-size: 12px; font-weight: 760; text-align: right; }
+
 .aux-system-config-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 32px; }
 .aux-system-config-primary { border: 0; background: var(--console-accent); color: #fff; box-shadow: 0 10px 24px color-mix(in srgb, var(--console-accent) 28%, transparent); }
 .aux-system-config-secondary { border: 1px solid var(--console-line-strong); background: transparent; color: var(--console-muted); }
 
-.aux-system-config-preview-card {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  min-height: 270px;
-  padding: clamp(24px, 4vw, 34px);
-  background:
-    linear-gradient(145deg, color-mix(in srgb, var(--console-accent) 17%, var(--console-surface)), var(--console-surface));
-}
-
-.aux-system-config-preview-mark {
-  display: grid;
-  width: 44px;
-  height: 44px;
-  place-items: center;
-  margin-bottom: auto;
-  border: 1px solid color-mix(in srgb, var(--console-accent) 24%, transparent);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--console-accent) 14%, transparent);
-  color: var(--console-accent);
-}
-
-.aux-system-config-preview-mark svg { width: 20px; height: 20px; }
-.aux-system-config-preview-mark.has-image { overflow: hidden; background: var(--console-surface-strong); }
-.aux-system-config-preview-mark.has-image img { width: 100%; height: 100%; padding: 6px; object-fit: contain; }
-.aux-system-config-model-preview { display: block; max-width: 100%; margin-top: 14px; overflow-wrap: anywhere; color: var(--console-accent); font: 650 clamp(1.2rem, 2.4vw, 1.65rem)/1.25 ui-monospace, SFMono-Regular, Consolas, monospace; }
-
-.aux-system-config-info {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-top: 30px;
-  color: var(--console-muted);
-  font-size: 11px;
-  line-height: 1.65;
-}
-
-.aux-system-config-info svg { flex: 0 0 auto; width: 15px; height: 15px; margin-top: 2px; color: var(--console-accent); }
 .aux-system-config-state { display: flex; min-height: 50vh; align-items: center; justify-content: center; gap: 10px; color: var(--console-muted); font-size: 13px; }
 .aux-system-config-spin { animation: aux-system-config-spin 900ms linear infinite; }
 @keyframes aux-system-config-spin { to { transform: rotate(360deg); } }
@@ -295,10 +264,11 @@
   .aux-system-config-page { padding: 24px 18px 40px; }
   .aux-system-config-header { align-items: flex-start; flex-direction: column; }
   .aux-system-config-refresh { width: 100%; }
-  .aux-system-config-layout { grid-template-columns: 1fr; margin-top: 28px; }
-  .aux-system-config-preview-card { min-height: 220px; }
+  .aux-system-config-layout { margin-top: 28px; }
   .aux-system-config-logo-upload { grid-template-columns: 64px minmax(0, 1fr); padding: 15px; }
   .aux-system-config-logo-preview { width: 64px; height: 64px; }
+  .aux-system-config-position { align-items: flex-start; }
+  .aux-system-config-position-control { padding-top: 1px; }
   .aux-system-config-actions { flex-direction: column-reverse; }
   .aux-system-config-primary, .aux-system-config-secondary { width: 100%; }
 }

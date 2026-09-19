@@ -110,6 +110,9 @@ describe('ApiDocsPage', () => {
     expect(openAiHeading.closest('.aux-api-endpoint-group')).toHaveClass('aux-api-endpoint-group--openai')
     expect(screen.getByText('多模态', { selector: '.aux-api-sidebar-group-label' })).toHaveClass('aux-api-sidebar-group-label')
     expect(screen.getAllByText('/v1/chat/completions').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('/v1/images/generations/async').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('/v1/images/edits/async').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('/v1/images/tasks/{task_id}').length).toBeGreaterThan(0)
     expect(screen.getAllByText('/v1beta/models/{model}:generateContent').length).toBeGreaterThan(0)
   })
 
@@ -119,6 +122,9 @@ describe('ApiDocsPage', () => {
     expect(screen.getByRole('complementary', { name: '文档与接口端点目录' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'POST /v1/chat/completions' })).toHaveAttribute('href', '#endpoint-chat-completions')
     expect(screen.getByRole('link', { name: 'GET /v1/models' })).toHaveAttribute('href', '#endpoint-models')
+    expect(screen.getByRole('link', { name: 'POST /v1/images/generations/async' })).toHaveAttribute('href', '#endpoint-images-async')
+    expect(screen.getByRole('link', { name: 'POST /v1/images/edits/async' })).toHaveAttribute('href', '#endpoint-image-edits-async')
+    expect(screen.getByRole('link', { name: 'GET /v1/images/tasks/{task_id}' })).toHaveAttribute('href', '#endpoint-image-task')
     expect(screen.getByRole('link', { name: 'POST /v1/messages' })).toHaveAttribute('href', '#endpoint-messages')
     expect(screen.getByRole('link', { name: 'POST /v1beta/models/{model}:generateContent' })).toHaveAttribute('href', '#endpoint-gemini-generate-content')
   })
@@ -126,7 +132,22 @@ describe('ApiDocsPage', () => {
   it('links back to the public homepage from the top navigation', () => {
     renderPage()
 
-    expect(screen.getByRole('link', { name: '返回官网' })).toHaveAttribute('href', '/sub2api-home')
+    expect(screen.getByRole('link', { name: '返回官网' })).toHaveAttribute('href', `${window.location.origin}/aux/sub2api-home`)
+    expect(screen.getByRole('link', { name: '返回官网' })).toHaveAttribute('target', '_top')
+  })
+
+  it('uses the ToB homepage for every website link when the system is positioned for ToB', async () => {
+    const getConfig = vi.spyOn(apiClient, 'get').mockResolvedValue({
+      code: 0,
+      message: 'ok',
+      data: { systemPosition: 'tob' },
+    } as never)
+
+    renderPage()
+
+    await waitFor(() => expect(screen.getByRole('link', { name: '返回官网' })).toHaveAttribute('href', `${window.location.origin}/aux/tob-home`))
+    expect(within(screen.getByRole('contentinfo')).getByRole('link', { name: /官网/ })).toHaveAttribute('href', `${window.location.origin}/aux/tob-home`)
+    getConfig.mockRestore()
   })
 
   it.each(['light', 'dark'] as const)('supports an explicit %s appearance theme', (preference) => {
@@ -186,7 +207,7 @@ describe('ApiDocsPage', () => {
     expect(footer.querySelector('img')).toHaveAttribute('src', 'https://cdn.example.com/logo.svg')
     expect(footer).toHaveTextContent('gateway.example.com')
     expect(within(footer).getByRole('link', { name: /客户端接入/ })).toHaveAttribute('href', expect.stringContaining('/client-docs'))
-    expect(within(footer).getByRole('link', { name: /官网/ })).toHaveAttribute('href', '/sub2api-home')
+    expect(within(footer).getByRole('link', { name: /官网/ })).toHaveAttribute('href', `${window.location.origin}/aux/sub2api-home`)
     expect(Array.from(footer.querySelectorAll('nav a')).map((link) => link.textContent?.trim())).toEqual(expect.arrayContaining(['官网首页', '客户端接入']))
     expect(Array.from(footer.querySelectorAll('nav a')).findIndex((link) => link.textContent?.includes('官网首页'))).toBeLessThan(Array.from(footer.querySelectorAll('nav a')).findIndex((link) => link.textContent?.includes('客户端接入')))
     expect(within(footer).queryByRole('link', { name: /使用文档/ })).not.toBeInTheDocument()
@@ -205,9 +226,9 @@ describe('ApiDocsPage', () => {
     renderPage()
 
     const consoleLink = await screen.findByRole('link', { name: '控制台' })
-    expect(consoleLink).toHaveAttribute('href', 'https://console.example.com/dashboard')
-    expect(consoleLink).toHaveAttribute('target', '_blank')
-    expect(consoleLink).toHaveAttribute('rel', 'noreferrer')
+    expect(consoleLink).toHaveAttribute('href', `${window.location.origin}/dashboard`)
+    expect(consoleLink).toHaveAttribute('target', '_top')
+    expect(consoleLink).not.toHaveAttribute('rel')
     getConfig.mockRestore()
   })
 
@@ -221,7 +242,7 @@ describe('ApiDocsPage', () => {
     renderPage()
 
     const consoleLink = await screen.findByRole('link', { name: '控制台' })
-    expect(consoleLink).toHaveAttribute('href', '/dashboard')
+    expect(consoleLink).toHaveAttribute('href', `${window.location.origin}/dashboard`)
     expect(consoleLink).toHaveAttribute('target', '_top')
     expect(consoleLink).not.toHaveAttribute('rel')
     getConfig.mockRestore()
@@ -286,8 +307,45 @@ describe('ApiDocsPage', () => {
     renderPage()
 
     const markdownButtons = screen.getAllByRole('button', { name: /复制 .* Markdown 文档/ })
-    expect(markdownButtons).toHaveLength(7)
-    expect(document.querySelectorAll('.aux-api-endpoint-card .aux-api-markdown-button')).toHaveLength(7)
+    expect(markdownButtons).toHaveLength(10)
+    expect(document.querySelectorAll('.aux-api-endpoint-card .aux-api-markdown-button')).toHaveLength(10)
+  })
+
+  it('documents asynchronous image submission, editing and polling contracts', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.assign(navigator, { clipboard: { writeText } })
+    renderPage()
+
+    const generationCard = document.querySelector('#endpoint-images-async') as HTMLElement
+    expect(generationCard).toHaveTextContent('202 Accepted')
+    expect(generationCard).toHaveTextContent('对象存储')
+    fireEvent.click(within(generationCard).getByRole('button', { name: '查看参数与示例' }))
+    fireEvent.click(within(generationCard).getByRole('tab', { name: /响应参数/ }))
+    expect(within(generationCard).getByText('poll_url', { selector: 'code' })).toBeInTheDocument()
+    fireEvent.click(within(generationCard).getByRole('tab', { name: '调用示例' }))
+    expect(generationCard.querySelector('pre code')).toHaveTextContent('/v1/images/generations/async')
+    expect(generationCard.querySelector('pre code')).toHaveTextContent('"model": "gpt-image-1"')
+    expect(generationCard.querySelector('pre code')).not.toHaveTextContent('gpt-6-astra')
+
+    const editCard = document.querySelector('#endpoint-image-edits-async') as HTMLElement
+    fireEvent.click(within(editCard).getByRole('button', { name: '查看参数与示例' }))
+    expect(within(editCard).getByText('images[].image_url', { selector: 'code' })).toBeInTheDocument()
+    expect(editCard).toHaveTextContent('multipart/form-data')
+
+    const taskCard = document.querySelector('#endpoint-image-task') as HTMLElement
+    expect(taskCard).toHaveTextContent('同一个 API Key')
+    fireEvent.click(within(taskCard).getByRole('button', { name: '查看参数与示例' }))
+    fireEvent.click(within(taskCard).getByRole('tab', { name: '调用示例' }))
+    expect(taskCard.querySelector('pre code')).toHaveTextContent('/v1/images/tasks/imgtask_0123456789abcdef')
+    expect(taskCard.querySelector('.aux-api-example-response pre code')).toHaveTextContent('"status": "completed"')
+
+    fireEvent.click(within(generationCard).getByRole('button', { name: '复制 异步生成图片 Markdown 文档' }))
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1))
+    const markdown = writeText.mock.calls[0][0] as string
+    expect(markdown).toContain('`POST` `/v1/images/generations/async`')
+    expect(markdown).toContain('"model": "gpt-image-1"')
+    expect(markdown).toContain('`poll_url`')
+    expect(markdown).not.toContain('gpt-6-astra')
   })
 
   it('copies a complete Markdown document for an endpoint', async () => {

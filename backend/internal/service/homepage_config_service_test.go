@@ -30,6 +30,7 @@ func TestHomepageConfigService_GetDefaultsWhenEmpty(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "Sub2API", config.SiteName)
+	assert.Equal(t, SystemPositionToC, config.SystemPosition)
 	assert.Equal(t, "99.99%", config.Availability)
 	assert.Equal(t, "≤ 200ms", config.FirstTokenResponseTime)
 	assert.Equal(t, "≥ 85%", config.PromptCacheRate)
@@ -40,6 +41,20 @@ func TestHomepageConfigService_GetDefaultsWhenEmpty(t *testing.T) {
 	assert.True(t, *config.ShowQuickstartSection)
 	assert.Empty(t, config.TrustedPartners)
 	assert.Empty(t, config.Integrations)
+}
+
+func TestHomepageConfigService_NormalizesSystemPosition(t *testing.T) {
+	svc := NewHomepageConfigService(&memoryHomepageConfigStore{})
+
+	toB, err := svc.Save(context.Background(), HomepageConfig{SystemPosition: SystemPositionToB})
+	require.NoError(t, err)
+	assert.Equal(t, SystemPositionToB, toB.SystemPosition)
+
+	for _, value := range []SystemPosition{"", "invalid", "TOB"} {
+		config, err := svc.Save(context.Background(), HomepageConfig{SystemPosition: value})
+		require.NoError(t, err)
+		assert.Equal(t, SystemPositionToC, config.SystemPosition)
+	}
 }
 
 func TestHomepageConfigService_MigratesLegacyDefaultModel(t *testing.T) {

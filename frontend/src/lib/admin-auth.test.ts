@@ -87,7 +87,7 @@ describe('admin-auth', () => {
       expect(result.session?.user.role).toBe('admin')
       // 请求体应带 sub2api token
       const [url, init] = fetchMock.mock.calls[0]
-      expect(url).toBe('/api/aux/admin/session')
+      expect(url).toBe('/aux/api/aux/admin/session')
       expect(init.method).toBe('POST')
       expect(JSON.parse(init.body)).toEqual({ token: 'sub2api-jwt-123' })
     })
@@ -299,7 +299,7 @@ describe('admin-auth', () => {
 
       // 请求体应带 email+password
       const [url, init] = fetchMock.mock.calls[0]
-      expect(url).toBe('/api/aux/admin/login')
+      expect(url).toBe('/aux/api/aux/admin/login')
       expect(init.method).toBe('POST')
       expect(JSON.parse(init.body)).toEqual({
         email: 'admin@sub2api.local',

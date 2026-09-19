@@ -14,7 +14,7 @@ sub2api本地项目路径：`/Users/duegin/project/sub2api`
 
 - **附属管理端** —— 通过 sub2api 的 `custom_menu_items` 以 iframe 方式打开，也支持独立登录。
 - **Sub2API API 文档** —— 内置 OpenAI/Anthropic/Gemini 兼容接口说明，可挂载到 sub2api 菜单，也可作为公开 iframe 嵌入其他系统。
-- **系统配置** —— 在管理端动态设置系统名称、系统 Logo、系统域名与 API 文档调用示例的默认模型；Logo 支持选择或拖拽 PNG、JPEG、GIF、WebP 图片上传。
+- **系统配置** —— 在管理端动态设置系统名称、系统 Logo、系统定位（ToC/ToB）、系统域名与 API 文档调用示例的默认模型；Logo 支持选择或拖拽 PNG、JPEG、GIF、WebP 图片上传。
 - **动态页面编写** —— 管理员可以创建、编辑、启停和删除数据库页面，不需要改动前端源码。
 - **页面分析与埋点** —— 统计当前页面的访问量和功能点击，在分析仪表盘中查看使用情况。
   - 客户端接入页与 API 文档页统计章节导航、客户端/平台选择、安装下载、截图查看、端点展开、参数/语言切换及成功复制；兼容入口 `/docs` 的访问归入 `api-docs`。统计口径和事件 ID 见 [文档页埋点与统计](docs/DOCS_TELEMETRY.md)。
@@ -29,7 +29,7 @@ sub2api本地项目路径：`/Users/duegin/project/sub2api`
 | `/` | 重定向到 `/admin/dashboard`，不是官网首页 |
 | `/admin/dashboard` | 分析仪表盘，展示页面访问和功能使用度 |
 | `/admin/pages` | 动态页面管理，管理员编写和维护页面 |
-| `/admin/system-config` | 系统配置，设置 Sub2API 系统名称、Logo、系统域名和文档示例默认模型 |
+| `/admin/system-config` | 系统配置，设置 Sub2API 系统名称、Logo、系统定位、系统域名和文档示例默认模型 |
 | `/admin/files` | 文件管理（图片与发票文件） |
 | `/admin/ops/ttft` | 运维看板：首字延迟火焰图（直读 Sub2API 数据库） |
 | `/admin/logs/system` | 系统日志：请求、运行状态和错误事件 |
@@ -282,7 +282,7 @@ Docker 生产环境默认在 `aux-system` 启动时执行幂等 Ent 自动迁移
 | `DEV_SUB2API_DATABASE_USER` | `sub2api` | Sub2API PostgreSQL 用户 |
 | `DEV_SUB2API_DATABASE_PASSWORD` | `123456` | 默认与 `DEV_DATABASE_PASSWORD` 相同；首字延迟看板必需 |
 | `DEV_SUB2API_DATABASE_DBNAME` | `sub2api` | Sub2API 数据库名 |
-| `DEV_SUB2API_EXTENSION_PUBLIC_URL` | `http://localhost:3100` | 浏览器可访问的扩展 origin；上架菜单必需 |
+| `DEV_SUB2API_EXTENSION_PUBLIC_URL` | `http://localhost:3100/aux` | 浏览器可访问的扩展地址；上架菜单必需 |
 | `JWT_SECRET` | `dev-secret-not-for-production` | 开发用签名密钥 |
 
 > 本地 `SUB2API_BASE_URL` 默认是 `http://127.0.0.1:8003`，可通过环境变量覆盖；它用于账号密码登录和 iframe 管理员身份转发验证。
@@ -301,12 +301,12 @@ export DEV_DATABASE_USER=sub2api
 export DEV_DATABASE_PASSWORD=123456
 export DEV_DATABASE_DBNAME=sub2api
 # 页面上架 URL（前端 Vite 默认端口 3100）
-export DEV_SUB2API_EXTENSION_PUBLIC_URL=http://localhost:3100
+export DEV_SUB2API_EXTENSION_PUBLIC_URL=http://localhost:3100/aux
 make dev
 ```
 
 如果直接运行 `go run ./cmd/server`（不经过 Makefile），也必须显式传入
-`SUB2API_EXTENSION_PUBLIC_URL=http://localhost:3100`；否则页面数据仍会保存，
+`SUB2API_EXTENSION_PUBLIC_URL=http://localhost:3100/aux`；否则页面数据仍会保存，
 但同步 `custom_menu_items` 时会提示 `sub2api public URL is required to publish a page`。
 
 ### 前端
@@ -314,13 +314,15 @@ make dev
 ```bash
 cd frontend
 pnpm install
-pnpm dev        # 开发服务器 http://localhost:3100
+pnpm dev        # 开发服务器 http://localhost:3100/aux/
 ```
 
 前端 dev server 监听 `3100`，独立后端 `cd backend && make dev` 默认监听 `8004`，前端会自动代理到该端口。
 如果使用 Docker 开发部署（宿主机端口通常为 `8788`），请使用
 `VITE_AUX_BACKEND_URL=http://127.0.0.1:8788 pnpm dev` 覆盖代理地址。浏览器访问
-`http://localhost:3100/` 会重定向到分析仪表盘；系统不会在根路径展示官网首页。
+`http://localhost:3100/aux/` 会重定向到分析仪表盘；系统不会在根路径展示官网首页。
+本地 Vite 默认使用 `/aux/` 挂载路径；如果需要根路径开发，可显式设置
+`VITE_BASE_PATH=/ pnpm dev`。
 
 ### 管理端登录
 

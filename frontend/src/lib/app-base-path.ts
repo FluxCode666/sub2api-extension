@@ -25,6 +25,34 @@ export function withAppBasePath(path: string, basePath = APP_BASE_PATH): string 
   return `${baseWithoutSlash}${path}`
 }
 
+/** 将配置中的 URL 转为当前浏览器 origin 下的路径，避免跨域打开同一系统的按钮。 */
+export function toSameOriginPath(value: string, fallback = ''): string {
+  const trimmed = value.trim()
+  if (!trimmed || trimmed.startsWith('#')) return trimmed
+
+  try {
+    const parsed = new URL(trimmed, 'https://aux-current-origin.invalid')
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return fallback
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`
+  } catch {
+    return fallback
+  }
+}
+
+/** 将应用内路径解析为当前浏览器 origin 下的绝对 URI。 */
+export function toCurrentOriginURI(
+  path: string,
+  options: { basePath?: string; includeAppBasePath?: boolean } = {},
+): string {
+  if (!path.startsWith('/') || path.startsWith('//')) return path
+
+  const targetPath = options.includeAppBasePath === false
+    ? path
+    : withAppBasePath(path, options.basePath)
+  if (typeof window === 'undefined' || !window.location.origin) return targetPath
+  return new URL(targetPath, window.location.origin).toString()
+}
+
 /** 判断 URL pathname 是否属于当前应用挂载路径。 */
 export function isPathWithinAppBase(pathname: string, basePath = APP_BASE_PATH): boolean {
   if (!pathname.startsWith('/')) return false

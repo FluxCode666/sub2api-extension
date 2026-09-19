@@ -18,6 +18,7 @@ import SandboxRenderer from '@/components/SandboxRenderer'
 import { trackPageView } from '@/lib/telemetry-sdk'
 import { compileAndCreateComponent } from '@/lib/dynamic-react-compiler'
 import { DEFAULT_SUB2API_SYSTEM_NAME, resolveSystemName, type SystemNameConfig } from '@/lib/system-name'
+import { toCurrentOriginURI } from '@/lib/app-base-path'
 
 // 使用 Vite 的 import.meta.glob 预先注册所有页面组件（文件组件模式）
 export type DynamicComponentProps = { metadata?: Record<string, unknown>; pageId?: string }
@@ -40,6 +41,13 @@ interface DynamicPageData {
 
 interface PublicSystemConfig extends SystemNameConfig {
   systemDomain?: string
+  siteLogoUrl?: string
+  docsCta?: string
+  docsHref?: string
+  consoleHref?: string
+  developersDocsUrl?: string
+  documentationUrl?: string
+  navigationItems?: Array<{ label: string; href: string }>
 }
 
 type LoadState = 'loading' | 'loaded' | 'error'
@@ -91,10 +99,21 @@ export default function DynamicPage() {
     setHomepageMetadata({ site_name: DEFAULT_SUB2API_SYSTEM_NAME })
     void apiClient.get<AuxEnvelope<PublicSystemConfig>>('/homepage/config').then((response) => {
       if (cancelled || response.code !== 0) return
-      setHomepageMetadata({
-        site_name: resolveSystemName(response.data),
-        system_domain: response.data?.systemDomain?.trim() || '',
-      })
+      const config = response.data
+      const configuredLogo = config?.siteLogoUrl?.trim() || ''
+      const nextMetadata: Record<string, unknown> = {
+        site_name: resolveSystemName(config),
+        system_domain: config?.systemDomain?.trim() || '',
+        logo: configuredLogo ? toCurrentOriginURI(configuredLogo) : '',
+        docs_cta: config?.docsCta?.trim() || '',
+        docs_href: config?.docsHref?.trim() || '',
+        console_href: config?.consoleHref?.trim() || '',
+        api_docs_href: config?.developersDocsUrl?.trim() || config?.documentationUrl?.trim() || '',
+      }
+      if (Array.isArray(config?.navigationItems)) {
+        nextMetadata.navigation_items = config.navigationItems.filter((item) => item && typeof item.label === 'string' && typeof item.href === 'string')
+      }
+      setHomepageMetadata(nextMetadata)
     }).catch(() => {
       // 官网品牌配置失败时使用中性默认名称，不影响动态页面内容加载。
     })

@@ -45,7 +45,7 @@ describe('apiRequest 401 handling', () => {
     await expect(apiRequest('/test')).rejects.toThrow('Unauthorized: redirecting to login')
 
     // 验证跳转到登录页
-    expect(window.location.href).toBe('/login')
+    expect(window.location.href).toBe('/aux/login')
   })
 
   it('should clear the stale admin session before redirecting after 401', async () => {
@@ -65,7 +65,7 @@ describe('apiRequest 401 handling', () => {
     await expect(apiRequest('/test')).rejects.toThrow('Unauthorized: redirecting to login')
 
     expect(getAdminSession()).toBeNull()
-    expect(window.location.href).toBe('/login')
+    expect(window.location.href).toBe('/aux/login')
   })
 
   it('should preserve embedded parameters so iframe sessions can be exchanged again', async () => {
@@ -80,7 +80,7 @@ describe('apiRequest 401 handling', () => {
 
     await expect(apiRequest('/admin/invoices')).rejects.toThrow('Unauthorized: redirecting to login')
 
-    expect(window.location.href).toBe('/admin/dashboard?token=sub2api-token&user_id=1&ui_mode=embedded')
+    expect(window.location.href).toBe('/aux/admin/dashboard?token=sub2api-token&user_id=1&ui_mode=embedded')
   })
 
   it('should not redirect when 401 occurs on non-admin path', async () => {

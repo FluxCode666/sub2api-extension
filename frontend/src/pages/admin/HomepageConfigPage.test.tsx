@@ -34,7 +34,7 @@ describe('HomepageConfigPage', () => {
     render(<HomepageConfigPage />)
 
     expect(await screen.findByRole('heading', { name: 'ToC 官网配置' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '预览 ToC 官网' })).toHaveAttribute('href', '/sub2api-home')
+    expect(screen.getByRole('link', { name: '预览 ToC 官网' })).toHaveAttribute('href', '/aux/sub2api-home')
   })
 
   it('explains how same-origin Sub2API and aux paths are resolved', async () => {

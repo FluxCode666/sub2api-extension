@@ -783,7 +783,7 @@ func getHomePageHTML() string {
           <span class="teralemo-mark" data-brand-logo aria-hidden="true">T</span>
           <span class="teralemo-wordmark">Sub2API</span>
         </a>
-        <nav class="teralemo-nav-links">
+        <nav class="teralemo-nav-links" data-homepage-navigation>
           <a href="#platform">平台能力</a>
           <a href="#capabilities">治理能力</a>
           <a href="#developers">开发者文档</a>
@@ -823,7 +823,7 @@ func getHomePageHTML() string {
             <a class="teralemo-button teralemo-button--primary" href="#contact" data-feature-id="hero-primary">
               获取接入方案
             </a>
-            <a class="teralemo-button teralemo-button--secondary" href="#developers" data-feature-id="hero-docs">
+            <a class="teralemo-button teralemo-button--secondary" href="#developers" data-feature-id="hero-docs" data-metadata-text="docs_cta" data-metadata-href="docs_href">
               查看开发者文档
             </a>
           </div>
