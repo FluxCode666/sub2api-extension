@@ -114,6 +114,9 @@ describe('ApiDocsPage', () => {
     expect(screen.getAllByText('/v1/images/generations/async').length).toBeGreaterThan(0)
     expect(screen.getAllByText('/v1/images/edits/async').length).toBeGreaterThan(0)
     expect(screen.getAllByText('/v1/images/tasks/{task_id}').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('/v1/videos/generations').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('/v1/videos/{request_id}').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('/v1/videos/{request_id}/content').length).toBeGreaterThan(0)
     expect(screen.getAllByText('/v1beta/models/{model}:generateContent').length).toBeGreaterThan(0)
   })
 
@@ -127,6 +130,9 @@ describe('ApiDocsPage', () => {
     expect(screen.getByRole('link', { name: 'POST /v1/images/generations/async' })).toHaveAttribute('href', '#endpoint-images-async')
     expect(screen.getByRole('link', { name: 'POST /v1/images/edits/async' })).toHaveAttribute('href', '#endpoint-image-edits-async')
     expect(screen.getByRole('link', { name: 'GET /v1/images/tasks/{task_id}' })).toHaveAttribute('href', '#endpoint-image-task')
+    expect(screen.getByRole('link', { name: 'POST /v1/videos/generations' })).toHaveAttribute('href', '#endpoint-videos-generations')
+    expect(screen.getByRole('link', { name: 'GET /v1/videos/{request_id}' })).toHaveAttribute('href', '#endpoint-video-status')
+    expect(screen.getByRole('link', { name: 'GET /v1/videos/{request_id}/content' })).toHaveAttribute('href', '#endpoint-video-content')
     expect(screen.getByRole('link', { name: 'POST /v1/messages' })).toHaveAttribute('href', '#endpoint-messages')
     expect(screen.getByRole('link', { name: 'POST /v1beta/models/{model}:generateContent' })).toHaveAttribute('href', '#endpoint-gemini-generate-content')
   })
@@ -309,8 +315,37 @@ describe('ApiDocsPage', () => {
     renderPage()
 
     const markdownButtons = screen.getAllByRole('button', { name: /复制 .* Markdown 文档/ })
-    expect(markdownButtons).toHaveLength(11)
-    expect(document.querySelectorAll('.aux-api-endpoint-card .aux-api-markdown-button')).toHaveLength(11)
+    expect(markdownButtons).toHaveLength(14)
+    expect(document.querySelectorAll('.aux-api-endpoint-card .aux-api-markdown-button')).toHaveLength(14)
+  })
+
+  it('documents asynchronous video generation, status polling and content download', () => {
+    renderPage()
+
+    const generationCard = document.querySelector('#endpoint-videos-generations') as HTMLElement
+    expect(generationCard).toHaveTextContent('异步提交 Grok 视频生成任务')
+    fireEvent.click(within(generationCard).getByRole('button', { name: '查看参数与示例' }))
+    expect(within(generationCard).getByText('duration', { selector: 'code' })).toBeInTheDocument()
+    expect(within(generationCard).getByText('resolution', { selector: 'code' })).toBeInTheDocument()
+    fireEvent.click(within(generationCard).getByRole('tab', { name: '调用示例' }))
+    expect(generationCard.querySelector('pre code')).toHaveTextContent('/v1/videos/generations')
+    expect(generationCard.querySelector('pre code')).toHaveTextContent('"model": "grok-imagine-video"')
+
+    const statusCard = document.querySelector('#endpoint-video-status') as HTMLElement
+    fireEvent.click(within(statusCard).getByRole('button', { name: '查看参数与示例' }))
+    fireEvent.click(within(statusCard).getByRole('tab', { name: /响应参数/ }))
+    expect(within(statusCard).getByText('video.url', { selector: 'code' })).toBeInTheDocument()
+    fireEvent.click(within(statusCard).getByRole('tab', { name: '调用示例' }))
+    expect(statusCard.querySelector('pre code')).toHaveTextContent('/v1/videos/video-request_0123456789abcdef')
+
+    const contentCard = document.querySelector('#endpoint-video-content') as HTMLElement
+    fireEvent.click(within(contentCard).getByRole('button', { name: '查看参数与示例' }))
+    expect(contentCard).toHaveTextContent('video/mp4')
+    expect(within(contentCard).getByText('Range', { selector: 'code' })).toBeInTheDocument()
+    fireEvent.click(within(contentCard).getByRole('tab', { name: '调用示例' }))
+    expect(contentCard.querySelector('pre code')).toHaveTextContent('/v1/videos/video-request_0123456789abcdef/content')
+    expect(contentCard.querySelector('pre code')).toHaveTextContent('Range: bytes=0-')
+    expect(contentCard.querySelector('pre code')).toHaveTextContent('--output generated-video.mp4')
   })
 
   it('documents asynchronous image submission, editing and polling contracts', async () => {

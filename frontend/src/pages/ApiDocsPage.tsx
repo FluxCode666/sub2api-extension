@@ -232,6 +232,90 @@ const endpoints: Endpoint[] = [
     ],
   },
   {
+    id: 'videos-generations',
+    group: '多模态',
+    method: 'POST',
+    path: '/v1/videos/generations',
+    exampleModel: 'grok-imagine-video',
+    title: '生成视频',
+    description: '异步提交 Grok 视频生成任务，接口先返回 request_id；使用视频状态接口轮询，任务完成后再通过 content 地址下载 MP4。视频接口当前面向 Grok 或可路由到 Grok 的组合分组。',
+    auth: '需要 API Key',
+    request: `{
+  "model": "grok-imagine-video",
+  "prompt": "A cinematic ocean wave at golden hour",
+  "duration": 8,
+  "resolution": "720p",
+  "aspect_ratio": "16:9"
+}`,
+    response: `{
+  "request_id": "video-request_0123456789abcdef"
+}`,
+    requestParams: [
+      { name: 'model', type: 'string', required: true, defaultValue: '-', description: '视频模型 ID，例如 grok-imagine-video 或 grok-imagine-video-1.5；两者均支持文生视频，传入图片时为图生视频。' },
+      { name: 'prompt', type: 'string', required: true, defaultValue: '-', description: '描述视频内容、动作和镜头的自然语言提示词。' },
+      { name: 'duration', type: 'integer', required: false, defaultValue: '8', description: '视频时长，单位为秒；省略时使用服务端默认值。' },
+      { name: 'resolution', type: 'string', required: false, defaultValue: '480p', description: '输出分辨率，可使用 480p、720p 或 1080p，实际可用值取决于模型和账号。' },
+      { name: 'aspect_ratio', type: 'string', required: false, defaultValue: '模型默认', description: '输出画幅，例如 16:9。' },
+      { name: 'image.url', type: 'string', required: false, defaultValue: 'null', description: '可选首帧图片 URL，用于图生视频；也接受 image.image_url 兼容写法。' },
+      { name: 'reference_images[].url', type: 'string', required: false, defaultValue: '[]', description: '可选参考图片 URL 数组；服务端会转为上游兼容格式。' },
+    ],
+    responseParams: [
+      { name: 'request_id', type: 'string', required: true, defaultValue: '-', description: '异步视频任务 ID，用于查询状态和下载内容。' },
+    ],
+  },
+  {
+    id: 'video-status',
+    group: '多模态',
+    method: 'GET',
+    path: '/v1/videos/{request_id}',
+    title: '查询视频任务',
+    description: '使用创建任务时的同一个 API Key 查询视频状态。任务完成时返回 status=done 和 video.url；处理中继续轮询，失败时返回上游错误字段。',
+    auth: '需要原提交 API Key',
+    response: `{
+  "status": "done",
+  "model": "grok-imagine-video",
+  "video": {
+    "url": "/v1/videos/video-request_0123456789abcdef/content",
+    "duration": 8,
+    "respect_moderation": true
+  }
+}`,
+    requestParams: [
+      { name: 'request_id', type: 'path string', required: true, defaultValue: '-', description: '生成接口返回的 request_id。任务归属于提交它的用户和 API Key。' },
+    ],
+    responseParams: [
+      { name: 'status', type: 'string', required: true, defaultValue: '-', description: '任务状态：pending、done、expired 或 failed。' },
+      { name: 'model', type: 'string', required: false, defaultValue: 'null', description: '实际用于生成视频的模型 ID。' },
+      { name: 'video.url', type: 'string', required: false, defaultValue: 'null', description: '完成后的视频下载地址，服务端会改写为当前 API 的 content 代理地址。' },
+      { name: 'video.duration', type: 'integer', required: false, defaultValue: 'null', description: '完成视频的时长，单位为秒。' },
+      { name: 'video.respect_moderation', type: 'boolean', required: false, defaultValue: 'null', description: '上游返回的视频内容审核标记。' },
+      { name: 'error', type: 'object', required: false, defaultValue: 'null', description: '任务失败时的上游错误信息。' },
+    ],
+  },
+  {
+    id: 'video-content',
+    group: '多模态',
+    method: 'GET',
+    path: '/v1/videos/{request_id}/content',
+    title: '下载生成的视频',
+    description: '下载已完成的视频二进制内容。必须使用提交任务时的 API Key；支持通过 Range 请求头断点或分段下载，响应类型通常为 video/mp4。',
+    auth: '需要原提交 API Key',
+    response: `HTTP/1.1 200 OK
+Content-Type: video/mp4
+Accept-Ranges: bytes
+
+<binary video content>`,
+    requestParams: [
+      { name: 'request_id', type: 'path string', required: true, defaultValue: '-', description: '生成接口返回的 request_id。只有已完成任务才能下载。' },
+      { name: 'Range', type: 'HTTP header', required: false, defaultValue: 'null', description: '可选字节范围，例如 bytes=0-1048575，用于分段下载。' },
+    ],
+    responseParams: [
+      { name: 'Content-Type', type: 'string', required: true, defaultValue: 'video/mp4', description: '视频 MIME 类型。' },
+      { name: 'Accept-Ranges', type: 'string', required: false, defaultValue: 'bytes', description: '服务端支持按字节范围读取时返回 bytes。' },
+      { name: 'Content-Range', type: 'string', required: false, defaultValue: 'null', description: 'Range 请求成功时返回实际字节区间。' },
+    ],
+  },
+  {
     id: 'image-edits',
     group: '多模态',
     method: 'POST',
@@ -828,9 +912,11 @@ function buildExampleCode(endpoint: Endpoint, baseURL: string, exampleModel: str
   const examplePath = endpoint.path
     .replace('{model}', model)
     .replace('{task_id}', 'imgtask_0123456789abcdef')
+    .replace('{request_id}', 'video-request_0123456789abcdef')
   const url = `${baseURL || '$API_BASE'}${examplePath}`
   const requestBody = endpoint.request?.trim().replace(/("model"\s*:\s*)"[^"]+"/, `$1"${model}"`)
   const isGoogle = endpoint.group === 'Google 原生'
+  const isBinaryDownload = endpoint.id === 'video-content'
   const headerName = isGoogle ? 'x-goog-api-key' : 'Authorization'
 
   if (language === 'curl') {
@@ -840,6 +926,11 @@ function buildExampleCode(endpoint: Endpoint, baseURL: string, exampleModel: str
     if (endpoint.method === 'POST') {
       lines.push(`  -H "Content-Type: application/json"${requestBody ? ` ${slash}` : ''}`)
       if (requestBody) lines.push(`  -d '${requestBody.replace(/'/g, "'\\''")}'`)
+    }
+    if (isBinaryDownload) {
+      lines[0] += ` ${slash}`
+      lines.push(`  -H "Range: bytes=0-" ${slash}`)
+      lines.push('  --output generated-video.mp4')
     }
     return lines.join('\n')
   }
@@ -856,10 +947,14 @@ function buildExampleCode(endpoint: Endpoint, baseURL: string, exampleModel: str
       'headers = {',
       authLine,
       ...(endpoint.method === 'POST' ? ['    "Content-Type": "application/json",'] : []),
+      ...(isBinaryDownload ? ['    "Range": "bytes=0-",'] : []),
       '}',
     ]
     if (requestBody) {
       lines.push('', `payload = r'''${requestBody}'''`, 'response = requests.post(url, headers=headers, data=payload)')
+    } else if (isBinaryDownload) {
+      lines.push('', 'with requests.get(url, headers=headers, stream=True) as response:', '    response.raise_for_status()', '    with open("generated-video.mp4", "wb") as output:', '        for chunk in response.iter_content(chunk_size=1024 * 1024):', '            output.write(chunk)')
+      return lines.join('\n')
     } else {
       lines.push('', 'response = requests.get(url, headers=headers)')
     }
@@ -884,11 +979,14 @@ function buildExampleCode(endpoint: Endpoint, baseURL: string, exampleModel: str
       '    if err != nil { panic(err) }',
       `    req.Header.Set("${headerName}", ${isGoogle ? 'os.Getenv("API_KEY")' : '"Bearer " + os.Getenv("API_KEY")'})`,
       ...(endpoint.method === 'POST' ? ['    req.Header.Set("Content-Type", "application/json")'] : []),
+      ...(isBinaryDownload ? ['    req.Header.Set("Range", "bytes=0-")'] : []),
       '    resp, err := http.DefaultClient.Do(req)',
       '    if err != nil { panic(err) }',
       '    defer resp.Body.Close()',
       '    fmt.Println(resp.Status)',
-      '    _, _ = io.Copy(os.Stdout, resp.Body)',
+      ...(isBinaryDownload
+        ? ['    output, err := os.Create("generated-video.mp4")', '    if err != nil { panic(err) }', '    defer output.Close()', '    _, _ = io.Copy(output, resp.Body)']
+        : ['    _, _ = io.Copy(os.Stdout, resp.Body)']),
       '}',
     ]
     return lines.join('\n')
@@ -905,6 +1003,7 @@ function buildExampleCode(endpoint: Endpoint, baseURL: string, exampleModel: str
     'import java.net.http.HttpClient;',
     'import java.net.http.HttpRequest;',
     'import java.net.http.HttpResponse;',
+    ...(isBinaryDownload ? ['import java.nio.file.Path;'] : []),
     '',
     'public class Main {',
     '  public static void main(String[] args) throws Exception {',
@@ -912,9 +1011,12 @@ function buildExampleCode(endpoint: Endpoint, baseURL: string, exampleModel: str
     '    HttpRequest.Builder builder = HttpRequest.newBuilder()',
     `        .uri(URI.create(${JSON.stringify(url)}))`,
     `        ${javaAuth}`,
+    ...(isBinaryDownload ? ['        .header("Range", "bytes=0-")'] : []),
     ...(endpoint.method === 'POST' ? ['        .header("Content-Type", "application/json");'] : ['        ;']),
     `    HttpRequest request = builder${javaRequest}.build();`,
-    '    HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());',
+    ...(isBinaryDownload
+      ? ['    HttpResponse<Path> response = HttpClient.newHttpClient().send(', '        request, HttpResponse.BodyHandlers.ofFile(Path.of("generated-video.mp4")));']
+      : ['    HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());']),
     '    System.out.println(response.statusCode());',
     '    System.out.println(response.body());',
     '  }',
