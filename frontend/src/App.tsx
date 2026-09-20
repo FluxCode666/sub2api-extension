@@ -11,36 +11,38 @@
 import { lazy, Suspense } from 'react'
 import { Link, Navigate, Routes, Route, useLocation } from 'react-router-dom'
 import PublicLayout from '@/layouts/PublicLayout'
-import AdminLayout from '@/layouts/AdminLayout'
 import AdminGuard from '@/components/AdminGuard'
-import LoginPage from '@/pages/LoginPage'
-import DashboardPage from '@/pages/admin/DashboardPage'
-import PageManagementPage from '@/pages/admin/PageManagementPage'
-import ImageAssetsPage from '@/pages/admin/ImageAssetsPage'
-import FileManagementPage from '@/pages/admin/FileManagementPage'
-import TTFTFlamegraphPage from '@/pages/admin/TTFTFlamegraphPage'
-import ConsumptionPage from '@/pages/admin/ConsumptionPage'
-import CostConfigPage from '@/pages/admin/CostConfigPage'
-import InvoiceManagementPage from '@/pages/admin/InvoiceManagementPage'
-import NotificationManagementPage from '@/pages/admin/NotificationManagementPage'
-import SystemLogsPage from '@/pages/admin/SystemLogsPage'
-import OperationLogsPage from '@/pages/admin/OperationLogsPage'
-import SystemConfigPage from '@/pages/admin/SystemConfigPage'
-import InvoicePortalPage from '@/pages/InvoicePortalPage'
-import PromotionPortalPage from '@/pages/PromotionPortalPage'
-import PromotionManagementPage from '@/pages/admin/PromotionManagementPage'
-import AdminDynamicPage from '@/pages/admin/AdminDynamicPage'
-import DynamicPage from '@/pages/DynamicPage'
-import ContentExamplePage from '@/pages/examples/ContentExamplePage'
-import InteractionExamplePage from '@/pages/examples/InteractionExamplePage'
-import APIExamplePage from '@/pages/examples/APIExamplePage'
-import HomepagePage from '@/pages/HomepagePage'
-import HomepageConfigPage from '@/pages/admin/HomepageConfigPage'
-import TobHomepagePage from '@/pages/TobHomepagePage'
-import TobHomepageConfigPage from '@/pages/admin/TobHomepageConfigPage'
-import ApiDocsPage from '@/pages/ApiDocsPage'
+import PageLoadBoundary from '@/components/PageLoadBoundary'
 import { fetchDynamicPages } from '@/lib/dynamic-pages'
 
+// 页面按路由加载，公开官网不下载管理后台和文档代码。
+const AdminLayout = lazy(() => import('@/layouts/AdminLayout'))
+const LoginPage = lazy(() => import('@/pages/LoginPage'))
+const DashboardPage = lazy(() => import('@/pages/admin/DashboardPage'))
+const PageManagementPage = lazy(() => import('@/pages/admin/PageManagementPage'))
+const ImageAssetsPage = lazy(() => import('@/pages/admin/ImageAssetsPage'))
+const FileManagementPage = lazy(() => import('@/pages/admin/FileManagementPage'))
+const TTFTFlamegraphPage = lazy(() => import('@/pages/admin/TTFTFlamegraphPage'))
+const ConsumptionPage = lazy(() => import('@/pages/admin/ConsumptionPage'))
+const CostConfigPage = lazy(() => import('@/pages/admin/CostConfigPage'))
+const InvoiceManagementPage = lazy(() => import('@/pages/admin/InvoiceManagementPage'))
+const NotificationManagementPage = lazy(() => import('@/pages/admin/NotificationManagementPage'))
+const SystemLogsPage = lazy(() => import('@/pages/admin/SystemLogsPage'))
+const OperationLogsPage = lazy(() => import('@/pages/admin/OperationLogsPage'))
+const SystemConfigPage = lazy(() => import('@/pages/admin/SystemConfigPage'))
+const InvoicePortalPage = lazy(() => import('@/pages/InvoicePortalPage'))
+const PromotionPortalPage = lazy(() => import('@/pages/PromotionPortalPage'))
+const PromotionManagementPage = lazy(() => import('@/pages/admin/PromotionManagementPage'))
+const AdminDynamicPage = lazy(() => import('@/pages/admin/AdminDynamicPage'))
+const DynamicPage = lazy(() => import('@/pages/DynamicPage'))
+const ContentExamplePage = lazy(() => import('@/pages/examples/ContentExamplePage'))
+const InteractionExamplePage = lazy(() => import('@/pages/examples/InteractionExamplePage'))
+const APIExamplePage = lazy(() => import('@/pages/examples/APIExamplePage'))
+const HomepagePage = lazy(() => import('@/pages/HomepagePage'))
+const HomepageConfigPage = lazy(() => import('@/pages/admin/HomepageConfigPage'))
+const TobHomepagePage = lazy(() => import('@/pages/TobHomepagePage'))
+const TobHomepageConfigPage = lazy(() => import('@/pages/admin/TobHomepageConfigPage'))
+const ApiDocsPage = lazy(() => import('@/pages/ApiDocsPage'))
 const ClientDocsPage = lazy(() => import('@/pages/ClientDocsPage'))
 
 // bootstrap: 获取动态页清单, 与静态注册表合并(KTD7)。
@@ -84,58 +86,66 @@ function AdminEntryRedirect() {
 }
 
 export default function App() {
+  const location = useLocation()
+  const isHomepage = ['/sub2api-home', '/embed', '/tob-home', '/embed-tob'].includes(location.pathname)
   return (
-    <Routes>
-      {/* 根路径与当前扩展控制台保持兼容；Sub2API 官网使用独立入口。 */}
-      <Route path="/" element={<AdminEntryRedirect />} />
-      <Route path="/sub2api-home" element={<HomepagePage />} />
-      <Route path="/embed" element={<HomepagePage />} />
-      <Route path="/tob-home" element={<TobHomepagePage />} />
-      <Route path="/embed-tob" element={<TobHomepagePage />} />
-      {/* 独立登录入口: AdminGuard 的 no-embedded-token 分支重定向到此。
-          功能路由, 不登记到 page-registry (非内容页, 不污染埋点仪表盘)。 */}
-      <Route element={<PublicLayout />}>
-        <Route path="/login" element={<LoginPage />} />
-      </Route>
-      {/* 动态页面(public): /p/:slug, on-demand fetch 内容, 硬刷新可工作 */}
-      <Route path="/p/:slug" element={<DynamicPage />} />
-      {/* 用户端发票中心：由 Sub2API custom_menu_items 以 iframe 打开并注入 token。 */}
-      <Route path="/invoice" element={<InvoicePortalPage />} />
-      <Route path="/invoices" element={<InvoicePortalPage />} />
-      <Route path="/promotions" element={<PromotionPortalPage />} />
-      {/* Sub2API developer documentation: public by design so it can be mounted
-          in a user-facing custom menu or embedded by another system. */}
-      <Route path="/api-docs" element={<ApiDocsPage />} />
-      <Route path="/docs" element={<ApiDocsPage />} />
-      <Route path="/client-docs" element={<Suspense fallback={<main className="p-8" role="status">正在加载接入指南…</main>}><ClientDocsPage /></Suspense>} />
-      {/* 管理端: 需管理员会话 (对应 sub2api custom_menu_items, 传 token) */}
-      <Route path="/admin" element={<AdminGuard><AdminLayout /></AdminGuard>}>
-        {/* U6: 仪表盘为管理端首页 (R10) */}
-        <Route index element={<AdminEntryRedirect />} />
-        <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="homepage" element={<HomepageConfigPage />} />
-        <Route path="tob-homepage" element={<TobHomepageConfigPage />} />
-        <Route path="pages" element={<PageManagementPage />} />
-        <Route path="files" element={<FileManagementPage />} />
-        {/* Legacy bookmark: the former image resource route now points to the same file manager. */}
-        <Route path="assets" element={<ImageAssetsPage />} />
-        <Route path="ops/ttft" element={<TTFTFlamegraphPage />} />
-        <Route path="ops/consumption" element={<ConsumptionPage />} />
-        <Route path="ops/cost-config" element={<CostConfigPage />} />
-        <Route path="invoices" element={<InvoiceManagementPage />} />
-        <Route path="promotions" element={<PromotionManagementPage />} />
-        <Route path="notifications" element={<NotificationManagementPage />} />
-        <Route path="logs/system" element={<SystemLogsPage />} />
-        <Route path="logs/operation" element={<OperationLogsPage />} />
-        <Route path="logs/operations" element={<OperationLogsPage />} />
-        <Route path="system-config" element={<SystemConfigPage />} />
-        {/* 动态页面(admin): /admin/p/:slug, 经 AdminGuard, on-demand fetch */}
-        <Route path="p/:slug" element={<AdminDynamicPage />} />
-        <Route path="examples/content" element={<ContentExamplePage />} />
-        <Route path="examples/interaction" element={<InteractionExamplePage />} />
-        <Route path="examples/api" element={<APIExamplePage />} />
-      </Route>
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <PageLoadBoundary routeKey={location.pathname}>
+      <Suspense fallback={isHomepage
+        ? <main className="min-h-screen bg-[var(--aux-homepage-bg)]" role="status" aria-label="正在加载官网" />
+        : <main className="min-h-screen bg-[var(--aux-page-bg)] p-8 text-sm text-[var(--aux-page-muted)]" role="status">正在加载页面…</main>}>
+        <Routes>
+          {/* 根路径与当前扩展控制台保持兼容；Sub2API 官网使用独立入口。 */}
+          <Route path="/" element={<AdminEntryRedirect />} />
+          <Route path="/sub2api-home" element={<HomepagePage />} />
+          <Route path="/embed" element={<HomepagePage />} />
+          <Route path="/tob-home" element={<TobHomepagePage />} />
+          <Route path="/embed-tob" element={<TobHomepagePage />} />
+          {/* 独立登录入口: AdminGuard 的 no-embedded-token 分支重定向到此。
+              功能路由, 不登记到 page-registry (非内容页, 不污染埋点仪表盘)。 */}
+          <Route element={<PublicLayout />}>
+            <Route path="/login" element={<LoginPage />} />
+          </Route>
+          {/* 动态页面(public): /p/:slug, on-demand fetch 内容, 硬刷新可工作 */}
+          <Route path="/p/:slug" element={<DynamicPage />} />
+          {/* 用户端发票中心：由 Sub2API custom_menu_items 以 iframe 打开并注入 token。 */}
+          <Route path="/invoice" element={<InvoicePortalPage />} />
+          <Route path="/invoices" element={<InvoicePortalPage />} />
+          <Route path="/promotions" element={<PromotionPortalPage />} />
+          {/* Sub2API developer documentation: public by design so it can be mounted
+              in a user-facing custom menu or embedded by another system. */}
+          <Route path="/api-docs" element={<ApiDocsPage />} />
+          <Route path="/docs" element={<ApiDocsPage />} />
+          <Route path="/client-docs" element={<Suspense fallback={<main className="p-8" role="status">正在加载接入指南…</main>}><ClientDocsPage /></Suspense>} />
+          {/* 管理端: 需管理员会话 (对应 sub2api custom_menu_items, 传 token) */}
+          <Route path="/admin" element={<AdminGuard><AdminLayout /></AdminGuard>}>
+            {/* U6: 仪表盘为管理端首页 (R10) */}
+            <Route index element={<AdminEntryRedirect />} />
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="homepage" element={<HomepageConfigPage />} />
+            <Route path="tob-homepage" element={<TobHomepageConfigPage />} />
+            <Route path="pages" element={<PageManagementPage />} />
+            <Route path="files" element={<FileManagementPage />} />
+            {/* Legacy bookmark: the former image resource route now points to the same file manager. */}
+            <Route path="assets" element={<ImageAssetsPage />} />
+            <Route path="ops/ttft" element={<TTFTFlamegraphPage />} />
+            <Route path="ops/consumption" element={<ConsumptionPage />} />
+            <Route path="ops/cost-config" element={<CostConfigPage />} />
+            <Route path="invoices" element={<InvoiceManagementPage />} />
+            <Route path="promotions" element={<PromotionManagementPage />} />
+            <Route path="notifications" element={<NotificationManagementPage />} />
+            <Route path="logs/system" element={<SystemLogsPage />} />
+            <Route path="logs/operation" element={<OperationLogsPage />} />
+            <Route path="logs/operations" element={<OperationLogsPage />} />
+            <Route path="system-config" element={<SystemConfigPage />} />
+            {/* 动态页面(admin): /admin/p/:slug, 经 AdminGuard, on-demand fetch */}
+            <Route path="p/:slug" element={<AdminDynamicPage />} />
+            <Route path="examples/content" element={<ContentExamplePage />} />
+            <Route path="examples/interaction" element={<InteractionExamplePage />} />
+            <Route path="examples/api" element={<APIExamplePage />} />
+          </Route>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
+    </PageLoadBoundary>
   )
 }

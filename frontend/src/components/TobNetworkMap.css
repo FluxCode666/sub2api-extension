@@ -44,15 +44,6 @@
   height: auto;
 }
 
-.tob-network-particle {
-  fill: #8f938e;
-  stroke: #8f938e;
-  stroke-width: .35;
-  opacity: .9;
-  vector-effect: non-scaling-stroke;
-  shape-rendering: geometricPrecision;
-}
-
 .tob-network-route {
   fill: none;
   stroke-width: 1.8;

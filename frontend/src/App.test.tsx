@@ -79,7 +79,7 @@ describe('App routing', () => {
     )
 
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/admin/dashboard'))
-    expect(screen.getByRole('heading', { name: 'dashboard-page' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'dashboard-page' })).toBeInTheDocument()
   })
 
   it('preserves sub2api embedded query parameters when redirecting the root path', async () => {
@@ -93,14 +93,14 @@ describe('App routing', () => {
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/admin/dashboard?token=sub2api-jwt&user_id=7&ui_mode=embedded'))
   })
 
-  it('exposes the independent Sub2API homepage route', () => {
+  it('exposes the independent Sub2API homepage route', async () => {
     render(
       <MemoryRouter initialEntries={['/sub2api-home']}>
         <App />
       </MemoryRouter>,
     )
 
-    expect(screen.getByRole('heading', { name: 'homepage-page' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'homepage-page' })).toBeInTheDocument()
   })
 
   it('preserves sub2api embedded query parameters when redirecting /admin', async () => {
@@ -129,27 +129,27 @@ describe('App routing', () => {
     await waitFor(() => {
       expect(screen.getByTestId('location')).toHaveTextContent('/admin/dashboard')
     })
-    expect(screen.getByRole('heading', { name: 'dashboard-page' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'dashboard-page' })).toBeInTheDocument()
   })
 
-  it('exposes the homepage configuration route inside admin', () => {
+  it('exposes the homepage configuration route inside admin', async () => {
     render(
       <MemoryRouter initialEntries={['/admin/homepage']}>
         <App />
       </MemoryRouter>,
     )
 
-    expect(screen.getByRole('heading', { name: 'homepage-config-page' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'homepage-config-page' })).toBeInTheDocument()
   })
 
-  it('keeps /p/home on the generic dynamic page route', () => {
+  it('keeps /p/home on the generic dynamic page route', async () => {
     render(
       <MemoryRouter initialEntries={['/p/home']}>
         <App />
       </MemoryRouter>,
     )
 
-    expect(screen.getByRole('heading', { name: 'dynamic-page' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'dynamic-page' })).toBeInTheDocument()
   })
 
   it('keeps unknown routes on the 404 page instead of sending them to the public home page', () => {
@@ -175,13 +175,13 @@ describe('App routing', () => {
     ['/admin/examples/content', 'content-example-page'],
     ['/admin/examples/interaction', 'interaction-example-page'],
     ['/admin/examples/api', 'api-example-page'],
-  ])('registers %s inside the guarded admin routes', (path, heading) => {
+  ])('registers %s inside the guarded admin routes', async (path, heading) => {
     render(
       <MemoryRouter initialEntries={[path]}>
         <App />
       </MemoryRouter>,
     )
 
-    expect(screen.getByRole('heading', { name: heading })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument()
   })
 })

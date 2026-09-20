@@ -4,8 +4,8 @@ import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { ArrowDown, ArrowUpRight, ChartNoAxesCombined, Check, ExternalLink, KeyRound, LockKeyhole, Menu, Route, ScanSearch, ShieldCheck, WalletCards, X } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
-import { DEFAULT_HOMEPAGE_CONFIG, fetchHomepageConfig, isHomepageNavigationHref, type HomepageConfig, type TrustedPartner } from '@/lib/homepage'
-import { DEFAULT_TOB_HOMEPAGE_CONFIG, fetchTobHomepageConfig, type TobHomepageConfig } from '@/lib/tob-homepage'
+import { fetchHomepageConfig, isHomepageNavigationHref, type HomepageConfig, type TrustedPartner } from '@/lib/homepage'
+import { fetchTobHomepageConfig, type TobHomepageConfig } from '@/lib/tob-homepage'
 import { ThinkingOrbRuntime } from '@/lib/thinkingOrbRuntime'
 import { TobNetworkMap } from '@/components/TobNetworkMap'
 import { HomepageQuickstart } from './HomepageQuickstart'
@@ -176,28 +176,32 @@ export default function HomepagePage({ variant = 'default' }: HomepagePageProps)
   const isTob = variant === 'tob'
   const isEmbedded = location.pathname === (isTob ? '/embed-tob' : '/embed') || new URLSearchParams(location.search).get('ui_mode') === 'embedded'
   const rootRef = useRef<HTMLDivElement>(null)
-  const [config, setConfig] = useState<HomepageConfig | TobHomepageConfig>(() => isTob ? DEFAULT_TOB_HOMEPAGE_CONFIG : DEFAULT_HOMEPAGE_CONFIG)
+  const [config, setConfig] = useState<HomepageConfig | TobHomepageConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [menuOpen, setMenuOpen] = useState(false)
+  const showQuickstartSection = !isTob && !!config?.showQuickstartSection
 
   useEffect(() => {
     let active = true
+    setConfig(null)
+    setLoading(true)
     const loadConfig = isTob ? fetchTobHomepageConfig : fetchHomepageConfig
     loadConfig()
       .then((next) => { if (active) setConfig(next) })
-      .catch((error: unknown) => console.warn(`[HomepagePage] using ${isTob ? 'ToB ' : ''}defaults`, error))
+      .catch((error: unknown) => console.warn(`[HomepagePage] failed to load ${isTob ? 'ToB ' : ''}homepage config`, error))
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [isTob])
 
   useEffect(() => {
+    if (!config) return
     const previous = document.title
     document.title = `${config.siteName} · AI 网关`
     return () => { document.title = previous }
-  }, [config.siteName])
+  }, [config])
 
   useGSAP((_, contextSafe) => {
-    if (loading) return
+    if (loading || !config) return
 
     const media = gsap.matchMedia()
     media.add({
@@ -210,7 +214,7 @@ export default function HomepagePage({ variant = 'default' }: HomepagePageProps)
 
       if (reduceMotion) {
         const animatedContent = rootRef.current?.querySelectorAll([
-          '.sub2api-nav', '.sub2api-hero-kicker', '.sub2api-hero-title', '.sub2api-hero-description', '.sub2api-hero-actions', '.sub2api-hero-art',
+          '.sub2api-nav', '.sub2api-hero-copy', '.sub2api-hero-art', '.sub2api-scroll-cue',
           '.sub2api-trust > *', '.sub2api-metrics-heading > *', '.sub2api-metric', '.sub2api-capabilities-heading > *', '.sub2api-capability',
           '.sub2api-steps-heading > *', '.sub2api-step-node', '.sub2api-ecosystem-copy > *', '.sub2api-ecosystem-network', '.sub2api-ecosystem-node',
           '.sub2api-security .sub2api-section-heading > *', '.sub2api-security-card', '.sub2api-security-card-top svg',
@@ -220,14 +224,11 @@ export default function HomepagePage({ variant = 'default' }: HomepagePageProps)
         return
       }
 
-      const intro = gsap.timeline({ defaults: { ease: 'power3.out' } })
-      intro.from(nav, { yPercent: -100, autoAlpha: 0, duration: 0.65 })
-        .from('.sub2api-hero-kicker', { y: 18, autoAlpha: 0, duration: 0.45 }, '-=0.24')
-        .from('.sub2api-hero-title', { y: 30, autoAlpha: 0, duration: 0.85 }, '-=0.18')
-        .from('.sub2api-hero-description', { y: 18, autoAlpha: 0, duration: 0.55 }, '-=0.48')
-        .from('.sub2api-hero-actions', { y: 16, autoAlpha: 0, duration: 0.55 }, '-=0.34')
-        .from('.sub2api-hero-art', { x: 36, scale: 0.92, autoAlpha: 0, duration: 1 }, '-=0.76')
-        .from('.sub2api-scroll-cue', { y: 14, autoAlpha: 0, duration: 0.45 }, '-=0.44')
+      // 首屏同时呈现，避免导航、文字、粒子球逐段等待造成加载停顿感。
+      // 入场只改变透明度，不与滚动及指针视差同时写入球体的 transform。
+      gsap.from('.sub2api-nav, .sub2api-hero-copy, .sub2api-hero-art, .sub2api-scroll-cue', {
+        autoAlpha: 0, duration: 0.45, ease: 'power2.out', clearProps: 'opacity,visibility',
+      })
 
       gsap.to('.sub2api-scroll-cue svg', { y: 5, duration: 1.6, repeat: -1, yoyo: true, ease: 'sine.inOut' })
       gsap.to('.sub2api-hero-art', {
@@ -284,7 +285,7 @@ export default function HomepagePage({ variant = 'default' }: HomepagePageProps)
         })
       })
 
-      if (config.showQuickstartSection) reveal('.sub2api-steps-heading > *', '.sub2api-steps', { y: 28, stagger: 0.1 })
+      if (showQuickstartSection) reveal('.sub2api-steps-heading > *', '.sub2api-steps', { y: 28, stagger: 0.1 })
       reveal('.sub2api-security .sub2api-section-heading > *', '.sub2api-security', { y: 30, stagger: 0.08 })
       // Keep the CTA anchored to the copy column; only opacity should change
       // when the section enters, even if the browser restores a deep scroll.
@@ -296,7 +297,7 @@ export default function HomepagePage({ variant = 'default' }: HomepagePageProps)
         scrollTrigger: { trigger: '.sub2api-footer', start: 'top bottom', once: true },
       })
 
-      if (config.showQuickstartSection) {
+      if (showQuickstartSection) {
         gsap.from('.sub2api-step-node', {
           x: 28,
           autoAlpha: 0,
@@ -456,7 +457,11 @@ export default function HomepagePage({ variant = 'default' }: HomepagePageProps)
       return cleanupParallax
     })
     return () => media.revert()
-  }, { scope: rootRef, dependencies: [loading], revertOnUpdate: true })
+  }, { scope: rootRef, dependencies: [config, loading, isTob], revertOnUpdate: true })
+
+  if (!config) {
+    return <div ref={rootRef} className={`sub2api-home ${isTob ? 'sub2api-home--tob' : ''} ${isEmbedded ? 'sub2api-home--embedded' : ''}`} data-loading={loading} aria-busy={loading} />
+  }
 
   const linkProps = (href: string) => {
     const targetHref = href.trim()
@@ -472,7 +477,7 @@ export default function HomepagePage({ variant = 'default' }: HomepagePageProps)
     if (!item.label.trim() || !isHomepageNavigationHref(item.href)) return false
     const href = item.href.trim()
     if (href === '#developers') return !isTob && config.showDevelopersSection
-    if (href === '#quickstart') return config.showQuickstartSection
+    if (href === '#quickstart') return showQuickstartSection
     if (href === '#partners') return config.trustedPartners.length > 0
     return true
   })
@@ -490,8 +495,8 @@ export default function HomepagePage({ variant = 'default' }: HomepagePageProps)
     ]
   }'`
 
-  const quickstartSection = config.showQuickstartSection
-    ? <HomepageQuickstart model={config.model} variant={isTob ? 'enterprise' : 'developer'} />
+  const quickstartSection = showQuickstartSection
+    ? <HomepageQuickstart model={config.model} />
     : null
   const ecosystemSection = <section className="sub2api-section sub2api-ecosystem" id="ecosystem">
     <div className="sub2api-ecosystem-copy"><p className="sub2api-eyebrow">ONE ENTRY, EVERY WORKFLOW</p><h2>一个入口，<br />接入你的工作流。</h2><p>连接模型、工具和开发环境。点击一个应用，查看对应的接入文档。</p></div>
@@ -576,7 +581,6 @@ export default function HomepagePage({ variant = 'default' }: HomepagePageProps)
           <TobNetworkSection config={config as TobHomepageConfig} />
           {securitySection}
           {ecosystemSection}
-          {quickstartSection}
         </> : <>
           {quickstartSection}
           {ecosystemSection}

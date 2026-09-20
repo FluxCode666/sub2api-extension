@@ -33,7 +33,7 @@ describe('TobHomepagePage', () => {
     expect(screen.getByRole('heading', { name: /关键指标/ })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /把企业级 AI 调用/ })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /你的数据/ })).toBeInTheDocument()
-    expect(screen.getByTestId('homepage-quickstart')).toHaveAttribute('data-variant', 'enterprise')
+    expect(screen.queryByTestId('homepage-quickstart')).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /全球节点覆盖/ })).toBeInTheDocument()
     expect(screen.getByText(/让客户就近接入，缩短数据传输路径/)).toBeInTheDocument()
     expect(screen.getByText(/提供国内优化节点，对中国大陆用户同样友好/)).toBeInTheDocument()
@@ -45,13 +45,12 @@ describe('TobHomepagePage', () => {
     expect(container.querySelector('#developers')).not.toBeInTheDocument()
     expect(container.querySelector('a[href="#developers"]')).not.toBeInTheDocument()
 
-    const navigation = within(screen.getByRole('navigation', { name: '主导航' }))
+    const navigation = within(await screen.findByRole('navigation', { name: '主导航' }))
     expect(Array.from(container.querySelectorAll('.sub2api-nav-items > a')).map(link => link.textContent?.trim()).slice(0, 5)).toEqual([
       '企业能力',
       '全球网络',
       '数据安全',
       '接入生态',
-      '交付流程',
     ])
     expect(navigation.getByRole('link', { name: '全球网络' })).toHaveAttribute('href', '#network')
 
@@ -61,7 +60,6 @@ describe('TobHomepagePage', () => {
       'network',
       'security',
       'ecosystem',
-      'quickstart',
     ])
     expect(screen.getAllByRole('link', { name: DEFAULT_TOB_HOMEPAGE_CONFIG.primaryCta })).toHaveLength(2)
   })
@@ -78,9 +76,9 @@ describe('TobHomepagePage', () => {
 
     render(<MemoryRouter initialEntries={['/tob-home']}><TobHomepagePage /></MemoryRouter>)
 
-    const navigation = within(screen.getByRole('navigation', { name: '主导航' }))
+    const navigation = within(await screen.findByRole('navigation', { name: '主导航' }))
     expect(await navigation.findByRole('link', { name: '企业方案' })).toHaveAttribute('href', '#capabilities')
-    expect(navigation.getByRole('link', { name: '交付路线' })).toHaveAttribute('href', '#quickstart')
+    expect(navigation.queryByRole('link', { name: '交付路线' })).not.toBeInTheDocument()
     expect(navigation.getByRole('link', { name: '客户案例' })).toHaveAttribute('href', 'https://example.com/cases')
     expect(navigation.queryByRole('link', { name: '企业能力' })).not.toBeInTheDocument()
   })

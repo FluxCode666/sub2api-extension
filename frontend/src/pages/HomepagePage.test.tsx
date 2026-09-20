@@ -26,6 +26,33 @@ describe('HomepagePage', () => {
 
   afterEach(() => vi.unstubAllGlobals())
 
+  it('does not render homepage copy before the configuration is loaded', async () => {
+    let resolveRequest!: (value: { code: number; data: typeof DEFAULT_HOMEPAGE_CONFIG }) => void
+    const request = new Promise<{ code: number; data: typeof DEFAULT_HOMEPAGE_CONFIG }>((resolve) => {
+      resolveRequest = resolve
+    })
+    vi.mocked(apiClient.get).mockImplementation(() => request)
+
+    const { container } = render(<MemoryRouter><HomepagePage /></MemoryRouter>)
+
+    expect(container.querySelector('.sub2api-home')).toHaveAttribute('data-loading', 'true')
+    expect(container.querySelector('.sub2api-hero-title')).not.toBeInTheDocument()
+    expect(screen.queryByText(DEFAULT_HOMEPAGE_CONFIG.heroTitle)).not.toBeInTheDocument()
+
+    resolveRequest({ code: 0, data: DEFAULT_HOMEPAGE_CONFIG })
+    expect(await screen.findByRole('heading', { name: DEFAULT_HOMEPAGE_CONFIG.heroTitle })).toBeInTheDocument()
+  })
+
+  it('does not fall back to default copy when the configuration cannot be loaded', async () => {
+    vi.mocked(apiClient.get).mockRejectedValue(new Error('network unavailable'))
+
+    const { container } = render(<MemoryRouter><HomepagePage /></MemoryRouter>)
+
+    await waitFor(() => expect(container.querySelector('.sub2api-home')).toHaveAttribute('data-loading', 'false'))
+    expect(container.querySelector('.sub2api-hero-title')).not.toBeInTheDocument()
+    expect(container.textContent).toBe('')
+  })
+
   it('renders configured links in order in embedded mode and closes the mobile menu', async () => {
     const user = userEvent.setup()
     vi.mocked(apiClient.get).mockResolvedValue({ code: 0, data: {
@@ -33,7 +60,7 @@ describe('HomepagePage', () => {
       navigationItems: [{ label: '文档中心', href: 'https://docs.example.com' }, { label: '状态', href: '#metrics' }],
     } })
     render(<MemoryRouter initialEntries={['/embed']}><HomepagePage /></MemoryRouter>)
-    const nav = within(screen.getByRole('navigation', { name: '主导航' }))
+    const nav = within(await screen.findByRole('navigation', { name: '主导航' }))
     const docs = await nav.findByRole('link', { name: '文档中心' })
     expect(nav.getAllByRole('link').map(link => link.textContent?.trim())).toEqual(['S2Sub2API', '文档中心', '状态', '进入控制台'])
     expect(docs).toHaveAttribute('href', 'https://docs.example.com')
@@ -58,7 +85,7 @@ describe('HomepagePage', () => {
       ],
     } })
     render(<MemoryRouter><HomepagePage /></MemoryRouter>)
-    const nav = within(screen.getByRole('navigation', { name: '主导航' }))
+    const nav = within(await screen.findByRole('navigation', { name: '主导航' }))
     await nav.findByRole('link', { name: '文档中心' })
     expect(nav.getAllByRole('link')).toHaveLength(3)
   })

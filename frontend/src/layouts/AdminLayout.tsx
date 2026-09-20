@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { Outlet, NavLink } from 'react-router-dom'
 import {
   Sidebar,
@@ -317,7 +317,9 @@ export default function AdminLayout() {
           <div className="aux-admin-topbar-meta"><span className="aux-topbar-dot" />运营控制台</div>
         </header>
         <main className="aux-admin-main flex-1 overflow-auto p-6">
-          <Outlet />
+          <Suspense fallback={<div className="p-6 text-sm text-muted-foreground" role="status">正在加载页面…</div>}>
+            <Outlet />
+          </Suspense>
         </main>
       </SidebarInset>
       {/* 管理端所有写操作共用同一套成功/失败反馈。 */}

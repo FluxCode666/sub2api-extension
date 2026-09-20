@@ -3,6 +3,8 @@
 @tailwind utilities;
 
 :root {
+  /* 分包等待与官网内容使用同一纸面色，避免进入官网时背景闪变。 */
+  --aux-homepage-bg: #f3f2ee;
   font-family: "Avenir Next", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;

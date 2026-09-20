@@ -6,6 +6,7 @@ import { initEmbeddedContext } from '@/lib/embedded'
 import { applyTheme } from '@/lib/theme'
 import { initTelemetry } from '@/lib/telemetry-sdk'
 import { ROUTER_BASE_PATH } from '@/lib/app-base-path'
+import '@fontsource-variable/geist'
 import './index.css'
 import './pages/PageSurfaces.css'
 

@@ -324,6 +324,9 @@ pnpm dev        # 开发服务器 http://localhost:3100/aux/
 本地 Vite 默认使用 `/aux/` 挂载路径；如果需要根路径开发，可显式设置
 `VITE_BASE_PATH=/ pnpm dev`。
 
+生产页面按路由加载，`pnpm run build` 同时检查入口与官网 JS 的 gzip 体积预算。
+测量结果、预算和复测方法见 [前端加载性能](docs/FRONTEND_PERFORMANCE.md)。
+
 ### 管理端登录
 
 管理端页面（如 `/admin/pages`）需要通过 sub2api 管理员身份验证。本地开发环境管理员账号由

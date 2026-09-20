@@ -202,12 +202,12 @@ export default function HomepageConfigPage({ variant = 'default' }: HomepageConf
           <label className="aux-config-span-2">接入文档 URL<input value={draft.developersDocsUrl} onChange={(event) => update('developersDocsUrl', event.target.value)} placeholder="https://docs.example.com/quickstart" aria-describedby="developers-docs-help" /></label>
           <p className="aux-config-section-note aux-config-span-2" id="developers-docs-help">用于「BUILT FOR BUILDERS」板块的接入文档按钮。留空时使用下方「资源与协议」中的使用文档 URL；两者均为空时隐藏按钮。</p>
           <p className="aux-config-section-note aux-config-span-2" id="configured-link-help">站内路径按当前域名原样跳转：填写 <code>/login</code>、<code>/dashboard</code> 会进入 Sub2API；进入 aux-system 请显式填写 <code>/aux/login</code>、<code>/aux/admin/...</code>。页内位置使用 <code>#锚点</code>，跨域地址填写完整 HTTP/HTTPS URL。此规则同样适用于顶部导航、合作伙伴、接入生态以及资源与协议链接。</p>
-          <div className="aux-config-toggle aux-config-span-2"><div><strong>展示快速接入板块</strong><span>控制首页「START IN MINUTES」三步接入板块是否显示。</span></div><Switch checked={draft.showQuickstartSection} onCheckedChange={(checked) => update('showQuickstartSection', checked)} aria-label="展示快速接入板块" /></div>
+          {!isTob ? <div className="aux-config-toggle aux-config-span-2"><div><strong>展示快速接入板块</strong><span>控制首页「START IN MINUTES」三步接入板块是否显示。</span></div><Switch checked={draft.showQuickstartSection} onCheckedChange={(checked) => update('showQuickstartSection', checked)} aria-label="展示快速接入板块" /></div> : null}
         </div>
       </section>
       <section className="aux-config-card">
         <div className="aux-config-section-heading"><div><span>02</span><h2>顶部导航</h2></div><button className="aux-config-add aux-navigation-add" type="button" disabled={draft.navigationItems.length >= 8} onClick={() => update('navigationItems', [...draft.navigationItems, { label: '', href: '' }])}><Plus size={15} />添加菜单</button></div>
-        <p className="aux-config-section-note">配置「进入控制台」左侧的菜单，最多 8 项，按列表顺序展示。支持 #security、#metrics、#quickstart、#developers、#ecosystem、#partners 等页内锚点，也支持站内路径和外部链接。对应板块关闭或合作伙伴为空时，该锚点菜单自动隐藏。</p>
+        <p className="aux-config-section-note">配置「进入控制台」左侧的菜单，最多 8 项，按列表顺序展示。支持 {isTob ? '#capabilities、#network、#security、#metrics、#ecosystem、#partners' : '#security、#metrics、#quickstart、#developers、#ecosystem、#partners'} 等页内锚点，也支持站内路径和外部链接。对应板块关闭或合作伙伴为空时，该锚点菜单自动隐藏。</p>
         <div className="aux-navigation-editor">{draft.navigationItems.map((item, index) => <div className="aux-config-grid aux-navigation-row" key={`navigation-${index}`}>
           <label>菜单名称<input aria-label={`菜单 ${index + 1} 名称`} value={item.label} maxLength={24} onChange={(event) => updateNavigationItem(index, 'label', event.target.value)} placeholder="如：使用文档" /></label>
           <label>跳转链接<input aria-label={`菜单 ${index + 1} 链接`} value={item.href} onChange={(event) => updateNavigationItem(index, 'href', event.target.value)} placeholder="#metrics 或 https://docs.example.com" /></label>
