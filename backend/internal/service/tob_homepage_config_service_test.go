@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -40,6 +41,85 @@ func TestTobHomepageConfigService_ClonesCurrentHomepageWhenMissing(t *testing.T)
 	require.NotNil(t, config.MapSettings)
 	require.True(t, config.MapSettings.ShowNodeLabels)
 	require.True(t, config.MapSettings.FlowAnimation)
+}
+
+func TestTobHomepageConfigService_PreservesNavigation(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected []HomepageNavigationItem
+	}{
+		{
+			name:  "removed network menu",
+			input: `{"navigationItems":[{"label":"数据安全","href":"#security"},{"label":"企业能力","href":"#capabilities"}]}`,
+			expected: []HomepageNavigationItem{
+				{Label: "数据安全", Href: "#security"},
+				{Label: "企业能力", Href: "#capabilities"},
+			},
+		},
+		{
+			name:  "changed network destination",
+			input: `{"navigationItems":[{"label":"全球网络","href":"https://example.com/network"}]}`,
+			expected: []HomepageNavigationItem{
+				{Label: "全球网络", Href: "https://example.com/network"},
+			},
+		},
+		{
+			name:  "renamed network menu",
+			input: `{"navigationItems":[{"label":"服务覆盖","href":"#network"}]}`,
+			expected: []HomepageNavigationItem{
+				{Label: "服务覆盖", Href: "#network"},
+			},
+		},
+		{
+			name:     "cleared navigation",
+			input:    `{"navigationItems":[]}`,
+			expected: []HomepageNavigationItem{},
+		},
+		{
+			name:     "missing legacy navigation",
+			input:    `{}`,
+			expected: defaultTobNavigationItems(),
+		},
+		{
+			name:     "null legacy navigation",
+			input:    `{"navigationItems":null}`,
+			expected: defaultTobNavigationItems(),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var config TobHomepageConfig
+			require.NoError(t, json.Unmarshal([]byte(test.input), &config))
+
+			t.Run("read stored config", func(t *testing.T) {
+				store := &memoryTobHomepageConfigStore{config: &config}
+				loaded, err := NewTobHomepageConfigService(store).Get(context.Background())
+				require.NoError(t, err)
+				require.Equal(t, test.expected, loaded.NavigationItems)
+			})
+
+			t.Run("save and reload", func(t *testing.T) {
+				store := &memoryTobHomepageConfigStore{}
+				service := NewTobHomepageConfigService(store)
+				saved, err := service.Save(context.Background(), config)
+				require.NoError(t, err)
+				require.Equal(t, test.expected, saved.NavigationItems)
+				require.Equal(t, test.expected, store.config.NavigationItems)
+
+				// 按持久化 JSON 往返，确认空数组不会变成缺省字段并恢复默认菜单。
+				encoded, err := json.Marshal(store.config)
+				require.NoError(t, err)
+				var persisted TobHomepageConfig
+				require.NoError(t, json.Unmarshal(encoded, &persisted))
+				store.config = &persisted
+				loaded, err := NewTobHomepageConfigService(store).Get(context.Background())
+				require.NoError(t, err)
+				require.Equal(t, test.expected, loaded.NavigationItems)
+			})
+		})
+	}
 }
 
 func TestTobHomepageConfigService_NormalizesNodes(t *testing.T) {

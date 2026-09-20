@@ -168,13 +168,11 @@ func (s *TobHomepageConfigService) Save(ctx context.Context, config TobHomepageC
 }
 
 func normalizeTobHomepageConfig(config TobHomepageConfig) TobHomepageConfig {
+	// 仅为缺少导航字段的旧配置补默认值，保留管理员删除菜单或显式清空的结果。
 	if config.NavigationItems == nil {
 		config.NavigationItems = defaultTobNavigationItems()
 	}
 	config.HomepageConfig = normalizeHomepageConfig(config.HomepageConfig)
-	if !hasHomepageNavigationHref(config.NavigationItems, "#network") && len(config.NavigationItems) < 8 {
-		config.NavigationItems = append(config.NavigationItems, HomepageNavigationItem{Label: "全球网络", Href: "#network"})
-	}
 	config.Sub2APIPublished = false
 	defaults := DefaultTobHomepageConfig()
 	config.PrimaryServers = normalizeTobNodes(config.PrimaryServers, defaults.PrimaryServers)
