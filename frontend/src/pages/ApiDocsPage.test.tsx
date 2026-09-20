@@ -110,6 +110,7 @@ describe('ApiDocsPage', () => {
     expect(openAiHeading.closest('.aux-api-endpoint-group')).toHaveClass('aux-api-endpoint-group--openai')
     expect(screen.getByText('多模态', { selector: '.aux-api-sidebar-group-label' })).toHaveClass('aux-api-sidebar-group-label')
     expect(screen.getAllByText('/v1/chat/completions').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('/v1/images/edits').length).toBeGreaterThan(0)
     expect(screen.getAllByText('/v1/images/generations/async').length).toBeGreaterThan(0)
     expect(screen.getAllByText('/v1/images/edits/async').length).toBeGreaterThan(0)
     expect(screen.getAllByText('/v1/images/tasks/{task_id}').length).toBeGreaterThan(0)
@@ -122,6 +123,7 @@ describe('ApiDocsPage', () => {
     expect(screen.getByRole('complementary', { name: '文档与接口端点目录' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'POST /v1/chat/completions' })).toHaveAttribute('href', '#endpoint-chat-completions')
     expect(screen.getByRole('link', { name: 'GET /v1/models' })).toHaveAttribute('href', '#endpoint-models')
+    expect(screen.getByRole('link', { name: 'POST /v1/images/edits' })).toHaveAttribute('href', '#endpoint-image-edits')
     expect(screen.getByRole('link', { name: 'POST /v1/images/generations/async' })).toHaveAttribute('href', '#endpoint-images-async')
     expect(screen.getByRole('link', { name: 'POST /v1/images/edits/async' })).toHaveAttribute('href', '#endpoint-image-edits-async')
     expect(screen.getByRole('link', { name: 'GET /v1/images/tasks/{task_id}' })).toHaveAttribute('href', '#endpoint-image-task')
@@ -307,8 +309,8 @@ describe('ApiDocsPage', () => {
     renderPage()
 
     const markdownButtons = screen.getAllByRole('button', { name: /复制 .* Markdown 文档/ })
-    expect(markdownButtons).toHaveLength(10)
-    expect(document.querySelectorAll('.aux-api-endpoint-card .aux-api-markdown-button')).toHaveLength(10)
+    expect(markdownButtons).toHaveLength(11)
+    expect(document.querySelectorAll('.aux-api-endpoint-card .aux-api-markdown-button')).toHaveLength(11)
   })
 
   it('documents asynchronous image submission, editing and polling contracts', async () => {
@@ -326,6 +328,12 @@ describe('ApiDocsPage', () => {
     expect(generationCard.querySelector('pre code')).toHaveTextContent('/v1/images/generations/async')
     expect(generationCard.querySelector('pre code')).toHaveTextContent('"model": "gpt-image-1"')
     expect(generationCard.querySelector('pre code')).not.toHaveTextContent('gpt-6-astra')
+
+    const syncEditCard = document.querySelector('#endpoint-image-edits') as HTMLElement
+    expect(syncEditCard).toHaveTextContent('同步编辑图片')
+    fireEvent.click(within(syncEditCard).getByRole('button', { name: '查看参数与示例' }))
+    expect(within(syncEditCard).getByText('images[].image_url', { selector: 'code' })).toBeInTheDocument()
+    expect(syncEditCard).toHaveTextContent('multipart/form-data')
 
     const editCard = document.querySelector('#endpoint-image-edits-async') as HTMLElement
     fireEvent.click(within(editCard).getByRole('button', { name: '查看参数与示例' }))

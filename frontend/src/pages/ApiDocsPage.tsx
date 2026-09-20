@@ -232,6 +232,41 @@ const endpoints: Endpoint[] = [
     ],
   },
   {
+    id: 'image-edits',
+    group: '多模态',
+    method: 'POST',
+    path: '/v1/images/edits',
+    exampleModel: 'gpt-image-1',
+    title: '编辑图片',
+    description: '使用 OpenAI 兼容格式同步编辑图片。JSON 请求可传入图片 URL，或使用 multipart/form-data 上传 image/mask 文件；接口会保持连接直到上游返回图片结果。',
+    auth: '需要 API Key',
+    request: `{
+  "model": "gpt-image-1",
+  "prompt": "Replace the background with a snowy mountain",
+  "images": [{ "image_url": "https://example.com/source.png" }],
+  "mask": { "image_url": "https://example.com/mask.png" },
+  "size": "1536x1024"
+}`,
+    response: `{
+  "created": 1710000000,
+  "data": [{ "url": "https://..." }]
+}`,
+    requestParams: [
+      { name: 'model', type: 'string', required: true, defaultValue: '-', description: '图片编辑模型 ID。' },
+      { name: 'prompt', type: 'string', required: true, defaultValue: '-', description: '描述希望对输入图片执行的编辑。' },
+      { name: 'images[].image_url', type: 'string', required: true, defaultValue: '-', description: 'JSON 请求中的输入图片 URL；multipart 请求可使用 image 文件字段。' },
+      { name: 'mask.image_url', type: 'string', required: false, defaultValue: 'null', description: '可选遮罩图片 URL；multipart 请求可使用 mask 文件字段。' },
+      { name: 'size', type: 'string', required: false, defaultValue: '模型默认', description: '输出尺寸，可用值由模型决定。' },
+      { name: 'response_format', type: 'string', required: false, defaultValue: '服务端默认', description: '返回 URL 或 b64_json。' },
+    ],
+    responseParams: [
+      { name: 'created', type: 'integer', required: true, defaultValue: '-', description: 'Unix 时间戳格式的创建时间。' },
+      { name: 'data', type: 'array', required: true, defaultValue: '[]', description: '编辑结果数组。' },
+      { name: 'data[].url', type: 'string', required: false, defaultValue: 'null', description: '图片临时 URL，与 b64_json 二选一。' },
+      { name: 'data[].b64_json', type: 'string', required: false, defaultValue: 'null', description: 'Base64 图片数据，与 url 二选一。' },
+    ],
+  },
+  {
     id: 'images-async',
     group: '多模态',
     method: 'POST',
