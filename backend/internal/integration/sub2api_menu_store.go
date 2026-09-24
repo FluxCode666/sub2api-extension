@@ -28,6 +28,8 @@ const promotionMenuIconSVG = `<svg fill="none" viewBox="0 0 24 24" stroke="curre
 // generic home icon while matching Sub2API's currentColor SVG convention.
 const homepageMenuIconSVG = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>`
 
+const ticketMenuIconSVG = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v3a2.5 2.5 0 0 0 0 5v5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-5a2.5 2.5 0 0 0 0-5v-3Z"/><path stroke-linecap="round" stroke-dasharray="1 2" d="M9 8h6m-6 4h6m-6 4h3"/></svg>`
+
 // Sub2APIMenuStore 直接读写 sub2api settings 表中的 custom_menu_items 设置。
 // 只修改由本扩展创建的菜单项，其余 sub2api 菜单字段会原样保留。
 type Sub2APIMenuStore struct {
@@ -37,6 +39,10 @@ type Sub2APIMenuStore struct {
 
 func NewSub2APIMenuStore(db *sql.DB, publicURL string) *Sub2APIMenuStore {
 	return &Sub2APIMenuStore{db: db, publicURL: strings.TrimRight(strings.TrimSpace(publicURL), "/")}
+}
+
+func (s *Sub2APIMenuStore) TicketMenuPublishAvailable() bool {
+	return s != nil && s.db != nil && s.publicURL != ""
 }
 
 type customMenuItem struct {
@@ -332,6 +338,66 @@ func (s *Sub2APIMenuStore) SetInvoiceMenu(ctx context.Context, enabled bool) err
 		}
 		return append(items, customMenuItem{ID: menuID, Label: "发票管理", IconSVG: invoiceMenuIconSVG, URL: menuURL, Visibility: "user", SortOrder: maxOrder + 1}), nil
 	})
+}
+
+func (s *Sub2APIMenuStore) SetTicketMenu(ctx context.Context, enabled bool) error {
+	const menuID = "aux-tickets"
+	if s == nil || s.db == nil {
+		return errors.New("sub2api database is unavailable")
+	}
+	if !enabled {
+		return s.mutate(ctx, func(items []customMenuItem) ([]customMenuItem, error) {
+			filtered := make([]customMenuItem, 0, len(items))
+			for _, item := range items {
+				if item.ID != menuID {
+					filtered = append(filtered, item)
+				}
+			}
+			return filtered, nil
+		})
+	}
+	menuURL, err := s.absoluteURL("/tickets")
+	if err != nil {
+		return err
+	}
+	return s.mutate(ctx, func(items []customMenuItem) ([]customMenuItem, error) {
+		return upsertTicketMenuItems(items, menuURL), nil
+	})
+}
+
+func mergeTicketMenuItem(existing customMenuItem, menuURL string) customMenuItem {
+	icon := existing.IconSVG
+	if strings.TrimSpace(icon) == "" {
+		icon = ticketMenuIconSVG
+	}
+	return customMenuItem{
+		ID: "aux-tickets", Label: "工单中心", IconSVG: icon, URL: menuURL, Visibility: "user", SortOrder: existing.SortOrder,
+		extra: existing.extra,
+	}
+}
+
+func upsertTicketMenuItems(items []customMenuItem, menuURL string) []customMenuItem {
+	const menuID = "aux-tickets"
+	updated := make([]customMenuItem, 0, len(items)+1)
+	found := false
+	maxOrder := -1
+	for _, item := range items {
+		if item.SortOrder > maxOrder {
+			maxOrder = item.SortOrder
+		}
+		if item.ID == menuID {
+			if !found {
+				updated = append(updated, mergeTicketMenuItem(item, menuURL))
+				found = true
+			}
+			continue
+		}
+		updated = append(updated, item)
+	}
+	if !found {
+		updated = append(updated, customMenuItem{ID: menuID, Label: "工单中心", IconSVG: ticketMenuIconSVG, URL: menuURL, Visibility: "user", SortOrder: maxOrder + 1})
+	}
+	return updated
 }
 
 // SetPromotionMenu publishes or removes the customer-facing promotion portal.

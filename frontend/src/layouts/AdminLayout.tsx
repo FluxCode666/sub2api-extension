@@ -32,6 +32,7 @@ import {
   Settings2,
   Terminal,
   MapPinned,
+  MessageSquareText,
 } from 'lucide-react'
 import { fetchDynamicPages, getMergedRegistry, subscribeDynamicPages } from '@/lib/dynamic-pages'
 import { getMenuIcon } from '@/lib/menu-icons'
@@ -224,6 +225,14 @@ export default function AdminLayout() {
                     <NavLink to="/admin/invoices" end>
                       <ReceiptText className="h-4 w-4" />
                       <span>发票管理</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink to="/admin/tickets" end>
+                      <MessageSquareText className="h-4 w-4" />
+                      <span>工单管理</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

@@ -1,6 +1,6 @@
 # Changelog
 
-## 未发布
+## [0.10.0] - 2026-09-24
 
 ### 新增
 
@@ -8,14 +8,32 @@
 - 促销活动用户端在活动列表和详情中统一展示活动时间范围。
 - 促销活动新增单个用户福利金额上限配置，按用户和活动累计已发放返利限制领取，达到上限后用户端提示“返利金额达到上限”；填写 0 表示不限。
 - 促销活动超出用户剩余福利额度时改为发放剩余额度；多订单领取按返利金额从小到大优先消耗额度，支持单笔订单部分返利。
+- Codex、Claude Code、Grok Build 等客户端页内新增「CC Switch（推荐）／手动配置」切换，默认显示 CC Switch；旧的 `?method=cc-switch&client=codex` 链接继续有效。
+- 客户端接入范围补齐 Codex Desktop、Claude Code/Desktop、Grok Build、Gemini CLI、VS Code/Cursor 的 Codex 与 Claude 扩展、OpenAI 兼容客户端和 IDE 插件；配置地址、文件路径、重启与排错步骤均按本站网关重写。
+- Claude Desktop 在 Claude 页内展示独立的 CC Switch 流程，说明模型映射与本地路由要求。
+- 桌面端接入目录收敛为 Codex、Claude、Grok、Gemini、VS Code/Cursor 与其他客户端六个主题；具体客户端在页内切换，不使用折叠目录。
+- Codex Desktop 页面移除独立的准备与安装模块，将地址和模型输入并入配置模块；CC Switch 配置区提供 CC Switch 与 Codex Desktop 官方下载入口，并移除外部配置说明链接。
+- 新增 Sub2API 用户工单中心和管理端工单工作台，支持工单对话、状态更新，并可通过 `ticket.created` 事件配置新工单提醒渠道。
+- 新增工单用户端上架开关，默认关闭；开启后同步发布 Sub2API 自定义菜单，关闭或服务重启时按持久化状态移除/恢复菜单。
+- 工单问题描述、用户追加回复和管理员回复支持 Markdown 原文保存及安全展示，禁用原始 HTML 和危险链接。
 
 ### 变更
 
 - 用户领取促销返利成功后，除右上角到账通知外，额外展示可关闭的到账金额弹窗。
 - 促销活动用户端在活动列表和详情中展示单用户返利金额上限，无上限时显示“不限”。
+- 新增客户端指南及 Codex 导入流程以随网关地址和模型更新的自绘操作示意代替截图；部分既有指南保留截图和放大查看交互。
+- Codex 指南聚焦 Desktop，新手无需安装 CLI、Node.js 或 npm；手动 Tab 保留 `config.toml` 和 `auth.json`。Claude Code 手动 Tab 提供 `~/.claude/settings.json` 示例。
+- Codex 的 CC Switch 推荐流程重构为五步引导；前四步提供带①—④操作定位标记的 Sub2API 用户端/CC Switch HTML/CSS 界面草图，CC Switch 参照官网首页产品区重绘，第五步「重启 Codex 客户端」仅保留文字说明。Sub2API 草图只展示用户可见侧栏，不包含管理板块；手动配置保留为备选。
+- CC Switch 下载入口统一指向官方站点 `https://ccswitch.io/`。
+- 新工单提醒配置移至系统消息通知日志上方，与发票申请通知并列。
+
+### 修复
+
+- 客户端接入文档和新手教程默认使用当前访问站点的域名生成 API 地址；Codex 的 `base_url` 与 CC Switch 接口地址保持为网关根地址，不再附加 `/v1`。
 
 ### 兼容性与升级
 
+- 新增 `support_tickets` 与 `support_ticket_messages` 表，升级时由 Ent 自动迁移创建；工单用户端上架依赖现有 Sub2API 数据库集成与浏览器可访问的公开地址，默认关闭。若禁用自动迁移，升级前应执行迁移；升级前备份附属系统数据库及文件卷，二进制回退不会撤销新增表。无需新增环境变量。
 - 促销活动新增 `promotions.max_rebate_amount` 字段，升级时由 Ent 自动迁移创建，旧活动默认值为 0（不限）；无需新增环境变量。
 
 ## [0.9.5] - 2026-09-21

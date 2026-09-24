@@ -48,6 +48,14 @@ vi.mock('@/pages/DynamicPage', () => ({
   default: () => <h1>dynamic-page</h1>,
 }))
 
+vi.mock('@/pages/UserGuidePage', () => ({
+  default: () => <h1>user-guide-page</h1>,
+}))
+
+vi.mock('@/pages/TicketsPortalPage', () => ({
+  default: () => <h1>tickets-portal-page</h1>,
+}))
+
 vi.mock('@/pages/examples/ContentExamplePage', () => ({
   default: () => <h1>content-example-page</h1>,
 }))
@@ -69,6 +77,14 @@ describe('App routing', () => {
   it('opens client documentation as a public standalone page', async () => {
     render(<MemoryRouter initialEntries={['/client-docs?client=codex']}><App /></MemoryRouter>)
     expect(await screen.findByRole('heading', { name: 'Codex 接入指南' })).toBeInTheDocument()
+  })
+  it('opens the user guide as a public standalone page', async () => {
+    render(<MemoryRouter initialEntries={['/user-guide']}><App /></MemoryRouter>)
+    expect(await screen.findByRole('heading', { name: 'user-guide-page' })).toBeInTheDocument()
+  })
+  it('opens the ticket portal as a public Sub2API menu page', async () => {
+    render(<MemoryRouter initialEntries={['/tickets']}><App /></MemoryRouter>)
+    expect(await screen.findByRole('heading', { name: 'tickets-portal-page' })).toBeInTheDocument()
   })
   it('redirects the root path to the admin dashboard', async () => {
     render(

@@ -31,8 +31,10 @@ const SystemLogsPage = lazy(() => import('@/pages/admin/SystemLogsPage'))
 const OperationLogsPage = lazy(() => import('@/pages/admin/OperationLogsPage'))
 const SystemConfigPage = lazy(() => import('@/pages/admin/SystemConfigPage'))
 const InvoicePortalPage = lazy(() => import('@/pages/InvoicePortalPage'))
+const TicketsPortalPage = lazy(() => import('@/pages/TicketsPortalPage'))
 const PromotionPortalPage = lazy(() => import('@/pages/PromotionPortalPage'))
 const PromotionManagementPage = lazy(() => import('@/pages/admin/PromotionManagementPage'))
+const TicketManagementPage = lazy(() => import('@/pages/admin/TicketManagementPage'))
 const AdminDynamicPage = lazy(() => import('@/pages/admin/AdminDynamicPage'))
 const DynamicPage = lazy(() => import('@/pages/DynamicPage'))
 const ContentExamplePage = lazy(() => import('@/pages/examples/ContentExamplePage'))
@@ -44,6 +46,7 @@ const TobHomepagePage = lazy(() => import('@/pages/TobHomepagePage'))
 const TobHomepageConfigPage = lazy(() => import('@/pages/admin/TobHomepageConfigPage'))
 const ApiDocsPage = lazy(() => import('@/pages/ApiDocsPage'))
 const ClientDocsPage = lazy(() => import('@/pages/ClientDocsPage'))
+const UserGuidePage = lazy(() => import('@/pages/UserGuidePage'))
 
 // bootstrap: 获取动态页清单, 与静态注册表合并(KTD7)。
 // 失败时降级为仅静态页, 不阻塞前端。
@@ -110,12 +113,14 @@ export default function App() {
           {/* 用户端发票中心：由 Sub2API custom_menu_items 以 iframe 打开并注入 token。 */}
           <Route path="/invoice" element={<InvoicePortalPage />} />
           <Route path="/invoices" element={<InvoicePortalPage />} />
+          <Route path="/tickets" element={<TicketsPortalPage />} />
           <Route path="/promotions" element={<PromotionPortalPage />} />
           {/* Sub2API developer documentation: public by design so it can be mounted
               in a user-facing custom menu or embedded by another system. */}
           <Route path="/api-docs" element={<ApiDocsPage />} />
           <Route path="/docs" element={<ApiDocsPage />} />
           <Route path="/client-docs" element={<Suspense fallback={<main className="p-8" role="status">正在加载接入指南…</main>}><ClientDocsPage /></Suspense>} />
+          <Route path="/user-guide" element={<Suspense fallback={<main className="p-8" role="status">正在加载使用指南…</main>}><UserGuidePage /></Suspense>} />
           {/* 管理端: 需管理员会话 (对应 sub2api custom_menu_items, 传 token) */}
           <Route path="/admin" element={<AdminGuard><AdminLayout /></AdminGuard>}>
             {/* U6: 仪表盘为管理端首页 (R10) */}
@@ -131,6 +136,7 @@ export default function App() {
             <Route path="ops/consumption" element={<ConsumptionPage />} />
             <Route path="ops/cost-config" element={<CostConfigPage />} />
             <Route path="invoices" element={<InvoiceManagementPage />} />
+            <Route path="tickets" element={<TicketManagementPage />} />
             <Route path="promotions" element={<PromotionManagementPage />} />
             <Route path="notifications" element={<NotificationManagementPage />} />
             <Route path="logs/system" element={<SystemLogsPage />} />

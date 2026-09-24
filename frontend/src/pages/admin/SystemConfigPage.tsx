@@ -382,7 +382,7 @@ export default function SystemConfigPage() {
               placeholder="https://api.example.com"
               onChange={(event) => setDraftSystemDomain(event.target.value)}
             />
-            <small>用于客户端接入文档的「API 基础地址」默认值，请填写完整的 HTTP(S) 域名。</small>
+            <small>提供给动态页面的系统域名变量；接入文档默认使用浏览器当前访问的站点域名。</small>
           </div>
           <div className="aux-system-config-field">
             <Label htmlFor="system-example-model">模型名称</Label>

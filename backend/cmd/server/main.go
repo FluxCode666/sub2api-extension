@@ -112,6 +112,9 @@ func main() {
 	var promotionMenuPublisher interface {
 		SetPromotionMenu(context.Context, bool) error
 	}
+	var ticketMenuPublisher interface {
+		SetTicketMenu(context.Context, bool) error
+	}
 	var homepageMenuPublisher interface {
 		SetHomepageMenu(context.Context, bool, string) error
 	}
@@ -143,6 +146,7 @@ func main() {
 		sub2apiMenuPublisher = menuStore
 		invoiceMenuPublisher = menuStore
 		promotionMenuPublisher = menuStore
+		ticketMenuPublisher = menuStore
 		homepageMenuPublisher = menuStore
 	} else {
 		log.Printf("[main] sub2api database integration disabled: SUB2API_DATABASE_HOST is empty; publication and TTFT data access will be unavailable")
@@ -235,6 +239,20 @@ func main() {
 	promotionAdminHandler := adminhandler.NewPromotionAdminHandler(promotionService, promotionMenuPublisher)
 	notificationService := service.NewNotificationService(entClient)
 	notificationAdminHandler := adminhandler.NewNotificationAdminHandler(notificationService)
+	ticketService := service.NewTicketService(service.NewEntTicketStore(entClient), notificationService)
+	ticketUserHandler := handler.NewTicketUserHandler(ticketService, sub2apiClient)
+	ticketPublished, ticketFeatureReadErr := ticketService.FeatureEnabled(context.Background())
+	if ticketFeatureReadErr != nil {
+		log.Printf("[main] failed to read ticket publication setting: %v", ticketFeatureReadErr)
+	}
+	ticketAdminHandler := adminhandler.NewTicketHandler(ticketService, ticketMenuPublisher)
+	if ticketMenuPublisher != nil && ticketFeatureReadErr == nil {
+		syncCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if syncErr := ticketMenuPublisher.SetTicketMenu(syncCtx, ticketPublished); syncErr != nil {
+			log.Printf("[main] failed to sync ticket portal menu enabled=%t: %v", ticketPublished, syncErr)
+		}
+		cancel()
+	}
 
 	// 运维首字延迟看板直接读取 sub2api PostgreSQL 的 usage_logs/groups/accounts。
 	// 未配置数据库时仍注册 handler，由接口返回清晰的 503，而不是让前端遇到无意义的 404。
@@ -262,7 +280,7 @@ func main() {
 		releaseSource,
 		update.NewManager(releaseSource, releaseSource, Version),
 	)
-	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, tobHomepageHandler, imageAssetHandler, fileAssetHandler, ttftHandler, costHandler, invoiceUserHandler, invoiceAdminHandler, promotionUserHandler, promotionAdminHandler, notificationAdminHandler, logService, logHandler, systemHandler)
+	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, tobHomepageHandler, imageAssetHandler, fileAssetHandler, ttftHandler, costHandler, invoiceUserHandler, invoiceAdminHandler, promotionUserHandler, promotionAdminHandler, ticketUserHandler, ticketAdminHandler, notificationAdminHandler, logService, logHandler, systemHandler)
 
 	// 启动 HTTP 服务器
 	addr := cfg.Server.Address()

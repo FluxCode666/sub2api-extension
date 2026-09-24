@@ -17,6 +17,8 @@ import (
 	"aux-system/ent/promotion"
 	"aux-system/ent/promotionclaim"
 	"aux-system/ent/schema"
+	"aux-system/ent/supportticket"
+	"aux-system/ent/supportticketmessage"
 	"aux-system/ent/systemlog"
 	"aux-system/ent/systemmeta"
 	"time"
@@ -610,6 +612,56 @@ func init() {
 	promotionclaimDescClaimedAt := promotionclaimFields[7].Descriptor()
 	// promotionclaim.DefaultClaimedAt holds the default value on creation for the claimed_at field.
 	promotionclaim.DefaultClaimedAt = promotionclaimDescClaimedAt.Default.(func() time.Time)
+	supportticketFields := schema.SupportTicket{}.Fields()
+	_ = supportticketFields
+	// supportticketDescUserEmail is the schema descriptor for user_email field.
+	supportticketDescUserEmail := supportticketFields[1].Descriptor()
+	// supportticket.DefaultUserEmail holds the default value on creation for the user_email field.
+	supportticket.DefaultUserEmail = supportticketDescUserEmail.Default.(string)
+	// supportticket.UserEmailValidator is a validator for the "user_email" field. It is called by the builders before save.
+	supportticket.UserEmailValidator = supportticketDescUserEmail.Validators[0].(func(string) error)
+	// supportticketDescUserName is the schema descriptor for user_name field.
+	supportticketDescUserName := supportticketFields[2].Descriptor()
+	// supportticket.DefaultUserName holds the default value on creation for the user_name field.
+	supportticket.DefaultUserName = supportticketDescUserName.Default.(string)
+	// supportticket.UserNameValidator is a validator for the "user_name" field. It is called by the builders before save.
+	supportticket.UserNameValidator = supportticketDescUserName.Validators[0].(func(string) error)
+	// supportticketDescSubject is the schema descriptor for subject field.
+	supportticketDescSubject := supportticketFields[3].Descriptor()
+	// supportticket.SubjectValidator is a validator for the "subject" field. It is called by the builders before save.
+	supportticket.SubjectValidator = supportticketDescSubject.Validators[0].(func(string) error)
+	// supportticketDescStatus is the schema descriptor for status field.
+	supportticketDescStatus := supportticketFields[4].Descriptor()
+	// supportticket.DefaultStatus holds the default value on creation for the status field.
+	supportticket.DefaultStatus = supportticketDescStatus.Default.(string)
+	// supportticket.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	supportticket.StatusValidator = supportticketDescStatus.Validators[0].(func(string) error)
+	// supportticketDescCreatedAt is the schema descriptor for created_at field.
+	supportticketDescCreatedAt := supportticketFields[5].Descriptor()
+	// supportticket.DefaultCreatedAt holds the default value on creation for the created_at field.
+	supportticket.DefaultCreatedAt = supportticketDescCreatedAt.Default.(func() time.Time)
+	// supportticketDescUpdatedAt is the schema descriptor for updated_at field.
+	supportticketDescUpdatedAt := supportticketFields[6].Descriptor()
+	// supportticket.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	supportticket.DefaultUpdatedAt = supportticketDescUpdatedAt.Default.(func() time.Time)
+	// supportticket.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	supportticket.UpdateDefaultUpdatedAt = supportticketDescUpdatedAt.UpdateDefault.(func() time.Time)
+	supportticketmessageFields := schema.SupportTicketMessage{}.Fields()
+	_ = supportticketmessageFields
+	// supportticketmessageDescSenderType is the schema descriptor for sender_type field.
+	supportticketmessageDescSenderType := supportticketmessageFields[1].Descriptor()
+	// supportticketmessage.SenderTypeValidator is a validator for the "sender_type" field. It is called by the builders before save.
+	supportticketmessage.SenderTypeValidator = supportticketmessageDescSenderType.Validators[0].(func(string) error)
+	// supportticketmessageDescSenderName is the schema descriptor for sender_name field.
+	supportticketmessageDescSenderName := supportticketmessageFields[2].Descriptor()
+	// supportticketmessage.DefaultSenderName holds the default value on creation for the sender_name field.
+	supportticketmessage.DefaultSenderName = supportticketmessageDescSenderName.Default.(string)
+	// supportticketmessage.SenderNameValidator is a validator for the "sender_name" field. It is called by the builders before save.
+	supportticketmessage.SenderNameValidator = supportticketmessageDescSenderName.Validators[0].(func(string) error)
+	// supportticketmessageDescCreatedAt is the schema descriptor for created_at field.
+	supportticketmessageDescCreatedAt := supportticketmessageFields[4].Descriptor()
+	// supportticketmessage.DefaultCreatedAt holds the default value on creation for the created_at field.
+	supportticketmessage.DefaultCreatedAt = supportticketmessageDescCreatedAt.Default.(func() time.Time)
 	systemlogFields := schema.SystemLog{}.Fields()
 	_ = systemlogFields
 	// systemlogDescLevel is the schema descriptor for level field.

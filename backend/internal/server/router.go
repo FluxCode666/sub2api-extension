@@ -256,6 +256,8 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 	var invoiceAdminHandler *adminhandler.InvoiceAdminHandler
 	var promotionUserHandler *handler.PromotionUserHandler
 	var promotionAdminHandler *adminhandler.PromotionAdminHandler
+	var ticketUserHandler *handler.TicketUserHandler
+	var ticketAdminHandler *adminhandler.TicketHandler
 	var notificationAdminHandler *adminhandler.NotificationAdminHandler
 	for _, optionalHandler := range optionalHandlers {
 		switch typed := optionalHandler.(type) {
@@ -285,6 +287,10 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			promotionUserHandler = typed
 		case *adminhandler.PromotionAdminHandler:
 			promotionAdminHandler = typed
+		case *handler.TicketUserHandler:
+			ticketUserHandler = typed
+		case *adminhandler.TicketHandler:
+			ticketAdminHandler = typed
 		case *adminhandler.NotificationAdminHandler:
 			notificationAdminHandler = typed
 		}
@@ -331,6 +337,14 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			promotions.GET("/claims", promotionUserHandler.Claims)
 			promotions.GET("/:id/orders", promotionUserHandler.Orders)
 			promotions.POST("/:id/claim", promotionUserHandler.Claim)
+		}
+		if ticketUserHandler != nil {
+			tickets := aux.Group("/tickets")
+			tickets.Use(ticketUserHandler.Guard())
+			tickets.GET("", ticketUserHandler.List)
+			tickets.POST("", ticketUserHandler.Create)
+			tickets.GET("/:id", ticketUserHandler.Get)
+			tickets.POST("/:id/messages", ticketUserHandler.Reply)
 		}
 
 		// U5: 埋点上报端点(匿名可写,不经 AdminGuard)。
@@ -439,6 +453,14 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 				guarded.PUT("/invoices/:id/status", invoiceAdminHandler.UpdateStatus)
 				guarded.POST("/invoices/:id/document", invoiceAdminHandler.UploadDocument)
 				guarded.GET("/invoices/:id/document", invoiceAdminHandler.Download)
+			}
+			if ticketAdminHandler != nil {
+				guarded.GET("/tickets/config", ticketAdminHandler.GetFeature)
+				guarded.PUT("/tickets/config", ticketAdminHandler.SetFeature)
+				guarded.GET("/tickets", ticketAdminHandler.List)
+				guarded.GET("/tickets/:id", ticketAdminHandler.Get)
+				guarded.POST("/tickets/:id/messages", ticketAdminHandler.Reply)
+				guarded.PUT("/tickets/:id/status", ticketAdminHandler.UpdateStatus)
 			}
 			if promotionAdminHandler != nil {
 				guarded.GET("/promotions/config", promotionAdminHandler.GetFeature)

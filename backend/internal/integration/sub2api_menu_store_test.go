@@ -111,6 +111,38 @@ func TestSub2APIMenuStoreInvoiceMenuProvidesDefaultIcon(t *testing.T) {
 	require.Equal(t, invoiceMenuIconSVG, stale.IconSVG)
 }
 
+func TestSub2APIMenuStoreTicketMenuProvidesDefaultIcon(t *testing.T) {
+	updated := mergeTicketMenuItem(customMenuItem{SortOrder: 9}, "https://aux.example.com/tickets")
+	require.Equal(t, "aux-tickets", updated.ID)
+	require.Equal(t, "工单中心", updated.Label)
+	require.Equal(t, "https://aux.example.com/tickets", updated.URL)
+	require.Equal(t, "user", updated.Visibility)
+	require.Equal(t, 9, updated.SortOrder)
+	require.Contains(t, updated.IconSVG, "<svg")
+
+	existing := mergeTicketMenuItem(customMenuItem{IconSVG: "<svg data-custom=\"true\"></svg>", SortOrder: 2}, "https://aux.example.com/tickets")
+	require.Equal(t, "<svg data-custom=\"true\"></svg>", existing.IconSVG)
+}
+
+func TestSub2APIMenuStoreTicketMenuPreservesExtensionsAndRemovesDuplicates(t *testing.T) {
+	items := []customMenuItem{
+		{ID: "other", SortOrder: 1},
+		{ID: "aux-tickets", IconSVG: "<svg />", SortOrder: 4, extra: map[string]json.RawMessage{"open_in_new_tab": json.RawMessage("true")}},
+		{ID: "aux-tickets", SortOrder: 8},
+	}
+
+	updated := upsertTicketMenuItems(items, "https://aux.example.com/tickets")
+
+	require.Len(t, updated, 2)
+	require.Equal(t, "other", updated[0].ID)
+	require.Equal(t, "aux-tickets", updated[1].ID)
+	require.Equal(t, 4, updated[1].SortOrder)
+	require.Equal(t, json.RawMessage("true"), updated[1].extra["open_in_new_tab"])
+	raw, err := json.Marshal(updated[1])
+	require.NoError(t, err)
+	require.Contains(t, string(raw), `"open_in_new_tab":true`)
+}
+
 func TestSub2APIMenuStoreDashboardMenuUsesIframeFields(t *testing.T) {
 	item := customMenuItem{
 		ID: "aux-dashboard", Label: "控制台", IconSVG: homepageMenuIconSVG,

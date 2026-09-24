@@ -157,7 +157,13 @@ Sub2API 会把 URL 作为 iframe 地址。官网内容通过 `/admin/pages` 维�
 
 管理页显示的“已上架”不是只看 `aux-page-<页面 ID>` 是否存在。扩展会重新计算期望的 URL、菜单名称和可见角色，并与 sub2api 当前 `custom_menu_items` 中的 URL、名称、角色及 `page_slug` 逐项核对；管理员在 sub2api 中改动任一受管字段后，该页面会显示为“未上架”，可在扩展页面管理中重新保存以恢复同步。
 
-### 2.4 挂载 API 文档页
+### 2.4 上架用户工单中心
+
+配置 `SUB2API_DATABASE_*` 与 `SUB2API_EXTENSION_PUBLIC_URL` 后，aux-system 启动时会幂等同步 Sub2API 用户菜单 `id=aux-tickets`，指向扩展公网地址 `/tickets`，并使用 `visibility=user` 和 iframe 模式。Sub2API 会注入当前登录用户 token；工单 API 每次通过 `UserGuard` 向 Sub2API 验证 token，工单归属只取验证返回的用户 ID。菜单同步不会修改 Sub2API 源码或其业务数据表。
+
+用户在 `/tickets` 创建和回复工单；管理员通过 `/admin/tickets` 查看、回复及更新状态。新建工单通知使用 `/admin/notifications` 中的 `ticket.created` 事件配置，与发票申请提醒共享已配置渠道。
+
+### 2.5 挂载 API 文档页
 
 扩展内置的 Sub2API 接口文档页是公开静态页面，路径为：
 
@@ -181,7 +187,7 @@ Sub2API 会把 URL 作为 iframe 地址。官网内容通过 `/admin/pages` 维�
 ]
 ```
 
-Sub2API 会将该 URL 作为 iframe 打开；`embed=1` 用于收起非必要宿主导航。文档页也识别 `ui_mode=embedded`，因此由 Sub2API 自动附加嵌入参数时无需额外处理。页面示例中的 API 基础地址默认为当前 origin；如果文档页与 API 网关使用不同域名，请在 URL 中传入 `api_base`，例如：
+Sub2API 会将该 URL 作为 iframe 打开；`embed=1` 或 `ui_mode=embedded` 会让 API 文档与客户端接入文档不渲染顶部菜单栏。即使宿主没有附加这两个参数，页面也会通过真实 iframe 上下文自动识别嵌入状态。页面示例中的 API 基础地址默认为当前 origin；如果文档页与 API 网关使用不同域名，请在 URL 中传入 `api_base`，例如：
 
 ```text
 https://aux.example.com/api-docs?embed=1&api_base=https%3A%2F%2Fapi.example.com

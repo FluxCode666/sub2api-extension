@@ -3,6 +3,7 @@ import {
   parseEmbeddedParams,
   initEmbeddedContext,
   getEmbeddedContext,
+  isEmbeddedDocument,
 } from './embedded'
 
 describe('parseEmbeddedParams', () => {
@@ -64,5 +65,31 @@ describe('initEmbeddedContext / getEmbeddedContext', () => {
     expect(getEmbeddedContext()?.token).toBe('sekret')
     expect(getEmbeddedContext()?.userId).toBe('7')
     expect(getEmbeddedContext()?.theme).toBe('dark')
+  })
+})
+
+describe('isEmbeddedDocument', () => {
+  it.each([
+    '?embed=1',
+    '?ui_mode=embedded',
+  ])('accepts the explicit embedded parameter in %s', (search) => {
+    expect(isEmbeddedDocument(search, null)).toBe(true)
+  })
+
+  it('detects a real iframe without relying on query parameters', () => {
+    expect(isEmbeddedDocument('', { self: {}, top: {} })).toBe(true)
+  })
+
+  it('keeps a top-level document in standalone mode', () => {
+    const topLevel = {}
+    expect(isEmbeddedDocument('', { self: topLevel, top: topLevel })).toBe(false)
+  })
+
+  it('treats inaccessible parent context as embedded', () => {
+    const blockedFrame = {
+      self: {},
+      get top(): never { throw new Error('blocked') },
+    }
+    expect(isEmbeddedDocument('', blockedFrame)).toBe(true)
   })
 })

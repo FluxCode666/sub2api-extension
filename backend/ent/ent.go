@@ -16,6 +16,8 @@ import (
 	"aux-system/ent/pageview"
 	"aux-system/ent/promotion"
 	"aux-system/ent/promotionclaim"
+	"aux-system/ent/supportticket"
+	"aux-system/ent/supportticketmessage"
 	"aux-system/ent/systemlog"
 	"aux-system/ent/systemmeta"
 	"context"
@@ -100,6 +102,8 @@ func checkColumn(t, c string) error {
 			pageview.Table:             pageview.ValidColumn,
 			promotion.Table:            promotion.ValidColumn,
 			promotionclaim.Table:       promotionclaim.ValidColumn,
+			supportticket.Table:        supportticket.ValidColumn,
+			supportticketmessage.Table: supportticketmessage.ValidColumn,
 			systemlog.Table:            systemlog.ValidColumn,
 			systemmeta.Table:           systemmeta.ValidColumn,
 		})

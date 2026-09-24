@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { execFileSync } from 'node:child_process'
-import { getClientGuide, getConfigExample, getVerifyCommand, normalizeGatewayURL, quoteShell } from './client-guides'
+import { CC_SWITCH_DOWNLOAD_URL, CC_SWITCH_GUIDES, CLIENT_GUIDES, findCCSwitchGuide, getCCSwitchExample, getCCSwitchGuide, getClientGuide, getConfigExample, getInstallCommand, getVerifyCommand, normalizeGatewayURL, quoteShell } from './client-guides'
 
 describe('client guide configuration', () => {
+  it('uses the official CC Switch homepage for downloads', () => {
+    expect(CC_SWITCH_DOWNLOAD_URL).toBe('https://ccswitch.io/')
+  })
+
+  it('does not register screenshots for the new client guides or Codex import flow', () => {
+    const newClients = ['codex', 'grok-build', 'gemini-cli', 'vscode-codex', 'vscode-claude', 'openai-compatible', 'ide-plugins']
+    expect(CLIENT_GUIDES.filter(guide => newClients.includes(guide.id)).every(guide => !guide.screenshots)).toBe(true)
+    expect(getCCSwitchGuide('codex').screenshots).toBeUndefined()
+  })
   it.each([
     ['https://api.example.com/', 'https://api.example.com'],
     ['https://api.example.com/proxy/v1/', 'https://api.example.com/proxy'],
@@ -15,17 +24,59 @@ describe('client guide configuration', () => {
     expect(normalizeGatewayURL(input)).toBeNull()
   })
 
-  it('uses Messages at the root and Responses at the versioned Codex provider', () => {
+  it('uses root provider addresses for Messages and Codex Responses', () => {
     const claude = getConfigExample('claude-code', 'https://gateway.test', 'claude-model', 'unix')
-    expect(claude.code).toContain("ANTHROPIC_BASE_URL='https://gateway.test'")
+    expect(claude.language).toBe('Bash / Zsh')
+    expect(claude.code).toContain("export ANTHROPIC_BASE_URL='https://gateway.test'")
+    expect(claude.code).toContain("export ANTHROPIC_MODEL='claude-model'")
     const codex = getConfigExample('codex', 'https://gateway.test', 'model-id', 'unix')
-    expect(codex.code).toContain('base_url = "https://gateway.test/v1"')
+    expect(codex.code).toContain('base_url = "https://gateway.test"')
+    expect(codex.code).not.toContain('base_url = "https://gateway.test/v1"')
     expect(codex.code).toContain('wire_api = "responses"')
     expect(codex.code).toContain('cli_auth_credentials_store = "file"')
     expect(codex.code).toContain('requires_openai_auth = true')
     expect(codex.code).not.toContain('env_key')
-    expect(getVerifyCommand('codex', 'model-id', 'windows')).toBe('codex')
-    expect(getVerifyCommand('codex', 'model-id', 'unix')).toBe('codex')
+    expect(getCCSwitchExample('codex', 'https://gateway.test', 'model-id')?.code).toContain('接口地址      https://gateway.test\n')
+    expect(getCCSwitchExample('codex', 'https://gateway.test', 'model-id')?.code).toContain('应用          Codex Desktop')
+    expect(getInstallCommand('codex', 'unix')).toBeNull()
+    expect(getVerifyCommand('codex', 'model-id', 'windows')).toBeNull()
+    expect(getVerifyCommand('codex', 'model-id', 'unix')).toBeNull()
+  })
+
+  it('associates CC Switch setup with supported clients only', () => {
+    expect(getClientGuide('codex').ccSwitch).toBeUndefined()
+    expect(getClientGuide('claude-code').ccSwitch).toBeUndefined()
+    expect(getClientGuide('claude-desktop').ccSwitch).toBeUndefined()
+    expect(CC_SWITCH_GUIDES.map(guide => guide.id)).toEqual(['codex', 'claude-code', 'claude-desktop', 'grok-build'])
+    expect(getCCSwitchGuide('codex')).toMatchObject({ id: 'codex', clientId: 'codex' })
+    expect(getCCSwitchGuide('codex').steps).toHaveLength(5)
+    expect(getCCSwitchGuide('codex').steps[0]).toContain('创建一个 API Key')
+    expect(getCCSwitchGuide('codex').steps[1]).toContain('导入到 CCS')
+    expect(getCCSwitchGuide('codex').steps[2]).toContain('确认导入')
+    expect(getCCSwitchGuide('codex').steps[3]).toContain('启用')
+    expect(getCCSwitchGuide('codex').steps[4]).toContain('重新打开 Codex Desktop')
+    expect(getCCSwitchGuide('claude-desktop').steps.join(' ')).toContain('需要模型映射')
+    expect(findCCSwitchGuide('codex')?.clientId).toBe('codex')
+    expect(findCCSwitchGuide('vscode-codex')?.clientId).toBe('codex')
+    expect(getCCSwitchExample('vscode-codex', 'https://gateway.test', 'model-id')?.code).toContain('接口地址      https://gateway.test\n')
+    expect(findCCSwitchGuide('gemini-cli')).toBeUndefined()
+  })
+
+  it('generates the added client configurations with the correct base URL rules', () => {
+    expect(getConfigExample('grok-build', 'https://gateway.test', 'grok-model', 'unix').code)
+      .toContain('base_url = "https://gateway.test/v1"')
+    expect(getConfigExample('grok-build', 'https://gateway.test', 'grok-model', 'unix').code)
+      .toContain('api_backend = "chat_completions"')
+    expect(getConfigExample('gemini-cli', 'https://gateway.test', 'gemini-model', 'windows').code)
+      .toContain("$env:GOOGLE_GEMINI_BASE_URL = 'https://gateway.test'")
+    expect(getConfigExample('vscode-codex', 'https://gateway.test', 'codex-model', 'unix').code)
+      .toContain('base_url = "https://gateway.test"')
+    expect(getConfigExample('vscode-claude', 'https://gateway.test', 'claude-model', 'unix').code)
+      .toContain("ANTHROPIC_BASE_URL='https://gateway.test'")
+    expect(getConfigExample('openai-compatible', 'https://gateway.test', 'model-id', 'unix').code)
+      .toContain('Base URL       https://gateway.test/v1')
+    expect(getConfigExample('ide-plugins', 'https://gateway.test', 'model-id', 'unix').code)
+      .toContain('API Provider    OpenAI Compatible')
   })
 
   it('keeps JSON valid and OpenClaw model references aligned for custom IDs', () => {

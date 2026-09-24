@@ -164,6 +164,30 @@ func (f PromotionClaimFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Val
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PromotionClaimMutation", m)
 }
 
+// The SupportTicketFunc type is an adapter to allow the use of ordinary
+// function as SupportTicket mutator.
+type SupportTicketFunc func(context.Context, *ent.SupportTicketMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SupportTicketFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SupportTicketMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SupportTicketMutation", m)
+}
+
+// The SupportTicketMessageFunc type is an adapter to allow the use of ordinary
+// function as SupportTicketMessage mutator.
+type SupportTicketMessageFunc func(context.Context, *ent.SupportTicketMessageMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SupportTicketMessageFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SupportTicketMessageMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SupportTicketMessageMutation", m)
+}
+
 // The SystemLogFunc type is an adapter to allow the use of ordinary
 // function as SystemLog mutator.
 type SystemLogFunc func(context.Context, *ent.SystemLogMutation) (ent.Value, error)

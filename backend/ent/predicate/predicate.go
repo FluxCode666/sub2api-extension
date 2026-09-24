@@ -45,6 +45,12 @@ type Promotion func(*sql.Selector)
 // PromotionClaim is the predicate function for promotionclaim builders.
 type PromotionClaim func(*sql.Selector)
 
+// SupportTicket is the predicate function for supportticket builders.
+type SupportTicket func(*sql.Selector)
+
+// SupportTicketMessage is the predicate function for supportticketmessage builders.
+type SupportTicketMessage func(*sql.Selector)
+
 // SystemLog is the predicate function for systemlog builders.
 type SystemLog func(*sql.Selector)
 

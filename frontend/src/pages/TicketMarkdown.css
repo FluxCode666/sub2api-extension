@@ -1,0 +1,26 @@
+.ticket-markdown {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ticket-markdown > :first-child { margin-top: 0; }
+.ticket-markdown > :last-child { margin-bottom: 0; }
+.ticket-markdown :is(h1, h2, h3, h4) { margin: 1em 0 .45em; font-weight: 700; line-height: 1.35; }
+.ticket-markdown h1 { font-size: 1.2em; }
+.ticket-markdown h2 { font-size: 1.1em; }
+.ticket-markdown :is(h3, h4) { font-size: 1em; }
+.ticket-markdown p { margin: .65em 0; }
+.ticket-markdown :is(ul, ol) { margin: .65em 0; padding-left: 1.35em; }
+.ticket-markdown ul { list-style: disc; }
+.ticket-markdown ol { list-style: decimal; }
+.ticket-markdown li + li { margin-top: .2em; }
+.ticket-markdown blockquote { margin: .75em 0; border-left: 3px solid hsl(var(--primary)); padding-left: .85em; color: hsl(var(--muted-foreground)); }
+.ticket-markdown a { color: hsl(var(--primary)); text-decoration: underline; text-underline-offset: 3px; }
+.ticket-markdown code { border-radius: .25rem; background: hsl(var(--muted)); padding: .12em .35em; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .9em; }
+.ticket-markdown pre { margin: .8em 0; max-width: 100%; overflow-x: auto; border: 1px solid hsl(var(--border)); border-radius: .5rem; background: hsl(var(--muted)); padding: .75em .9em; }
+.ticket-markdown pre code { display: block; background: transparent; padding: 0; white-space: pre; }
+.ticket-markdown hr { margin: 1em 0; border: 0; border-top: 1px solid hsl(var(--border)); }
+.ticket-markdown table { display: block; max-width: 100%; margin: .8em 0; overflow-x: auto; border-collapse: collapse; font-size: .92em; }
+.ticket-markdown :is(th, td) { border: 1px solid hsl(var(--border)); padding: .4em .55em; text-align: left; vertical-align: top; }
+.ticket-markdown th { background: hsl(var(--muted)); font-weight: 650; }
+.ticket-markdown img { max-width: 100%; height: auto; }

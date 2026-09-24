@@ -23,6 +23,7 @@ const KEY_USER_ID = 'user_id'
 const KEY_TOKEN = 'token'
 const KEY_THEME = 'theme'
 const KEY_LANG = 'lang'
+const KEY_EMBED = 'embed'
 const KEY_UI_MODE = 'ui_mode'
 const UI_MODE_EMBEDDED = 'embedded'
 const KEY_SRC_HOST = 'src_host'
@@ -30,6 +31,31 @@ const KEY_SRC_URL = 'src_url'
 
 function normalizeTheme(value: string | null): Theme {
   return value === 'dark' ? 'dark' : 'light'
+}
+
+interface FrameWindowLike {
+  readonly self: unknown
+  readonly top: unknown
+}
+
+/**
+ * 判断当前页面是否处于嵌入模式，同时兼容显式参数和真实 iframe。
+ */
+export function isEmbeddedDocument(
+  search: string,
+  frameWindow: FrameWindowLike | null = typeof window === 'undefined' ? null : window,
+): boolean {
+  const query = search.startsWith('?') ? search.slice(1) : search
+  const params = new URLSearchParams(query)
+  if (params.get(KEY_EMBED) === '1' || params.get(KEY_UI_MODE) === UI_MODE_EMBEDDED) return true
+  if (!frameWindow) return false
+
+  try {
+    return frameWindow.self !== frameWindow.top
+  } catch {
+    // 某些跨源宿主会限制 top 访问；无法读取时按嵌入页面处理。
+    return true
+  }
 }
 
 /**

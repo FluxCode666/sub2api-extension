@@ -1,5 +1,8 @@
-export type ClientId = 'claude-code' | 'claude-desktop' | 'codex' | 'pi' | 'hermes' | 'openclaw' | 'paseo' | 'zcode' | 'deepseek-harness' | 'obsidian'
+export type ClientId = 'claude-code' | 'claude-desktop' | 'codex' | 'grok-build' | 'gemini-cli' | 'vscode-codex' | 'vscode-claude' | 'openai-compatible' | 'ide-plugins' | 'pi' | 'hermes' | 'openclaw' | 'paseo' | 'zcode' | 'deepseek-harness' | 'obsidian'
+export type CCSwitchGuideId = 'codex' | 'claude-code' | 'claude-desktop' | 'grok-build'
 export type GuidePlatform = 'unix' | 'windows'
+export type ClientDirectoryGroup = 'primary' | 'extended'
+export type ClientMarkKind = 'terminal' | 'gemini' | 'editor' | 'api' | 'plugin'
 
 export interface GuideScreenshot {
   src: string
@@ -10,7 +13,11 @@ export interface GuideScreenshot {
 export interface ClientGuide {
   id: ClientId
   name: string
-  icon: string
+  icon?: string
+  mark?: ClientMarkKind
+  directoryGroup?: ClientDirectoryGroup
+  aliases?: readonly string[]
+  appliesTo?: readonly string[]
   category: string
   description: string
   protocol: string
@@ -23,6 +30,7 @@ export interface ClientGuide {
   installTitle?: string
   installSteps?: { text: string; href?: string; linkLabel?: string }[]
   installAlternatives?: { title: string; description: string; command: string }[]
+  ccSwitchGuideId?: CCSwitchGuideId
   ccSwitch?: { description: string; steps: string[]; screenshot?: GuideScreenshot; screenshots?: GuideScreenshot[] }
   configPath: string
   configDescription: string
@@ -30,22 +38,32 @@ export interface ClientGuide {
   authFile?: { path: string; description: string; code: string }
   verification: string
   troubleshooting: string
-  screenshots: { configure: GuideScreenshot; verify: GuideScreenshot }
+  screenshots?: { configure: GuideScreenshot; verify: GuideScreenshot }
 }
 
-// 补图：随文档发布的截图与客户端图标统一存放在后端资源目录(assets.dir 的
-// client-docs/ 与 client-icons/ 子目录)，公开路径 /client-docs/* 与 /client-icons/* 不变；
-// 后台上传的截图填写完整 HTTP(S) URL。
-// 留空时显示截图占位；新客户端的文案与图片统一在此登记。
+export interface CCSwitchGuide {
+  id: CCSwitchGuideId
+  clientId: ClientId
+  description: string
+  steps: string[]
+  screenshots?: GuideScreenshot[]
+  docsPath?: string
+  verification: string
+  troubleshooting: string
+}
+
+// 界面操作示意由客户端与当前网关参数生成；配置文件和命令使用可复制示例。
 export const CLIENT_GUIDES: readonly ClientGuide[] = [
   {
     id: 'claude-code', name: 'Claude Code', icon: '/client-icons/claude-code.svg', category: '终端编程',
+    aliases: ['Claude Code CLI', 'claude 命令'], appliesTo: ['Claude Code CLI'],
     description: '把 Claude 带进终端，从理解代码到完成修改。',
     protocol: 'Anthropic Messages', endpoint: '/v1/messages', defaultModel: 'claude-opus-5',
     officialUrl: 'https://code.claude.com/docs/en/llm-gateway-connect',
     installUrl: 'https://code.claude.com/docs/en/setup',
     prerequisite: '支持 macOS、Linux 与 Windows。可选择官方安装器或 npm，任选一种方式即可；安装后重新打开终端。',
     installTitle: '通过官方安装器安装 Claude Code',
+    ccSwitchGuideId: 'claude-code',
     installAlternatives: [
       {
         title: '通过 npm 安装 Claude Code',
@@ -54,17 +72,7 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
       },
     ],
     configPath: '终端环境变量',
-    configDescription: '在当前终端设置网关根地址、API Key 和 Claude 模型。ANTHROPIC_BASE_URL 不加 /v1；请把 sk-YOUR_API_KEY 换成控制台创建的密钥。如需持久化，可将这些变量合并到 ~/.claude/settings.json 的 env 对象中，下方截图展示这种方式。',
-    ccSwitch: {
-      description: '在图形界面填写网关、密钥与模型，由 CC Switch 保存到 Claude Code 配置中。',
-      steps: [
-        '先完成上方 Claude Code 安装，再安装并打开最新版本 CC Switch。在应用切换器中选择「Claude」（Claude Code），点击右上角「+」添加自定义供应商。',
-        '按下方参考填写供应商名称、接口地址和 API Key，使用 Anthropic Messages 协议与 Auth Token（Bearer）认证；接口地址填写网关根地址，不加 /v1。',
-        '默认模型填写本页的模型 ID，默认值为 claude-opus-5。保存并点击供应商卡片的「启用」，由 CC Switch 写入 ~/.claude/settings.json。',
-        '重新打开 Claude Code 后验证接入。如原终端中仍有旧的网关或密钥环境变量，先清理冲突变量，确保使用刚启用的供应商。',
-      ],
-      screenshot: { src: '/client-docs/claude-code/cc-switch.png', alt: 'CC Switch 编辑 Claude Code 供应商：填写网关地址、API Key、Anthropic Messages 格式和模型映射，密钥已遮盖', caption: 'CC Switch 快捷配置 Claude Code' },
-    },
+    configDescription: '在当前终端设置网关根地址、API Key 和 Claude 模型。ANTHROPIC_BASE_URL 不加 /v1；请把 sk-YOUR_API_KEY 换成控制台创建的密钥。如需持久化，可将这些变量合并到 ~/.claude/settings.json 的 env 对象中。',
     verification: '在同一个终端启动 Claude Code，直接发送「当前时间」。收到正常回复后，在控制台核对本次用量。',
     troubleshooting: '如果仍使用原来的账号或提示凭据冲突，请检查环境变量与 ~/.claude/settings.json 中的配置，清理冲突的 ANTHROPIC_API_KEY 或旧网关变量。终端变量只对当前终端及其启动的程序生效；需要持久化时，按官方说明合并到 ~/.claude/settings.json 的 env 中。',
     screenshots: {
@@ -74,6 +82,7 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
   },
   {
     id: 'claude-desktop', name: 'Claude Desktop', icon: '/client-icons/claude-desktop.svg', category: '桌面助手',
+    aliases: ['Claude 桌面版'], appliesTo: ['Claude Desktop'],
     description: '在桌面应用中使用 Claude，适合长文档与日常对话。',
     protocol: 'Anthropic Messages', endpoint: '/v1/messages', defaultModel: 'claude-opus-5',
     officialUrl: 'https://support.anthropic.com/en/articles/10065433-installing-claude-for-desktop',
@@ -83,32 +92,29 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
       { text: '下载并安装 Claude Desktop，打开应用并完成首次启动。', href: 'https://claude.ai/download', linkLabel: '下载 Claude Desktop' },
       { text: '准备好平台 API 基础地址、API Key 和模型 ID；使用 CC Switch 时，这些信息会在供应商表单中填写。' },
     ],
+    ccSwitchGuideId: 'claude-desktop',
     configPath: 'CC Switch 中的 Claude Desktop 供应商',
     configDescription: '本指南通过 CC Switch 接入 Anthropic Messages 网关。Claude Desktop 使用独立的桌面配置，切换供应商后需要完全退出并重新打开；不需要先安装 Claude Code。',
     verification: '完全退出并重新打开 Claude Desktop，确认当前供应商和模型后发送「当前时间」。收到正常回复后，在平台控制台核对请求用量。',
     troubleshooting: '找不到 Claude Desktop 入口时，升级 CC Switch，并检查「设置 → 通用 → 应用可见性」。目前 CC Switch 的 Claude Desktop 配置写入支持 macOS 与 Windows。模型列表为空时，检查网关 /v1/models，或在直连设置的「手动指定 Claude Desktop 模型列表」中添加本页模型。模型映射模式需保持 CC Switch 运行并开启 Claude Desktop 本地路由；在「设置 → 路由 → 本地路由」中开启「在主页面显示本地路由开关」后，可回到 Claude Desktop 面板开启。每次切换供应商后都要完全退出并重启 Claude Desktop。',
-    ccSwitch: {
-      description: '由 CC Switch 管理桌面应用的供应商配置，默认以 claude-opus-5 和 Anthropic Messages 直连接入。',
-      steps: [
-        '先完成上方 Claude Desktop 安装，再安装并打开最新版本 CC Switch，选择「Claude Desktop」面板。',
-        '点击右上角「+」添加自定义供应商；若已在 CC Switch 的 Claude 面板配置过供应商，也可使用「将 Claude Code 中已有的供应商导入」，随后核对配置。',
-        '填写下方网关根地址和平台 API Key。使用 claude-opus-5 等可识别的 Claude 模型时，保持「需要模型映射」关闭；模型列表通常从网关 /v1/models 自动读取，重启后在模型菜单选择本页模型。',
-        '使用非 Claude 角色模型或需要转换协议时，开启「需要模型映射」，选择上游 API 格式，在角色对应的「实际请求模型」中填写平台模型 ID，并开启 Claude Desktop 本地路由。',
-        '保存后点击供应商卡片的「启用」，完全退出并重新打开 Claude Desktop。模型映射模式下使用期间保持 CC Switch 与本地路由运行。',
-      ],
-    },
     screenshots: {
       configure: { src: '/client-docs/claude-desktop/cc-switch.png', alt: 'CC Switch 的 Claude Desktop 供应商配置与模型映射界面，密钥已遮盖', caption: 'CC Switch 配置 Claude Desktop' },
       verify: { src: '/client-docs/claude-desktop/verify.png', alt: 'Claude Desktop 发送「当前时间」后的正常回复', caption: '发送「当前时间」验证接入' },
     },
   },
   {
-    id: 'codex', name: 'Codex', icon: '/client-icons/codex.svg', category: '终端编程',
-    description: '用自定义模型提供方，连接你的 Codex 工作流。',
+    id: 'codex', name: 'Codex', icon: '/client-icons/codex.svg', category: '桌面编程',
+    aliases: ['Codex Desktop', 'ChatGPT Codex'], appliesTo: ['Codex Desktop'],
+    description: '在 Codex Desktop 中使用平台模型，适合不熟悉命令行的用户。',
     protocol: 'OpenAI Responses', endpoint: '/v1/responses', defaultModel: 'gpt-6-astra',
     officialUrl: 'https://developers.openai.com/codex/config-advanced',
-    installUrl: 'https://developers.openai.com/codex/cli',
-    prerequisite: '先安装当前受支持的 Node.js LTS 与 npm。以下配置面向 Codex CLI；Windows 也可在 WSL2 中选择 macOS / Linux 指引。',
+    installUrl: 'https://openai.com/codex/',
+    prerequisite: 'Codex Desktop 是独立的桌面应用，无需安装 Codex CLI、Node.js 或 npm。下载安装并打开后即可继续。',
+    installSteps: [
+      { text: '从 OpenAI 官方页面下载并安装 Codex Desktop，打开应用完成首次启动；已经安装可直接继续。', href: 'https://openai.com/codex/', linkLabel: '获取 Codex Desktop' },
+      { text: '准备好平台 API 基础地址、API Key 和模型 ID；CC Switch 与手动配置都使用同一组 Codex 配置文件。' },
+    ],
+    ccSwitchGuideId: 'codex',
     configPath: '~/.codex/config.toml',
     configDescription: '先把以下字段合并到 ~/.codex/config.toml，配置模型和网关。顶层字段放在 [model_providers.gateway] 表定义之前；保留已有的其他设置。Windows 原生路径为 %USERPROFILE%\\.codex\\config.toml。',
     authFile: {
@@ -116,25 +122,118 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
       description: '再将 API Key 填入 ~/.codex/auth.json 的 OPENAI_API_KEY 字段，把 sk-YOUR_API_KEY 替换为平台控制台创建的密钥。已有登录配置时先备份 auth.json，再按下方示例配置。Windows 原生路径为 %USERPROFILE%\\.codex\\auth.json。',
       code: JSON.stringify({ OPENAI_API_KEY: 'sk-YOUR_API_KEY' }, null, 2),
     },
-    ccSwitch: {
-      description: '在 CC Switch 中添加 Responses 供应商，保存并切换 Codex 的网关与模型配置。',
-      steps: [
-        '先完成上方 Codex 安装，再安装并打开最新版本 CC Switch，选择「Codex」面板，点击右上角「+」添加自定义供应商。',
-        '按下方参考填写平台 API Key 和以 /v1 结尾的接口地址，选择 OpenAI Responses 协议；本指南使用原生 Responses 网关，无需开启本地路由映射。',
-        '模型填写本页的模型 ID，默认值为 gpt-6-astra。保存并点击供应商卡片的「启用」。',
-        '关闭并重新打开 Codex，使供应商配置生效，然后按下方验证步骤发送消息。',
-      ],
-      screenshot: { src: '/client-docs/codex/cc-switch.png', alt: 'CC Switch 编辑 Codex 供应商：填写供应商名称、官网链接、API Key 和完整 API 请求地址，密钥已遮盖', caption: 'CC Switch 编辑 Codex 供应商' },
-    },
-    verification: '保存 config.toml 和 auth.json 后，重新启动 codex，直接发送「当前时间」。收到正常回复后，在控制台检查用量。',
-    troubleshooting: 'Codex 需要 Responses 接口。若出现 404，请检查网关是否提供 /v1/responses，以及 base_url 是否只包含一次 /v1。提示缺少 API Key 时，检查 ~/.codex/auth.json 中的 OPENAI_API_KEY，以及 config.toml 中的 cli_auth_credentials_store = "file" 和 requires_openai_auth = true。迁移旧配置时移除提供方中的 env_key；若设置了 CODEX_HOME，两个文件都应放在该目录下。',
-    screenshots: {
-      configure: { src: '/client-docs/codex/configure.png', alt: '并排展示 Codex 的 auth.json 和 config.toml：API Key 配置在 auth.json 中，模型与 Responses 提供方配置在 config.toml 中，密钥已遮盖', caption: 'config.toml 与 auth.json 配置' },
-      verify: { src: '/client-docs/codex/verify.png', alt: 'Codex 桌面客户端发送「当前时间」后收到正常回复', caption: '发送「当前时间」验证接入' },
-    },
+    verification: '保存 config.toml 和 auth.json 后，打开或重新打开 Codex Desktop，新建任务并发送「当前时间」。收到正常回复后，在控制台检查用量。',
+    troubleshooting: 'Codex 需要 Responses 接口。若出现 404，请检查网关是否提供 /v1/responses，并确认 base_url 填写网关根地址、不包含 /v1。提示缺少 API Key 时，检查 ~/.codex/auth.json 中的 OPENAI_API_KEY，以及 config.toml 中的 cli_auth_credentials_store = "file" 和 requires_openai_auth = true。迁移旧配置时移除提供方中的 env_key；若设置了 CODEX_HOME，两个文件都应放在该目录下。',
   },
   {
-    id: 'pi', name: 'Pi', icon: '/client-icons/pi.svg', category: '可扩展编程',
+    id: 'grok-build', name: 'Grok Build', mark: 'terminal', category: '终端编程',
+    aliases: ['Grok CLI', 'xAI CLI', 'grok 命令'], appliesTo: ['Grok Build CLI'],
+    description: '在终端中通过 OpenAI Chat Completions 网关运行 Grok 编程任务。',
+    protocol: 'OpenAI Chat Completions', endpoint: '/v1/chat/completions', defaultModel: 'your-grok-model-id',
+    officialUrl: 'https://docs.x.ai/docs/grok-code-fast-1',
+    installUrl: 'https://x.ai/cli',
+    prerequisite: '支持 Windows、macOS 与 Linux。安装后先运行 grok --version；命令已可用时可直接配置。',
+    installTitle: '安装 Grok Build',
+    ccSwitchGuideId: 'grok-build',
+    configPath: '~/.grok/config.toml',
+    configDescription: '在 ~/.grok/config.toml（Windows 为 %USERPROFILE%\\.grok\\config.toml）登记默认模型与自定义提供方。Base URL 必须以 /v1 结尾，api_backend 保持 chat_completions；模型 ID 应与当前 API Key 可用列表完全一致。',
+    configSteps: [
+      '创建 Grok 可用分组的 API Key，并复制完整模型 ID。',
+      '把下方示例合并进 config.toml；若文件已有同名模型，先备份并修改提供方名称。',
+      '保存后退出正在运行的 Grok Build，再从项目目录重新运行 grok。',
+    ],
+    verification: '在项目目录运行 grok，先发送一条简短任务。客户端能启动且模型正常回复后，再开始长任务，并在平台控制台核对用量。',
+    troubleshooting: '解析配置失败时检查 TOML 引号与表名。出现 404 时确认 Base URL 只有一个 /v1、api_backend 为 chat_completions，并核对模型 ID 与 API Key 所属分组。修改后需要重新启动 Grok Build。',
+  },
+  {
+    id: 'gemini-cli', name: 'Gemini CLI', mark: 'gemini', category: '终端助手',
+    aliases: ['Google Gemini CLI', 'gemini 命令'], appliesTo: ['Gemini CLI'],
+    description: '使用 Gemini 原生 API 地址，在终端中调用平台开放的 Gemini 模型。',
+    protocol: 'Gemini Generate Content', endpoint: '/v1beta/models/{model}:generateContent', defaultModel: 'your-gemini-model-id',
+    officialUrl: 'https://github.com/google-gemini/gemini-cli',
+    installUrl: 'https://github.com/google-gemini/gemini-cli#quickstart',
+    prerequisite: '先安装 Gemini CLI；命令已可用时无需重复安装。原生 Gemini 接入使用站点根地址，客户端会自行追加 /v1beta 路径。',
+    installTitle: '安装 Gemini CLI',
+    configPath: '终端环境变量',
+    configDescription: '在新终端中设置 GOOGLE_GEMINI_BASE_URL 与 GEMINI_API_KEY。基础地址只填写站点根地址，不追加 /v1 或 /v1beta；模型名称通过 gemini -m 传入，并与平台模型列表完全一致。',
+    verification: '打开新终端，在项目目录运行下方命令。Gemini CLI 返回模型回复后，在平台控制台核对用量。',
+    troubleshooting: '如果请求没有进入当前平台，先在 Gemini CLI 中退出已有 Google 账号登录，让客户端回退使用 GEMINI_API_KEY。404 通常表示模型 ID 不可用，或基础地址错误地附加了 /v1beta。',
+  },
+  {
+    id: 'vscode-codex', name: 'IDE · Codex', mark: 'editor', category: '编辑器扩展',
+    aliases: ['VS Code Codex', 'Cursor Codex', 'Codex extension'], appliesTo: ['VS Code', 'Cursor'],
+    description: '在 VS Code 或 Cursor 中使用 OpenAI 官方 Codex 扩展。',
+    protocol: 'OpenAI Responses', endpoint: '/v1/responses', defaultModel: 'gpt-6-astra',
+    officialUrl: 'https://developers.openai.com/codex/ide',
+    installUrl: 'https://marketplace.visualstudio.com/items?itemName=openai.chatgpt',
+    prerequisite: '先在扩展市场安装由 OpenAI 发布的 Codex 扩展。扩展与 Codex Desktop、CLI 共用 ~/.codex 下的配置。',
+    installSteps: [
+      { text: '打开 VS Code 或 Cursor 的扩展市场，搜索 Codex，确认发布者为 OpenAI 后安装。', href: 'https://marketplace.visualstudio.com/items?itemName=openai.chatgpt', linkLabel: '打开扩展页面' },
+      { text: '安装后打开 Codex 侧栏；配置文件尚未就绪时，继续完成下方两个文件。' },
+    ],
+    configPath: '~/.codex/config.toml',
+    configDescription: 'Codex IDE 扩展读取与 Desktop、CLI 相同的 ~/.codex/config.toml 和 ~/.codex/auth.json。配置 Responses 提供方后，重载编辑器窗口即可，无需在 VS Code 设置里重复填写网关。',
+    authFile: {
+      path: '~/.codex/auth.json',
+      description: '将平台 API Key 写入 OPENAI_API_KEY。Windows 原生路径为 %USERPROFILE%\\.codex\\auth.json；若设置了 CODEX_HOME，两份配置都放在该目录。',
+      code: JSON.stringify({ OPENAI_API_KEY: 'sk-YOUR_API_KEY' }, null, 2),
+    },
+    verification: '重载 VS Code 或 Cursor 窗口，打开 Codex 侧栏并新建会话，发送「当前时间」。收到正常回复后，在平台控制台核对用量。',
+    troubleshooting: '扩展没有读取新配置时，完全重载编辑器窗口，并确认它与 Codex CLI 使用同一用户和 CODEX_HOME。404 时检查 Responses 端点与模型权限，密钥错误时核对 auth.json。',
+  },
+  {
+    id: 'vscode-claude', name: 'IDE · Claude', mark: 'editor', category: '编辑器扩展',
+    aliases: ['VS Code Claude', 'Cursor Claude', 'Claude Code extension'], appliesTo: ['VS Code', 'Cursor'],
+    description: '让 Claude Code 官方扩展复用 CLI 的网关与认证配置。',
+    protocol: 'Anthropic Messages', endpoint: '/v1/messages', defaultModel: 'claude-opus-5',
+    officialUrl: 'https://docs.anthropic.com/en/docs/claude-code/ide-integrations',
+    installUrl: 'https://marketplace.visualstudio.com/items?itemName=anthropic.claude-code',
+    prerequisite: '先在扩展市场安装 Anthropic 发布的 Claude Code 扩展。扩展与 Claude Code CLI 读取同一组环境变量或 ~/.claude/settings.json。',
+    installSteps: [
+      { text: '打开 VS Code 或 Cursor 的扩展市场，搜索 Claude Code，确认发布者为 Anthropic 后安装。', href: 'https://marketplace.visualstudio.com/items?itemName=anthropic.claude-code', linkLabel: '打开扩展页面' },
+      { text: '完成下方配置后重载编辑器窗口，再从侧边栏打开 Claude Code 面板。' },
+    ],
+    configPath: 'Claude Code 共享环境变量',
+    configDescription: '设置 ANTHROPIC_BASE_URL、ANTHROPIC_AUTH_TOKEN 与 ANTHROPIC_MODEL。基础地址填写站点根地址，不加 /v1；也可把相同变量保存到 ~/.claude/settings.json 的 env 对象中。',
+    verification: '重载编辑器窗口或重启扩展，打开 Claude Code 侧栏并新建会话，发送「当前时间」。收到正常回复后，在平台控制台核对用量。',
+    troubleshooting: '扩展仍使用旧账号时，检查系统环境变量与 ~/.claude/settings.json 是否冲突。GUI 编辑器不一定继承后来修改的终端变量，保存配置后应重载整个编辑器窗口。',
+  },
+  {
+    id: 'openai-compatible', name: 'OpenAI 兼容客户端', mark: 'api', category: '通用客户端',
+    aliases: ['Cherry Studio', 'NextChat', 'OpenCode', 'LangChain', '脚本', '机器人', 'OpenAI compatible'], appliesTo: ['OpenCode', 'LangChain', 'Cherry Studio', 'NextChat', '脚本与机器人'],
+    description: '通用 OpenAI 兼容入口适用于能自定义 Base URL、API Key 和模型 ID 的客户端、SDK 与自动化脚本。',
+    protocol: 'OpenAI Chat Completions', endpoint: '/v1/chat/completions', defaultModel: 'your-model-id',
+    officialUrl: 'https://platform.openai.com/docs/api-reference/chat',
+    installUrl: 'https://platform.openai.com/docs/libraries',
+    prerequisite: '适用于能够自定义 OpenAI Base URL、API Key 与模型 ID 的客户端或 SDK。界面名称可能不同，但三项值的含义一致。',
+    installSteps: [
+      { text: '安装你选择的客户端，并进入模型提供方或 API 设置。' },
+      { text: '选择 OpenAI Compatible、自定义 OpenAI 或等价选项；不要选择只允许登录官方账号的提供方。' },
+    ],
+    configPath: 'OpenAI 兼容填写参考',
+    configDescription: 'Base URL 填写以 /v1 结尾的地址，API Key 填写平台密钥，模型填写当前密钥可用的完整模型 ID。客户端会在 Base URL 后调用 /chat/completions。',
+    verification: '保存提供方后新建对话，选择刚配置的模型并发送「当前时间」。收到回复后，在平台控制台核对请求用量。',
+    troubleshooting: '若请求地址出现 /v1/v1，请从 Base URL 中去掉重复的一段。401/403 时检查 Authorization 是否使用 Bearer 密钥；404 时核对模型 ID、分组权限和客户端实际调用的协议。',
+  },
+  {
+    id: 'ide-plugins', name: 'IDE 插件', mark: 'plugin', category: '编辑器插件',
+    aliases: ['Cline', 'Roo Code', 'Continue', 'VS Code plugins'], appliesTo: ['Cline', 'Roo Code', '其他 IDE 插件'],
+    description: '在 Cline、Roo Code 等插件中通过 OpenAI 兼容提供方使用平台模型。',
+    protocol: 'OpenAI Chat Completions', endpoint: '/v1/chat/completions', defaultModel: 'your-model-id',
+    officialUrl: 'https://docs.cline.bot/provider-config/openai-compatible',
+    installUrl: 'https://marketplace.visualstudio.com/search?term=AI%20coding&target=VSCode&category=All%20categories&sortBy=Relevance',
+    prerequisite: '先安装目标 IDE 插件并打开其 API Provider 设置。即使使用 Gemini 等模型，也应选择 OpenAI Compatible，而不是直连厂商官方服务的内置提供方。',
+    installSteps: [
+      { text: '在 VS Code 或兼容编辑器中安装目标插件，例如 Cline 或 Roo Code。' },
+      { text: '打开插件的模型设置，选择 OpenAI Compatible 或自定义 OpenAI 提供方。' },
+    ],
+    configPath: 'IDE 插件填写参考',
+    configDescription: '将 Base URL 设为以 /v1 结尾的网关地址，填写平台 API Key 和完整模型 ID。插件内置的 Google Gemini 或 Anthropic 官方提供方通常直连厂商，不能替代自定义网关设置。',
+    verification: '保存设置，在插件中新建任务并发送一条简短请求。收到回复后检查平台用量，再开始需要文件读写或工具调用的任务。',
+    troubleshooting: '请求未进入当前平台时，先确认选择的是 OpenAI Compatible。出现 404 时核对 Base URL 是否重复 /v1、模型 ID 是否可用，以及插件是否实际调用 /v1/chat/completions。',
+  },
+  {
+    id: 'pi', name: 'Pi', icon: '/client-icons/pi.svg', directoryGroup: 'extended', category: '可扩展编程',
     description: '轻量、可组合，保留你习惯的终端工作方式。',
     protocol: 'Anthropic Messages · Chat Completions · Responses', endpoint: '/v1/chat/completions', defaultModel: 'your-model-id',
     officialUrl: 'https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/models.md',
@@ -162,7 +261,7 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
     },
   },
   {
-    id: 'hermes', name: 'Hermes', icon: '/client-icons/hermes.svg', category: '通用智能体',
+    id: 'hermes', name: 'Hermes', icon: '/client-icons/hermes.svg', directoryGroup: 'extended', category: '通用智能体',
     description: '从对话到任务执行，为你的智能体接好模型。',
     protocol: 'OpenAI Chat Completions', endpoint: '/v1/chat/completions', defaultModel: 'your-model-id',
     officialUrl: 'https://hermes-agent.nousresearch.com/docs/integrations/providers',
@@ -187,7 +286,7 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
     },
   },
   {
-    id: 'openclaw', name: 'OpenClaw', icon: '/client-icons/openclaw.svg', category: '个人智能体',
+    id: 'openclaw', name: 'OpenClaw', icon: '/client-icons/openclaw.svg', directoryGroup: 'extended', category: '个人智能体',
     description: '为常驻助手配置模型，让对话延伸到日常任务。',
     protocol: 'OpenAI Chat Completions', endpoint: '/v1/chat/completions', defaultModel: 'your-model-id',
     officialUrl: 'https://docs.openclaw.ai/concepts/model-providers',
@@ -203,7 +302,7 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
     },
   },
   {
-    id: 'paseo', name: 'Paseo', icon: '/client-icons/paseo.svg', category: '远程编程',
+    id: 'paseo', name: 'Paseo', icon: '/client-icons/paseo.svg', directoryGroup: 'extended', category: '远程编程',
     description: '在桌面与手机之间，继续同一个编程任务。',
     protocol: '沿用所选客户端配置', endpoint: null, defaultModel: 'your-model-id',
     officialUrl: 'https://paseo.sh/docs/supported-providers',
@@ -230,7 +329,7 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
     },
   },
   {
-    id: 'zcode', name: 'ZCode', icon: '/client-icons/zcode.png', category: '桌面编程',
+    id: 'zcode', name: 'ZCode', icon: '/client-icons/zcode.png', directoryGroup: 'extended', category: '桌面编程',
     description: '在桌面工作区中，接入团队自己的模型通道。',
     protocol: 'Anthropic Messages · Chat Completions · Responses', endpoint: '/v1/messages', defaultModel: 'your-model-id',
     officialUrl: 'https://zcode.z.ai/cn/docs/configuration',
@@ -255,7 +354,7 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
     },
   },
   {
-    id: 'deepseek-harness', name: 'DeepSeek Harness', icon: '/client-icons/deepseek-harness.svg', category: '插件化智能体',
+    id: 'deepseek-harness', name: 'DeepSeek Harness', icon: '/client-icons/deepseek-harness.svg', directoryGroup: 'extended', category: '插件化智能体',
     description: '用可组合的智能体，在本地工作区开展任务。',
     protocol: 'OpenAI Chat Completions', endpoint: '/v1/chat/completions', defaultModel: 'your-model-id',
     officialUrl: 'https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/guide/providers.md',
@@ -277,7 +376,7 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
     },
   },
   {
-    id: 'obsidian', name: 'Obsidian', icon: '/client-icons/obsidian.svg', category: 'Claudian 笔记助手',
+    id: 'obsidian', name: 'Obsidian', icon: '/client-icons/obsidian.svg', directoryGroup: 'extended', category: 'Claudian 笔记助手',
     description: '通过 Claudian，让模型协助整理与使用笔记。',
     protocol: 'Anthropic Messages · Claudian', endpoint: '/v1/messages', defaultModel: 'claude-sonnet-4-6',
     officialUrl: 'https://github.com/YishenTu/claudian#readme',
@@ -305,18 +404,91 @@ export const CLIENT_GUIDES: readonly ClientGuide[] = [
   },
 ]
 
+export const CC_SWITCH_GUIDES: readonly CCSwitchGuide[] = [
+  {
+    id: 'codex',
+    clientId: 'codex',
+    description: '从平台 API Key 管理页将 Codex 配置导入 CC Switch，再启用并重启客户端；导入内容使用 OpenAI Responses 网关。',
+    steps: [
+      '先在平台控制台的 API Key 管理页创建一个 API Key。创建完成后回到该密钥所在行；不要把真实密钥粘贴到本指南。',
+      '在刚创建的 API Key 所在行点击「导入到 CCS」，将该密钥对应的 Codex 配置导入 CC Switch。',
+      '在确认弹窗核对操作后点击「确认导入」，等待导入完成并在 CC Switch 的 Codex 配置列表中找到新配置。',
+      '在 CC Switch 的 Codex 配置列表中找到刚导入的配置，点击「启用」，并确认该配置显示为当前启用项。',
+      '完全退出并重新打开 Codex Desktop，使配置生效。若使用 VS Code 或 Cursor 中的 Codex 扩展，请重载编辑器窗口。',
+    ],
+    verification: '完成导入、启用并重启 Codex Desktop 后，新建任务并发送「当前时间」。收到正常回复后，在平台控制台检查对应 API Key 的用量记录。',
+    troubleshooting: 'CC Switch 中没有出现新配置时，重新检查 API Key 所在行的「导入到 CCS」操作及确认弹窗，并确认 CC Switch 已打开。重启后仍使用旧配置时，回到 CC Switch 的 Codex 面板确认刚导入的配置已启用，再完全退出并重新打开 Codex Desktop。',
+  },
+  {
+    id: 'claude-code',
+    clientId: 'claude-code',
+    description: '在图形界面填写网关、密钥与模型，由 CC Switch 保存到 Claude Code 配置中。',
+    steps: [
+      '先完成上方 Claude Code 安装，再安装并打开最新版本 CC Switch。在应用切换器中选择「Claude」（Claude Code），点击右上角「+」添加自定义供应商。',
+      '按下方参考填写供应商名称、接口地址和 API Key，使用 Anthropic Messages 协议与 Auth Token（Bearer）认证；接口地址填写网关根地址，不加 /v1。',
+      '默认模型填写本页的模型 ID，默认值为 claude-opus-5。保存并点击供应商卡片的「启用」，由 CC Switch 写入 ~/.claude/settings.json。',
+      '重新打开 Claude Code 后验证接入。如原终端中仍有旧的网关或密钥环境变量，先清理冲突变量，确保使用刚启用的供应商。',
+    ],
+    verification: '在同一个终端启动 Claude Code，直接发送「当前时间」。收到正常回复后，在控制台核对本次用量。',
+    troubleshooting: '如果仍使用原来的账号或提示凭据冲突，请检查环境变量与 ~/.claude/settings.json 中的配置，清理冲突的 ANTHROPIC_API_KEY 或旧网关变量。终端变量只对当前终端及其启动的程序生效；需要持久化时，按官方说明合并到 ~/.claude/settings.json 的 env 中。',
+    screenshots: [
+      { src: '/client-docs/claude-code/cc-switch.png', alt: 'CC Switch 编辑 Claude Code 供应商：填写网关地址、API Key、Anthropic Messages 格式和模型映射，密钥已遮盖', caption: 'CC Switch 快捷配置 Claude Code' },
+    ],
+  },
+  {
+    id: 'claude-desktop',
+    clientId: 'claude-desktop',
+    docsPath: '2.6-claude-desktop.md',
+    description: '由 CC Switch 管理桌面应用的供应商配置，默认以 claude-opus-5 和 Anthropic Messages 直连接入。',
+    steps: [
+      '先完成上方 Claude Desktop 安装，再安装并打开最新版本 CC Switch，选择「Claude Desktop」面板。',
+      '点击右上角「+」添加自定义供应商；若已在 CC Switch 的 Claude 面板配置过供应商，也可使用「将 Claude Code 中已有的供应商导入」，随后核对配置。',
+      '填写下方网关根地址和平台 API Key。使用 claude-opus-5 等可识别的 Claude 模型时，保持「需要模型映射」关闭；模型列表通常从网关 /v1/models 自动读取，重启后在模型菜单选择本页模型。',
+      '使用非 Claude 角色模型或需要转换协议时，开启「需要模型映射」，选择上游 API 格式，在角色对应的「实际请求模型」中填写平台模型 ID，并开启 Claude Desktop 本地路由。',
+      '保存后点击供应商卡片的「启用」，完全退出并重新打开 Claude Desktop。模型映射模式下使用期间保持 CC Switch 与本地路由运行。',
+    ],
+    verification: '完全退出并重新打开 Claude Desktop，确认当前供应商和模型后发送「当前时间」。收到正常回复后，在平台控制台核对请求用量。',
+    troubleshooting: '找不到 Claude Desktop 入口时，升级 CC Switch，并检查「设置 → 通用 → 应用可见性」。目前 CC Switch 的 Claude Desktop 配置写入支持 macOS 与 Windows。模型列表为空时，检查网关 /v1/models，或在直连设置的「手动指定 Claude Desktop 模型列表」中添加本页模型。模型映射模式需保持 CC Switch 运行并开启 Claude Desktop 本地路由；在「设置 → 路由 → 本地路由」中开启「在主页面显示本地路由开关」后，可回到 Claude Desktop 面板开启。每次切换供应商后都要完全退出并重启 Claude Desktop。',
+    screenshots: [
+      { src: '/client-docs/claude-desktop/cc-switch.png', alt: 'CC Switch 的 Claude Desktop 供应商配置与模型映射界面，密钥已遮盖', caption: 'CC Switch 配置 Claude Desktop' },
+    ],
+  },
+  {
+    id: 'grok-build',
+    clientId: 'grok-build',
+    description: '通过 CC Switch 导入 Grok Build 的 Chat Completions 提供方并激活配置。',
+    steps: [
+      '安装并打开 CC Switch，在应用切换器中选择「Grok Build」，点击「+」添加自定义供应商。',
+      '填写平台 API Key、以 /v1 结尾的 Base URL 和当前 API Key 可用的 Grok 模型；API 模式选择 OpenAI Chat Completions。',
+      '保存并启用供应商，确认它在 Grok Build 面板中标记为当前配置。',
+      '退出正在运行的 grok 进程，从项目目录重新运行 grok，使配置重新加载。',
+    ],
+    verification: '在项目目录运行 grok，发送一条简短任务。客户端返回模型回复后，在平台控制台核对请求用量。',
+    troubleshooting: '确认 API Key 分组支持所填模型、模型 ID 完全一致、Base URL 只有一个 /v1，并在修改配置后重新启动 Grok Build。',
+  },
+]
+
 export function getClientGuide(id: string | null): ClientGuide {
   return CLIENT_GUIDES.find(guide => guide.id === id) ?? CLIENT_GUIDES[0]
 }
 
-export const CC_SWITCH_DOWNLOAD_URL = 'https://github.com/farion1231/cc-switch/releases/latest'
-export const CC_SWITCH_DOCS_URL = 'https://github.com/farion1231/cc-switch/blob/v3.20.2/docs/user-manual/zh/2-providers/'
+export function getCCSwitchGuide(id: string | null): CCSwitchGuide {
+  return CC_SWITCH_GUIDES.find(guide => guide.id === id) ?? CC_SWITCH_GUIDES[0]
+}
+
+export function findCCSwitchGuide(id: ClientId): CCSwitchGuide | undefined {
+  return CC_SWITCH_GUIDES.find(guide => guide.clientId === (id === 'vscode-codex' ? 'codex' : id))
+}
+
+export const CC_SWITCH_DOWNLOAD_URL = 'https://ccswitch.io/'
+export const CC_SWITCH_DOCS_URL = 'https://github.com/farion1231/cc-switch/blob/v3.20.3/docs/user-manual/zh/2-providers/'
 
 export function getCCSwitchExample(id: ClientId, baseURL: string, model: string): { language: string; code: string } | null {
   const guide = getClientGuide(id)
-  if (!guide.ccSwitch) return null
-  const app = id === 'claude-code' ? 'Claude（Claude Code）' : guide.name
-  const apiURL = guide.endpoint === '/v1/messages' ? baseURL : `${baseURL}/v1`
+  const hasDedicatedGuide = !!findCCSwitchGuide(id)
+  if (!guide.ccSwitch && !hasDedicatedGuide) return null
+  const app = id === 'claude-code' ? 'Claude（Claude Code）' : id === 'vscode-codex' ? 'Codex' : id === 'codex' ? 'Codex Desktop' : guide.name
+  const apiURL = id === 'codex' || id === 'vscode-codex' || guide.endpoint === '/v1/messages' ? baseURL : `${baseURL}/v1`
   const providerKey = id === 'pi' ? '\n供应商标识    gateway（若已存在请换一个）' : ''
   const apiFormat = id === 'pi' ? 'OpenAI Chat Completions (openai-completions)' : guide.protocol
   return {
@@ -347,13 +519,19 @@ export function getInstallCommand(id: ClientId, platform: GuidePlatform): string
   switch (id) {
     case 'claude-code': return platform === 'windows' ? 'irm https://claude.ai/install.ps1 | iex' : 'curl -fsSL https://claude.ai/install.sh | bash'
     case 'claude-desktop': return null
-    case 'codex': return 'npm install -g @openai/codex'
+    case 'codex': return null
+    case 'grok-build': return platform === 'windows' ? 'irm https://x.ai/cli/install.ps1 | iex' : 'curl -fsSL https://x.ai/cli/install.sh | bash'
+    case 'gemini-cli': return 'npm install -g @google/gemini-cli'
     case 'pi': return 'npm install -g --ignore-scripts @earendil-works/pi-coding-agent'
     case 'hermes': return platform === 'windows' ? 'iex (irm https://hermes-agent.nousresearch.com/install.ps1)' : 'curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash'
     case 'openclaw': return platform === 'windows' ? 'iwr -useb https://openclaw.ai/install.ps1 | iex' : 'curl -fsSL https://openclaw.ai/install.sh | bash'
     case 'paseo':
     case 'obsidian':
-    case 'zcode': return null
+    case 'zcode':
+    case 'vscode-codex':
+    case 'vscode-claude':
+    case 'openai-compatible':
+    case 'ide-plugins': return null
     case 'deepseek-harness': return 'npx @deepseek-ai/dsh web'
   }
 }
@@ -362,7 +540,7 @@ export function getConfigExample(id: Exclude<ClientId, 'paseo'>, baseURL: string
 export function getConfigExample(id: ClientId, baseURL: string, model: string, platform: GuidePlatform): { language: string; code: string } | null
 export function getConfigExample(id: ClientId, baseURL: string, model: string, platform: GuidePlatform): { language: string; code: string } | null {
   const apiKey = 'sk-YOUR_API_KEY'
-  const apiURL = `${baseURL}/v1`
+  const apiURL = id === 'codex' || id === 'vscode-codex' ? baseURL : `${baseURL}/v1`
   const json = (data: unknown) => ({ language: 'JSON', code: JSON.stringify(data, null, 2) })
   switch (id) {
     case 'claude-code': {
@@ -374,12 +552,37 @@ export function getConfigExample(id: ClientId, baseURL: string, model: string, p
           : `export ${key}=${quoteShell(value, platform)}`).join('\n'),
       }
     }
+    case 'vscode-claude': {
+      const values = { ANTHROPIC_BASE_URL: baseURL, ANTHROPIC_AUTH_TOKEN: apiKey, ANTHROPIC_MODEL: model }
+      return {
+        language: platform === 'windows' ? 'PowerShell' : 'Bash / Zsh',
+        code: Object.entries(values).map(([key, value]) => platform === 'windows'
+          ? `$env:${key} = ${quoteShell(value, platform)}`
+          : `export ${key}=${quoteShell(value, platform)}`).join('\n'),
+      }
+    }
     case 'claude-desktop': return getCCSwitchExample(id, baseURL, model)
     case 'paseo': return null
-    case 'codex': return {
+    case 'codex':
+    case 'vscode-codex': return {
       language: 'TOML',
       code: `model = ${JSON.stringify(model)}\nmodel_provider = "gateway"\ncli_auth_credentials_store = "file"\n\n[model_providers.gateway]\nname = "Gateway"\nbase_url = ${JSON.stringify(apiURL)}\nwire_api = "responses"\nrequires_openai_auth = true`,
     }
+    case 'grok-build': return {
+      language: 'TOML',
+      code: `[models]\ndefault = ${JSON.stringify(model)}\n\n[model.${JSON.stringify(model)}]\nmodel = ${JSON.stringify(model)}\nbase_url = ${JSON.stringify(apiURL)}\nname = "Gateway"\napi_key = ${JSON.stringify(apiKey)}\napi_backend = "chat_completions"`,
+    }
+    case 'gemini-cli': {
+      const values = { GOOGLE_GEMINI_BASE_URL: baseURL, GEMINI_API_KEY: apiKey }
+      return {
+        language: platform === 'windows' ? 'PowerShell' : 'Bash / Zsh',
+        code: Object.entries(values).map(([key, value]) => platform === 'windows'
+          ? `$env:${key} = ${quoteShell(value, platform)}`
+          : `export ${key}=${quoteShell(value, platform)}`).join('\n'),
+      }
+    }
+    case 'openai-compatible': return { language: '界面填写参考', code: `API Provider    OpenAI Compatible\nBase URL       ${apiURL}\nAPI Key        ${apiKey}\nModel ID       ${model}` }
+    case 'ide-plugins': return { language: '界面填写参考', code: `API Provider    OpenAI Compatible\nBase URL       ${apiURL}\nAPI Key        ${apiKey}\nModel ID       ${model}\n提示            不要选择仅直连厂商的内置提供方` }
     case 'pi': return json({ providers: { gateway: { baseUrl: apiURL, api: 'openai-completions', apiKey, models: [{ id: model, name: model }] } } })
     case 'hermes': return { language: '向导填写参考', code: `Provider    Custom endpoint\nAPI base    ${apiURL}\nAPI key     ${apiKey}\nModel       ${model}` }
     case 'zcode': return { language: '界面填写参考', code: `供应商名称    FluxCode Claude\nBase URL      ${baseURL}\nAPI 格式      Anthropic Messages (/v1/messages)\nAPI Key       ${apiKey}\n模型 ID       ${model}` }
@@ -392,15 +595,21 @@ export function getConfigExample(id: ClientId, baseURL: string, model: string, p
   }
 }
 
-export function getVerifyCommand(id: ClientId, _model: string, _platform: GuidePlatform): string | null {
+export function getVerifyCommand(id: ClientId, model: string, platform: GuidePlatform): string | null {
   switch (id) {
     case 'claude-code': return 'claude'
     case 'claude-desktop': return null
-    case 'codex': return 'codex'
+    case 'codex': return null
+    case 'grok-build': return 'grok'
+    case 'gemini-cli': return `gemini -m ${quoteShell(model, platform)}`
     case 'pi': return 'pi'
     case 'hermes': return 'hermes'
     case 'openclaw': return 'openclaw models list\nopenclaw gateway restart\nopenclaw dashboard'
     case 'paseo':
+    case 'vscode-codex':
+    case 'vscode-claude':
+    case 'openai-compatible':
+    case 'ide-plugins':
     case 'zcode':
     case 'deepseek-harness':
     case 'obsidian': return null

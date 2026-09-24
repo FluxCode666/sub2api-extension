@@ -24,6 +24,7 @@ import '@fontsource-variable/geist'
 import './ApiDocsPage.css'
 import { toCurrentOriginURI, toSameOriginPath, withAppBasePath } from '@/lib/app-base-path'
 import { DEFAULT_SYSTEM_POSITION, homepagePathForPosition, normalizeSystemPosition, type SystemPosition } from '@/lib/system-position'
+import { isEmbeddedDocument } from '@/lib/embedded'
 
 type EndpointGroup = 'OpenAI 兼容' | '多模态' | 'Anthropic 兼容' | 'Google 原生'
 type ExampleLanguage = 'curl' | 'python' | 'go' | 'java'
@@ -613,7 +614,7 @@ export default function ApiDocsPage() {
   const pageRef = useRef<HTMLDivElement>(null)
   const [searchParams, setSearchParams] = useSearchParams()
   const pageOrigin = currentPageOrigin()
-  const embedded = searchParams.get('embed') === '1' || searchParams.get('ui_mode') === 'embedded'
+  const embedded = isEmbeddedDocument(searchParams.toString())
   const [savedTheme, setSavedTheme] = useState(readSavedTheme)
   const systemDark = useSyncExternalStore(subscribeToSystemTheme, systemPrefersDark, () => false)
   const themePreference = parseThemePreference(searchParams.get('theme')) ?? savedTheme
@@ -749,7 +750,7 @@ export default function ApiDocsPage() {
 
   return (
     <div ref={pageRef} data-theme={theme} className={`aux-api-docs${embedded ? ' aux-api-docs--embedded' : ''}`}>
-      <header className="aux-api-docs-header">
+      {!embedded && <header className="aux-api-docs-header">
         <div className="aux-api-header-inner">
           <a className="aux-api-brand" href="#top" aria-label={`${documentName}首页`}>
             <span className="aux-api-brand-mark"><Code2 aria-hidden="true" /></span>
@@ -768,7 +769,7 @@ export default function ApiDocsPage() {
             {consoleHref ? <a href={consoleURI} target={consoleURI.startsWith('#') ? undefined : '_top'} onClick={() => trackFeatureClick('api-docs', 'open-console')} className="aux-api-header-console"><span>控制台</span> <ArrowUpRight aria-hidden="true" /></a> : null}
           </div>
         </div>
-      </header>
+      </header>}
 
       <main id="top">
         <section className="aux-api-hero">

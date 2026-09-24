@@ -21,19 +21,20 @@
 
 ## 客户端接入页功能 ID
 
-下列事件的 `page_id` 均为 `client-docs`，`<client>` 来自 `CLIENT_GUIDES` 的稳定客户端 ID。
+下列事件的 `page_id` 均为 `client-docs`，`<client>` 来自 `CLIENT_GUIDES` 的稳定客户端 ID，包括 `grok-build`、`gemini-cli`、`vscode-codex`、`vscode-claude`、`openai-compatible` 与 `ide-plugins`。CC Switch 是客户端页内的配置方式，不是独立目录。
 
 | 功能 ID | 触发行为 |
 | --- | --- |
 | `select-<client>` | 桌面目录、移动端下拉、下一个客户端和前置指南链接选择客户端 |
-| `section-<client>-<section>` | 点击章节目录或配置、验证快捷链接；章节为 `prepare/install/configure/verify/troubleshooting` |
+| `section-<client>-<method>-<section>` | 点击章节目录或配置、验证快捷链接；方式为 `cc-switch/manual`，章节为 `prepare/install/configure/verify/troubleshooting` |
+| `method-<client>-<method>` | 切换客户端页内的 CC Switch 或手动配置 Tab；默认方式不计数 |
 | `platform-<client>-<platform>` | 鼠标或键盘切换 `unix/windows`；重复选择当前平台不计数 |
 | `copy-<client>-install`、`copy-<client>-install-alternative-<index>` | 成功复制安装命令或替代安装命令 |
 | `copy-<client>-config/auth/cc-switch/verify/prompt` | 成功复制对应配置、密钥占位文件、CC Switch 参考、验证命令或验证消息；斜线表示不同后缀 |
 | `copy-hermes-wizard` | 成功复制 Hermes 配置向导命令 |
 | `open-<client>-official/install` | 打开官方文档或安装下载说明；安装步骤的外链归入同一个 `install` 事件 |
 | `open-<client>-cc-switch-download/docs` | 打开 CC Switch 下载或配置文档 |
-| `screenshot-<client>-configure/verify/cc-switch-<index>` | 放大对应截图；关闭大图不计数 |
+| `open-cc-switch-<client>-download/docs` | 在支持 CC Switch 的客户端页内打开下载页或配置说明 |
 | `open-api-docs`、`open-home`、`open-console` | 进入 API 文档、官网或控制台 |
 | `theme-system/light/dark` | 手动选择外观；系统自动切换主题不计数 |
 

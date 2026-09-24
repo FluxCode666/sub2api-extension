@@ -175,11 +175,16 @@ describe('ApiDocsPage', () => {
     expect(screen.queryByRole('tablist', { name: '接口分组' })).not.toBeInTheDocument()
   })
 
-  it('accepts an API base URL and marks embedded mode from the query string', () => {
-    const { container } = renderPage('/api-docs?embed=1&api_base=https%3A%2F%2Fapi.example.com')
+  it.each([
+    '/api-docs?embed=1&api_base=https%3A%2F%2Fapi.example.com',
+    '/api-docs?ui_mode=embedded&api_base=https%3A%2F%2Fapi.example.com',
+  ])('accepts an API base URL and removes the top menu in embedded mode', (entry) => {
+    const { container } = renderPage(entry)
 
     expect(screen.getByDisplayValue('https://api.example.com')).toBeInTheDocument()
     expect(container.querySelector('.aux-api-docs')).toHaveClass('aux-api-docs--embedded')
+    expect(screen.queryByRole('banner')).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: '外观主题' })).not.toBeInTheDocument()
   })
 
   it('uses the current page origin as the API address placeholder by default', () => {

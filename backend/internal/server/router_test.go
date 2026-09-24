@@ -82,6 +82,25 @@ func (m *mockTelemetryStore) CreateFeatureClick(_ context.Context, rec service.F
 	return nil
 }
 
+func TestTicketRoutesRequireUserAndAdminAuthentication(t *testing.T) {
+	authHandler, authService := newTestAuthDeps()
+	ticketService := service.NewTicketService(nil, nil)
+	userHandler := handler.NewTicketUserHandler(ticketService, integration.NewSub2APIClient("http://127.0.0.1:1"))
+	adminHandler := adminhandler.NewTicketHandler(ticketService)
+	router := SetupRouter(newTestConfig(), web.NewHealthHandler(), authHandler, authService, nil, nil, nil, nil, userHandler, adminHandler)
+
+	userRequest := httptest.NewRequest(http.MethodGet, "/api/aux/tickets", nil)
+	userRequest.Header.Set("X-Aux-Token", "test-token")
+	userResponse := httptest.NewRecorder()
+	router.ServeHTTP(userResponse, userRequest)
+	require.Equal(t, http.StatusServiceUnavailable, userResponse.Code)
+
+	adminRequest := httptest.NewRequest(http.MethodGet, "/api/aux/admin/tickets", nil)
+	adminResponse := httptest.NewRecorder()
+	router.ServeHTTP(adminResponse, adminRequest)
+	require.Equal(t, http.StatusUnauthorized, adminResponse.Code)
+}
+
 func TestSetupRouter_HealthEndpoint(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cfg := newTestConfig()

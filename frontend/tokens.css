@@ -63,6 +63,7 @@
   --z-cg-skip: 40;
 }
 .client-docs[data-theme='dark'],
+.client-directory-select-content[data-theme='dark'],
 .aux-api-docs[data-theme='dark'] {
   --color-cg-paper: oklch(20% 0.004 90);
   --color-cg-surface: oklch(23% 0.006 90);

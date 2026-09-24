@@ -6,7 +6,7 @@
 
 sub2api本地项目路径：`/Users/duegin/project/sub2api`
 
-系统的默认入口是管理端：访问 `/` 会跳转到 `/admin/dashboard`。公开内容由管理员创建和维护的数据库动态页面提供，约定官网首页为 `/p/home`，其他公开页面使用 `/p/:slug`。
+系统的默认入口是管理端：访问 `/` 会跳转到 `/admin/dashboard`。API 文档、客户端接入和用户使用指南是源码注册的公开页面；其他可运营公开内容由数据库动态页面提供，约定官网首页为 `/p/home`，其他动态页面使用 `/p/:slug`。
 
 ## 定位与入口
 
@@ -14,6 +14,7 @@ sub2api本地项目路径：`/Users/duegin/project/sub2api`
 
 - **附属管理端** —— 通过 sub2api 的 `custom_menu_items` 以 iframe 方式打开，也支持独立登录。
 - **Sub2API API 文档** —— 内置 OpenAI/Anthropic/Gemini 兼容接口说明，可挂载到 sub2api 菜单，也可作为公开 iframe 嵌入其他系统。
+- **工单中心** —— Sub2API 用户从「工单中心」菜单提交问题并跟进回复；管理员在当前系统查看、回复和更新状态，新工单可按通知事件配置发送提醒。
 - **系统配置** —— 在管理端动态设置系统名称、系统 Logo、系统定位（ToC/ToB）、系统域名与 API 文档调用示例的默认模型；Logo 支持选择或拖拽 PNG、JPEG、GIF、WebP 图片上传。
 - **动态页面编写** —— 管理员可以创建、编辑、启停和删除数据库页面，不需要改动前端源码。
 - **页面分析与埋点** —— 统计当前页面的访问量和功能点击，在分析仪表盘中查看使用情况。
@@ -31,6 +32,8 @@ sub2api本地项目路径：`/Users/duegin/project/sub2api`
 | `/admin/pages` | 动态页面管理，管理员编写和维护页面 |
 | `/admin/system-config` | 系统配置，设置 Sub2API 系统名称、Logo、系统定位、系统域名和文档示例默认模型 |
 | `/admin/files` | 文件管理（图片与发票文件） |
+| `/admin/tickets` | 工单管理：查看用户工单、回复与更新状态 |
+| `/tickets` | 用户工单中心；启动时同步为 Sub2API 用户菜单 `aux-tickets` |
 | `/admin/ops/ttft` | 运维看板：首字延迟火焰图（直读 Sub2API 数据库） |
 | `/admin/logs/system` | 系统日志：请求、运行状态和错误事件 |
 | `/admin/logs/operation` | 操作日志：管理员变更审计 |
@@ -38,7 +41,8 @@ sub2api本地项目路径：`/Users/duegin/project/sub2api`
 | `/p/:slug` | 公开动态页面；仅当数据库中存在并启用对应页面时可访问 |
 | `/p/home` | 约定的 Sub2API 官网动态页，品牌名称读取公开系统配置 |
 | `/api-docs`（`/docs`） | Sub2API API 文档，可挂载菜单或嵌入其他系统 |
-| `/client-docs` | Claude Code、Codex、Pi、Hermes、OpenClaw、Paseo、ZCode、DeepSeek Harness、Obsidian（Claudian）接入指南，支持 `?client=codex` 直达与 `?embed=1` 嵌入 |
+| `/client-docs` | 客户端接入文档；目录按 Codex、Claude、Grok、Gemini、VS Code/Cursor 与其他客户端归类。支持 `?client=codex&method=manual` 直达手动配置，默认推荐 CC Switch，支持 `?embed=1` 嵌入 |
+| `/user-guide` | 面向普通用户的 API Key、分组切换、首次请求和客户端接入指南 |
 | `/login` | 独立管理员登录入口 |
 
 项目不会为 `/` 渲染官网内容。若 Sub2API 需要展示官网，应创建并启用 `/p/home`，再把其完整 URL 配置到 Sub2API `home_content`；页面中的系统名称读取公开配置 `siteName`，兼容旧字段 `heroTitle`。
@@ -55,6 +59,9 @@ sub2api本地项目路径：`/Users/duegin/project/sub2api`
 │  /                    → /admin/dashboard   /api/aux/*       公开页面/埋点 │
 │  /admin/dashboard     分析仪表盘          /api/aux/admin/*  AdminGuard   │
 │  /admin/pages         动态页面管理        转发验证 → sub2api /auth/me    │
+│  /api-docs            API 文档                                           │
+│  /client-docs         客户端接入指南                                     │
+│  /user-guide          用户使用指南                                       │
 │  /p/:slug             公开动态页面                                      │
 │  /admin/p/:slug       管理员动态页面                                    │
 │                                          │                            │
@@ -65,7 +72,7 @@ sub2api本地项目路径：`/Users/duegin/project/sub2api`
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
-`/` 只负责跳转到 `/admin/dashboard`。系统没有独立官网首页；所有公开内容均来自数据库中的动态页面 `/p/:slug`，页面是否存在、是否启用和如何展示由管理员配置。
+`/` 只负责跳转到 `/admin/dashboard`。系统没有独立官网首页；固定文档页由前端路由提供，运营内容来自数据库中的动态页面 `/p/:slug`，页面是否存在、是否启用和如何展示由管理员配置。
 
 ## 核心特性
 
@@ -252,13 +259,13 @@ make dev
 ```
 
 `make migrate` 也会创建 `image_assets`、`invoice_profiles`、`invoice_requests`、
-`invoice_orders`、`notification_channels`、`notification_deliveries`、`system_logs`
+`invoice_orders`、`support_tickets`、`support_ticket_messages`、`notification_channels`、`notification_deliveries`、`system_logs`
 和 `operation_logs` 表；
 `SUB2API_EXTENSION_ASSET_DIR` 是上传资源根目录；图片写入其 `photos` 子目录，
 数据库只保存相对路径、原始文件名和备注。
 Docker 生产环境默认在 `aux-system` 启动时执行幂等 Ent 自动迁移；设置 `AUTO_MIGRATE=false` 时需先显式执行 `make migrate`。
 
-通知渠道管理位于管理端 `/admin/notifications`。邮箱 SMTP 和 Resend 渠道只保存发件人、连接信息和凭据；收件人需要在具体业务事件（当前为发票申请通知）中填写，可填写多个邮箱地址，支持逗号、分号或空格分隔。
+通知渠道管理位于管理端 `/admin/notifications`。邮箱 SMTP 和 Resend 渠道只保存发件人、连接信息和凭据；收件人需要在具体业务事件（发票申请或新工单提醒）中填写，可填写多个邮箱地址，支持逗号、分号或空格分隔。新工单事件为 `ticket.created`。
 消息通知日志支持开始/结束日期时间查询及分页浏览。
 
 通知渠道列表中可直接选择 Webhook、飞书应用、飞书机器人、企业微信机器人或钉钉机器人。Webhook 发送系统统一 JSON，并支持 `Authorization`、`X-Webhook-Secret`；企业微信使用机器人 URL 中的 `key`，飞书机器人可填写安全设置中的签名密钥，钉钉使用 URL 中的 `access_token` 并可填写加签密钥，签名参数均由服务端自动生成。
@@ -395,7 +402,7 @@ pnpm build           # tsc -b && vite build
 ## 约束与边界
 
 - **不修改 sub2api 代码** —— 所有集成通过 sub2api 现有接缝完成
-- **没有内置官网首页** —— 根路径 `/` 永远作为控制台入口跳转到 `/admin/dashboard`；公开内容只能通过管理员创建的 `/p/:slug` 动态页面提供
+- **没有内置官网首页** —— 根路径 `/` 永远作为控制台入口跳转到 `/admin/dashboard`；固定文档页使用源码路由，运营内容通过管理员创建的 `/p/:slug` 动态页面提供
 - **公开页面与管理端分离** —— sub2api 如需嵌入公开内容，可把已启用的 `/p/:slug` URL 配置到对应设置；页面管理和分析仪表盘使用会传 token 的 `custom_menu_items`
 - **自有数据库** —— 页面、埋点和图片索引使用独立 PostgreSQL；页面上架只通过单独连接同步 sub2api 的 `settings.custom_menu_items`，不复用其业务表
 - **Ent 生成代码** —— `backend/ent/` 是 `ent/schema/*.go` 的生成产物，修改 schema 后需 `go generate ./ent`
@@ -403,6 +410,7 @@ pnpm build           # tsc -b && vite build
 ## 文档
 
 - **[CHANGELOG.md](CHANGELOG.md)** —— 版本变更记录
+- **Sub2API 用户使用指南 `/user-guide`** —— 面向普通用户的独立页面（API Key、分组、客户端接入与故障排查）
 - **[docs/INTEGRATION.md](docs/INTEGRATION.md)** —— sub2api 侧 `custom_menu_items` 集成配置指南（架构、部署、CSP、验收清单、故障排查）
 - **[docs/PAGE_API.md](docs/PAGE_API.md)** —— 动态页面管理员 API、鉴权、字段约束与调用示例
 - **[docs/WEBHOOK.md](docs/WEBHOOK.md)** —— 通用 Webhook 配置、协议、请求体示例、接收端代码与故障排查

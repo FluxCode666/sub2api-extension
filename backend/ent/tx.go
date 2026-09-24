@@ -38,6 +38,10 @@ type Tx struct {
 	Promotion *PromotionClient
 	// PromotionClaim is the client for interacting with the PromotionClaim builders.
 	PromotionClaim *PromotionClaimClient
+	// SupportTicket is the client for interacting with the SupportTicket builders.
+	SupportTicket *SupportTicketClient
+	// SupportTicketMessage is the client for interacting with the SupportTicketMessage builders.
+	SupportTicketMessage *SupportTicketMessageClient
 	// SystemLog is the client for interacting with the SystemLog builders.
 	SystemLog *SystemLogClient
 	// SystemMeta is the client for interacting with the SystemMeta builders.
@@ -186,6 +190,8 @@ func (tx *Tx) init() {
 	tx.PageView = NewPageViewClient(tx.config)
 	tx.Promotion = NewPromotionClient(tx.config)
 	tx.PromotionClaim = NewPromotionClaimClient(tx.config)
+	tx.SupportTicket = NewSupportTicketClient(tx.config)
+	tx.SupportTicketMessage = NewSupportTicketMessageClient(tx.config)
 	tx.SystemLog = NewSystemLogClient(tx.config)
 	tx.SystemMeta = NewSystemMetaClient(tx.config)
 }
