@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import TicketsPortalPage from './TicketsPortalPage'
 
 vi.mock('@/lib/api-client', () => ({ apiClient: { get: vi.fn(), post: vi.fn() } }))
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() }, Toaster: () => <div data-testid="ticket-toaster" /> }))
 
 const ticket = {
   id: 41,
@@ -44,6 +44,8 @@ describe('TicketsPortalPage', () => {
     await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/tickets', { subject: '无法登录', body: '**登录后**页面空白' }))
     expect(await screen.findByText('登录后')).toHaveProperty('tagName', 'STRONG')
     expect(toast.success).toHaveBeenCalledWith('工单已提交', { description: '客服团队会通过工单中心回复。' })
+    // 用户端工单页没有上层 layout，必须自带 Toaster 才能显示右上角通知。
+    expect(screen.getByTestId('ticket-toaster')).toBeInTheDocument()
   })
 
   it('submits Markdown replies as source text and renders both sides of the conversation', async () => {

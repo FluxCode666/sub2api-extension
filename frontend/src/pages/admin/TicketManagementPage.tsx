@@ -1,22 +1,31 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { MessageSquareText, RefreshCw, Send, Settings2 } from 'lucide-react'
+import { Inbox, Loader2, MessageSquareText, RefreshCw, Search, Send, Settings2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from '@/components/ui/pagination'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { TicketListItem } from '@/components/TicketListItem'
+import { TicketMessageBubble } from '@/components/TicketMessageBubble'
+import { TicketStatusBadge } from '@/components/TicketStatusBadge'
 import { apiClient, type AuxEnvelope } from '@/lib/api-client'
-import { formatTicketDate, ticketStatusLabel, type Ticket, type TicketPage, type TicketStatus } from '@/lib/tickets'
-import TicketMarkdown from '../TicketMarkdown'
+import { formatTicketDate, type Ticket, type TicketPage, type TicketStatus } from '@/lib/tickets'
 
 export default function TicketManagementPage() {
   const [tickets, setTickets] = useState<Ticket[]>([])
+  const [total, setTotal] = useState(0)
   const [selectedID, setSelectedID] = useState<number | null>(null)
   const selectedIDRef = useRef<number | null>(null)
   const [selected, setSelected] = useState<Ticket | null>(null)
+  const conversationRef = useRef<HTMLDivElement>(null)
   const [draftStatus, setDraftStatus] = useState('ALL')
   const [draftKeyword, setDraftKeyword] = useState('')
   const [filters, setFilters] = useState({ status: 'ALL', keyword: '' })
@@ -58,6 +67,7 @@ export default function TicketManagementPage() {
       const response = await apiClient.get<AuxEnvelope<TicketPage>>(`/admin/tickets?${params}`)
       const items = response.data?.items ?? []
       setTickets(items)
+      setTotal(response.data?.total ?? items.length)
       pageRef.current = response.data?.page ?? requestedPage
       setPage(pageRef.current)
       setTotalPages(response.data?.total_pages || 1)
@@ -78,10 +88,22 @@ export default function TicketManagementPage() {
   useEffect(() => { void loadTickets() }, [loadTickets])
   useEffect(() => { void loadPublicationSetting() }, [loadPublicationSetting])
 
+  // 切换工单或收到新消息后停在最新一条，避免管理员每次手动滚动到底部。
+  useEffect(() => {
+    const container = conversationRef.current
+    if (container) container.scrollTop = container.scrollHeight
+  }, [selected])
+
   const submitFilter = (event: FormEvent) => {
     event.preventDefault()
     pageRef.current = 1
     setFilters({ status: draftStatus, keyword: draftKeyword })
+  }
+
+  const selectTicket = (id: number) => {
+    selectedIDRef.current = id
+    setSelectedID(id)
+    void loadTicket(id).catch(() => setError('工单详情加载失败，请重试。'))
   }
 
   const sendReply = async (event: FormEvent) => {
@@ -137,25 +159,232 @@ export default function TicketManagementPage() {
     }
   }
 
-  return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4"><div><h1 className="flex items-center gap-2 text-2xl font-semibold text-gray-900 dark:text-gray-100"><MessageSquareText className="h-6 w-6" />工单管理</h1><p className="mt-1 text-sm text-muted-foreground">查看用户问题、回复消息并更新处理状态。</p></div><section className="flex items-center gap-3 rounded-lg border bg-card px-4 py-3"><div className="flex items-start gap-2"><Settings2 className="mt-0.5 h-4 w-4 text-muted-foreground" /><div><Label htmlFor="ticket-user-menu" className="font-medium">上架到用户端</Label><p className="mt-1 text-xs text-muted-foreground">在 Sub2API 自定义菜单显示工单中心</p>{!publishAvailable && <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">未配置 Sub2API 数据库或扩展公网地址</p>}</div></div><div className="flex items-center gap-2"><span className="text-sm font-medium">{menuPublished ? '已上架' : '未上架'}</span><Switch id="ticket-user-menu" checked={menuPublished} disabled={menuSaving || !publishAvailable} onCheckedChange={value => void toggleMenu(value)} aria-label="上架工单用户端" /></div></section></header>
-      {error && <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{error}</div>}
-      <div className="grid min-h-[600px] gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
-        <section className="rounded-lg border bg-card">
-          <form onSubmit={submitFilter} className="space-y-3 border-b p-4"><div className="space-y-2"><Label htmlFor="ticket-keyword">搜索工单</Label><Input id="ticket-keyword" value={draftKeyword} onChange={event => setDraftKeyword(event.target.value)} placeholder="主题、用户或邮箱" /></div><div className="flex gap-2"><Select value={draftStatus} onValueChange={setDraftStatus}><SelectTrigger aria-label="工单状态"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">全部状态</SelectItem><SelectItem value="OPEN">待处理</SelectItem><SelectItem value="IN_PROGRESS">处理中</SelectItem><SelectItem value="CLOSED">已关闭</SelectItem></SelectContent></Select><Button type="submit" variant="outline" disabled={loading}>筛选</Button><Button type="button" variant="ghost" size="icon" aria-label="刷新工单" onClick={() => void loadTickets()} disabled={loading}><RefreshCw className="h-4 w-4" /></Button></div></form>
-          {loading && tickets.length === 0 ? <p role="status" className="p-6 text-sm text-muted-foreground">正在加载工单…</p> : tickets.length === 0 ? <p className="p-6 text-center text-sm text-muted-foreground">当前筛选下没有工单</p> : <div className="max-h-[680px] divide-y overflow-y-auto">{tickets.map(ticket => <Button key={ticket.id} variant="ghost" onClick={() => { selectedIDRef.current = ticket.id; setSelectedID(ticket.id); void loadTicket(ticket.id).catch(() => setError('工单详情加载失败，请重试。')) }} className={`h-auto w-full justify-start rounded-none px-4 py-3 text-left ${selectedID === ticket.id ? 'bg-muted' : ''}`}><span className="min-w-0"><span className="flex items-center justify-between gap-2"><span className="truncate font-medium">{ticket.subject}</span><span className="shrink-0 text-[11px] text-muted-foreground">{ticketStatusLabel(ticket.status)}</span></span><span className="mt-1 block truncate text-xs text-muted-foreground">#{ticket.id} · {ticket.user_name || ticket.user_email || `用户 ${ticket.user_id}`}</span><span className="mt-1 block text-[11px] text-muted-foreground">{formatTicketDate(ticket.updated_at)}</span></span></Button>)}</div>}
-          {totalPages > 1 && <Pagination className="border-t px-3 py-2"><PaginationContent><PaginationItem><PaginationPrevious href="#" aria-disabled={page <= 1} className={page <= 1 ? 'pointer-events-none opacity-50' : undefined} onClick={event => { event.preventDefault(); if (page > 1) void loadTickets(undefined, page - 1) }} /></PaginationItem><PaginationItem><span className="px-2 text-xs text-muted-foreground">{page} / {totalPages}</span></PaginationItem><PaginationItem><PaginationNext href="#" aria-disabled={page >= totalPages} className={page >= totalPages ? 'pointer-events-none opacity-50' : undefined} onClick={event => { event.preventDefault(); if (page < totalPages) void loadTickets(undefined, page + 1) }} /></PaginationItem></PaginationContent></Pagination>}
-        </section>
+  const listLoading = loading && tickets.length === 0
 
-        <section className="flex min-h-[600px] flex-col rounded-lg border bg-card">
-          {!selected ? <div className="grid flex-1 place-items-center p-8 text-center text-sm text-muted-foreground">{loading ? '正在加载工单…' : '选择一条工单查看详情'}</div> : <>
-            <div className="flex flex-wrap items-start justify-between gap-4 border-b p-5"><div><p className="text-xs text-muted-foreground">工单 #{selected.id} · {selected.user_name || '用户'} · {selected.user_email}</p><h2 className="mt-1 text-xl font-semibold">{selected.subject}</h2><p className="mt-1 text-xs text-muted-foreground">创建于 {formatTicketDate(selected.created_at)}</p></div><div className="w-40"><Label htmlFor="ticket-status" className="sr-only">工单状态</Label><Select value={selected.status} onValueChange={value => void updateStatus(value as TicketStatus)} disabled={savingStatus}><SelectTrigger id="ticket-status"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="OPEN">待处理</SelectItem><SelectItem value="IN_PROGRESS">处理中</SelectItem><SelectItem value="CLOSED">已关闭</SelectItem></SelectContent></Select></div></div>
-            <div className="flex-1 space-y-4 overflow-y-auto p-5" aria-live="polite">{(selected.messages ?? []).map(message => <article key={message.id} className={`max-w-[88%] min-w-0 rounded-lg border p-4 ${message.sender_type === 'admin' ? 'ml-auto bg-primary/5' : 'bg-muted/50'}`}><div className="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground"><span>{message.sender_type === 'admin' ? '管理员' : `${selected.user_name || '用户'}（${selected.user_email || ''}）`}</span><time>{formatTicketDate(message.created_at)}</time></div><TicketMarkdown body={message.body} /></article>)}</div>
-            <form onSubmit={event => void sendReply(event)} className="space-y-3 border-t p-4"><Label htmlFor="admin-ticket-reply">回复用户</Label><Textarea id="admin-ticket-reply" value={reply} onChange={event => setReply(event.target.value)} rows={3} maxLength={10000} placeholder="输入回复内容…" aria-describedby="admin-ticket-reply-hint" required /><p id="admin-ticket-reply-hint" className="text-xs text-muted-foreground">支持 Markdown 格式。</p><div className="flex justify-end"><Button type="submit" disabled={sending || !reply.trim()}><Send className="mr-2 h-4 w-4" />{sending ? '发送中…' : '发送回复'}</Button></div></form>
-          </>}
-        </section>
+  return (
+    <TooltipProvider>
+      <div className="flex flex-col gap-6 p-4 sm:p-6 xl:h-[calc(100svh-3.5rem)]">
+        <header className="flex shrink-0 flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+              <MessageSquareText className="h-6 w-6 text-primary" aria-hidden="true" />
+              工单管理
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">查看用户问题、回复消息并更新处理状态。</p>
+          </div>
+          <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border bg-card px-4 py-3 shadow-sm sm:w-auto">
+            <Settings2 className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <div className="min-w-0 flex-1">
+              <Label htmlFor="ticket-user-menu" className="cursor-pointer text-sm font-medium">上架到用户端</Label>
+              <p className="mt-0.5 text-xs text-muted-foreground">在 Sub2API 自定义菜单显示工单中心</p>
+            </div>
+            <Badge variant={menuPublished ? 'default' : 'secondary'} className="shrink-0">{menuPublished ? '已上架' : '未上架'}</Badge>
+            <Switch
+              id="ticket-user-menu"
+              checked={menuPublished}
+              disabled={menuSaving || !publishAvailable}
+              onCheckedChange={value => void toggleMenu(value)}
+              aria-label="上架工单用户端"
+            />
+          </div>
+        </header>
+
+        {!publishAvailable && (
+          <Alert className="border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+            <AlertDescription>未配置 Sub2API 数据库或扩展公网地址，工单中心无法自动同步到 Sub2API 菜单。</AlertDescription>
+          </Alert>
+        )}
+        {error && (
+          <Alert className="border-destructive/30 bg-destructive/5 text-destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="grid min-h-[600px] gap-4 xl:min-h-[420px] xl:flex-1 xl:grid-cols-[360px_minmax(0,1fr)]">
+          <Card className="flex min-w-0 flex-col overflow-hidden xl:min-h-0">
+            <form onSubmit={submitFilter} className="shrink-0 space-y-3 border-b bg-muted/20 p-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="ticket-keyword" className="text-xs font-medium text-muted-foreground">搜索工单</Label>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                  <Input
+                    id="ticket-keyword"
+                    value={draftKeyword}
+                    onChange={event => setDraftKeyword(event.target.value)}
+                    placeholder="主题、用户或邮箱"
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Select value={draftStatus} onValueChange={setDraftStatus}>
+                  <SelectTrigger aria-label="工单状态" className="min-w-0 flex-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">全部状态</SelectItem>
+                    <SelectItem value="OPEN">待处理</SelectItem>
+                    <SelectItem value="IN_PROGRESS">处理中</SelectItem>
+                    <SelectItem value="CLOSED">已关闭</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button type="submit" variant="outline" disabled={loading} className="shrink-0">筛选</Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button type="button" variant="ghost" size="icon" aria-label="刷新工单" onClick={() => void loadTickets()} disabled={loading} className="shrink-0">
+                      <RefreshCw className={loading ? 'h-4 w-4 animate-spin motion-reduce:animate-none' : 'h-4 w-4'} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>刷新工单列表</TooltipContent>
+                </Tooltip>
+              </div>
+            </form>
+
+            <div className="flex shrink-0 items-center justify-between border-b px-4 py-2 text-xs text-muted-foreground">
+              <span>工单列表</span>
+              <span className="tabular-nums">共 {total} 条</span>
+            </div>
+
+            {listLoading ? (
+              <div role="status" aria-label="正在加载工单" className="space-y-3 p-4">
+                {[0, 1, 2, 3].map(index => (
+                  <div key={index} className="space-y-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                ))}
+              </div>
+            ) : tickets.length === 0 ? (
+              <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
+                <Inbox className="h-8 w-8 text-muted-foreground/60" aria-hidden="true" />
+                <p className="text-sm text-muted-foreground">当前筛选下没有工单</p>
+              </div>
+            ) : (
+              <div className="max-h-[420px] flex-1 divide-y overflow-y-auto xl:max-h-none">
+                {tickets.map(ticket => (
+                  <TicketListItem
+                    key={ticket.id}
+                    subject={ticket.subject}
+                    status={ticket.status}
+                    reference={`#${ticket.id}`}
+                    secondary={ticket.user_name || ticket.user_email || `用户 ${ticket.user_id}`}
+                    updatedAt={ticket.updated_at}
+                    selected={selectedID === ticket.id}
+                    onSelect={() => selectTicket(ticket.id)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {totalPages > 1 && (
+              <Pagination className="shrink-0 border-t bg-muted/20 px-3 py-2">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href="#"
+                      aria-disabled={page <= 1}
+                      className={page <= 1 ? 'pointer-events-none opacity-50' : undefined}
+                      onClick={event => { event.preventDefault(); if (page > 1) void loadTickets(undefined, page - 1) }}
+                    />
+                  </PaginationItem>
+                  <PaginationItem>
+                    <span className="px-2 text-xs tabular-nums text-muted-foreground">{page} / {totalPages}</span>
+                  </PaginationItem>
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      aria-disabled={page >= totalPages}
+                      className={page >= totalPages ? 'pointer-events-none opacity-50' : undefined}
+                      onClick={event => { event.preventDefault(); if (page < totalPages) void loadTickets(undefined, page + 1) }}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            )}
+          </Card>
+
+          <Card className="flex min-h-[600px] min-w-0 flex-col overflow-hidden xl:min-h-0">
+            {!selected ? (
+              <div className="grid flex-1 place-items-center p-8 text-center">
+                <div className="space-y-2">
+                  {loading ? (
+                    <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground motion-reduce:animate-none" aria-hidden="true" />
+                  ) : (
+                    <MessageSquareText className="mx-auto h-8 w-8 text-muted-foreground/60" aria-hidden="true" />
+                  )}
+                  <p role="status" className="text-sm text-muted-foreground">{loading ? '正在加载工单…' : '选择一条工单查看详情'}</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex shrink-0 flex-wrap items-start justify-between gap-4 border-b bg-muted/20 px-5 py-4">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="font-mono">#{selected.id}</span>
+                      <TicketStatusBadge status={selected.status} className="px-2 py-0 text-[11px]" />
+                    </div>
+                    <h2 className="mt-1.5 text-xl font-semibold tracking-tight [overflow-wrap:anywhere]">{selected.subject}</h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {selected.user_name || '用户'}
+                      {selected.user_email ? ` · ${selected.user_email}` : ''} · 创建于 {formatTicketDate(selected.created_at)}
+                    </p>
+                  </div>
+                  <div className="ml-auto flex items-center gap-2">
+                    {savingStatus && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground motion-reduce:animate-none" aria-hidden="true" />}
+                    <div className="w-36">
+                      <Label htmlFor="ticket-status" className="sr-only">工单状态</Label>
+                      <Select value={selected.status} onValueChange={value => void updateStatus(value as TicketStatus)} disabled={savingStatus}>
+                        <SelectTrigger id="ticket-status"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="OPEN">待处理</SelectItem>
+                          <SelectItem value="IN_PROGRESS">处理中</SelectItem>
+                          <SelectItem value="CLOSED">已关闭</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                <div ref={conversationRef} className="flex-1 space-y-4 overflow-y-auto bg-muted/20 p-5" aria-live="polite">
+                  {(selected.messages ?? []).map(message => (
+                    <TicketMessageBubble
+                      key={message.id}
+                      self={message.sender_type === 'admin'}
+                      senderLabel={message.sender_type === 'admin' ? '管理员' : selected.user_name || selected.user_email || '用户'}
+                      createdAt={message.created_at}
+                      body={message.body}
+                    />
+                  ))}
+                </div>
+
+                <form onSubmit={event => void sendReply(event)} className="shrink-0 space-y-2 border-t p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="admin-ticket-reply" className="text-sm font-medium">回复用户</Label>
+                    <span id="admin-ticket-reply-hint" className="text-xs text-muted-foreground">支持 Markdown 格式</span>
+                  </div>
+                  <Textarea
+                    id="admin-ticket-reply"
+                    value={reply}
+                    onChange={event => setReply(event.target.value)}
+                    rows={3}
+                    maxLength={10000}
+                    placeholder="输入回复内容…"
+                    aria-describedby="admin-ticket-reply-hint"
+                    required
+                    className="resize-y"
+                  />
+                  <div className="flex justify-end">
+                    <Button type="submit" disabled={sending || !reply.trim()}>
+                      {sending
+                        ? <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                        : <Send className="mr-2 h-4 w-4" aria-hidden="true" />}
+                      {sending ? '发送中…' : '发送回复'}
+                    </Button>
+                  </div>
+                </form>
+              </>
+            )}
+          </Card>
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   )
 }

@@ -16,9 +16,9 @@
 .ticket-markdown li + li { margin-top: .2em; }
 .ticket-markdown blockquote { margin: .75em 0; border-left: 3px solid hsl(var(--primary)); padding-left: .85em; color: hsl(var(--muted-foreground)); }
 .ticket-markdown a { color: hsl(var(--primary)); text-decoration: underline; text-underline-offset: 3px; }
-.ticket-markdown code { border-radius: .25rem; background: hsl(var(--muted)); padding: .12em .35em; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .9em; }
+.ticket-markdown code { border: 1px solid hsl(var(--border)); border-radius: .25rem; background: hsl(var(--muted)); padding: .12em .35em; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .9em; }
 .ticket-markdown pre { margin: .8em 0; max-width: 100%; overflow-x: auto; border: 1px solid hsl(var(--border)); border-radius: .5rem; background: hsl(var(--muted)); padding: .75em .9em; }
-.ticket-markdown pre code { display: block; background: transparent; padding: 0; white-space: pre; }
+.ticket-markdown pre code { display: block; border: 0; background: transparent; padding: 0; white-space: pre; }
 .ticket-markdown hr { margin: 1em 0; border: 0; border-top: 1px solid hsl(var(--border)); }
 .ticket-markdown table { display: block; max-width: 100%; margin: .8em 0; overflow-x: auto; border-collapse: collapse; font-size: .92em; }
 .ticket-markdown :is(th, td) { border: 1px solid hsl(var(--border)); padding: .4em .55em; text-align: left; vertical-align: top; }
