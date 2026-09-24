@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"time"
 
@@ -17,10 +18,11 @@ import (
 )
 
 const (
-	PromotionFeatureSettingKey = "promotion.feature.enabled"
-	PromotionRewardFixed       = "FIXED"
-	PromotionRewardPercentage  = "PERCENTAGE"
-	PromotionClaimGranted      = "GRANTED"
+	PromotionFeatureSettingKey   = "promotion.feature.enabled"
+	PromotionRewardFixed         = "FIXED"
+	PromotionRewardPercentage    = "PERCENTAGE"
+	PromotionClaimGranted        = "GRANTED"
+	promotionAdvanceNoticeWindow = 3 * 24 * time.Hour
 )
 
 var (
@@ -28,34 +30,37 @@ var (
 	ErrPromotionInactive           = errors.New("promotion is inactive")
 	ErrPromotionOrderInvalid       = errors.New("one or more selected orders are unavailable")
 	ErrPromotionOrderClaimed       = errors.New("one or more selected orders have already been claimed")
+	ErrPromotionRebateLimitReached = errors.New("promotion rebate limit reached")
 	ErrInvalidPromotion            = errors.New("invalid promotion")
 	ErrPromotionPublishFailed      = errors.New("promotion publication failed")
 	ErrPromotionBalanceUnavailable = errors.New("promotion balance credit is unavailable")
 )
 
 type PromotionInput struct {
-	Title       string     `json:"title"`
-	Description string     `json:"description"`
-	RewardType  string     `json:"reward_type"`
-	RewardValue float64    `json:"reward_value"`
-	StartsAt    *time.Time `json:"starts_at"`
-	EndsAt      *time.Time `json:"ends_at"`
-	Enabled     *bool      `json:"enabled"`
+	Title           string     `json:"title"`
+	Description     string     `json:"description"`
+	RewardType      string     `json:"reward_type"`
+	RewardValue     float64    `json:"reward_value"`
+	MaxRebateAmount float64    `json:"max_rebate_amount"`
+	StartsAt        *time.Time `json:"starts_at"`
+	EndsAt          *time.Time `json:"ends_at"`
+	Enabled         *bool      `json:"enabled"`
 }
 
 type Promotion struct {
-	ID          int             `json:"id"`
-	Title       string          `json:"title"`
-	Description string          `json:"description"`
-	RewardType  string          `json:"reward_type"`
-	RewardValue float64         `json:"reward_value"`
-	StartsAt    *time.Time      `json:"starts_at,omitempty"`
-	EndsAt      *time.Time      `json:"ends_at,omitempty"`
-	Enabled     bool            `json:"enabled"`
-	Published   bool            `json:"published"`
-	CreatedAt   time.Time       `json:"created_at"`
-	UpdatedAt   time.Time       `json:"updated_at"`
-	Stats       *PromotionStats `json:"stats,omitempty"`
+	ID              int             `json:"id"`
+	Title           string          `json:"title"`
+	Description     string          `json:"description"`
+	RewardType      string          `json:"reward_type"`
+	RewardValue     float64         `json:"reward_value"`
+	MaxRebateAmount float64         `json:"max_rebate_amount"`
+	StartsAt        *time.Time      `json:"starts_at,omitempty"`
+	EndsAt          *time.Time      `json:"ends_at,omitempty"`
+	Enabled         bool            `json:"enabled"`
+	Published       bool            `json:"published"`
+	CreatedAt       time.Time       `json:"created_at"`
+	UpdatedAt       time.Time       `json:"updated_at"`
+	Stats           *PromotionStats `json:"stats,omitempty"`
 }
 
 type PromotionStats struct {
@@ -88,6 +93,11 @@ type PromotionClaim struct {
 
 type PromotionClaimInput struct {
 	OrderIDs []int64 `json:"order_ids"`
+}
+
+type promotionRebateAllocation struct {
+	PaymentOrderID int64
+	Amount         float64
 }
 
 // PromotionBalanceCreditor is implemented by the controlled Sub2API database
@@ -145,7 +155,7 @@ func (s *PromotionService) Create(ctx context.Context, input PromotionInput) (*P
 	if input.Enabled != nil {
 		enabled = *input.Enabled
 	}
-	item, err := s.client.Promotion.Create().SetTitle(strings.TrimSpace(input.Title)).SetDescription(strings.TrimSpace(input.Description)).SetRewardType(strings.ToUpper(strings.TrimSpace(input.RewardType))).SetRewardValue(roundPromotionMoney(input.RewardValue)).SetNillableStartsAt(input.StartsAt).SetNillableEndsAt(input.EndsAt).SetEnabled(enabled).SetPublished(enabled).Save(ctx)
+	item, err := s.client.Promotion.Create().SetTitle(strings.TrimSpace(input.Title)).SetDescription(strings.TrimSpace(input.Description)).SetRewardType(strings.ToUpper(strings.TrimSpace(input.RewardType))).SetRewardValue(roundPromotionMoney(input.RewardValue)).SetMaxRebateAmount(roundPromotionMoney(input.MaxRebateAmount)).SetNillableStartsAt(input.StartsAt).SetNillableEndsAt(input.EndsAt).SetEnabled(enabled).SetPublished(enabled).Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +217,7 @@ func (s *PromotionService) Update(ctx context.Context, id int, input PromotionIn
 	if err != nil {
 		return nil, err
 	}
-	update := s.client.Promotion.UpdateOne(item).SetTitle(strings.TrimSpace(input.Title)).SetDescription(strings.TrimSpace(input.Description)).SetRewardType(strings.ToUpper(strings.TrimSpace(input.RewardType))).SetRewardValue(roundPromotionMoney(input.RewardValue)).SetNillableStartsAt(input.StartsAt).SetNillableEndsAt(input.EndsAt)
+	update := s.client.Promotion.UpdateOne(item).SetTitle(strings.TrimSpace(input.Title)).SetDescription(strings.TrimSpace(input.Description)).SetRewardType(strings.ToUpper(strings.TrimSpace(input.RewardType))).SetRewardValue(roundPromotionMoney(input.RewardValue)).SetMaxRebateAmount(roundPromotionMoney(input.MaxRebateAmount)).SetNillableStartsAt(input.StartsAt).SetNillableEndsAt(input.EndsAt)
 	if input.Enabled != nil {
 		update.SetEnabled(*input.Enabled)
 		if !*input.Enabled {
@@ -264,6 +274,11 @@ func (s *PromotionService) ListPublicOrders(ctx context.Context, userID int64, p
 	}
 	if s.orders == nil {
 		return nil, ErrSub2APIDatabaseUnavailable
+	}
+	if reached, err := s.promotionRebateLimitReached(ctx, userID, p); err != nil {
+		return nil, err
+	} else if reached {
+		return nil, ErrPromotionRebateLimitReached
 	}
 	orders, err := s.orders.ListCompletedRecharges(ctx, userID)
 	if err != nil {
@@ -331,10 +346,10 @@ func (s *PromotionService) Claim(ctx context.Context, userID int64, promotionID 
 			return nil, ErrPromotionOrderInvalid
 		}
 	}
-	if s.creditor == nil {
-		return nil, ErrPromotionBalanceUnavailable
+	currentRebate, err := s.promotionRebateTotal(ctx, userID, promotionID)
+	if err != nil {
+		return nil, err
 	}
-	claims := make([]PromotionClaim, 0, len(input.OrderIDs))
 	for _, id := range input.OrderIDs {
 		// 订单唯一性跨活动生效，不能只检查当前 promotion_id。
 		exists, e := s.client.PromotionClaim.Query().Where(promotionclaim.PaymentOrderIDEQ(id)).Exist(ctx)
@@ -345,10 +360,16 @@ func (s *PromotionService) Claim(ctx context.Context, userID int64, promotionID 
 			return nil, ErrPromotionOrderClaimed
 		}
 	}
-	for _, id := range input.OrderIDs {
-		order := byID[id]
-		amount := calculateRebate(p, order.Amount)
-		if err := s.creditor.CreditPromotionRebate(ctx, userID, promotionID, order.PaymentOrderID, amount); err != nil {
+	allocations := allocatePromotionRebates(p, input.OrderIDs, byID, currentRebate)
+	if len(allocations) == 0 {
+		return nil, ErrPromotionRebateLimitReached
+	}
+	if s.creditor == nil {
+		return nil, ErrPromotionBalanceUnavailable
+	}
+	claims := make([]PromotionClaim, 0, len(allocations))
+	for _, allocation := range allocations {
+		if err := s.creditor.CreditPromotionRebate(ctx, userID, promotionID, allocation.PaymentOrderID, allocation.Amount); err != nil {
 			return nil, fmt.Errorf("%w: %v", ErrPromotionBalanceUnavailable, err)
 		}
 	}
@@ -359,10 +380,9 @@ func (s *PromotionService) Claim(ctx context.Context, userID int64, promotionID 
 		return nil, err
 	}
 	defer func() { _ = tx.Rollback() }()
-	for _, id := range input.OrderIDs {
-		order := byID[id]
-		amount := calculateRebate(p, order.Amount)
-		created, createErr := tx.PromotionClaim.Create().SetPromotionID(promotionID).SetUserID(userID).SetPaymentOrderID(order.PaymentOrderID).SetOutTradeNo(order.OutTradeNo).SetOrderAmount(roundPromotionMoney(order.Amount)).SetRebateAmount(amount).SetStatus(PromotionClaimGranted).Save(ctx)
+	for _, allocation := range allocations {
+		order := byID[allocation.PaymentOrderID]
+		created, createErr := tx.PromotionClaim.Create().SetPromotionID(promotionID).SetUserID(userID).SetPaymentOrderID(order.PaymentOrderID).SetOutTradeNo(order.OutTradeNo).SetOrderAmount(roundPromotionMoney(order.Amount)).SetRebateAmount(allocation.Amount).SetStatus(PromotionClaimGranted).Save(ctx)
 		if createErr != nil {
 			if ent.IsConstraintError(createErr) {
 				return nil, ErrPromotionOrderClaimed
@@ -441,7 +461,14 @@ func promotionIsEnded(item ent.Promotion, now time.Time) bool {
 }
 
 func promotionIsVisible(item ent.Promotion, now time.Time) bool {
-	return promotionIsActive(item, now) || promotionIsEnded(item, now)
+	return promotionIsActive(item, now) || promotionIsUpcoming(item, now) || promotionIsEnded(item, now)
+}
+
+func promotionIsUpcoming(item ent.Promotion, now time.Time) bool {
+	if !item.Enabled || !item.Published || item.StartsAt == nil {
+		return false
+	}
+	return item.StartsAt.After(now) && !item.StartsAt.After(now.Add(promotionAdvanceNoticeWindow))
 }
 
 // promotionOrderIsEligible 使用与活动本身相同的半开区间：开始时间包含，
@@ -470,6 +497,9 @@ func validatePromotionInput(input PromotionInput) error {
 	if math.IsNaN(input.RewardValue) || math.IsInf(input.RewardValue, 0) || input.RewardValue <= 0 || (input.RewardType == PromotionRewardPercentage && input.RewardValue > 100) {
 		return ErrInvalidPromotion
 	}
+	if math.IsNaN(input.MaxRebateAmount) || math.IsInf(input.MaxRebateAmount, 0) || input.MaxRebateAmount < 0 {
+		return ErrInvalidPromotion
+	}
 	if input.StartsAt != nil && input.EndsAt != nil && !input.StartsAt.Before(*input.EndsAt) {
 		return ErrInvalidPromotion
 	}
@@ -482,10 +512,75 @@ func calculateRebate(p *ent.Promotion, amount float64) float64 {
 	}
 	return roundPromotionMoney(p.RewardValue)
 }
+
+func allocatePromotionRebates(p *ent.Promotion, orderIDs []int64, byID map[int64]invoice.OrderCandidate, currentRebate float64) []promotionRebateAllocation {
+	allocations := make([]promotionRebateAllocation, 0, len(orderIDs))
+	if p.MaxRebateAmount <= 0 {
+		for _, id := range orderIDs {
+			allocations = append(allocations, promotionRebateAllocation{PaymentOrderID: id, Amount: calculateRebate(p, byID[id].Amount)})
+		}
+		return allocations
+	}
+
+	remaining := roundPromotionMoney(p.MaxRebateAmount - currentRebate)
+	if remaining <= 0 {
+		return allocations
+	}
+	candidates := make([]promotionRebateAllocation, 0, len(orderIDs))
+	for _, id := range orderIDs {
+		candidates = append(candidates, promotionRebateAllocation{PaymentOrderID: id, Amount: calculateRebate(p, byID[id].Amount)})
+	}
+	sort.SliceStable(candidates, func(i, j int) bool {
+		return candidates[i].Amount < candidates[j].Amount
+	})
+	for _, candidate := range candidates {
+		if remaining <= 0 {
+			break
+		}
+		amount := candidate.Amount
+		if amount > remaining {
+			amount = remaining
+		}
+		amount = roundPromotionMoney(amount)
+		if amount <= 0 {
+			continue
+		}
+		allocations = append(allocations, promotionRebateAllocation{PaymentOrderID: candidate.PaymentOrderID, Amount: amount})
+		remaining = roundPromotionMoney(remaining - amount)
+	}
+	return allocations
+}
+
+func (s *PromotionService) promotionRebateTotal(ctx context.Context, userID int64, promotionID int) (float64, error) {
+	claims, err := s.client.PromotionClaim.Query().Where(
+		promotionclaim.UserIDEQ(userID),
+		promotionclaim.PromotionIDEQ(promotionID),
+		promotionclaim.StatusEQ(PromotionClaimGranted),
+	).All(ctx)
+	if err != nil {
+		return 0, err
+	}
+	total := 0.0
+	for _, claim := range claims {
+		total += claim.RebateAmount
+	}
+	return roundPromotionMoney(total), nil
+}
+
+func (s *PromotionService) promotionRebateLimitReached(ctx context.Context, userID int64, p *ent.Promotion) (bool, error) {
+	if p.MaxRebateAmount <= 0 {
+		return false, nil
+	}
+	total, err := s.promotionRebateTotal(ctx, userID, p.ID)
+	if err != nil {
+		return false, err
+	}
+	return total >= p.MaxRebateAmount, nil
+}
 func roundPromotionMoney(value float64) float64 { return math.Round(value*100) / 100 }
 
 func mapPromotion(item *ent.Promotion) Promotion {
-	return Promotion{ID: item.ID, Title: item.Title, Description: item.Description, RewardType: item.RewardType, RewardValue: item.RewardValue, StartsAt: item.StartsAt, EndsAt: item.EndsAt, Enabled: item.Enabled, Published: item.Published, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+	return Promotion{ID: item.ID, Title: item.Title, Description: item.Description, RewardType: item.RewardType, RewardValue: item.RewardValue, MaxRebateAmount: item.MaxRebateAmount, StartsAt: item.StartsAt, EndsAt: item.EndsAt, Enabled: item.Enabled, Published: item.Published, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
 }
 func mapClaim(item *ent.PromotionClaim) PromotionClaim {
 	return PromotionClaim{ID: item.ID, PromotionID: item.PromotionID, PaymentOrderID: item.PaymentOrderID, OutTradeNo: item.OutTradeNo, OrderAmount: item.OrderAmount, RebateAmount: item.RebateAmount, Status: item.Status, ClaimedAt: item.ClaimedAt}

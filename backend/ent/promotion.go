@@ -25,6 +25,8 @@ type Promotion struct {
 	RewardType string `json:"reward_type,omitempty"`
 	// RewardValue holds the value of the "reward_value" field.
 	RewardValue float64 `json:"reward_value,omitempty"`
+	// 单个用户累计福利金额上限，0 表示不限
+	MaxRebateAmount float64 `json:"max_rebate_amount,omitempty"`
 	// StartsAt holds the value of the "starts_at" field.
 	StartsAt *time.Time `json:"starts_at,omitempty"`
 	// EndsAt holds the value of the "ends_at" field.
@@ -47,7 +49,7 @@ func (*Promotion) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case promotion.FieldEnabled, promotion.FieldPublished:
 			values[i] = new(sql.NullBool)
-		case promotion.FieldRewardValue:
+		case promotion.FieldRewardValue, promotion.FieldMaxRebateAmount:
 			values[i] = new(sql.NullFloat64)
 		case promotion.FieldID:
 			values[i] = new(sql.NullInt64)
@@ -99,6 +101,12 @@ func (_m *Promotion) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field reward_value", values[i])
 			} else if value.Valid {
 				_m.RewardValue = value.Float64
+			}
+		case promotion.FieldMaxRebateAmount:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field max_rebate_amount", values[i])
+			} else if value.Valid {
+				_m.MaxRebateAmount = value.Float64
 			}
 		case promotion.FieldStartsAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -185,6 +193,9 @@ func (_m *Promotion) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("reward_value=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RewardValue))
+	builder.WriteString(", ")
+	builder.WriteString("max_rebate_amount=")
+	builder.WriteString(fmt.Sprintf("%v", _m.MaxRebateAmount))
 	builder.WriteString(", ")
 	if v := _m.StartsAt; v != nil {
 		builder.WriteString("starts_at=")

@@ -1,11 +1,28 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { apiClient, type AuxEnvelope } from '@/lib/api-client'
-import type { Promotion, PromotionOrder } from '@/lib/promotions'
+import { toast } from 'sonner'
+import { apiClient, AuxApiError, type AuxEnvelope } from '@/lib/api-client'
+import { formatPromotionMoney, formatPromotionTimeRange, promotionRebateLimitLabel, type Promotion, type PromotionOrder } from '@/lib/promotions'
 import PromotionPortalPage from '@/pages/PromotionPortalPage'
 
-vi.mock('@/lib/api-client', () => ({ apiClient: { get: vi.fn(), post: vi.fn() } }))
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+const { MockAuxApiError } = vi.hoisted(() => ({
+  MockAuxApiError: class extends Error {
+    readonly status: number
+    readonly reason?: string
+
+    constructor(status: number, message: string, reason?: string) {
+      super(message)
+      this.status = status
+      this.reason = reason
+    }
+  },
+}))
+
+vi.mock('@/lib/api-client', () => ({
+  apiClient: { get: vi.fn(), post: vi.fn() },
+  AuxApiError: MockAuxApiError,
+}))
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
 
 const promotions: Promotion[] = ['固定返利活动', '百分比返利活动', '周末返利活动'].map((title, index) => ({
   id: index + 1,
@@ -61,6 +78,82 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('促销活动切换', () => {
+  it('在用户端展示单用户返利金额上限', async () => {
+    const cappedPromotion: Promotion = { ...promotions[0], max_rebate_amount: 200 }
+    vi.mocked(apiClient.get).mockImplementation(async (path) => {
+      if (path === '/promotions') return envelope([cappedPromotion])
+      if (path === '/promotions/claims') return envelope([])
+      if (path === '/homepage/config') return { code: 0, message: 'success', data: { siteName: '测试网关' } }
+      if (path === '/promotions/1/orders') return envelope([order])
+      throw new Error(`Unexpected request: ${path}`)
+    })
+
+    await openPage()
+
+    expect(screen.getByText(`返利上限：${formatPromotionMoney(200)}`)).toBeInTheDocument()
+    expect(screen.getByText(/返利规则：/).parentElement).toHaveTextContent(`返利上限：${formatPromotionMoney(200)}`)
+    expect(promotionRebateLimitLabel({ max_rebate_amount: 0 })).toBe('不限')
+  })
+
+  it('在活动列表和详情中展示活动时间', async () => {
+    const timedPromotion: Promotion = {
+      ...promotions[0],
+      starts_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+      ends_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    }
+    vi.mocked(apiClient.get).mockImplementation(async (path) => {
+      if (path === '/promotions') return envelope([timedPromotion])
+      if (path === '/promotions/claims') return envelope([])
+      if (path === '/homepage/config') return { code: 0, message: 'success', data: { siteName: '测试网关' } }
+      if (path === '/promotions/1/orders') return envelope([order])
+      throw new Error(`Unexpected request: ${path}`)
+    })
+
+    await openPage()
+
+    expect(screen.getAllByText('活动时间')).toHaveLength(2)
+    expect(screen.getAllByText(formatPromotionTimeRange(timedPromotion))).toHaveLength(2)
+  })
+
+  it('提前展示三天内开始的活动，但不加载订单或开放领取', async () => {
+    const upcoming: Promotion = {
+      ...promotions[0],
+      id: 10,
+      title: '三天内开始活动',
+      starts_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    }
+    vi.mocked(apiClient.get).mockImplementation(async (path) => {
+      if (path === '/promotions') return envelope([upcoming])
+      if (path === '/promotions/claims') return envelope([])
+      if (path === '/homepage/config') return { code: 0, message: 'success', data: { siteName: '测试网关' } }
+      throw new Error(`Unexpected request: ${path}`)
+    })
+
+    render(<PromotionPortalPage />)
+
+    expect(await screen.findByRole('button', { name: /三天内开始活动/ })).toBeInTheDocument()
+    expect(screen.getByText('即将开始（3天内）')).toBeInTheDocument()
+    expect(screen.getByText(/活动将于 .* 开始，届时可查看订单并领取返利/)).toBeInTheDocument()
+    expect(vi.mocked(apiClient.get).mock.calls.some(([path]) => String(path).includes('/orders'))).toBe(false)
+    expect(screen.queryByRole('button', { name: /领取选中订单返利/ })).not.toBeInTheDocument()
+  })
+
+  it('达到福利上限时提示用户且不允许领取', async () => {
+    vi.mocked(apiClient.get).mockImplementation(async (path) => {
+      if (path === '/promotions') return envelope([promotions[0]])
+      if (path === '/promotions/claims') return envelope([])
+      if (path === '/homepage/config') return { code: 0, message: 'success', data: { siteName: '测试网关' } }
+      if (path === '/promotions/1/orders') throw new AuxApiError(409, 'promotion rebate limit reached', '返利金额达到上限')
+      throw new Error(`Unexpected request: ${path}`)
+    })
+
+    render(<PromotionPortalPage />)
+
+    expect(await screen.findByText('返利金额达到上限')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('无法继续领取该活动的订单返利')
+    expect(screen.queryByRole('button', { name: /领取选中订单返利/ })).not.toBeInTheDocument()
+  })
+
   it('默认折叠已结束活动，并按结束时间倒序展示', async () => {
     const ended: Promotion[] = [
       { ...promotions[0], id: 4, title: '较早结束活动', ends_at: '2026-09-10T00:00:00Z' },
@@ -185,5 +278,25 @@ describe('促销活动切换', () => {
     expect(apiClient.post).toHaveBeenCalledWith('/promotions/2/claim', { order_ids: [101] })
     expect(row).toHaveTextContent('已领取')
     expect(row).toBeDisabled()
+  })
+
+  it('领取成功后展示到账弹窗和全局通知', async () => {
+    const row = await openPage()
+    vi.mocked(apiClient.post).mockResolvedValueOnce(envelope([{
+      id: 1, promotion_id: 1, payment_order_id: 101, out_trade_no: 'PAY-101',
+      order_amount: 100, rebate_amount: 5, status: 'GRANTED', claimed_at: order.paid_at,
+    }]))
+
+    fireEvent.click(row)
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: /领取选中订单返利（1）/ })))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByRole('heading', { name: '返利领取成功' })).toBeInTheDocument()
+    expect(within(dialog).getByText('已为您发放 1 笔返利，到账金额如下。')).toBeInTheDocument()
+    expect(within(dialog).getByText('¥5.00')).toBeInTheDocument()
+    expect(toast.success).toHaveBeenCalledWith('已到账 1 笔返利，合计 ¥5.00')
+
+    fireEvent.click(within(dialog).getByRole('button', { name: '我知道了' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

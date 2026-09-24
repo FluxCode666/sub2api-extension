@@ -369,6 +369,7 @@ var (
 		{Name: "description", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
 		{Name: "reward_type", Type: field.TypeString, Size: 16},
 		{Name: "reward_value", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,2)"}},
+		{Name: "max_rebate_amount", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,2)"}},
 		{Name: "starts_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "ends_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "enabled", Type: field.TypeBool, Default: true},
@@ -385,7 +386,7 @@ var (
 			{
 				Name:    "promotion_enabled_published_starts_at_ends_at",
 				Unique:  false,
-				Columns: []*schema.Column{PromotionsColumns[7], PromotionsColumns[8], PromotionsColumns[5], PromotionsColumns[6]},
+				Columns: []*schema.Column{PromotionsColumns[8], PromotionsColumns[9], PromotionsColumns[6], PromotionsColumns[7]},
 			},
 		},
 	}

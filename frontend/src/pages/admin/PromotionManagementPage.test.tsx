@@ -2,9 +2,10 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiClient } from '@/lib/api-client'
 import PromotionManagementPage from '@/pages/admin/PromotionManagementPage'
+import { toast } from 'sonner'
 
 vi.mock('@/lib/api-client', () => ({ apiClient: { get: vi.fn(), post: vi.fn(), put: vi.fn() } }))
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -21,6 +22,7 @@ beforeEach(() => {
             description: '## 活动规则\n\n- **充值返利**\n- 支持 `Markdown`',
             reward_type: 'FIXED',
             reward_value: 10,
+            max_rebate_amount: 200,
             enabled: true,
             published: true,
             created_at: '2026-09-12T00:00:00Z',
@@ -43,7 +45,7 @@ beforeEach(() => {
         },
       }
     }
-    if (path === '/admin/promotions/config') return { code: 0, message: 'success', data: { enabled: true } }
+    if (path === '/admin/promotions/config') return { code: 0, message: 'success', data: { enabled: true, publish_available: true } }
     throw new Error(`Unexpected request: ${path}`)
   })
 })
@@ -80,6 +82,7 @@ describe('促销活动管理', () => {
 
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(screen.getByDisplayValue('春季返利活动')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('200')).toBeInTheDocument()
     fireEvent.change(screen.getByDisplayValue('春季返利活动'), { target: { value: '春季返利活动（更新）' } })
     fireEvent.click(screen.getByRole('button', { name: '保存修改' }))
 
@@ -87,6 +90,38 @@ describe('促销活动管理', () => {
       title: '春季返利活动（更新）',
       reward_type: 'FIXED',
       reward_value: 10,
+      max_rebate_amount: 200,
     })))
+  })
+
+  it('未配置 Sub2API 数据库时显示无法同步菜单的提示', async () => {
+    vi.mocked(apiClient.get).mockImplementation(async (path) => {
+      if (path === '/admin/promotions') {
+        return { code: 0, message: 'success', data: { items: [] } }
+      }
+      if (path === '/admin/promotions/config') return { code: 0, message: 'success', data: { enabled: true, publish_available: false } }
+      throw new Error(`Unexpected request: ${path}`)
+    })
+
+    render(<PromotionManagementPage />)
+
+    expect(await screen.findByText(/未配置 Sub2API 数据库或扩展公网地址/)).toBeInTheDocument()
+  })
+
+  it('上架菜单同步失败时给出警告而非成功提示', async () => {
+    vi.mocked(apiClient.put).mockResolvedValue({
+      code: 0,
+      message: 'promotion setting saved with warning',
+      reason: '设置已保存，但 Sub2API 菜单同步失败，请检查数据库连接和公开域名',
+      data: { enabled: true, published: false },
+    })
+
+    render(<PromotionManagementPage />)
+    await screen.findByText('春季返利活动')
+
+    fireEvent.click(screen.getByRole('switch', { name: '上架促销活动用户端' }))
+
+    await waitFor(() => expect(vi.mocked(toast.warning)).toHaveBeenCalled())
+    expect(vi.mocked(toast.success)).not.toHaveBeenCalled()
   })
 })

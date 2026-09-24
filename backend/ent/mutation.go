@@ -9794,24 +9794,26 @@ func (m *PageViewMutation) ResetEdge(name string) error {
 // PromotionMutation represents an operation that mutates the Promotion nodes in the graph.
 type PromotionMutation struct {
 	config
-	op              Op
-	typ             string
-	id              *int
-	title           *string
-	description     *string
-	reward_type     *string
-	reward_value    *float64
-	addreward_value *float64
-	starts_at       *time.Time
-	ends_at         *time.Time
-	enabled         *bool
-	published       *bool
-	created_at      *time.Time
-	updated_at      *time.Time
-	clearedFields   map[string]struct{}
-	done            bool
-	oldValue        func(context.Context) (*Promotion, error)
-	predicates      []predicate.Promotion
+	op                   Op
+	typ                  string
+	id                   *int
+	title                *string
+	description          *string
+	reward_type          *string
+	reward_value         *float64
+	addreward_value      *float64
+	max_rebate_amount    *float64
+	addmax_rebate_amount *float64
+	starts_at            *time.Time
+	ends_at              *time.Time
+	enabled              *bool
+	published            *bool
+	created_at           *time.Time
+	updated_at           *time.Time
+	clearedFields        map[string]struct{}
+	done                 bool
+	oldValue             func(context.Context) (*Promotion, error)
+	predicates           []predicate.Promotion
 }
 
 var _ ent.Mutation = (*PromotionMutation)(nil)
@@ -10074,6 +10076,62 @@ func (m *PromotionMutation) AddedRewardValue() (r float64, exists bool) {
 func (m *PromotionMutation) ResetRewardValue() {
 	m.reward_value = nil
 	m.addreward_value = nil
+}
+
+// SetMaxRebateAmount sets the "max_rebate_amount" field.
+func (m *PromotionMutation) SetMaxRebateAmount(f float64) {
+	m.max_rebate_amount = &f
+	m.addmax_rebate_amount = nil
+}
+
+// MaxRebateAmount returns the value of the "max_rebate_amount" field in the mutation.
+func (m *PromotionMutation) MaxRebateAmount() (r float64, exists bool) {
+	v := m.max_rebate_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMaxRebateAmount returns the old "max_rebate_amount" field's value of the Promotion entity.
+// If the Promotion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PromotionMutation) OldMaxRebateAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMaxRebateAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMaxRebateAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMaxRebateAmount: %w", err)
+	}
+	return oldValue.MaxRebateAmount, nil
+}
+
+// AddMaxRebateAmount adds f to the "max_rebate_amount" field.
+func (m *PromotionMutation) AddMaxRebateAmount(f float64) {
+	if m.addmax_rebate_amount != nil {
+		*m.addmax_rebate_amount += f
+	} else {
+		m.addmax_rebate_amount = &f
+	}
+}
+
+// AddedMaxRebateAmount returns the value that was added to the "max_rebate_amount" field in this mutation.
+func (m *PromotionMutation) AddedMaxRebateAmount() (r float64, exists bool) {
+	v := m.addmax_rebate_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetMaxRebateAmount resets all changes to the "max_rebate_amount" field.
+func (m *PromotionMutation) ResetMaxRebateAmount() {
+	m.max_rebate_amount = nil
+	m.addmax_rebate_amount = nil
 }
 
 // SetStartsAt sets the "starts_at" field.
@@ -10352,7 +10410,7 @@ func (m *PromotionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PromotionMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 11)
 	if m.title != nil {
 		fields = append(fields, promotion.FieldTitle)
 	}
@@ -10364,6 +10422,9 @@ func (m *PromotionMutation) Fields() []string {
 	}
 	if m.reward_value != nil {
 		fields = append(fields, promotion.FieldRewardValue)
+	}
+	if m.max_rebate_amount != nil {
+		fields = append(fields, promotion.FieldMaxRebateAmount)
 	}
 	if m.starts_at != nil {
 		fields = append(fields, promotion.FieldStartsAt)
@@ -10399,6 +10460,8 @@ func (m *PromotionMutation) Field(name string) (ent.Value, bool) {
 		return m.RewardType()
 	case promotion.FieldRewardValue:
 		return m.RewardValue()
+	case promotion.FieldMaxRebateAmount:
+		return m.MaxRebateAmount()
 	case promotion.FieldStartsAt:
 		return m.StartsAt()
 	case promotion.FieldEndsAt:
@@ -10428,6 +10491,8 @@ func (m *PromotionMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldRewardType(ctx)
 	case promotion.FieldRewardValue:
 		return m.OldRewardValue(ctx)
+	case promotion.FieldMaxRebateAmount:
+		return m.OldMaxRebateAmount(ctx)
 	case promotion.FieldStartsAt:
 		return m.OldStartsAt(ctx)
 	case promotion.FieldEndsAt:
@@ -10476,6 +10541,13 @@ func (m *PromotionMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetRewardValue(v)
+		return nil
+	case promotion.FieldMaxRebateAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMaxRebateAmount(v)
 		return nil
 	case promotion.FieldStartsAt:
 		v, ok := value.(time.Time)
@@ -10530,6 +10602,9 @@ func (m *PromotionMutation) AddedFields() []string {
 	if m.addreward_value != nil {
 		fields = append(fields, promotion.FieldRewardValue)
 	}
+	if m.addmax_rebate_amount != nil {
+		fields = append(fields, promotion.FieldMaxRebateAmount)
+	}
 	return fields
 }
 
@@ -10540,6 +10615,8 @@ func (m *PromotionMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case promotion.FieldRewardValue:
 		return m.AddedRewardValue()
+	case promotion.FieldMaxRebateAmount:
+		return m.AddedMaxRebateAmount()
 	}
 	return nil, false
 }
@@ -10555,6 +10632,13 @@ func (m *PromotionMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddRewardValue(v)
+		return nil
+	case promotion.FieldMaxRebateAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMaxRebateAmount(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Promotion numeric field %s", name)
@@ -10609,6 +10693,9 @@ func (m *PromotionMutation) ResetField(name string) error {
 		return nil
 	case promotion.FieldRewardValue:
 		m.ResetRewardValue()
+		return nil
+	case promotion.FieldMaxRebateAmount:
+		m.ResetMaxRebateAmount()
 		return nil
 	case promotion.FieldStartsAt:
 		m.ResetStartsAt()

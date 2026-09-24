@@ -74,6 +74,11 @@ func RewardValue(v float64) predicate.Promotion {
 	return predicate.Promotion(sql.FieldEQ(FieldRewardValue, v))
 }
 
+// MaxRebateAmount applies equality check predicate on the "max_rebate_amount" field. It's identical to MaxRebateAmountEQ.
+func MaxRebateAmount(v float64) predicate.Promotion {
+	return predicate.Promotion(sql.FieldEQ(FieldMaxRebateAmount, v))
+}
+
 // StartsAt applies equality check predicate on the "starts_at" field. It's identical to StartsAtEQ.
 func StartsAt(v time.Time) predicate.Promotion {
 	return predicate.Promotion(sql.FieldEQ(FieldStartsAt, v))
@@ -337,6 +342,46 @@ func RewardValueLT(v float64) predicate.Promotion {
 // RewardValueLTE applies the LTE predicate on the "reward_value" field.
 func RewardValueLTE(v float64) predicate.Promotion {
 	return predicate.Promotion(sql.FieldLTE(FieldRewardValue, v))
+}
+
+// MaxRebateAmountEQ applies the EQ predicate on the "max_rebate_amount" field.
+func MaxRebateAmountEQ(v float64) predicate.Promotion {
+	return predicate.Promotion(sql.FieldEQ(FieldMaxRebateAmount, v))
+}
+
+// MaxRebateAmountNEQ applies the NEQ predicate on the "max_rebate_amount" field.
+func MaxRebateAmountNEQ(v float64) predicate.Promotion {
+	return predicate.Promotion(sql.FieldNEQ(FieldMaxRebateAmount, v))
+}
+
+// MaxRebateAmountIn applies the In predicate on the "max_rebate_amount" field.
+func MaxRebateAmountIn(vs ...float64) predicate.Promotion {
+	return predicate.Promotion(sql.FieldIn(FieldMaxRebateAmount, vs...))
+}
+
+// MaxRebateAmountNotIn applies the NotIn predicate on the "max_rebate_amount" field.
+func MaxRebateAmountNotIn(vs ...float64) predicate.Promotion {
+	return predicate.Promotion(sql.FieldNotIn(FieldMaxRebateAmount, vs...))
+}
+
+// MaxRebateAmountGT applies the GT predicate on the "max_rebate_amount" field.
+func MaxRebateAmountGT(v float64) predicate.Promotion {
+	return predicate.Promotion(sql.FieldGT(FieldMaxRebateAmount, v))
+}
+
+// MaxRebateAmountGTE applies the GTE predicate on the "max_rebate_amount" field.
+func MaxRebateAmountGTE(v float64) predicate.Promotion {
+	return predicate.Promotion(sql.FieldGTE(FieldMaxRebateAmount, v))
+}
+
+// MaxRebateAmountLT applies the LT predicate on the "max_rebate_amount" field.
+func MaxRebateAmountLT(v float64) predicate.Promotion {
+	return predicate.Promotion(sql.FieldLT(FieldMaxRebateAmount, v))
+}
+
+// MaxRebateAmountLTE applies the LTE predicate on the "max_rebate_amount" field.
+func MaxRebateAmountLTE(v float64) predicate.Promotion {
+	return predicate.Promotion(sql.FieldLTE(FieldMaxRebateAmount, v))
 }
 
 // StartsAtEQ applies the EQ predicate on the "starts_at" field.

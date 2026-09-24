@@ -121,6 +121,8 @@ func handlePromotionUserError(c *gin.Context, err error) {
 		response.Forbidden(c, "promotion is not active")
 	case errors.Is(err, service.ErrPromotionOrderClaimed):
 		response.Error(c, http.StatusConflict, "one or more selected orders have already been claimed")
+	case errors.Is(err, service.ErrPromotionRebateLimitReached):
+		response.ErrorWithReason(c, http.StatusConflict, "promotion rebate limit reached", "返利金额达到上限")
 	case errors.Is(err, service.ErrPromotionOrderInvalid):
 		response.BadRequest(c, "one or more selected orders are unavailable")
 	case errors.Is(err, service.ErrPromotionBalanceUnavailable):

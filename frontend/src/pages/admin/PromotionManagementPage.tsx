@@ -55,6 +55,7 @@ interface PromotionForm {
   description: string;
   reward_type: "FIXED" | "PERCENTAGE";
   reward_value: string;
+  max_rebate_amount: string;
   starts_at: string;
   ends_at: string;
   enabled: boolean;
@@ -64,6 +65,7 @@ const emptyForm: PromotionForm = {
   description: "",
   reward_type: "FIXED",
   reward_value: "",
+  max_rebate_amount: "0",
   starts_at: "",
   ends_at: "",
   enabled: true,
@@ -97,6 +99,7 @@ function toFormDateTime(value?: string): string {
 export default function PromotionManagementPage() {
   const [items, setItems] = useState<Promotion[]>([]);
   const [menuPublished, setMenuPublished] = useState(false);
+  const [publishAvailable, setPublishAvailable] = useState(false);
   const [menuSaving, setMenuSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -112,12 +115,13 @@ export default function PromotionManagementPage() {
     try {
       const [result, config] = await Promise.all([
         apiClient.get<AuxEnvelope<{ items: Promotion[] }>>("/admin/promotions"),
-        apiClient.get<AuxEnvelope<{ enabled: boolean }>>(
+        apiClient.get<AuxEnvelope<{ enabled: boolean; publish_available: boolean }>>(
           "/admin/promotions/config",
         ),
       ]);
       setItems(result.data?.items ?? []);
       setMenuPublished(config.data?.enabled ?? false);
+      setPublishAvailable(config.data?.publish_available === true);
       setError("");
     } catch {
       setError("促销活动加载失败，请稍后重试");
@@ -162,6 +166,7 @@ export default function PromotionManagementPage() {
       description: item.description,
       reward_type: item.reward_type,
       reward_value: String(item.reward_value),
+      max_rebate_amount: String(item.max_rebate_amount ?? 0),
       starts_at: toFormDateTime(item.starts_at),
       ends_at: toFormDateTime(item.ends_at),
       enabled: item.enabled,
@@ -171,8 +176,9 @@ export default function PromotionManagementPage() {
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
     const value = Number(form.reward_value);
-    if (!form.title.trim() || !Number.isFinite(value) || value <= 0) {
-      toast.error("请填写活动名称和有效的返利额度");
+    const maxRebateAmount = Number(form.max_rebate_amount);
+    if (!form.title.trim() || !Number.isFinite(value) || value <= 0 || !Number.isFinite(maxRebateAmount) || maxRebateAmount < 0) {
+      toast.error("请填写活动名称、有效的返利额度和福利上限");
       return;
     }
     if (form.starts_at && form.ends_at && new Date(form.starts_at) >= new Date(form.ends_at)) {
@@ -186,6 +192,7 @@ export default function PromotionManagementPage() {
         description: form.description,
         reward_type: form.reward_type,
         reward_value: value,
+        max_rebate_amount: maxRebateAmount,
         starts_at: toISO(form.starts_at),
         ends_at: toISO(form.ends_at),
         enabled: form.enabled,
@@ -227,12 +234,19 @@ export default function PromotionManagementPage() {
   const toggleMenu = async (enabled: boolean) => {
     setMenuSaving(true);
     try {
-      const result = await apiClient.put<AuxEnvelope<{ enabled: boolean }>>(
-        "/admin/promotions/config",
-        { enabled },
-      );
-      setMenuPublished(result.data?.enabled ?? enabled);
-      toast.success(enabled ? "用户端页面已上架" : "用户端页面已下架");
+      const result = await apiClient.put<
+        AuxEnvelope<{ enabled: boolean; published: boolean }>
+      >("/admin/promotions/config", { enabled });
+      setMenuPublished(result.data?.enabled === true);
+      if (result.reason) {
+        toast.warning(result.reason);
+      } else if (enabled && result.data?.published === false) {
+        toast.warning(
+          "设置已保存，但未能同步到 Sub2API 菜单，请检查公开地址和数据库配置",
+        );
+      } else {
+        toast.success(enabled ? "用户端页面已上架" : "用户端页面已下架");
+      }
     } catch {
       toast.error("用户端上架设置保存失败");
     } finally {
@@ -266,6 +280,13 @@ export default function PromotionManagementPage() {
           </Button>
         </div>
       </div>
+      {!publishAvailable && (
+        <Alert className="border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+          <AlertDescription>
+            未配置 Sub2API 数据库或扩展公网地址，用户端上架设置可以保存，但无法自动同步到 Sub2API 菜单。
+          </AlertDescription>
+        </Alert>
+      )}
       {error && (
         <Alert className="border-destructive/30 bg-destructive/5 text-destructive">
           <AlertDescription>{error}</AlertDescription>
@@ -492,6 +513,22 @@ export default function PromotionManagementPage() {
                   }
                   required
                 />
+              </div>
+              <div className="sm:col-span-2">
+                <Label htmlFor="promotion-max-rebate">单用户福利上限（元）</Label>
+                <Input
+                  id="promotion-max-rebate"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.max_rebate_amount}
+                  onChange={(event) =>
+                    setForm({ ...form, max_rebate_amount: event.target.value })
+                  }
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  累计派送达到此金额后不可继续领取；填写 0 表示不限。
+                </p>
               </div>
             </div>
             <PromotionDateTimeRangePicker

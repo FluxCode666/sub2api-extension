@@ -21,6 +21,8 @@ const (
 	FieldRewardType = "reward_type"
 	// FieldRewardValue holds the string denoting the reward_value field in the database.
 	FieldRewardValue = "reward_value"
+	// FieldMaxRebateAmount holds the string denoting the max_rebate_amount field in the database.
+	FieldMaxRebateAmount = "max_rebate_amount"
 	// FieldStartsAt holds the string denoting the starts_at field in the database.
 	FieldStartsAt = "starts_at"
 	// FieldEndsAt holds the string denoting the ends_at field in the database.
@@ -44,6 +46,7 @@ var Columns = []string{
 	FieldDescription,
 	FieldRewardType,
 	FieldRewardValue,
+	FieldMaxRebateAmount,
 	FieldStartsAt,
 	FieldEndsAt,
 	FieldEnabled,
@@ -69,6 +72,8 @@ var (
 	DefaultDescription string
 	// RewardTypeValidator is a validator for the "reward_type" field. It is called by the builders before save.
 	RewardTypeValidator func(string) error
+	// DefaultMaxRebateAmount holds the default value on creation for the "max_rebate_amount" field.
+	DefaultMaxRebateAmount float64
 	// DefaultEnabled holds the default value on creation for the "enabled" field.
 	DefaultEnabled bool
 	// DefaultPublished holds the default value on creation for the "published" field.
@@ -107,6 +112,11 @@ func ByRewardType(opts ...sql.OrderTermOption) OrderOption {
 // ByRewardValue orders the results by the reward_value field.
 func ByRewardValue(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRewardValue, opts...).ToFunc()
+}
+
+// ByMaxRebateAmount orders the results by the max_rebate_amount field.
+func ByMaxRebateAmount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMaxRebateAmount, opts...).ToFunc()
 }
 
 // ByStartsAt orders the results by the starts_at field.

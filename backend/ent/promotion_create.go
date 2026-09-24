@@ -52,6 +52,20 @@ func (_c *PromotionCreate) SetRewardValue(v float64) *PromotionCreate {
 	return _c
 }
 
+// SetMaxRebateAmount sets the "max_rebate_amount" field.
+func (_c *PromotionCreate) SetMaxRebateAmount(v float64) *PromotionCreate {
+	_c.mutation.SetMaxRebateAmount(v)
+	return _c
+}
+
+// SetNillableMaxRebateAmount sets the "max_rebate_amount" field if the given value is not nil.
+func (_c *PromotionCreate) SetNillableMaxRebateAmount(v *float64) *PromotionCreate {
+	if v != nil {
+		_c.SetMaxRebateAmount(*v)
+	}
+	return _c
+}
+
 // SetStartsAt sets the "starts_at" field.
 func (_c *PromotionCreate) SetStartsAt(v time.Time) *PromotionCreate {
 	_c.mutation.SetStartsAt(v)
@@ -175,6 +189,10 @@ func (_c *PromotionCreate) defaults() {
 		v := promotion.DefaultDescription
 		_c.mutation.SetDescription(v)
 	}
+	if _, ok := _c.mutation.MaxRebateAmount(); !ok {
+		v := promotion.DefaultMaxRebateAmount
+		_c.mutation.SetMaxRebateAmount(v)
+	}
 	if _, ok := _c.mutation.Enabled(); !ok {
 		v := promotion.DefaultEnabled
 		_c.mutation.SetEnabled(v)
@@ -216,6 +234,9 @@ func (_c *PromotionCreate) check() error {
 	}
 	if _, ok := _c.mutation.RewardValue(); !ok {
 		return &ValidationError{Name: "reward_value", err: errors.New(`ent: missing required field "Promotion.reward_value"`)}
+	}
+	if _, ok := _c.mutation.MaxRebateAmount(); !ok {
+		return &ValidationError{Name: "max_rebate_amount", err: errors.New(`ent: missing required field "Promotion.max_rebate_amount"`)}
 	}
 	if _, ok := _c.mutation.Enabled(); !ok {
 		return &ValidationError{Name: "enabled", err: errors.New(`ent: missing required field "Promotion.enabled"`)}
@@ -270,6 +291,10 @@ func (_c *PromotionCreate) createSpec() (*Promotion, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.RewardValue(); ok {
 		_spec.SetField(promotion.FieldRewardValue, field.TypeFloat64, value)
 		_node.RewardValue = value
+	}
+	if value, ok := _c.mutation.MaxRebateAmount(); ok {
+		_spec.SetField(promotion.FieldMaxRebateAmount, field.TypeFloat64, value)
+		_node.MaxRebateAmount = value
 	}
 	if value, ok := _c.mutation.StartsAt(); ok {
 		_spec.SetField(promotion.FieldStartsAt, field.TypeTime, value)

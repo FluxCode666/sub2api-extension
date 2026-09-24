@@ -24,6 +24,7 @@ func (Promotion) Fields() []ent.Field {
 		field.String("description").SchemaType(map[string]string{dialect.Postgres: "text"}).Default(""),
 		field.String("reward_type").MaxLen(16).Comment("FIXED 或 PERCENTAGE"),
 		field.Float("reward_value").SchemaType(map[string]string{dialect.Postgres: "decimal(20,2)"}),
+		field.Float("max_rebate_amount").Default(0).Comment("单个用户累计福利金额上限，0 表示不限").SchemaType(map[string]string{dialect.Postgres: "decimal(20,2)"}),
 		field.Time("starts_at").Optional().Nillable().SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
 		field.Time("ends_at").Optional().Nillable().SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
 		field.Bool("enabled").Default(true),

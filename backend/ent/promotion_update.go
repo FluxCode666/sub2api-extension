@@ -91,6 +91,27 @@ func (_u *PromotionUpdate) AddRewardValue(v float64) *PromotionUpdate {
 	return _u
 }
 
+// SetMaxRebateAmount sets the "max_rebate_amount" field.
+func (_u *PromotionUpdate) SetMaxRebateAmount(v float64) *PromotionUpdate {
+	_u.mutation.ResetMaxRebateAmount()
+	_u.mutation.SetMaxRebateAmount(v)
+	return _u
+}
+
+// SetNillableMaxRebateAmount sets the "max_rebate_amount" field if the given value is not nil.
+func (_u *PromotionUpdate) SetNillableMaxRebateAmount(v *float64) *PromotionUpdate {
+	if v != nil {
+		_u.SetMaxRebateAmount(*v)
+	}
+	return _u
+}
+
+// AddMaxRebateAmount adds value to the "max_rebate_amount" field.
+func (_u *PromotionUpdate) AddMaxRebateAmount(v float64) *PromotionUpdate {
+	_u.mutation.AddMaxRebateAmount(v)
+	return _u
+}
+
 // SetStartsAt sets the "starts_at" field.
 func (_u *PromotionUpdate) SetStartsAt(v time.Time) *PromotionUpdate {
 	_u.mutation.SetStartsAt(v)
@@ -248,6 +269,12 @@ func (_u *PromotionUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedRewardValue(); ok {
 		_spec.AddField(promotion.FieldRewardValue, field.TypeFloat64, value)
 	}
+	if value, ok := _u.mutation.MaxRebateAmount(); ok {
+		_spec.SetField(promotion.FieldMaxRebateAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedMaxRebateAmount(); ok {
+		_spec.AddField(promotion.FieldMaxRebateAmount, field.TypeFloat64, value)
+	}
 	if value, ok := _u.mutation.StartsAt(); ok {
 		_spec.SetField(promotion.FieldStartsAt, field.TypeTime, value)
 	}
@@ -349,6 +376,27 @@ func (_u *PromotionUpdateOne) SetNillableRewardValue(v *float64) *PromotionUpdat
 // AddRewardValue adds value to the "reward_value" field.
 func (_u *PromotionUpdateOne) AddRewardValue(v float64) *PromotionUpdateOne {
 	_u.mutation.AddRewardValue(v)
+	return _u
+}
+
+// SetMaxRebateAmount sets the "max_rebate_amount" field.
+func (_u *PromotionUpdateOne) SetMaxRebateAmount(v float64) *PromotionUpdateOne {
+	_u.mutation.ResetMaxRebateAmount()
+	_u.mutation.SetMaxRebateAmount(v)
+	return _u
+}
+
+// SetNillableMaxRebateAmount sets the "max_rebate_amount" field if the given value is not nil.
+func (_u *PromotionUpdateOne) SetNillableMaxRebateAmount(v *float64) *PromotionUpdateOne {
+	if v != nil {
+		_u.SetMaxRebateAmount(*v)
+	}
+	return _u
+}
+
+// AddMaxRebateAmount adds value to the "max_rebate_amount" field.
+func (_u *PromotionUpdateOne) AddMaxRebateAmount(v float64) *PromotionUpdateOne {
+	_u.mutation.AddMaxRebateAmount(v)
 	return _u
 }
 
@@ -538,6 +586,12 @@ func (_u *PromotionUpdateOne) sqlSave(ctx context.Context) (_node *Promotion, er
 	}
 	if value, ok := _u.mutation.AddedRewardValue(); ok {
 		_spec.AddField(promotion.FieldRewardValue, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.MaxRebateAmount(); ok {
+		_spec.SetField(promotion.FieldMaxRebateAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedMaxRebateAmount(); ok {
+		_spec.AddField(promotion.FieldMaxRebateAmount, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.StartsAt(); ok {
 		_spec.SetField(promotion.FieldStartsAt, field.TypeTime, value)

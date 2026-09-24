@@ -570,20 +570,24 @@ func init() {
 	promotionDescRewardType := promotionFields[2].Descriptor()
 	// promotion.RewardTypeValidator is a validator for the "reward_type" field. It is called by the builders before save.
 	promotion.RewardTypeValidator = promotionDescRewardType.Validators[0].(func(string) error)
+	// promotionDescMaxRebateAmount is the schema descriptor for max_rebate_amount field.
+	promotionDescMaxRebateAmount := promotionFields[4].Descriptor()
+	// promotion.DefaultMaxRebateAmount holds the default value on creation for the max_rebate_amount field.
+	promotion.DefaultMaxRebateAmount = promotionDescMaxRebateAmount.Default.(float64)
 	// promotionDescEnabled is the schema descriptor for enabled field.
-	promotionDescEnabled := promotionFields[6].Descriptor()
+	promotionDescEnabled := promotionFields[7].Descriptor()
 	// promotion.DefaultEnabled holds the default value on creation for the enabled field.
 	promotion.DefaultEnabled = promotionDescEnabled.Default.(bool)
 	// promotionDescPublished is the schema descriptor for published field.
-	promotionDescPublished := promotionFields[7].Descriptor()
+	promotionDescPublished := promotionFields[8].Descriptor()
 	// promotion.DefaultPublished holds the default value on creation for the published field.
 	promotion.DefaultPublished = promotionDescPublished.Default.(bool)
 	// promotionDescCreatedAt is the schema descriptor for created_at field.
-	promotionDescCreatedAt := promotionFields[8].Descriptor()
+	promotionDescCreatedAt := promotionFields[9].Descriptor()
 	// promotion.DefaultCreatedAt holds the default value on creation for the created_at field.
 	promotion.DefaultCreatedAt = promotionDescCreatedAt.Default.(func() time.Time)
 	// promotionDescUpdatedAt is the schema descriptor for updated_at field.
-	promotionDescUpdatedAt := promotionFields[9].Descriptor()
+	promotionDescUpdatedAt := promotionFields[10].Descriptor()
 	// promotion.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	promotion.DefaultUpdatedAt = promotionDescUpdatedAt.Default.(func() time.Time)
 	// promotion.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
