@@ -422,18 +422,16 @@ export const CC_SWITCH_GUIDES: readonly CCSwitchGuide[] = [
   {
     id: 'claude-code',
     clientId: 'claude-code',
-    description: '在图形界面填写网关、密钥与模型，由 CC Switch 保存到 Claude Code 配置中。',
+    description: '从平台 API Key 管理页一键导入 Claude Code 配置，启用后打开客户端验证；无需手动填写密钥或网关地址。',
     steps: [
-      '先完成上方 Claude Code 安装，再安装并打开最新版本 CC Switch。在应用切换器中选择「Claude」（Claude Code），点击右上角「+」添加自定义供应商。',
-      '按下方参考填写供应商名称、接口地址和 API Key，使用 Anthropic Messages 协议与 Auth Token（Bearer）认证；接口地址填写网关根地址，不加 /v1。',
-      '默认模型填写本页的模型 ID，默认值为 claude-opus-5。保存并点击供应商卡片的「启用」，由 CC Switch 写入 ~/.claude/settings.json。',
-      '重新打开 Claude Code 后验证接入。如原终端中仍有旧的网关或密钥环境变量，先清理冲突变量，确保使用刚启用的供应商。',
+      '先在平台控制台的 API Key 管理页创建 API Key。创建后回到该密钥所在行；不要把真实密钥输入本指南。',
+      '在刚创建的 API Key 所在行点击「导入到 CCS」，将 Claude Code 供应商配置导入 CC Switch。',
+      '核对确认弹窗中的客户端、供应商名称和网关地址后，点击「确认导入」。',
+      '在 CC Switch 的 Claude Code 面板找到刚导入的配置，点击「启用」，确认它已成为当前配置。',
+      '重新打开终端并启动 Claude Code，发送「当前时间」；收到回复后检查平台控制台中的该 API Key 用量。',
     ],
-    verification: '在同一个终端启动 Claude Code，直接发送「当前时间」。收到正常回复后，在控制台核对本次用量。',
-    troubleshooting: '如果仍使用原来的账号或提示凭据冲突，请检查环境变量与 ~/.claude/settings.json 中的配置，清理冲突的 ANTHROPIC_API_KEY 或旧网关变量。终端变量只对当前终端及其启动的程序生效；需要持久化时，按官方说明合并到 ~/.claude/settings.json 的 env 中。',
-    screenshots: [
-      { src: '/client-docs/claude-code/cc-switch.png', alt: 'CC Switch 编辑 Claude Code 供应商：填写网关地址、API Key、Anthropic Messages 格式和模型映射，密钥已遮盖', caption: 'CC Switch 快捷配置 Claude Code' },
-    ],
+    verification: '在新终端运行 claude，发送「当前时间」。收到正常回复后，在平台控制台核对刚创建的 API Key 用量。',
+    troubleshooting: 'CC Switch 中没有新配置时，重新检查该 API Key 所在行的「导入到 CCS」与确认弹窗。若客户端仍使用旧账号或旧网关，确认导入的 Claude Code 配置已启用，重新打开终端并检查旧的 ANTHROPIC_API_KEY、ANTHROPIC_AUTH_TOKEN 和 ANTHROPIC_BASE_URL 环境变量是否覆盖了新配置。',
   },
   {
     id: 'claude-desktop',

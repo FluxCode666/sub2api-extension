@@ -52,6 +52,13 @@ const CODEX_STEP_TITLES = [
   '启用导入的配置',
   '重启 Codex 客户端',
 ] as const
+const CLAUDE_CODE_STEP_TITLES = [
+  '创建 API Key',
+  '点击「导入到 CCS」',
+  '确认导入',
+  '启用导入的配置',
+  '打开 Claude Code 并验证',
+] as const
 const CODEX_STEP_MARKERS = ['①', '②', '③', '④'] as const
 
 const SUB2API_ACCOUNT_LINKS = ['API 密钥', '使用记录', '兑换', '个人资料', 'API 文档']
@@ -112,20 +119,20 @@ function Sub2APIKeyTable({ highlight, baseURL, systemName }: { highlight: 'creat
   </div>
 }
 
-function CreateAPIKeyDialog() {
+function CreateAPIKeyDialog({ clientId = 'codex', systemName }: { clientId?: 'codex' | 'claude-code'; systemName: string }) {
   return <div className="sub2api-dialog-backdrop">
     <div className="sub2api-create-dialog">
       <header><strong>创建密钥</strong><X size={18} /></header>
       <div className="sub2api-dialog-fields">
-        <label>名称<span>我的 API 密钥</span></label>
+        <label>名称<span>{systemName}</span></label>
         <div className="sub2api-vendor-label">厂商</div>
         <div className="sub2api-vendor-options">
-          <span><i className="sub2api-vendor-symbol sub2api-vendor-symbol-anthropic">✳</i>Anthropic</span>
-          <span className="is-selected"><i className="sub2api-vendor-symbol sub2api-vendor-symbol-openai">◎</i>OpenAI<b>✓</b></span>
+          <span className={clientId === 'claude-code' ? 'is-selected' : undefined}><i className="sub2api-vendor-symbol sub2api-vendor-symbol-anthropic">✳</i>Anthropic{clientId === 'claude-code' && <b>✓</b>}</span>
+          <span className={clientId === 'codex' ? 'is-selected' : undefined}><i className="sub2api-vendor-symbol sub2api-vendor-symbol-openai">◎</i>OpenAI{clientId === 'codex' && <b>✓</b>}</span>
           <span><i className="sub2api-vendor-symbol sub2api-vendor-symbol-cn">K</i>国产模型</span>
           <span><i className="sub2api-vendor-symbol sub2api-vendor-symbol-other">✦</i>其他</span>
         </div>
-        <small className="sub2api-vendor-hint">选择 OpenAI / GPT 的可用分组</small>
+        <small className="sub2api-vendor-hint">选择 {clientId === 'claude-code' ? 'Anthropic / Claude' : 'OpenAI / GPT'} 的可用分组</small>
         <label>分组<span>选择分组<ChevronDown size={14} /></span></label>
         <div className="sub2api-switch-row">自定义密钥 <i /></div>
         <div className="sub2api-switch-row">IP 限制 <i /></div>
@@ -138,7 +145,7 @@ function CreateAPIKeyDialog() {
   </div>
 }
 
-function Sub2APIKeyManagement({ highlight, showCreateDialog = false, baseURL, systemName, siteLogoUrl }: { highlight: 'create' | 'import'; showCreateDialog?: boolean; baseURL: string | null; systemName: string; siteLogoUrl: string }) {
+function Sub2APIKeyManagement({ highlight, showCreateDialog = false, baseURL, systemName, siteLogoUrl, clientId }: { highlight: 'create' | 'import'; showCreateDialog?: boolean; baseURL: string | null; systemName: string; siteLogoUrl: string; clientId: 'codex' | 'claude-code' }) {
   return <div className="codex-product-window sub2api-window" aria-hidden="true">
     <aside className="sub2api-sidebar">
       <div className="sub2api-brand"><span>{siteLogoUrl ? <img src={withAppBasePath(siteLogoUrl)} alt="" /> : <b>{systemName.slice(0, 2)}</b>}</span><strong title={systemName}>{systemName}</strong><small>用户中心</small></div>
@@ -149,7 +156,7 @@ function Sub2APIKeyManagement({ highlight, showCreateDialog = false, baseURL, sy
       <header className="sub2api-topbar"><div><strong>API 密钥</strong><span>管理您的 API 密钥和访问令牌</span></div><div className="sub2api-user-tools"><Bell size={14} /><span>🇨🇳　ZH <ChevronDown size={10} /></span><span className="sub2api-balance"><WalletCards size={12} />$75.76</span><b><UserRound size={12} /></b><span>用户 <ChevronDown size={10} /></span></div></header>
       <Sub2APIKeyTable highlight={highlight} baseURL={baseURL} systemName={systemName} />
     </main>
-    {showCreateDialog && <CreateAPIKeyDialog />}
+    {showCreateDialog && <CreateAPIKeyDialog clientId={clientId} systemName={systemName} />}
   </div>
 }
 
@@ -162,7 +169,9 @@ interface CCSwitchProviderProps {
 }
 
 function CCSwitchProvider({ name, url, usage, updated, state }: CCSwitchProviderProps) {
-  const logo = name === 'OpenAI'
+  const logo = name === 'Anthropic'
+    ? <CCSwitchAppIcon app="claude-code" />
+    : name === 'OpenAI'
     ? <OpenAILogo />
     : name === 'MiniMax'
       ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6m4-10v14m4-17v20m4-15v10m4-12v14m4-10v6" /></svg>
@@ -227,8 +236,9 @@ function CCSwitchAppIcon({ app }: { app: CCSwitchApp }) {
   return <Icon size={17} strokeWidth={2} aria-hidden="true" />
 }
 
-function CCSwitchWindow({ view, baseURL, systemName }: { view: 'confirm' | 'enable'; baseURL: string | null; systemName: string }) {
+function CCSwitchWindow({ view, baseURL, systemName, clientId = 'codex' }: { view: 'confirm' | 'enable'; baseURL: string | null; systemName: string; clientId?: 'codex' | 'claude-code' }) {
   const endpoint = baseURL ?? 'https://你的 Sub2API 域名'
+  const clientName = clientId === 'claude-code' ? 'Claude Code' : 'Codex'
   return <div className="codex-product-window ccswitch-window" aria-hidden="true">
     <main className="ccswitch-main">
       <div className="ccswitch-window-controls"><i /><i /><i /></div>
@@ -246,7 +256,7 @@ function CCSwitchWindow({ view, baseURL, systemName }: { view: 'confirm' | 'enab
             ['opencode', 'OpenCode'],
             ['openclaw', 'OpenClaw'],
             ['hermes', 'Hermes'],
-          ] as const).map(([app, label]) => <span className={app === 'codex' ? 'is-current' : undefined} title={label} key={app} aria-label={label}>
+          ] as const).map(([app, label]) => <span className={app === clientId ? 'is-current' : undefined} title={label} key={app} aria-label={label}>
             <i className={`ccswitch-app-icon ccswitch-app-icon-${app}`}><CCSwitchAppIcon app={app} /></i>
           </span>)}
         </div>
@@ -266,37 +276,42 @@ function CCSwitchWindow({ view, baseURL, systemName }: { view: 'confirm' | 'enab
         <CCSwitchProvider name="PackyCode" url="https://www.packyapi.ai" usage="已使用：672　剩余：66 USD" updated="10 分钟前" state="active" />
         <CCSwitchProvider name="MiniMax" url="https://platform.minimaxi.com" usage="5h：43% · 2h40m　7d：12% · 6d" updated="2 分钟前" state="inactive" />
         <CCSwitchProvider name="OpenRouter" url="https://openrouter.ai" usage="" state="inactive" />
-        <CCSwitchProvider name="OpenAI" url="https://chatgpt.com/codex" usage="" state="inactive" />
+        {clientId === 'claude-code'
+          ? <CCSwitchProvider name="Anthropic" url="https://api.anthropic.com" usage="" state="inactive" />
+          : <CCSwitchProvider name="OpenAI" url="https://chatgpt.com/codex" usage="" state="inactive" />}
       </div>
       {view === 'confirm' && <div className="ccswitch-dialog-backdrop"><div className="ccswitch-confirm-dialog">
         <header><strong>导入供应商配置</strong><X size={16} /></header>
-        <div className="ccswitch-confirm-content"><span className="ccswitch-confirm-mark">⇧</span><div><strong>确认导入到 CC Switch？</strong><p>该 API Key 将作为 Codex 的供应商配置保存。</p></div></div>
-        <dl><div><dt>客户端</dt><dd>Codex</dd></div><div><dt>供应商名称</dt><dd>{systemName}</dd></div><div><dt>API 地址</dt><dd>{endpoint}</dd></div><div><dt>API Key</dt><dd>sk-••••••••••••</dd></div></dl>
+        <div className="ccswitch-confirm-content"><span className="ccswitch-confirm-mark">⇧</span><div><strong>确认导入到 CC Switch？</strong><p>该 API Key 将作为 {clientName} 的供应商配置保存。</p></div></div>
+        <dl><div><dt>客户端</dt><dd>{clientName}</dd></div><div><dt>供应商名称</dt><dd>{systemName}</dd></div><div><dt>API 地址</dt><dd>{endpoint}</dd></div><div><dt>API Key</dt><dd>sk-••••••••••••</dd></div></dl>
         <footer><span>取消</span><b>确认导入 <NumberCallout>{CODEX_STEP_MARKERS[2]}</NumberCallout></b></footer>
       </div></div>}
     </main>
   </div>
 }
 
-function CodexSketch({ step, baseURL, systemName, siteLogoUrl }: { step: number; baseURL: string | null; systemName: string; siteLogoUrl: string }) {
-  if (step === 0) return <Sub2APIKeyManagement highlight="create" showCreateDialog baseURL={baseURL} systemName={systemName} siteLogoUrl={siteLogoUrl} />
-  if (step === 1) return <Sub2APIKeyManagement highlight="import" baseURL={baseURL} systemName={systemName} siteLogoUrl={siteLogoUrl} />
-  if (step === 2) return <CCSwitchWindow view="confirm" baseURL={baseURL} systemName={systemName} />
-  if (step === 3) return <CCSwitchWindow view="enable" baseURL={baseURL} systemName={systemName} />
+function CodexSketch({ step, baseURL, systemName, siteLogoUrl, clientId }: { step: number; baseURL: string | null; systemName: string; siteLogoUrl: string; clientId: 'codex' | 'claude-code' }) {
+  if (step === 0) return <Sub2APIKeyManagement highlight="create" showCreateDialog baseURL={baseURL} systemName={systemName} siteLogoUrl={siteLogoUrl} clientId={clientId} />
+  if (step === 1) return <Sub2APIKeyManagement highlight="import" baseURL={baseURL} systemName={systemName} siteLogoUrl={siteLogoUrl} clientId={clientId} />
+  if (step === 2) return <CCSwitchWindow view="confirm" baseURL={baseURL} systemName={systemName} clientId={clientId} />
+  if (step === 3) return <CCSwitchWindow view="enable" baseURL={baseURL} systemName={systemName} clientId={clientId} />
   return null
 }
 
-function CodexCCSwitchDiagrams({ steps, baseURL, systemName, siteLogoUrl }: { steps: readonly string[]; baseURL: string | null; systemName: string; siteLogoUrl: string }) {
-  return <div className="codex-setup-diagrams" aria-label="Codex CC Switch 配置操作示意">
-    {CODEX_STEP_TITLES.map((title, index) => index === 4
-      ? <section id="codex-step-5" className="codex-setup-step codex-setup-text-step" key={title} aria-labelledby="codex-restart-step-title">
-        <h3 id="codex-restart-step-title">{title}</h3>
+function CodexCCSwitchDiagrams({ steps, baseURL, systemName, siteLogoUrl, clientId }: { steps: readonly string[]; baseURL: string | null; systemName: string; siteLogoUrl: string; clientId: 'codex' | 'claude-code' }) {
+  const titles = clientId === 'claude-code' ? CLAUDE_CODE_STEP_TITLES : CODEX_STEP_TITLES
+  const prefix = clientId === 'claude-code' ? 'claude-code-step' : 'codex-step'
+  const clientName = clientId === 'claude-code' ? 'Claude Code' : 'Codex'
+  return <div className="codex-setup-diagrams" aria-label={`${clientName} CC Switch 配置操作示意`}>
+    {titles.map((title, index) => index === 4
+      ? <section id={`${prefix}-5`} className="codex-setup-step codex-setup-text-step" key={title} aria-labelledby={`${prefix}-final-title`}>
+        <h3 id={`${prefix}-final-title`}>{title}</h3>
         <p>{steps[index] ?? title}</p>
       </section>
-      : <figure id={`codex-step-${index + 1}`} className="codex-setup-step" key={title} aria-label={`Codex 操作示意：${title}`}>
+      : <figure id={`${prefix}-${index + 1}`} className="codex-setup-step" key={title} aria-label={`${clientName} 操作示意：${title}`}>
         <figcaption><h3>{title}</h3></figcaption>
         <p>{steps[index] ?? title}</p>
-        <CodexSketch step={index} baseURL={baseURL} systemName={systemName} siteLogoUrl={siteLogoUrl} />
+        <CodexSketch step={index} baseURL={baseURL} systemName={systemName} siteLogoUrl={siteLogoUrl} clientId={clientId} />
       </figure>)}
     <p className="codex-setup-diagram-note">界面均为可编辑的 HTML/CSS 草图，不是客户端截图；不同版本的按钮位置和文案可能略有差异。</p>
   </div>
@@ -380,8 +395,8 @@ export function ClientSetupDiagram({ clientId, method, baseURL, model, steps = [
   systemName?: string
   siteLogoUrl?: string
 }) {
-  if (method === 'cc-switch' && (clientId === 'codex' || clientId === 'vscode-codex')) {
-    return <CodexCCSwitchDiagrams steps={steps} baseURL={baseURL} systemName={systemName} siteLogoUrl={siteLogoUrl} />
+  if (method === 'cc-switch' && (clientId === 'codex' || clientId === 'vscode-codex' || clientId === 'claude-code')) {
+    return <CodexCCSwitchDiagrams steps={steps} baseURL={baseURL} systemName={systemName} siteLogoUrl={siteLogoUrl} clientId={clientId === 'claude-code' ? 'claude-code' : 'codex'} />
   }
 
   const content = diagramContent(clientId, method, baseURL, model)

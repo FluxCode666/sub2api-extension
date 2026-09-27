@@ -36,6 +36,8 @@ interface HomepageConfig {
   consoleHref?: string
   trustedPartners?: unknown[]
   sub2apiPublished?: boolean
+  clientImportPublished?: boolean
+  asyncTasksPublished?: boolean
   [key: string]: unknown
 }
 
@@ -55,6 +57,8 @@ const DEFAULT_CONFIG: HomepageConfig = {
   consoleHref: '/admin',
   trustedPartners: [],
   sub2apiPublished: false,
+  clientImportPublished: false,
+  asyncTasksPublished: false,
 }
 
 function mergeConfig(value?: HomepageConfig): HomepageConfig {
@@ -77,6 +81,8 @@ export default function SystemConfigPage() {
   const [draftSiteLogoUrl, setDraftSiteLogoUrl] = useState(DEFAULT_CONFIG.siteLogoUrl ?? '')
   const [draftModel, setDraftModel] = useState(DEFAULT_MODEL)
   const [draftSub2APIPublished, setDraftSub2APIPublished] = useState(false)
+  const [draftClientImportPublished, setDraftClientImportPublished] = useState(false)
+  const [draftAsyncTasksPublished, setDraftAsyncTasksPublished] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -100,6 +106,8 @@ export default function SystemConfigPage() {
       setDraftSiteLogoUrl(nextConfig.siteLogoUrl?.trim() ?? '')
       setDraftModel(nextConfig.model)
       setDraftSub2APIPublished(nextConfig.sub2apiPublished === true)
+      setDraftClientImportPublished(nextConfig.clientImportPublished === true)
+      setDraftAsyncTasksPublished(nextConfig.asyncTasksPublished === true)
       setLogoPreviewFailed(false)
       if (showToast) toast.success('系统配置已刷新')
     } catch (reason) {
@@ -233,6 +241,8 @@ export default function SystemConfigPage() {
         siteLogoUrl: draftSiteLogoUrl,
         model,
         sub2apiPublished: draftSub2APIPublished,
+        clientImportPublished: draftClientImportPublished,
+        asyncTasksPublished: draftAsyncTasksPublished,
       })
       if (response.code !== 0 || !response.data) throw new Error(response.message || '系统配置保存失败')
       const savedConfig = mergeConfig(response.data)
@@ -243,8 +253,14 @@ export default function SystemConfigPage() {
       setDraftSiteLogoUrl(savedConfig.siteLogoUrl?.trim() ?? '')
       setDraftModel(savedConfig.model)
       setDraftSub2APIPublished(savedConfig.sub2apiPublished === true)
+      setDraftClientImportPublished(savedConfig.clientImportPublished === true)
+      setDraftAsyncTasksPublished(savedConfig.asyncTasksPublished === true)
       setLogoPreviewFailed(false)
-      toast.success('系统配置已保存', { description: 'Sub2API 系统名称、Logo 和 API 文档中的调用示例会立即更新。' })
+      if (response.reason) {
+        toast.warning('系统配置已保存，但菜单同步未完成', { description: response.reason })
+      } else {
+        toast.success('系统配置已保存', { description: 'Sub2API 系统名称、Logo 和 API 文档中的调用示例会立即更新。' })
+      }
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : '系统配置保存失败'
       setError(message)
@@ -261,6 +277,8 @@ export default function SystemConfigPage() {
     setDraftSiteLogoUrl(DEFAULT_CONFIG.siteLogoUrl ?? '')
     setDraftModel(DEFAULT_MODEL)
     setDraftSub2APIPublished(false)
+    setDraftClientImportPublished(false)
+    setDraftAsyncTasksPublished(false)
     setLogoPreviewFailed(false)
     setError('')
   }
@@ -271,6 +289,8 @@ export default function SystemConfigPage() {
     && draftSiteLogoUrl === (DEFAULT_CONFIG.siteLogoUrl ?? '')
     && draftModel === DEFAULT_MODEL
     && !draftSub2APIPublished
+    && !draftClientImportPublished
+    && !draftAsyncTasksPublished
 
   if (loading) {
     return (
@@ -415,14 +435,38 @@ export default function SystemConfigPage() {
           </div>
           <div className="aux-system-config-publication">
             <div>
-              <span>上架到 Sub2API</span>
-              <small>开启后会将当前系统入口添加到 Sub2API 用户菜单，关闭后会移除该菜单项。</small>
+              <span>扩展控制台上架到 Sub2API</span>
+              <small>开启后会将扩展控制台入口添加到 Sub2API 管理员菜单，关闭后会移除该菜单项。</small>
             </div>
             <Switch
               checked={draftSub2APIPublished}
               onCheckedChange={setDraftSub2APIPublished}
               disabled={saving}
               aria-label="上架到 Sub2API"
+            />
+          </div>
+          <div className="aux-system-config-publication">
+            <div>
+              <span>客户端导入页上架到 Sub2API</span>
+              <small>开启后会将“客户端导入”添加到 Sub2API 用户菜单，用户可选择 API Key 并导入 CC Switch、Cherry Studio 或 ChatBox。</small>
+            </div>
+            <Switch
+              checked={draftClientImportPublished}
+              onCheckedChange={setDraftClientImportPublished}
+              disabled={saving}
+              aria-label="客户端导入页上架到 Sub2API"
+            />
+          </div>
+          <div className="aux-system-config-publication">
+            <div>
+              <span>异步任务页上架到 Sub2API</span>
+              <small>开启后会将“异步任务”添加到 Sub2API 用户菜单，用户可查看自己近期的异步生图、Grok 视频和批量生图任务。</small>
+            </div>
+            <Switch
+              checked={draftAsyncTasksPublished}
+              onCheckedChange={setDraftAsyncTasksPublished}
+              disabled={saving}
+              aria-label="异步任务页上架到 Sub2API"
             />
           </div>
           <div className="aux-system-config-actions">

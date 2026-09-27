@@ -4,7 +4,6 @@ import { ClientSetupDiagram } from './ClientSetupDiagram'
 
 describe('ClientSetupDiagram', () => {
   it.each([
-    ['claude-code', 'https://gateway.test', 'Anthropic Messages'],
     ['claude-desktop', 'https://gateway.test', 'Anthropic Messages'],
     ['grok-build', 'https://gateway.test/v1', 'OpenAI Chat Completions'],
     ['pi', 'https://gateway.test/v1', 'OpenAI Chat Completions'],
@@ -18,6 +17,27 @@ describe('ClientSetupDiagram', () => {
     expect(diagram).toHaveTextContent('my-model')
     expect(diagram).toHaveTextContent('sk-YOUR_API_KEY')
     expect(diagram.querySelector('img')).not.toBeInTheDocument()
+  })
+
+  it('illustrates Claude Code key import with the selected client, configured brand and five matching anchors', () => {
+    const { container } = render(<ClientSetupDiagram clientId="claude-code" method="cc-switch" baseURL="https://gateway.test" model="claude-opus-5" systemName="演示网关" siteLogoUrl="/brand.svg" steps={['创建密钥', '导入密钥', '核对弹窗', '启用配置', '打开新终端运行 claude']} />)
+    const figures = screen.getAllByRole('figure')
+
+    expect(figures).toHaveLength(4)
+    expect(figures.map(figure => figure.id)).toEqual(['claude-code-step-1', 'claude-code-step-2', 'claude-code-step-3', 'claude-code-step-4'])
+    expect(figures[0].querySelector('.sub2api-vendor-options .is-selected')).toHaveTextContent('Anthropic')
+    expect(figures[1].querySelector('.sub2api-key-actions .is-highlighted')).toHaveTextContent('导入到 CCS②')
+    expect(figures[2].querySelector('.ccswitch-app-tabs .is-current')).toHaveAttribute('aria-label', 'Claude Code')
+    expect(figures[2].querySelector('.ccswitch-confirm-dialog')).toHaveTextContent('客户端Claude Code')
+    expect(figures[2].querySelector('.ccswitch-confirm-dialog')).toHaveTextContent('供应商名称演示网关')
+    expect(figures[2]).not.toHaveTextContent('chatgpt.com/codex')
+    expect(figures[3].querySelector('.ccswitch-provider-info')).toHaveTextContent('演示网关')
+    expect(figures[3].querySelector('.ccswitch-provider-logo-anthropic img')).toBeInTheDocument()
+    expect(figures[3].querySelector('.ccswitch-provider-actions')).toHaveTextContent('启用④')
+    expect(container.querySelectorAll('.sub2api-brand img')).toHaveLength(2)
+    expect(container.querySelector('#claude-code-step-5')).toHaveTextContent('打开新终端运行 claude')
+    expect(container.querySelector('#claude-code-step-5 .codex-product-window')).not.toBeInTheDocument()
+    expect(container.querySelectorAll('.codex-product-window')).toHaveLength(4)
   })
 
   it('draws the first four Codex actions as editable UI sketches and leaves restart as text', () => {

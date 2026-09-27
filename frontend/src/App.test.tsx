@@ -52,6 +52,10 @@ vi.mock('@/pages/UserGuidePage', () => ({
   default: () => <h1>user-guide-page</h1>,
 }))
 
+vi.mock('@/pages/AsyncTasksPortalPage', () => ({
+  default: () => <h1>async-tasks-portal-page</h1>,
+}))
+
 vi.mock('@/pages/TicketsPortalPage', () => ({
   default: () => <h1>tickets-portal-page</h1>,
 }))
@@ -85,6 +89,10 @@ describe('App routing', () => {
   it('opens the ticket portal as a public Sub2API menu page', async () => {
     render(<MemoryRouter initialEntries={['/tickets']}><App /></MemoryRouter>)
     expect(await screen.findByRole('heading', { name: 'tickets-portal-page' })).toBeInTheDocument()
+  })
+  it('opens the async task portal as a public Sub2API menu page', async () => {
+    render(<MemoryRouter initialEntries={['/async-tasks']}><App /></MemoryRouter>)
+    expect(await screen.findByRole('heading', { name: 'async-tasks-portal-page' })).toBeInTheDocument()
   })
   it('redirects the root path to the admin dashboard', async () => {
     render(

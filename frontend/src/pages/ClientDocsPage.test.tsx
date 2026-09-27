@@ -54,8 +54,8 @@ describe('ClientDocsPage', () => {
     renderPage('/client-docs?client=claude-code&embed=1')
     expect(trackFeatureClick).not.toHaveBeenCalled()
 
-    fireEvent.click(within(screen.getByRole('navigation', { name: '本页内容' })).getByRole('link', { name: '配置连接' }))
-    fireEvent.click(within(screen.getByRole('navigation', { name: '当前指南章节' })).getByRole('link', { name: '安装客户端与 CC Switch' }))
+    fireEvent.click(within(screen.getByRole('navigation', { name: '本页内容' })).getByRole('link', { name: '导入到 CCS' }))
+    fireEvent.click(within(screen.getByRole('navigation', { name: '当前指南章节' })).getByRole('link', { name: '安装 Claude Code 与 CC Switch' }))
     expect(screen.queryByText('已安装客户端？')).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: '直接配置' })).not.toBeInTheDocument()
     const windowsTab = screen.getByRole('tab', { name: 'Windows' })
@@ -65,7 +65,7 @@ describe('ClientDocsPage', () => {
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'macOS / Linux' }), { button: 0 })
 
     expect(vi.mocked(trackFeatureClick).mock.calls).toEqual([
-      ['client-docs', 'section-claude-code-cc-switch-configure'],
+      ['client-docs', 'section-claude-code-cc-switch-claude-code-step-2'],
       ['client-docs', 'section-claude-code-cc-switch-install'],
       ['client-docs', 'platform-claude-code-windows'],
       ['client-docs', 'platform-claude-code-unix'],
@@ -331,7 +331,8 @@ describe('ClientDocsPage', () => {
     expect(claudeGuide.getAttribute('href')).not.toContain('private-token')
     fireEvent.click(claudeGuide)
     expect(screen.getByRole('heading', { name: 'Claude Code 接入指南' })).toBeInTheDocument()
-    expect(screen.getByLabelText('API 基础地址')).toHaveValue('https://gateway.test')
+    expect(screen.queryByLabelText('API 基础地址')).not.toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'Claude Code 操作示意：点击「导入到 CCS」' })).toHaveTextContent('https://gateway.test')
     fireEvent.change(screen.getByRole('searchbox', { name: '搜索客户端' }), { target: { value: 'Paseo' } })
     fireEvent.click(within(directory).getByRole('button', { name: 'Paseo' }))
     expect(screen.getByRole('link', { name: '下载 Paseo' })).toHaveAttribute('href', 'https://paseo.sh/download')
@@ -365,7 +366,7 @@ describe('ClientDocsPage', () => {
       expect(params.has('token')).toBe(false)
       fireEvent.click(link)
       expect(screen.getByRole('heading', { name: `${name} 接入指南` })).toBeInTheDocument()
-      if (id === 'codex') {
+      if (id === 'codex' || id === 'claude-code') {
         expect(screen.queryByLabelText('API 基础地址')).not.toBeInTheDocument()
         expect(screen.getAllByRole('figure')).toHaveLength(4)
       } else {
@@ -429,7 +430,6 @@ describe('ClientDocsPage', () => {
   })
 
   it.each([
-    ['claude-code', 'Claude Code', 'https://gateway.test/proxy'],
     ['claude-desktop', 'Claude Desktop', 'https://gateway.test/proxy'],
     ['grok-build', 'Grok Build', 'https://gateway.test/proxy/v1'],
   ])('renders the in-page CC Switch method for %s with live parameters', async (id, name, expectedBase) => {
@@ -491,6 +491,57 @@ describe('ClientDocsPage', () => {
     expect(screen.queryByRole('tab', { name: 'Codex CLI' })).not.toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'CC Switch · Codex Desktop 配置' })).toHaveTextContent('导入到 CCS')
     expect(screen.getAllByRole('figure')).toHaveLength(4)
+  })
+
+  it('shows Claude Code key import as five navigable steps and keeps manual setup separate', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ code: 0, data: { siteName: '演示网关', siteLogoUrl: '/brand.svg' } })
+    renderPage('/client-docs?client=claude-code&api_base=https%3A%2F%2Fgateway.test')
+    await waitFor(() => expect(document.querySelector('.sub2api-brand strong')).toHaveTextContent('演示网关'))
+
+    const toc = within(screen.getByRole('navigation', { name: '本页内容' }))
+    const steps = [
+      ['安装 Claude Code 与 CC Switch', 'install'],
+      ['创建 API Key', 'claude-code-step-1'],
+      ['导入到 CCS', 'claude-code-step-2'],
+      ['确认导入', 'claude-code-step-3'],
+      ['启用配置', 'claude-code-step-4'],
+      ['打开 Claude Code', 'claude-code-step-5'],
+      ['验证接入', 'verify'],
+    ] as const
+    for (const [title, id] of steps) {
+      expect(toc.getByRole('link', { name: title })).toHaveAttribute('href', `#${id}`)
+      expect(document.getElementById(id)).toBeInTheDocument()
+    }
+    fireEvent.click(toc.getByRole('link', { name: '确认导入' }))
+    expect(document.getElementById('claude-code-step-3')?.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' })
+    expect(document.querySelector('.client-breadcrumb')).toHaveTextContent('CC Switch')
+    const config = screen.getByRole('region', { name: 'CC Switch · Claude Code 配置' })
+    expect(within(config).getAllByRole('figure')).toHaveLength(4)
+    expect(config.querySelector('#claude-code-step-5')).toHaveTextContent('重新打开终端')
+    expect(config.querySelector('.client-parameter-details')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('API 基础地址')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('模型名称')).not.toBeInTheDocument()
+    expect([...config.querySelectorAll('.sub2api-brand img')].every(logo => logo.getAttribute('src')?.endsWith('/brand.svg'))).toBe(true)
+
+    fireEvent.mouseDown(screen.getByRole('tab', { name: '手动配置' }), { button: 0 })
+    expect(within(screen.getByRole('navigation', { name: '本页内容' })).getByRole('link', { name: '准备接入信息' })).toHaveAttribute('href', '#prepare')
+    expect(within(screen.getByRole('navigation', { name: '本页内容' })).queryByRole('link', { name: '创建 API Key' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('API 基础地址')).toHaveValue('https://gateway.test')
+    expect(screen.getByRole('button', { name: '复制终端环境变量' })).toBeInTheDocument()
+  })
+
+  it('closes the mobile contents menu before scrolling to a Claude Code step', () => {
+    renderPage('/client-docs?client=claude-code')
+    const menu = document.querySelector('.client-mobile-toc') as HTMLDetailsElement
+    fireEvent.click(within(menu).getByText('本页内容'))
+    expect(menu.open).toBe(true)
+    const scrollTo = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(function (this: Element) {
+      if (this.id === 'claude-code-step-4') expect(menu.open).toBe(false)
+    })
+
+    fireEvent.click(within(menu).getByRole('link', { name: '启用配置' }))
+    expect(scrollTo).toHaveBeenCalled()
+    expect(menu.open).toBe(false)
   })
 
   it('keeps Codex focused on the Desktop path for first-time users', () => {
@@ -600,6 +651,17 @@ describe('ClientDocsPage', () => {
     expect(document.querySelector('.client-docs')).toHaveClass('client-docs--embedded')
     expect(screen.queryByRole('banner')).not.toBeInTheDocument()
     expect(document.body.textContent).not.toContain('private-token')
+  })
+
+  it('exposes the client import entry without forwarding credentials', () => {
+    renderPage('/client-docs?theme=dark&token=private-token&api_base=https%3A%2F%2Fgateway.test')
+
+    const link = screen.getByRole('link', { name: '打开客户端导入' })
+    expect(link).toHaveAttribute('href', expect.stringContaining('/client-import'))
+    expect(link.getAttribute('href')).toContain('theme=dark')
+    expect(link.getAttribute('href')).toContain('api_base=https%3A%2F%2Fgateway.test')
+    expect(link.getAttribute('href')).not.toContain('token')
+    expect(screen.getByRole('link', { name: '导入已有 API Key' })).toHaveAttribute('href', expect.stringContaining('/client-import'))
   })
 
   it.each([

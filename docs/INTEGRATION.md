@@ -68,6 +68,8 @@ Sub2API HTTP API 配置；扩展不会调用 Sub2API 的首字延迟接口。
 促销返利还应配置 `SUB2API_REDIS_HOST`（及对应凭据），这样入账后会立即删除
 Sub2API 的用户余额缓存；未配置时数据库余额仍会更新，但网关最多可能在余额缓存 TTL
 内显示旧值。
+用户端异步任务页（`/async-tasks`）同样依赖 `SUB2API_REDIS_*` 读取异步生图和 Grok
+视频提交记录；未配置 Redis 时页面仍可显示批量生图任务，并提示其余来源不可用。
 
 启动并检查：
 
@@ -133,6 +135,34 @@ Sub2API 会把 URL 作为 iframe 地址。官网内容通过 `/admin/pages` 维�
   }
 ]
 ```
+
+客户端导入工具推荐在扩展管理端的「系统配置」中打开“客户端导入页上架到 Sub2API”。保存后会自动同步以下用户菜单项；关闭开关会移除该菜单。若暂时不能使用扩展的 Sub2API 数据库集成，也可以手动配置以下菜单项。Sub2API 会为 iframe 自动附加用户 token，页面据此读取当前用户的有效 API Key：
+
+```json
+{
+  "id": "aux-client-import",
+  "label": "客户端导入",
+  "icon_svg": "",
+  "url": "https://aux.example.com/client-import",
+  "page_slug": "",
+  "visibility": "user",
+  "sort_order": 110
+}
+```
+
+用户端异步任务页在「系统配置」中打开“异步任务页上架到 Sub2API”后，会同步用户菜单 `aux-async-tasks`（标签“异步任务”，URL `/async-tasks`，`visibility=user`，iframe 模式）；关闭开关会移除该菜单，服务重启时按持久化状态恢复或移除。菜单已存在时保留管理员修改过的图标和排序。
+
+页面调用 `GET /api/aux/async-tasks?kind=&status=&model=&api_key_id=&keyword=&created_from=&created_to=&page=&page_size=`，接口位于 `UserGuard` 下，任务归属只取 `X-Aux-Token` 在 Sub2API `/auth/me` 验证得到的用户 ID，忽略请求中的 `user_id`。数据全部只读，不调用网关、不使用用户 API Key：
+
+| 类型 | 来源 | 说明 |
+|------|------|------|
+| 异步生图 | Redis `image_task:<id>`（24 小时 TTL） | 按记录中的 `user_id` 过滤；只返回 http(s) 结果链接，丢弃 base64 数据和带凭据的 URL，错误信息截断到 300 字 |
+| Grok 视频 | Redis `grok_video_pending:<uid>:<key>:<req>`、`grok_video_billed:*`，数据库 `usage_logs`（`request_id` 以 `grok-video:` 开头） | 只有提交快照时显示“等待结果”；存在计费标记或使用记录时显示“已完成”并展示实际费用。视频成品需要调用端继续轮询获取，本页不代查 |
+| 批量生图 | 数据库 `batch_image_jobs` | 运行时探测可选列 `task_name`、`user_deleted_at`；表不存在时返回空列表 |
+
+查询参数：`kind`（`image`/`video`/`batch`）、`status`（`processing`/`pending`/`completed`/`failed`/`cancelled`）、`model`（精确匹配）、`api_key_id`（正整数）、`keyword`（按任务 ID 或批量任务名做不区分大小写的包含匹配，最多 128 字）；`created_from`、`created_to` 为带时区的 RFC3339 时间，起点包含、终点不包含，终点必须晚于起点；`page_size` 最大 100。参数非法返回 400。前端把本地日期转换为当日零点，结束日期取次日零点。响应中的 `summary` 在日期/模型/Key/关键字条件后统计，类型计数不受类型筛选影响、状态计数跟随类型筛选；`filter_options.models` / `filter_options.api_keys` 来自用户全部近期任务，用于下拉选项。
+
+Redis 没有按用户的索引，因此后端使用 `SCAN` 读取快照：单次最多 200 次 `SCAN`（`COUNT 1000`）或 20000 个键、总超时 4 秒，结果进程内缓存 10 秒；达到上限时页面提示“只读取到部分近期记录”。数据库查询回看 30 天，每个来源最多 200 条。任一来源失败时返回其余来源并在页面上提示，全部失败时返回 503。
 
 字段约束：
 
@@ -208,7 +238,7 @@ https://aux.example.com/api-docs?embed=1&api_base=https%3A%2F%2Fapi.example.com
 
 ### 2.5 动态配置系统名称与示例模型
 
-管理员可以在扩展管理端的“系统配置”（`/admin/system-config`）修改系统名称、系统 Logo、系统定位（ToC/ToB）和“API 文档调用示例默认模型”。系统名称使用官网配置的 `siteName`，兼容旧配置的 `heroTitle`；Logo 保存为 `siteLogoUrl`，支持选择或拖拽 PNG、JPEG、GIF、WebP 图片上传，上传文件由现有图片资源服务校验并写入持久卷。`systemPosition` 保存为 `toc`（默认）或 `tob`，决定 API 文档和客户端接入文档的官网入口分别使用 `/sub2api-home` 或 `/tob-home`。默认模型为 `gpt-6-astra`。保存名称时保留官网 Hero 标题。官网与 API 文档会在下一次打开或刷新时使用新名称和 Logo，首页预览、快速开始及各接口的 cURL / Python / Go / Java 示例会使用新模型。配置保存在扩展的 `system_meta` 中，不需要重新部署页面。
+管理员可以在扩展管理端的“系统配置”（`/admin/system-config`）修改系统名称、系统 Logo、系统定位（ToC/ToB）、“API 文档调用示例默认模型”和客户端导入页是否上架到 Sub2API。开启客户端导入上架后，扩展会将 `/client-import` 以 `visibility=user` 和 iframe 模式同步到 Sub2API 用户菜单；页面要求通过该菜单打开，以便获得当前用户 token 并读取 API Key。系统名称使用官网配置的 `siteName`，兼容旧配置的 `heroTitle`；Logo 保存为 `siteLogoUrl`，支持选择或拖拽 PNG、JPEG、GIF、WebP 图片上传，上传文件由现有图片资源服务校验并写入持久卷。`systemPosition` 保存为 `toc`（默认）或 `tob`，决定 API 文档和客户端接入文档的官网入口分别使用 `/sub2api-home` 或 `/tob-home`。默认模型为 `gpt-6-astra`。保存名称时保留官网 Hero 标题。官网与 API 文档会在下一次打开或刷新时使用新名称和 Logo，首页预览、快速开始及各接口的 cURL / Python / Go / Java 示例会使用新模型。配置保存在扩展的 `system_meta` 中，不需要重新部署页面。
 
 ## 3. 页面管理与 Dashboard
 

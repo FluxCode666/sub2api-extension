@@ -47,6 +47,17 @@ const CODEX_CC_SWITCH_SECTIONS = [
   { id: 'troubleshooting', title: '常见问题' },
 ] as const
 
+const CLAUDE_CODE_CC_SWITCH_SECTIONS = [
+  { id: 'install', title: '安装 Claude Code 与 CC Switch' },
+  { id: 'claude-code-step-1', title: '创建 API Key' },
+  { id: 'claude-code-step-2', title: '导入到 CCS' },
+  { id: 'claude-code-step-3', title: '确认导入' },
+  { id: 'claude-code-step-4', title: '启用配置' },
+  { id: 'claude-code-step-5', title: '打开 Claude Code' },
+  { id: 'verify', title: '验证接入' },
+  { id: 'troubleshooting', title: '常见问题' },
+] as const
+
 const CLIENT_TOPICS: { title: string; clients: ClientId[] }[] = [
   { title: 'Codex', clients: ['codex'] },
   { title: 'Claude', clients: ['claude-code', 'claude-desktop'] },
@@ -244,18 +255,21 @@ export default function ClientDocsPage() {
   const hasCCSwitch = !!ccSwitchGuide || !!guide.ccSwitch
   const setupMethod = hasCCSwitch && (guide.id === 'claude-desktop' || params.get('method') !== 'manual') ? 'cc-switch' : 'manual'
   const usesCodexCCSwitchFlow = setupMethod === 'cc-switch' && (guide.id === 'codex' || guide.id === 'vscode-codex')
+  const usesClaudeCodeCCSwitchFlow = setupMethod === 'cc-switch' && guide.id === 'claude-code'
+  const usesKeyImportFlow = usesCodexCCSwitchFlow || usesClaudeCodeCCSwitchFlow
   const pageSections = isCodex
     ? (usesCodexCCSwitchFlow ? CODEX_CC_SWITCH_SECTIONS : CODEX_GUIDE_SECTIONS).map(section => section.id === 'configure'
       ? { ...section, title: setupMethod === 'cc-switch' ? '导入并启动' : '手动配置' }
       : section)
-    : setupMethod === 'cc-switch' ? CC_SWITCH_GUIDE_SECTIONS : GUIDE_SECTIONS
+    : usesClaudeCodeCCSwitchFlow ? CLAUDE_CODE_CC_SWITCH_SECTIONS
+      : setupMethod === 'cc-switch' ? CC_SWITCH_GUIDE_SECTIONS : GUIDE_SECTIONS
   const viewKey = `${guide.id}:${setupMethod}`
   const activeTopic = CLIENT_TOPICS.find(topic => topic.clients.includes(guide.id)) ?? CLIENT_TOPICS[0]
   const [platform, setPlatform] = useState<GuidePlatform>('unix')
   const [baseInput, setBaseInput] = useState(() => initialBaseURL(params.toString()))
   const [models, setModels] = useState<Partial<Record<ClientId, string>>>({})
   const [searchQuery, setSearchQuery] = useState('')
-  const [activeSection, setActiveSection] = useState(isCodex ? 'configure' : 'prepare')
+  const [activeSection, setActiveSection] = useState(isCodex ? 'configure' : usesClaudeCodeCCSwitchFlow ? 'install' : 'prepare')
   const [systemName, setSystemName] = useState(DEFAULT_SUB2API_SYSTEM_NAME)
   const [siteLogoUrl, setSiteLogoUrl] = useState(DEFAULT_HOMEPAGE_CONFIG.siteLogoUrl)
   const [systemPosition, setSystemPosition] = useState<SystemPosition>(DEFAULT_SYSTEM_POSITION)
@@ -307,6 +321,7 @@ export default function ClientDocsPage() {
   for (const key of ['embed', 'ui_mode', 'theme']) { const value = params.get(key); if (value) apiParams.set(key, value) }
   if (baseURL) apiParams.set('api_base', baseURL)
   const apiDocsHref = toCurrentOriginURI(`/api-docs${apiParams.size ? `?${apiParams}` : ''}`)
+  const clientImportHref = `/client-import${apiParams.size ? `?${apiParams}` : ''}`
   const homeHref = toCurrentOriginURI(homepagePathForPosition(systemPosition))
   const consoleURI = toCurrentOriginURI(toSameOriginPath(consoleHref, '/admin'), { includeAppBasePath: false })
   const prerequisiteGuides = (guide.prerequisiteClients ?? []).map(getClientGuide)
@@ -328,10 +343,10 @@ export default function ClientDocsPage() {
   </div>
 
   const faqs = [
-    { title: '返回 401 / 403，怎么处理？', text: usesCodexCCSwitchFlow ? '确认导入的是目标 API Key，并在 CC Switch 中启用了对应配置；再检查密钥是否有效、是否有模型与分组权限，以及账户额度是否可用。' : '确认使用的是平台控制台创建的 API Key，复制时没有多余空格。再检查密钥是否启用、是否有模型与分组权限，以及账户额度是否可用。' },
-    { title: 'API 地址到底要不要加 /v1？', text: usesCodexCCSwitchFlow ? 'API Key 导入会带入连接配置，本流程无需在本页手动填写地址。若改用手动配置，Codex 的 base_url 填网关根地址，不加 /v1；Pi、Hermes 等配置会由本页按客户端自动补齐所需路径。' : '上方统一填写网关根地址。Codex 的 base_url，以及 Claude Code、Obsidian Claudian、Claude Desktop 与 ZCode 本示例的接口地址均不加 /v1；Pi、Hermes 等配置会由本页按客户端自动补齐所需路径。' },
+    { title: '返回 401 / 403，怎么处理？', text: usesKeyImportFlow ? '确认导入的是目标 API Key，并在 CC Switch 中启用了对应配置；再检查密钥是否有效、是否有模型与分组权限，以及账户额度是否可用。' : '确认使用的是平台控制台创建的 API Key，复制时没有多余空格。再检查密钥是否启用、是否有模型与分组权限，以及账户额度是否可用。' },
+    { title: 'API 地址到底要不要加 /v1？', text: usesKeyImportFlow ? `API Key 导入会带入连接配置，本流程无需在本页手动填写地址。若改用手动配置，${usesClaudeCodeCCSwitchFlow ? 'Claude Code 的 ANTHROPIC_BASE_URL' : 'Codex 的 base_url'} 填网关根地址，不加 /v1。` : '上方统一填写网关根地址。Codex 的 base_url，以及 Claude Code、Obsidian Claudian、Claude Desktop 与 ZCode 本示例的接口地址均不加 /v1；Pi、Hermes 等配置会由本页按客户端自动补齐所需路径。' },
     { title: '提示模型不存在或接口 404？', text: '模型名称需要与平台提供的模型 ID 完全一致，密钥所属分组也要支持指南标注的协议：Codex 使用 Responses，Claude Code、Claude Desktop、Obsidian Claudian 与 ZCode 示例使用 Messages，Pi、Hermes 与其他示例使用 Chat Completions。Paseo 沿用所选客户端的协议与配置。' },
-    { title: '修改配置后为什么没有生效？', text: usesCodexCCSwitchFlow ? guide.id === 'vscode-codex' ? '确认 CC Switch 中刚导入的 Codex 配置处于启用状态，然后重载 VS Code 或 Cursor 窗口，让扩展重新读取配置。' : '确认 CC Switch 中刚导入的 Codex 配置处于启用状态，然后完全退出并重新打开 Codex Desktop。' : '环境变量只影响当前终端及其启动的程序。请从设置变量的终端启动客户端，并检查是否有项目配置覆盖了用户配置。OpenClaw 服务需重启；Pi 重新打开 /model 读取模型文件。' },
+    { title: '修改配置后为什么没有生效？', text: usesClaudeCodeCCSwitchFlow ? '确认在 CC Switch 的 Claude Code 面板中已启用刚导入的配置，再打开新终端运行 claude；若有旧环境变量或项目配置覆盖用户设置，先检查并清理冲突。' : usesCodexCCSwitchFlow ? guide.id === 'vscode-codex' ? '确认 CC Switch 中刚导入的 Codex 配置处于启用状态，然后重载 VS Code 或 Cursor 窗口，让扩展重新读取配置。' : '确认 CC Switch 中刚导入的 Codex 配置处于启用状态，然后完全退出并重新打开 Codex Desktop。' : '环境变量只影响当前终端及其启动的程序。请从设置变量的终端启动客户端，并检查是否有项目配置覆盖了用户配置。OpenClaw 服务需重启；Pi 重新打开 /model 读取模型文件。' },
   ]
 
   function selectTheme(value: string) {
@@ -348,14 +363,14 @@ export default function ClientDocsPage() {
     if (id === guide.id) articleRef.current?.scrollIntoView({ behavior: 'instant', block: 'start' })
     setParams(current => { const next = new URLSearchParams(current); next.set('client', id); next.delete('method'); next.delete('target'); return next })
     setSearchQuery('')
-    setActiveSection(id === 'codex' ? 'configure' : 'prepare')
+    setActiveSection(id === 'codex' ? 'configure' : id === 'claude-code' ? 'install' : 'prepare')
     trackFeatureClick('client-docs', `select-${id}`)
   }
 
   function selectSetupMethod(method: string) {
     if (method !== 'cc-switch' && method !== 'manual') return
     setParams(current => { const next = new URLSearchParams(current); next.set('method', method); return next })
-    setActiveSection(isCodex ? 'configure' : 'prepare')
+    setActiveSection(isCodex ? 'configure' : guide.id === 'claude-code' && method === 'cc-switch' ? 'install' : 'prepare')
     trackFeatureClick('client-docs', `method-${guide.id}-${method}`)
   }
 
@@ -473,6 +488,7 @@ export default function ClientDocsPage() {
         <div className="client-header-tools">
           <a className="client-header-home" href={homeHref} target="_top" aria-label="返回官网" onClick={() => trackFeatureClick('client-docs', 'open-home')}><Home size={17} aria-hidden="true" /><span>官网</span></a>
           <a className="client-header-api" href={apiDocsHref} target="_top" onClick={() => trackFeatureClick('client-docs', 'open-api-docs')} aria-label="查看 API 文档">API 参考 <ArrowUpRight size={16} aria-hidden="true" /></a>
+          <Link className="client-header-import" to={clientImportHref} onClick={() => trackFeatureClick('client-docs', 'open-client-import')} aria-label="打开客户端导入"><KeyRound size={17} aria-hidden="true" /><span>客户端导入</span></Link>
           <div className="client-theme-picker">
             <ThemeIcon size={16} aria-hidden="true" />
             <select aria-label="外观主题" value={themePreference} onChange={event => selectTheme(event.target.value)}>
@@ -498,6 +514,7 @@ export default function ClientDocsPage() {
         </nav>
         {search && visibleGuides.length === 0 && <div className="client-search-empty" role="status"><p>未找到匹配的接入指南</p><Button type="button" variant="link" className="client-inline-link" onClick={clearSearch}>显示全部指南</Button></div>}
         <p className="client-sidebar-note">选择客户端，查看安装、配置与验证步骤。</p>
+        <Link className="client-sidebar-import" to={clientImportHref} onClick={() => trackFeatureClick('client-docs', 'open-client-import')}><KeyRound size={15} aria-hidden="true" />导入已有 API Key</Link>
         <a className="client-sidebar-reference" href={apiDocsHref} target="_top" onClick={() => trackFeatureClick('client-docs', 'open-api-docs')}>查阅 API 参考 <ArrowUpRight size={15} aria-hidden="true" /></a>
       </div></aside>
 
@@ -511,7 +528,7 @@ export default function ClientDocsPage() {
             </SelectContent>
           </Select></div>
         </div>
-        <div className="client-breadcrumb"><span>客户端接入</span><span>/</span><span>{activeTopic.title}</span>{activeTopic.clients.length > 1 && <><span>/</span><span>{guide.name}</span></>}{usesCodexCCSwitchFlow && <><span>/</span><span>CC Switch</span></>}</div>
+        <div className="client-breadcrumb"><span>客户端接入</span><span>/</span><span>{activeTopic.title}</span>{activeTopic.clients.length > 1 && <><span>/</span><span>{guide.name}</span></>}{usesKeyImportFlow && <><span>/</span><span>CC Switch</span></>}</div>
         <div className="client-article-heading">
           <div className="client-guide-title-row"><ClientMark id={guide.id} /><h1 id="guide-title">{guide.name} 接入指南</h1></div>
           <p>{guideDescription}</p>
@@ -522,9 +539,9 @@ export default function ClientDocsPage() {
           {hasCCSwitch && guide.id !== 'claude-desktop' && <TabsList aria-label="配置方式" className="client-tab-list"><TabsTrigger id="client-method-cc-switch" aria-controls="client-method-panel" value="cc-switch" className="client-tab-trigger"><Waypoints size={16} aria-hidden="true" />CC Switch（推荐）</TabsTrigger><TabsTrigger id="client-method-manual" aria-controls="client-method-panel" value="manual" className="client-tab-trigger">手动配置</TabsTrigger></TabsList>}
           <TabsContent id="client-method-panel" value={setupMethod} forceMount className="client-guide-panel" role={hasCCSwitch && guide.id !== 'claude-desktop' ? 'tabpanel' : 'group'} aria-labelledby={hasCCSwitch && guide.id !== 'claude-desktop' ? `client-method-${setupMethod}` : undefined} aria-label={hasCCSwitch && guide.id !== 'claude-desktop' ? undefined : `${guide.name} 接入步骤`}>
         <Tabs value={platform} onValueChange={value => selectPlatform(value as GuidePlatform)} className="client-platform-mode">
-        <details className="client-mobile-toc" key={`toc-${viewKey}`}><summary>本页内容 <ChevronDown size={16} aria-hidden="true" /></summary><nav aria-label="当前指南章节">{pageSections.map(section => <a key={section.id} href={`#${section.id}`} onClick={event => { event.preventDefault(); selectSection(section.id); event.currentTarget.closest('details')?.removeAttribute('open') }}>{section.title}</a>)}</nav></details>
+        <details className="client-mobile-toc" key={`toc-${viewKey}`}><summary>本页内容 <ChevronDown size={16} aria-hidden="true" /></summary><nav aria-label="当前指南章节">{pageSections.map(section => <a key={section.id} href={`#${section.id}`} onClick={event => { event.preventDefault(); event.currentTarget.closest('details')?.removeAttribute('open'); selectSection(section.id) }}>{section.title}</a>)}</nav></details>
 
-          {!isCodex && <section id="prepare" className="client-guide-section">
+          {!isCodex && !usesClaudeCodeCCSwitchFlow && <section id="prepare" className="client-guide-section">
             <div className="client-step-heading"><h2>准备接入信息</h2></div>
             {guide.endpoint ? <><p>在平台控制台创建 API Key，确认可用模型与额度，然后填写下面两项。后续示例会自动更新。</p>
             <div className="client-settings">
@@ -535,7 +552,7 @@ export default function ClientDocsPage() {
           </section>}
 
           {!isCodex && <section id="install" className="client-guide-section">
-            <div className="client-step-heading"><h2>{setupMethod === 'cc-switch' ? `安装 ${isCodex ? codexClientName : '客户端'} 与 CC Switch` : `安装 ${isCodex ? codexClientName : '客户端'}`}</h2></div>
+            <div className="client-step-heading"><h2>{setupMethod === 'cc-switch' ? `安装 ${usesClaudeCodeCCSwitchFlow ? 'Claude Code' : '客户端'} 与 CC Switch` : '安装客户端'}</h2></div>
             {guide.endpoint && (prerequisiteGuides.length ? prerequisites : <p>{guidePrerequisite} <a className="client-inline-link" href={guideInstallUrl} onClick={() => trackFeatureClick('client-docs', `open-${guide.id}-install`)} target="_blank" rel="noreferrer">安装说明 <ArrowUpRight size={13} aria-hidden="true" /></a></p>)}
             {installSteps && <ol className="client-instructions">{installSteps.map(step => <li key={step.text}>{step.text}{step.href && <> <a className="client-inline-link" href={step.href} onClick={() => trackFeatureClick('client-docs', `open-${guide.id}-install`)} target="_blank" rel="noreferrer">{step.linkLabel} <ArrowUpRight size={13} aria-hidden="true" /></a></>}</li>)}</ol>}
             {installCommand && <>
@@ -549,8 +566,8 @@ export default function ClientDocsPage() {
             {setupMethod === 'cc-switch' && <p>安装并打开 <a className="client-inline-link" href={CC_SWITCH_DOWNLOAD_URL} onClick={() => trackFeatureClick('client-docs', `open-cc-switch-${guide.id}-download`)} target="_blank" rel="noreferrer">CC Switch <ArrowUpRight size={13} aria-hidden="true" /></a>，在配置前确认 {isCodex ? codexClientName : guide.name} 已可启动。</p>}
           </section>}
 
-          <section id="configure" className={`client-guide-section${usesCodexCCSwitchFlow ? ' client-guide-section--cc-switch-flow' : ''}`}>
-            <div className="client-step-heading"><h2>{usesCodexCCSwitchFlow ? '从 API Key 导入并启动' : isCodex ? '手动配置 Codex' : '配置连接'}</h2></div>
+          <section id="configure" className={`client-guide-section${usesKeyImportFlow ? ' client-guide-section--cc-switch-flow' : ''}`}>
+            <div className="client-step-heading"><h2>{usesKeyImportFlow ? '从 API Key 导入并启动' : isCodex ? '手动配置 Codex' : '配置连接'}</h2></div>
             {isCodex && setupMethod === 'manual' && <div className="client-settings">
               <div><label htmlFor="client-api-base">API 基础地址</label><input id="client-api-base" type="url" value={baseInput} onChange={event => setBaseInput(event.target.value)} placeholder={currentPageOrigin() || '当前站点域名'} aria-invalid={!baseURL} aria-describedby="client-base-help" spellCheck={false} autoComplete="off" /><p id="client-base-help" className={!baseURL ? 'client-field-error' : ''}>{baseURL ? '默认使用当前访问站点的域名，也可以在这里临时替换。' : '请输入完整的 HTTP(S) 网关根地址，不要附带接口路径、查询参数或凭据。'}</p></div>
               <div><label htmlFor="client-model">模型名称</label><input id="client-model" value={modelInput} onChange={event => setModels(current => ({ ...current, [guide.id]: event.target.value }))} maxLength={160} placeholder={guide.defaultModel} aria-invalid={!validModel} aria-describedby="client-model-help" spellCheck={false} autoComplete="off" /><p id="client-model-help" className={!validModel ? 'client-field-error' : ''}>{validModel ? '替换为当前密钥可用的完整模型 ID，区分大小写。' : '请填写模型 ID，不能包含换行或控制字符。'}</p></div>
@@ -564,15 +581,15 @@ export default function ClientDocsPage() {
                 {isCodex && <a className="client-inline-link" href="https://openai.com/codex/" onClick={() => trackFeatureClick('client-docs', 'open-codex-desktop-install')} target="_blank" rel="noreferrer">下载 Codex Desktop <ArrowUpRight size={14} aria-hidden="true" /></a>}
                 {!isCodex && <a className="client-inline-link" href={`${CC_SWITCH_DOCS_URL}${ccSwitchGuide.docsPath ?? '2.1-add.md'}`} onClick={() => trackFeatureClick('client-docs', `open-cc-switch-${guide.id}-docs`)} target="_blank" rel="noreferrer">配置说明 <ArrowUpRight size={14} aria-hidden="true" /></a>}
               </div>
-              {usesCodexCCSwitchFlow
+              {usesKeyImportFlow
                 ? <ClientSetupDiagram clientId={guide.id} method="cc-switch" baseURL={baseURL} model={model} steps={ccSwitchSteps ?? []} systemName={systemName} siteLogoUrl={siteLogoUrl} />
                 : <>
                   <ol className="client-instructions">{ccSwitchSteps?.map(step => <li key={step}>{step}</li>)}</ol>
                   {quickExample && <ClientSetupDiagram clientId={guide.id} method="cc-switch" baseURL={baseURL} model={model} />}
                   {quickExample ? <details className="client-parameter-details"><summary>复制填写参数 <ChevronDown size={16} aria-hidden="true" /></summary><CodeBlock title={`${guide.name} · CC Switch 填写参考`} language={quickExample.language} code={quickExample.code} feature={`${guide.id}-cc-switch`} /></details> : <div className="client-config-error" role="status">填写有效的 API 基础地址和模型后，即可查看快捷配置参数。</div>}
                 </>}
-              {!isCodex && ccSwitchGuide.screenshots?.map((screenshot, index) => <Screenshot key={`${guide.id}-cc-switch-${index}`} screenshot={screenshot} clientName={guide.name} feature={`${guide.id}-cc-switch-${index}`} />)}
-              <p className="client-quick-config-next">{usesCodexCCSwitchFlow ? '完成五步后，' : '完成并启用供应商后，'}前往<a className="client-inline-link" href="#verify" onClick={() => selectSection('verify')}>验证接入 <ArrowDown size={14} aria-hidden="true" /></a></p>
+              {!usesKeyImportFlow && ccSwitchGuide.screenshots?.map((screenshot, index) => <Screenshot key={`${guide.id}-cc-switch-${index}`} screenshot={screenshot} clientName={guide.name} feature={`${guide.id}-cc-switch-${index}`} />)}
+              <p className="client-quick-config-next">{usesKeyImportFlow ? '完成五步后，' : '完成并启用供应商后，'}前往<a className="client-inline-link" href="#verify" onClick={() => selectSection('verify')}>验证接入 <ArrowDown size={14} aria-hidden="true" /></a></p>
             </div> : setupMethod === 'cc-switch' && guide.ccSwitch ? <div className="client-quick-config" role="region" aria-labelledby="client-quick-config-title">
               <h3 id="client-quick-config-title">CC Switch 快捷配置</h3>
               <p>{guide.ccSwitch.description}</p>
@@ -614,7 +631,7 @@ with urllib.request.urlopen(request, timeout=30) as response:
             {verifyCommand && <CodeBlock title={`启动并验证 ${guide.name}`} language={platform === 'windows' ? 'PowerShell' : 'Bash / Zsh'} code={verifyCommand} feature={`${guide.id}-verify`} />}
             <CodeBlock title="发送验证消息" language="对话内容" code="当前时间" feature={`${guide.id}-prompt`} />
             <div className="client-verification-note"><Check size={18} aria-hidden="true" /><div><strong>收到回复，再核对用量</strong><p>客户端正常回复，且平台控制台出现对应请求记录，即可确认本次接入。</p></div></div>
-            {!isCodex && guide.screenshots && <Screenshot screenshot={guide.screenshots.verify} clientName={guide.name} feature={`${guide.id}-verify`} />}
+          {!isCodex && !usesClaudeCodeCCSwitchFlow && guide.screenshots && <Screenshot screenshot={guide.screenshots.verify} clientName={guide.name} feature={`${guide.id}-verify`} />}
           </section>
 
           <section id="troubleshooting" className="client-guide-section client-faq-section">
@@ -634,6 +651,6 @@ with urllib.request.urlopen(request, timeout=30) as response:
         <div className="client-reading-note"><Check size={18} aria-hidden="true" /><p>接入完成后<br />发送「当前时间」<br />确认收到正常回复。</p></div>
       </div></aside>
     </main>
-    <footer className="client-footer client-shell"><div className="client-footer-brand"><Terminal size={18} aria-hidden="true" /><span>{systemName} · 客户端接入文档</span></div><span>{CLIENT_DIRECTORY_GUIDES.length} 种客户端 · 持续更新</span><span className="client-footer-copyright">© 2026 {systemName}. All rights reserved.</span><nav aria-label="相关文档"><a href={apiDocsHref} target="_top" onClick={() => trackFeatureClick('client-docs', 'open-api-docs')}>API 参考 <ArrowUpRight size={16} aria-hidden="true" /></a><a href="#top" onClick={event => { event.preventDefault(); scrollTopRef.current() }}>回到顶部 <ArrowUp size={16} aria-hidden="true" /></a></nav></footer>
+    <footer className="client-footer client-shell"><div className="client-footer-brand"><Terminal size={18} aria-hidden="true" /><span>{systemName} · 客户端接入文档</span></div><span>{CLIENT_DIRECTORY_GUIDES.length} 种客户端 · 持续更新</span><span className="client-footer-copyright">© 2026 {systemName}. All rights reserved.</span><nav aria-label="相关文档"><Link to={clientImportHref} onClick={() => trackFeatureClick('client-docs', 'open-client-import')}>客户端导入 <KeyRound size={16} aria-hidden="true" /></Link><a href={apiDocsHref} target="_top" onClick={() => trackFeatureClick('client-docs', 'open-api-docs')}>API 参考 <ArrowUpRight size={16} aria-hidden="true" /></a><a href="#top" onClick={event => { event.preventDefault(); scrollTopRef.current() }}>回到顶部 <ArrowUp size={16} aria-hidden="true" /></a></nav></footer>
   </div>
 }

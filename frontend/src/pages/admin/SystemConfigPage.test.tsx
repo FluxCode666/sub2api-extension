@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import SystemConfigPage from './SystemConfigPage'
+import { toast } from 'sonner'
 
 const { getConfig, putConfig, uploadAsset } = vi.hoisted(() => ({
   getConfig: vi.fn(),
@@ -20,6 +21,7 @@ vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
     error: vi.fn(),
+    warning: vi.fn(),
   },
 }))
 
@@ -103,6 +105,34 @@ describe('SystemConfigPage', () => {
     fireEvent.click(screen.getByRole('button', { name: '保存配置' }))
 
     await waitFor(() => expect(putConfig).toHaveBeenCalledWith('/admin/homepage/config', expect.objectContaining({ systemPosition: 'tob' })))
+  })
+
+  it('publishes the client import page through the system config', async () => {
+    getConfig.mockResolvedValue({ code: 0, data: { siteName: 'Sub2API', model: 'gpt-6-astra', clientImportPublished: false } })
+    putConfig.mockResolvedValue({ code: 0, data: { siteName: 'Sub2API', model: 'gpt-6-astra', clientImportPublished: true } })
+    render(<SystemConfigPage />)
+
+    const toggle = await screen.findByRole('switch', { name: '客户端导入页上架到 Sub2API' })
+    expect(toggle).not.toBeChecked()
+    fireEvent.click(toggle)
+    fireEvent.click(screen.getByRole('button', { name: '保存配置' }))
+
+    await waitFor(() => expect(putConfig).toHaveBeenCalledWith('/admin/homepage/config', expect.objectContaining({ clientImportPublished: true })))
+  })
+
+  it('publishes the async task page and warns when menu sync is incomplete', async () => {
+    getConfig.mockResolvedValue({ code: 0, data: { siteName: 'Sub2API', model: 'gpt-6-astra', asyncTasksPublished: false } })
+    putConfig.mockResolvedValue({ code: 0, reason: 'Sub2API 菜单同步失败', data: { siteName: 'Sub2API', model: 'gpt-6-astra', asyncTasksPublished: true } })
+    render(<SystemConfigPage />)
+
+    const toggle = await screen.findByRole('switch', { name: '异步任务页上架到 Sub2API' })
+    expect(toggle).not.toBeChecked()
+    fireEvent.click(toggle)
+    fireEvent.click(screen.getByRole('button', { name: '保存配置' }))
+
+    await waitFor(() => expect(putConfig).toHaveBeenCalledWith('/admin/homepage/config', expect.objectContaining({ asyncTasksPublished: true, clientImportPublished: false })))
+    await waitFor(() => expect(toast.warning).toHaveBeenCalledWith('系统配置已保存，但菜单同步未完成', { description: 'Sub2API 菜单同步失败' }))
+    expect(screen.getByRole('switch', { name: '异步任务页上架到 Sub2API' })).toBeChecked()
   })
 
   it('uploads a dropped logo and saves the returned asset URL', async () => {

@@ -101,6 +101,17 @@ func TestTicketRoutesRequireUserAndAdminAuthentication(t *testing.T) {
 	require.Equal(t, http.StatusUnauthorized, adminResponse.Code)
 }
 
+func TestAsyncTaskRouteRequiresUserAuthentication(t *testing.T) {
+	authHandler, authService := newTestAuthDeps()
+	asyncTaskHandler := handler.NewAsyncTaskUserHandler(service.NewAsyncTaskService(nil), integration.NewSub2APIClient("http://127.0.0.1:1"))
+	router := SetupRouter(newTestConfig(), web.NewHealthHandler(), authHandler, authService, nil, nil, nil, nil, asyncTaskHandler)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/aux/async-tasks?user_id=1", nil)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	require.Equal(t, http.StatusUnauthorized, response.Code)
+}
+
 func TestSetupRouter_HealthEndpoint(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cfg := newTestConfig()

@@ -78,6 +78,8 @@ type HomepageConfig struct {
 	UserTermsURL                      string         `json:"userTermsUrl"`
 	PrivacyURL                        string         `json:"privacyUrl"`
 	Sub2APIPublished                  bool           `json:"sub2apiPublished"`
+	ClientImportPublished             bool           `json:"clientImportPublished"`
+	AsyncTasksPublished               bool           `json:"asyncTasksPublished"`
 	// ShowDevelopersSection 使用指针区分旧配置中缺失字段与明确关闭。
 	ShowDevelopersSection *bool                    `json:"showDevelopersSection"`
 	ShowQuickstartSection *bool                    `json:"showQuickstartSection"`
@@ -116,6 +118,8 @@ func DefaultHomepageConfig() HomepageConfig {
 		UserTermsURL:                      "",
 		PrivacyURL:                        "",
 		Sub2APIPublished:                  false,
+		ClientImportPublished:             false,
+		AsyncTasksPublished:               false,
 		ShowDevelopersSection:             &showDevelopersSection,
 		ShowQuickstartSection:             &showQuickstartSection,
 		NavigationItems: []HomepageNavigationItem{

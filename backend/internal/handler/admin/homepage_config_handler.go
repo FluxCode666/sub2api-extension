@@ -20,6 +20,14 @@ type homepageMenuPublisher interface {
 	SetHomepageMenu(context.Context, bool, string) error
 }
 
+type clientImportMenuPublisher interface {
+	SetClientImportMenu(context.Context, bool) error
+}
+
+type asyncTaskMenuPublisher interface {
+	SetAsyncTaskMenu(context.Context, bool) error
+}
+
 // HomepageConfigHandler 同时提供公开读取和管理员写入。
 type HomepageConfigHandler struct {
 	provider  homepageConfigProvider
@@ -60,6 +68,8 @@ func (h *HomepageConfigHandler) get(c *gin.Context, fallbackToDefaults bool) {
 	}
 	if fallbackToDefaults {
 		config.Sub2APIPublished = false
+		config.ClientImportPublished = false
+		config.AsyncTasksPublished = false
 	}
 	response.Success(c, config)
 }
@@ -81,12 +91,28 @@ func (h *HomepageConfigHandler) UpdateConfig(c *gin.Context) {
 		response.InternalError(c, "failed to save homepage config")
 		return
 	}
+	syncFailed := false
 	if h.publisher != nil {
 		if err := h.publisher.SetHomepageMenu(c.Request.Context(), saved.Sub2APIPublished, saved.SiteName); err != nil {
-			log.Printf("[HomepageConfigHandler.UpdateConfig] menu sync failed published=%t: %v", saved.Sub2APIPublished, err)
-			response.SuccessWithReason(c, saved, "homepage config saved with warning", "系统配置已保存，但 Sub2API 菜单同步失败，请检查数据库连接和公开域名")
-			return
+			log.Printf("[HomepageConfigHandler.UpdateConfig] homepage menu sync failed published=%t: %v", saved.Sub2APIPublished, err)
+			syncFailed = true
 		}
+	}
+	if publisher, ok := h.publisher.(clientImportMenuPublisher); ok {
+		if err := publisher.SetClientImportMenu(c.Request.Context(), saved.ClientImportPublished); err != nil {
+			log.Printf("[HomepageConfigHandler.UpdateConfig] client import menu sync failed published=%t: %v", saved.ClientImportPublished, err)
+			syncFailed = true
+		}
+	}
+	if publisher, ok := h.publisher.(asyncTaskMenuPublisher); ok {
+		if err := publisher.SetAsyncTaskMenu(c.Request.Context(), saved.AsyncTasksPublished); err != nil {
+			log.Printf("[HomepageConfigHandler.UpdateConfig] async task menu sync failed published=%t: %v", saved.AsyncTasksPublished, err)
+			syncFailed = true
+		}
+	}
+	if syncFailed {
+		response.SuccessWithReason(c, saved, "homepage config saved with warning", "系统配置已保存，但 Sub2API 菜单同步失败，请检查数据库连接和公开域名")
+		return
 	}
 	response.Success(c, saved)
 }

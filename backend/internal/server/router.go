@@ -258,6 +258,8 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 	var promotionAdminHandler *adminhandler.PromotionAdminHandler
 	var ticketUserHandler *handler.TicketUserHandler
 	var ticketAdminHandler *adminhandler.TicketHandler
+	var clientImportHandler *handler.ClientImportHandler
+	var asyncTaskHandler *handler.AsyncTaskUserHandler
 	var notificationAdminHandler *adminhandler.NotificationAdminHandler
 	for _, optionalHandler := range optionalHandlers {
 		switch typed := optionalHandler.(type) {
@@ -291,6 +293,10 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			ticketUserHandler = typed
 		case *adminhandler.TicketHandler:
 			ticketAdminHandler = typed
+		case *handler.ClientImportHandler:
+			clientImportHandler = typed
+		case *handler.AsyncTaskUserHandler:
+			asyncTaskHandler = typed
 		case *adminhandler.NotificationAdminHandler:
 			notificationAdminHandler = typed
 		}
@@ -345,6 +351,17 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			tickets.POST("", ticketUserHandler.Create)
 			tickets.GET("/:id", ticketUserHandler.Get)
 			tickets.POST("/:id/messages", ticketUserHandler.Reply)
+		}
+		if clientImportHandler != nil {
+			clientImport := aux.Group("/client-import")
+			clientImport.Use(clientImportHandler.Guard())
+			clientImport.GET("/keys", clientImportHandler.ListKeys)
+		}
+		if asyncTaskHandler != nil {
+			// 用户异步任务只读视图：UserGuard 验证 X-Aux-Token，归属用户只取验证结果。
+			asyncTasks := aux.Group("/async-tasks")
+			asyncTasks.Use(asyncTaskHandler.Guard())
+			asyncTasks.GET("", asyncTaskHandler.List)
 		}
 
 		// U5: 埋点上报端点(匿名可写,不经 AdminGuard)。

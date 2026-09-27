@@ -118,6 +118,12 @@ func main() {
 	var homepageMenuPublisher interface {
 		SetHomepageMenu(context.Context, bool, string) error
 	}
+	var clientImportMenuPublisher interface {
+		SetClientImportMenu(context.Context, bool) error
+	}
+	var asyncTaskMenuPublisher interface {
+		SetAsyncTaskMenu(context.Context, bool) error
+	}
 	var sub2apiDB *sql.DB
 	var sub2apiRedis *redis.Client
 	if cfg.Sub2API.Database.Host != "" {
@@ -148,6 +154,8 @@ func main() {
 		promotionMenuPublisher = menuStore
 		ticketMenuPublisher = menuStore
 		homepageMenuPublisher = menuStore
+		clientImportMenuPublisher = menuStore
+		asyncTaskMenuPublisher = menuStore
 	} else {
 		log.Printf("[main] sub2api database integration disabled: SUB2API_DATABASE_HOST is empty; publication and TTFT data access will be unavailable")
 	}
@@ -186,6 +194,26 @@ func main() {
 	// 旧版首页配置 API 兼容链：复用 system_meta 存储；当前官网内容以 pages.home 为准。
 	homepageStore := service.NewEntHomepageConfigStore(entClient)
 	homepageService := service.NewHomepageConfigService(homepageStore)
+	if clientImportMenuPublisher != nil {
+		syncCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		config, readErr := homepageService.Get(syncCtx)
+		if readErr != nil {
+			log.Printf("[main] failed to read client import publication setting: %v", readErr)
+		} else if syncErr := clientImportMenuPublisher.SetClientImportMenu(syncCtx, config.ClientImportPublished); syncErr != nil {
+			log.Printf("[main] failed to sync client import menu enabled=%t: %v", config.ClientImportPublished, syncErr)
+		}
+		cancel()
+	}
+	if asyncTaskMenuPublisher != nil {
+		syncCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		config, readErr := homepageService.Get(syncCtx)
+		if readErr != nil {
+			log.Printf("[main] failed to read async task publication setting: %v", readErr)
+		} else if syncErr := asyncTaskMenuPublisher.SetAsyncTaskMenu(syncCtx, config.AsyncTasksPublished); syncErr != nil {
+			log.Printf("[main] failed to sync async task menu enabled=%t: %v", config.AsyncTasksPublished, syncErr)
+		}
+		cancel()
+	}
 	homepageHandler := adminhandler.NewHomepageConfigHandler(homepageService, homepageMenuPublisher)
 	tobHomepageStore := service.NewEntTobHomepageConfigStore(entClient)
 	tobHomepageService := service.NewTobHomepageConfigService(tobHomepageStore, homepageService)
@@ -241,6 +269,10 @@ func main() {
 	notificationAdminHandler := adminhandler.NewNotificationAdminHandler(notificationService)
 	ticketService := service.NewTicketService(service.NewEntTicketStore(entClient), notificationService)
 	ticketUserHandler := handler.NewTicketUserHandler(ticketService, sub2apiClient)
+	clientImportHandler := handler.NewClientImportHandler(sub2apiClient)
+	// 异步任务页只读 Sub2API Redis 快照与 PostgreSQL 记录，不代替用户调用网关。
+	asyncTaskService := service.NewAsyncTaskService(integration.NewSub2APIAsyncTaskStore(sub2apiDB, sub2apiRedis))
+	asyncTaskHandler := handler.NewAsyncTaskUserHandler(asyncTaskService, sub2apiClient)
 	ticketPublished, ticketFeatureReadErr := ticketService.FeatureEnabled(context.Background())
 	if ticketFeatureReadErr != nil {
 		log.Printf("[main] failed to read ticket publication setting: %v", ticketFeatureReadErr)
@@ -280,7 +312,7 @@ func main() {
 		releaseSource,
 		update.NewManager(releaseSource, releaseSource, Version),
 	)
-	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, tobHomepageHandler, imageAssetHandler, fileAssetHandler, ttftHandler, costHandler, invoiceUserHandler, invoiceAdminHandler, promotionUserHandler, promotionAdminHandler, ticketUserHandler, ticketAdminHandler, notificationAdminHandler, logService, logHandler, systemHandler)
+	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, tobHomepageHandler, imageAssetHandler, fileAssetHandler, ttftHandler, costHandler, invoiceUserHandler, invoiceAdminHandler, promotionUserHandler, promotionAdminHandler, ticketUserHandler, ticketAdminHandler, clientImportHandler, asyncTaskHandler, notificationAdminHandler, logService, logHandler, systemHandler)
 
 	// 启动 HTTP 服务器
 	addr := cfg.Server.Address()

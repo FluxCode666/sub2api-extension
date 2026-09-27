@@ -153,6 +153,43 @@ func TestVerifyAdminJWT_ServerError(t *testing.T) {
 	assert.False(t, errors.Is(err, ErrInvalidToken), "500 不应归为 ErrInvalidToken")
 }
 
+func TestListUserAPIKeys(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/keys", func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "Bearer user-jwt-token", r.Header.Get("Authorization"))
+		assert.Equal(t, "1", r.URL.Query().Get("page"))
+		assert.Equal(t, "1000", r.URL.Query().Get("page_size"))
+		assert.Equal(t, "active", r.URL.Query().Get("status"))
+		writeJSON(w, http.StatusOK, map[string]any{
+			"code":    0,
+			"message": "success",
+			"data": map[string]any{
+				"items": []map[string]any{{
+					"id":     7,
+					"key":    "sk-user-key",
+					"name":   "本地开发",
+					"status": "active",
+					"group": map[string]any{
+						"name":     "Anthropic 主组",
+						"platform": "anthropic",
+					},
+				}},
+			},
+		})
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	keys, err := NewSub2APIClient(srv.URL).ListUserAPIKeys(context.Background(), "user-jwt-token")
+
+	require.NoError(t, err)
+	require.Len(t, keys, 1)
+	assert.Equal(t, int64(7), keys[0].ID)
+	assert.Equal(t, "sk-user-key", keys[0].Key)
+	assert.Equal(t, "Anthropic 主组", keys[0].Group.Name)
+	assert.Equal(t, "anthropic", keys[0].Group.Platform)
+}
+
 func TestNewSub2APIClient_TrimsTrailingSlash(t *testing.T) {
 	client := NewSub2APIClient("http://localhost:8090/")
 	assert.Equal(t, "http://localhost:8090", client.BaseURL())

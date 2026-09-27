@@ -46,6 +46,8 @@ const TobHomepagePage = lazy(() => import('@/pages/TobHomepagePage'))
 const TobHomepageConfigPage = lazy(() => import('@/pages/admin/TobHomepageConfigPage'))
 const ApiDocsPage = lazy(() => import('@/pages/ApiDocsPage'))
 const ClientDocsPage = lazy(() => import('@/pages/ClientDocsPage'))
+const ClientImportPage = lazy(() => import('@/pages/ClientImportPage'))
+const AsyncTasksPortalPage = lazy(() => import('@/pages/AsyncTasksPortalPage'))
 const UserGuidePage = lazy(() => import('@/pages/UserGuidePage'))
 
 // bootstrap: 获取动态页清单, 与静态注册表合并(KTD7)。
@@ -120,6 +122,9 @@ export default function App() {
           <Route path="/api-docs" element={<ApiDocsPage />} />
           <Route path="/docs" element={<ApiDocsPage />} />
           <Route path="/client-docs" element={<Suspense fallback={<main className="p-8" role="status">正在加载接入指南…</main>}><ClientDocsPage /></Suspense>} />
+          <Route path="/client-import" element={<Suspense fallback={<main className="p-8" role="status">正在加载导入工具…</main>}><ClientImportPage /></Suspense>} />
+          {/* 用户端异步任务：由系统配置开关同步到 Sub2API 用户菜单，经 UserGuard 只读当前用户任务。 */}
+          <Route path="/async-tasks" element={<Suspense fallback={<main className="p-8" role="status">正在加载异步任务…</main>}><AsyncTasksPortalPage /></Suspense>} />
           <Route path="/user-guide" element={<Suspense fallback={<main className="p-8" role="status">正在加载使用指南…</main>}><UserGuidePage /></Suspense>} />
           {/* 管理端: 需管理员会话 (对应 sub2api custom_menu_items, 传 token) */}
           <Route path="/admin" element={<AdminGuard><AdminLayout /></AdminGuard>}>

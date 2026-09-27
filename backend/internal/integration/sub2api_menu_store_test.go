@@ -143,6 +143,30 @@ func TestSub2APIMenuStoreTicketMenuPreservesExtensionsAndRemovesDuplicates(t *te
 	require.Contains(t, string(raw), `"open_in_new_tab":true`)
 }
 
+func TestSub2APIMenuStoreClientImportMenuPreservesExtensionsAndRemovesDuplicates(t *testing.T) {
+	items := []customMenuItem{
+		{ID: "other", SortOrder: 1},
+		{ID: "aux-client-import", IconSVG: "<svg />", SortOrder: 4, extra: map[string]json.RawMessage{"open_in_new_tab": json.RawMessage("true")}},
+		{ID: "aux-client-import", SortOrder: 8},
+	}
+
+	updated := upsertClientImportMenuItems(items, "https://aux.example.com/client-import")
+
+	require.Len(t, updated, 2)
+	require.Equal(t, "other", updated[0].ID)
+	require.Equal(t, "aux-client-import", updated[1].ID)
+	require.Equal(t, "客户端导入", updated[1].Label)
+	require.Equal(t, "https://aux.example.com/client-import", updated[1].URL)
+	require.Empty(t, updated[1].PageSlug)
+	require.True(t, updated[1].pageSlugPresent)
+	require.Equal(t, "user", updated[1].Visibility)
+	require.Equal(t, 4, updated[1].SortOrder)
+	require.Equal(t, json.RawMessage("true"), updated[1].extra["open_in_new_tab"])
+	raw, err := json.Marshal(updated[1])
+	require.NoError(t, err)
+	require.Contains(t, string(raw), `"page_slug":""`)
+}
+
 func TestSub2APIMenuStoreDashboardMenuUsesIframeFields(t *testing.T) {
 	item := customMenuItem{
 		ID: "aux-dashboard", Label: "控制台", IconSVG: homepageMenuIconSVG,
@@ -153,4 +177,33 @@ func TestSub2APIMenuStoreDashboardMenuUsesIframeFields(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(raw), `"page_slug":""`)
 	require.Contains(t, string(raw), `"visibility":"admin"`)
+}
+
+func TestSub2APIMenuStoreAsyncTaskMenuUpsertsUserIframeEntry(t *testing.T) {
+	desired := customMenuItem{ID: "aux-async-tasks", Label: "异步任务", IconSVG: asyncTaskMenuIconSVG, URL: "https://aux.example.com/async-tasks"}
+
+	appended := upsertUserPortalMenuItems([]customMenuItem{{ID: "other", SortOrder: 6}}, desired)
+	require.Len(t, appended, 2)
+	require.Equal(t, 7, appended[1].SortOrder)
+	require.Equal(t, "user", appended[1].Visibility)
+	require.Equal(t, asyncTaskMenuIconSVG, appended[1].IconSVG)
+
+	items := []customMenuItem{
+		{ID: "aux-async-tasks", Label: "旧名称", IconSVG: "<svg />", URL: "https://old.example.com", Visibility: "admin", SortOrder: 2, extra: map[string]json.RawMessage{"open_in_new_tab": json.RawMessage("false")}},
+		{ID: "other", SortOrder: 5},
+		{ID: "aux-async-tasks", SortOrder: 9},
+	}
+	updated := upsertUserPortalMenuItems(items, desired)
+
+	require.Len(t, updated, 2)
+	require.Equal(t, "aux-async-tasks", updated[0].ID)
+	require.Equal(t, "异步任务", updated[0].Label)
+	require.Equal(t, "https://aux.example.com/async-tasks", updated[0].URL)
+	require.Equal(t, "<svg />", updated[0].IconSVG)
+	require.Equal(t, "user", updated[0].Visibility)
+	require.Equal(t, 2, updated[0].SortOrder)
+	require.Equal(t, json.RawMessage("false"), updated[0].extra["open_in_new_tab"])
+	raw, err := json.Marshal(updated[0])
+	require.NoError(t, err)
+	require.Contains(t, string(raw), `"page_slug":""`)
 }

@@ -30,6 +30,10 @@ const homepageMenuIconSVG = `<svg fill="none" viewBox="0 0 24 24" stroke="curren
 
 const ticketMenuIconSVG = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v3a2.5 2.5 0 0 0 0 5v5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-5a2.5 2.5 0 0 0 0-5v-3Z"/><path stroke-linecap="round" stroke-dasharray="1 2" d="M9 8h6m-6 4h6m-6 4h3"/></svg>`
 
+const clientImportMenuIconSVG = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="15" r="3"/><path stroke-linecap="round" stroke-linejoin="round" d="m10.5 12.5 8-8m-3 3 2 2m-5 0 2 2"/></svg>`
+
+const asyncTaskMenuIconSVG = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><rect width="18" height="14" x="3" y="5" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M7 9.5h4M7 13h7M7 16.5h3"/><circle cx="17" cy="10" r="1.5"/></svg>`
+
 // Sub2APIMenuStore 直接读写 sub2api settings 表中的 custom_menu_items 设置。
 // 只修改由本扩展创建的菜单项，其余 sub2api 菜单字段会原样保留。
 type Sub2APIMenuStore struct {
@@ -363,6 +367,132 @@ func (s *Sub2APIMenuStore) SetTicketMenu(ctx context.Context, enabled bool) erro
 	return s.mutate(ctx, func(items []customMenuItem) ([]customMenuItem, error) {
 		return upsertTicketMenuItems(items, menuURL), nil
 	})
+}
+
+// SetClientImportMenu publishes or removes the customer-facing client import page.
+func (s *Sub2APIMenuStore) SetClientImportMenu(ctx context.Context, enabled bool) error {
+	const menuID = "aux-client-import"
+	if s == nil || s.db == nil {
+		return errors.New("sub2api database is unavailable")
+	}
+	if !enabled {
+		return s.mutate(ctx, func(items []customMenuItem) ([]customMenuItem, error) {
+			filtered := make([]customMenuItem, 0, len(items))
+			for _, item := range items {
+				if item.ID != menuID {
+					filtered = append(filtered, item)
+				}
+			}
+			return filtered, nil
+		})
+	}
+	menuURL, err := s.absoluteURL("/client-import")
+	if err != nil {
+		return err
+	}
+	return s.mutate(ctx, func(items []customMenuItem) ([]customMenuItem, error) {
+		return upsertClientImportMenuItems(items, menuURL), nil
+	})
+}
+
+// SetAsyncTaskMenu publishes or removes the customer-facing async task list.
+func (s *Sub2APIMenuStore) SetAsyncTaskMenu(ctx context.Context, enabled bool) error {
+	const menuID = "aux-async-tasks"
+	if s == nil || s.db == nil {
+		return errors.New("sub2api database is unavailable")
+	}
+	if !enabled {
+		return s.mutate(ctx, func(items []customMenuItem) ([]customMenuItem, error) {
+			filtered := make([]customMenuItem, 0, len(items))
+			for _, item := range items {
+				if item.ID != menuID {
+					filtered = append(filtered, item)
+				}
+			}
+			return filtered, nil
+		})
+	}
+	menuURL, err := s.absoluteURL("/async-tasks")
+	if err != nil {
+		return err
+	}
+	return s.mutate(ctx, func(items []customMenuItem) ([]customMenuItem, error) {
+		return upsertUserPortalMenuItems(items, customMenuItem{ID: menuID, Label: "异步任务", IconSVG: asyncTaskMenuIconSVG, URL: menuURL}), nil
+	})
+}
+
+// upsertUserPortalMenuItems keeps one user-visible iframe entry per ID. It
+// preserves administrator-edited icons, Sub2API extension fields and ordering.
+func upsertUserPortalMenuItems(items []customMenuItem, desired customMenuItem) []customMenuItem {
+	updated := make([]customMenuItem, 0, len(items)+1)
+	found := false
+	maxOrder := -1
+	for _, item := range items {
+		if item.SortOrder > maxOrder {
+			maxOrder = item.SortOrder
+		}
+		if item.ID != desired.ID {
+			updated = append(updated, item)
+			continue
+		}
+		if found {
+			continue
+		}
+		found = true
+		merged := desired
+		if strings.TrimSpace(item.IconSVG) != "" {
+			merged.IconSVG = item.IconSVG
+		}
+		merged.PageSlug = ""
+		merged.Visibility = "user"
+		merged.SortOrder = item.SortOrder
+		merged.extra = item.extra
+		merged.pageSlugPresent = true
+		updated = append(updated, merged)
+	}
+	if !found {
+		desired.PageSlug = ""
+		desired.Visibility = "user"
+		desired.SortOrder = maxOrder + 1
+		desired.pageSlugPresent = true
+		updated = append(updated, desired)
+	}
+	return updated
+}
+
+func mergeClientImportMenuItem(existing customMenuItem, menuURL string) customMenuItem {
+	icon := existing.IconSVG
+	if strings.TrimSpace(icon) == "" {
+		icon = clientImportMenuIconSVG
+	}
+	return customMenuItem{
+		ID: "aux-client-import", Label: "客户端导入", IconSVG: icon, URL: menuURL, PageSlug: "", Visibility: "user", SortOrder: existing.SortOrder,
+		extra: existing.extra, pageSlugPresent: true,
+	}
+}
+
+func upsertClientImportMenuItems(items []customMenuItem, menuURL string) []customMenuItem {
+	const menuID = "aux-client-import"
+	updated := make([]customMenuItem, 0, len(items)+1)
+	found := false
+	maxOrder := -1
+	for _, item := range items {
+		if item.SortOrder > maxOrder {
+			maxOrder = item.SortOrder
+		}
+		if item.ID == menuID {
+			if !found {
+				updated = append(updated, mergeClientImportMenuItem(item, menuURL))
+				found = true
+			}
+			continue
+		}
+		updated = append(updated, item)
+	}
+	if !found {
+		updated = append(updated, customMenuItem{ID: menuID, Label: "客户端导入", IconSVG: clientImportMenuIconSVG, URL: menuURL, PageSlug: "", Visibility: "user", SortOrder: maxOrder + 1, pageSlugPresent: true})
+	}
+	return updated
 }
 
 func mergeTicketMenuItem(existing customMenuItem, menuURL string) customMenuItem {

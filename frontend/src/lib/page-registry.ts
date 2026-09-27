@@ -55,6 +55,18 @@ export const STATIC_PAGE_REGISTRY: readonly PageEntry[] = [
     visibility: 'public',
   },
   {
+    id: 'client-import',
+    title: '客户端导入',
+    path: '/client-import',
+    visibility: 'public',
+  },
+  {
+    id: 'async-tasks',
+    title: '异步任务',
+    path: '/async-tasks',
+    visibility: 'public',
+  },
+  {
     id: 'user-guide',
     title: '用户使用指南',
     path: '/user-guide',

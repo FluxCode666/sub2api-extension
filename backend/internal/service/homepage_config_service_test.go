@@ -35,6 +35,8 @@ func TestHomepageConfigService_GetDefaultsWhenEmpty(t *testing.T) {
 	assert.Equal(t, "≤ 200ms", config.FirstTokenResponseTime)
 	assert.Equal(t, "≥ 85%", config.PromptCacheRate)
 	assert.Equal(t, "gpt-6-astra", config.Model)
+	assert.False(t, config.ClientImportPublished)
+	assert.False(t, config.AsyncTasksPublished)
 	require.NotNil(t, config.ShowDevelopersSection)
 	assert.True(t, *config.ShowDevelopersSection)
 	require.NotNil(t, config.ShowQuickstartSection)

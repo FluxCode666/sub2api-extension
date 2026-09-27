@@ -14,6 +14,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -24,6 +25,29 @@ type Sub2APIUserInfo struct {
 	Email    string `json:"email"`
 	Username string `json:"username"`
 	Role     string `json:"role"`
+}
+
+// Sub2APIKeyGroup 是用户 API Key 选择器所需的最小分组信息。
+type Sub2APIKeyGroup struct {
+	Name     string `json:"name"`
+	Platform string `json:"platform"`
+}
+
+// Sub2APIKeyInfo 是用户导入客户端配置所需的 API Key 投影。
+// Key 只在已通过 Sub2API 用户 token 验证后返回给当前请求，不写入日志或持久化。
+type Sub2APIKeyInfo struct {
+	ID        int64            `json:"id"`
+	Key       string           `json:"key"`
+	Name      string           `json:"name"`
+	GroupID   *int64           `json:"group_id"`
+	Status    string           `json:"status"`
+	ExpiresAt *time.Time       `json:"expires_at"`
+	CreatedAt time.Time        `json:"created_at"`
+	Group     *Sub2APIKeyGroup `json:"group,omitempty"`
+}
+
+type sub2APIKeyListData struct {
+	Items []Sub2APIKeyInfo `json:"items"`
 }
 
 // sub2APIEnvelope 镜像 sub2api 的认证响应 envelope: {code, message, reason, data}。
@@ -75,6 +99,62 @@ func (c *Sub2APIClient) VerifyAdminJWT(ctx context.Context, token string) (isAdm
 // returned user ID, never on the iframe's user_id query parameter.
 func (c *Sub2APIClient) VerifyUserJWT(ctx context.Context, token string) (*Sub2APIUserInfo, error) {
 	return c.verifyJWT(ctx, token)
+}
+
+// ListUserAPIKeys 通过当前用户 token 读取其可用 API Key。
+// 请求由附属后端代理，避免浏览器直接跨域访问 Sub2API，并保持用户身份由上游 token 决定。
+func (c *Sub2APIClient) ListUserAPIKeys(ctx context.Context, token string) ([]Sub2APIKeyInfo, error) {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return nil, ErrInvalidToken
+	}
+
+	params := url.Values{}
+	params.Set("page", "1")
+	params.Set("page_size", "1000")
+	params.Set("status", "active")
+	requestURL := c.baseURL + "/api/v1/keys?" + params.Encode()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("building api key request to sub2api: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrSub2APIUnreachable, err)
+	}
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Printf("[Sub2APIClient.ListUserAPIKeys] failed to close response body: %v", closeErr)
+		}
+	}()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading sub2api api keys response: %w", err)
+	}
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, ErrInvalidToken
+	}
+
+	var envelope sub2APIEnvelope
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return nil, fmt.Errorf("decoding sub2api api keys response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%w: sub2api returned status %d: %s", ErrSub2APIUnreachable, resp.StatusCode, envelope.Message)
+	}
+	if envelope.Code != 0 {
+		return nil, fmt.Errorf("%w: sub2api api keys request failed: %s", ErrSub2APIUnreachable, envelope.Message)
+	}
+
+	var data sub2APIKeyListData
+	if err := json.Unmarshal(envelope.Data, &data); err != nil {
+		return nil, fmt.Errorf("decoding sub2api api keys data: %w", err)
+	}
+	return data.Items, nil
 }
 
 func (c *Sub2APIClient) verifyJWT(ctx context.Context, token string) (*Sub2APIUserInfo, error) {

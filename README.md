@@ -42,6 +42,8 @@ sub2api本地项目路径：`/Users/duegin/project/sub2api`
 | `/p/home` | 约定的 Sub2API 官网动态页，品牌名称读取公开系统配置 |
 | `/api-docs`（`/docs`） | Sub2API API 文档，可挂载菜单或嵌入其他系统 |
 | `/client-docs` | 客户端接入文档；目录按 Codex、Claude、Grok、Gemini、VS Code/Cursor 与其他客户端归类。支持 `?client=codex&method=manual` 直达手动配置，默认推荐 CC Switch，支持 `?embed=1` 嵌入 |
+| `/client-import` | 用户端客户端导入工具；选择有效 API Key 后，可一键唤起 CC Switch、Cherry Studio、Chatbox，也可下载或复制配置；另支持下载 ZCode 供应商参考文件和 WorkBuddy `models.json`；需要从 Sub2API 用户菜单带 token 打开 |
+| `/async-tasks` | 用户端异步任务列表；只读展示当前用户近期的异步生图（`imgtask`）、Grok 异步视频和批量生图任务，表格分页并支持关键字、创建日期范围、类型、状态、模型和 API Key 筛选，进行中任务自动刷新；由系统配置开关同步为 Sub2API 用户菜单 `aux-async-tasks`，需要从菜单带 token 打开 |
 | `/user-guide` | 面向普通用户的 API Key、分组切换、首次请求和客户端接入指南 |
 | `/login` | 独立管理员登录入口 |
 
@@ -61,6 +63,8 @@ sub2api本地项目路径：`/Users/duegin/project/sub2api`
 │  /admin/pages         动态页面管理        转发验证 → sub2api /auth/me    │
 │  /api-docs            API 文档                                           │
 │  /client-docs         客户端接入指南                                     │
+│  /client-import       客户端 API Key 导入                                │
+│  /async-tasks         用户异步任务列表                                   │
 │  /user-guide          用户使用指南                                       │
 │  /p/:slug             公开动态页面                                      │
 │  /admin/p/:slug       管理员动态页面                                    │
@@ -176,7 +180,7 @@ SUB2API_EXTENSION_JWT_SECRET=$(openssl rand -hex 32) # 附属系统会话签名�
 SUB2API_DOCKER_NETWORK=deploy_sub2api-network          # Sub2API Compose 外部网络
 SUB2API_DATABASE_HOST=postgres                          # Sub2API PostgreSQL 服务
 SUB2API_DATABASE_PASSWORD=<与 sub2api 的 POSTGRES_PASSWORD 一致>
-SUB2API_REDIS_HOST=redis                                 # 返利入账后立即失效 Sub2API 余额缓存
+SUB2API_REDIS_HOST=redis                                 # 返利余额缓存失效；异步任务页读取生图/视频任务
 ```
 
 启动并验证：
@@ -389,7 +393,7 @@ pnpm build           # tsc -b && vite build
 | `SUB2API_DATABASE_PORT` | Sub2API PostgreSQL 端口 | `5432` |
 | `SUB2API_DATABASE_USER` / `SUB2API_DATABASE_PASSWORD` | Sub2API PostgreSQL 凭据（密码不提交） | — |
 | `SUB2API_DATABASE_DBNAME` | Sub2API 数据库名 | `sub2api` |
-| `SUB2API_REDIS_HOST` | Sub2API Redis 主机；用于返利入账后的余额缓存失效 | `redis`（Compose） |
+| `SUB2API_REDIS_HOST` | Sub2API Redis 主机；用于返利入账后的余额缓存失效，以及异步任务页只读扫描 `image_task:*` / `grok_video_pending:*` | `redis`（Compose） |
 | `SUB2API_REDIS_PORT` / `SUB2API_REDIS_DB` | Sub2API Redis 端口和库编号 | `6379` / `0` |
 | `SUB2API_REDIS_USERNAME` / `SUB2API_REDIS_PASSWORD` | Sub2API Redis 凭据（密码不提交） | — |
 | `SUB2API_REDIS_ENABLE_TLS` | 是否使用 TLS 连接 Redis | `false` |
