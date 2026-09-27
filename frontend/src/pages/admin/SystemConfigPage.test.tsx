@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import SystemConfigPage from './SystemConfigPage'
 import { toast } from 'sonner'
+import { toCurrentOriginURI } from '@/lib/app-base-path'
 
 const { getConfig, putConfig, uploadAsset } = vi.hoisted(() => ({
   getConfig: vi.fn(),
@@ -192,5 +193,55 @@ describe('SystemConfigPage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('上传目录不可写，请检查服务器挂载目录权限。')
     expect(screen.getByRole('img', { name: 'Sub2API 系统 Logo 预览' })).toHaveAttribute('src', '/aux/api/aux/assets/3')
+  })
+  it('shows the unconfigured public URL warning and fills the current origin', async () => {
+    // 当前访问地址包含应用挂载路径（如 /aux），与 Sub2API 菜单 URL 前缀一致。
+    const currentURL = toCurrentOriginURI('/').replace(/\/+$/, '')
+    getConfig.mockResolvedValue({
+      code: 0,
+      message: 'ok',
+      data: { model: 'gpt-6-astra', siteName: '示例平台', extensionPublicUrl: '', menuPublication: { available: false, effectiveUrl: '', source: '' } },
+    })
+    putConfig.mockResolvedValue({
+      code: 0,
+      message: 'ok',
+      data: { model: 'gpt-6-astra', siteName: '示例平台', extensionPublicUrl: currentURL, menuPublication: { available: true, effectiveUrl: currentURL, source: 'config' } },
+    })
+    render(<SystemConfigPage />)
+
+    expect(await screen.findByText(/当前未配置：Sub2API 菜单无法上架/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '使用当前访问地址' }))
+    const input = screen.getByRole('textbox', { name: '扩展系统公网地址' })
+    expect(input).toHaveValue(currentURL)
+    fireEvent.click(screen.getByRole('button', { name: '保存配置' }))
+
+    await waitFor(() => expect(putConfig).toHaveBeenCalledWith('/admin/homepage/config', expect.objectContaining({ extensionPublicUrl: currentURL })))
+    expect(putConfig.mock.calls[0][1]).not.toHaveProperty('menuPublication')
+    expect(await screen.findByText(`当前生效：${currentURL}（来自系统配置）`)).toBeInTheDocument()
+  })
+
+  it('shows the environment fallback and rejects an invalid public URL', async () => {
+    getConfig.mockResolvedValue({
+      code: 0,
+      message: 'ok',
+      data: { model: 'gpt-6-astra', siteName: '示例平台', menuPublication: { available: true, effectiveUrl: 'https://env.example.com/aux', source: 'env' } },
+    })
+    render(<SystemConfigPage />)
+
+    expect(await screen.findByText('当前生效：https://env.example.com/aux（来自环境变量 SUB2API_EXTENSION_PUBLIC_URL）')).toBeInTheDocument()
+    fireEvent.change(screen.getByRole('textbox', { name: '扩展系统公网地址' }), { target: { value: 'https://code.example.com/aux?token=1' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存配置' }))
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('扩展系统公网地址')))
+    expect(putConfig).not.toHaveBeenCalled()
+  })
+
+  it('normalizes a trailing slash before saving the public URL', async () => {
+    render(<SystemConfigPage />)
+
+    fireEvent.change(await screen.findByRole('textbox', { name: '扩展系统公网地址' }), { target: { value: ' https://code.example.com/aux/ ' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存配置' }))
+
+    await waitFor(() => expect(putConfig).toHaveBeenCalledWith('/admin/homepage/config', expect.objectContaining({ extensionPublicUrl: 'https://code.example.com/aux' })))
   })
 })

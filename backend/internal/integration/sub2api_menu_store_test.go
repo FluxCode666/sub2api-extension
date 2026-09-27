@@ -1,7 +1,9 @@
 package integration
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"aux-system/internal/sub2apimenu"
@@ -12,19 +14,96 @@ import (
 func TestSub2APIMenuStoreAbsoluteURL(t *testing.T) {
 	store := NewSub2APIMenuStore(nil, "https://aux.example.com/")
 
-	got, err := store.absoluteURL("/admin/p/docs")
+	got, err := store.absoluteURL(context.Background(), "/admin/p/docs")
 	require.NoError(t, err)
 	require.Equal(t, "https://aux.example.com/admin/p/docs", got)
 
-	got, err = store.absoluteURL("https://other.example.com/p/docs")
+	got, err = store.absoluteURL(context.Background(), "https://other.example.com/p/docs")
 	require.NoError(t, err)
 	require.Equal(t, "https://other.example.com/p/docs", got)
 }
 
 func TestSub2APIMenuStoreAbsoluteURLRequiresPublicOrigin(t *testing.T) {
 	store := NewSub2APIMenuStore(nil, "")
-	_, err := store.absoluteURL("/p/docs")
+	_, err := store.absoluteURL(context.Background(), "/p/docs")
 	require.ErrorContains(t, err, "public URL is required")
+}
+
+type publicURLSourceStub struct {
+	value string
+	err   error
+}
+
+func (s publicURLSourceStub) ExtensionPublicURL(context.Context) (string, error) {
+	return s.value, s.err
+}
+
+func TestSub2APIMenuStorePublicURLPrefersSystemConfig(t *testing.T) {
+	ctx := context.Background()
+	tests := []struct {
+		name       string
+		env        string
+		source     publicURLSourceStub
+		wantURL    string
+		wantSource string
+	}{
+		{name: "config wins", env: "https://env.example.com", source: publicURLSourceStub{value: "https://code.example.com/aux/"}, wantURL: "https://code.example.com/aux", wantSource: PublicURLSourceConfig},
+		{name: "empty config falls back to env", env: "https://env.example.com/", wantURL: "https://env.example.com", wantSource: PublicURLSourceEnv},
+		{name: "config read error falls back to env", env: "https://env.example.com", source: publicURLSourceStub{value: "https://code.example.com", err: errors.New("db down")}, wantURL: "https://env.example.com", wantSource: PublicURLSourceEnv},
+		{name: "both empty", wantURL: "", wantSource: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := NewSub2APIMenuStore(nil, tt.env, tt.source)
+			gotURL, gotSource := store.EffectivePublicURL(ctx)
+			require.Equal(t, tt.wantURL, gotURL)
+			require.Equal(t, tt.wantSource, gotSource)
+			// 没有 Sub2API 数据库连接时无论地址是否配置都不能上架。
+			require.False(t, store.MenuPublishAvailable(ctx))
+		})
+	}
+
+	store := NewSub2APIMenuStore(nil, "", publicURLSourceStub{value: "https://code.example.com/aux"})
+	got, err := store.absoluteURL(ctx, "/invoice")
+	require.NoError(t, err)
+	require.Equal(t, "https://code.example.com/aux/invoice", got)
+
+	var nilStore *Sub2APIMenuStore
+	gotURL, gotSource := nilStore.EffectivePublicURL(ctx)
+	require.Empty(t, gotURL)
+	require.Empty(t, gotSource)
+	require.False(t, nilStore.MenuPublishAvailable(ctx))
+}
+
+func TestRebaseManagedMenuItemsOnlyTouchesExtensionEntries(t *testing.T) {
+	items, err := decodeItems(`[
+		{"id":"aux-dashboard","label":"扩展系统↗","url":"https://old.example.com/aux/admin/dashboard","visibility":"admin","sort_order":1,"future_flag":true},
+		{"id":"aux-page-3","label":"Docs","url":"https://old.example.com/aux/p/docs","visibility":"user","sort_order":2},
+		{"id":"aux-invoice","label":"发票管理","url":"https://old.example.com/aux/invoice","visibility":"user","sort_order":3},
+		{"id":"aux-tickets","label":"工单","url":"https://elsewhere.example.com/tickets","visibility":"user","sort_order":4},
+		{"id":"custom","label":"Custom","url":"https://old.example.com/aux/custom","visibility":"user","sort_order":5},
+		{"id":"aux-async-tasks","label":"异步任务","url":"https://old.example.com/auxiliary","visibility":"user","sort_order":6}
+	]`)
+	require.NoError(t, err)
+
+	rebased := rebaseManagedMenuItems(items, "https://old.example.com/aux", "https://code.example.com/aux")
+
+	require.Equal(t, "https://code.example.com/aux/admin/dashboard", rebased[0].URL)
+	require.Equal(t, "https://code.example.com/aux/p/docs", rebased[1].URL)
+	require.Equal(t, "https://code.example.com/aux/invoice", rebased[2].URL)
+	require.Equal(t, "https://elsewhere.example.com/tickets", rebased[3].URL, "absolute URLs from another origin are left untouched")
+	require.Equal(t, "https://old.example.com/aux/custom", rebased[4].URL, "Sub2API-owned menus are never rewritten")
+	require.Equal(t, "https://old.example.com/auxiliary", rebased[5].URL, "prefix must match a path boundary")
+	raw, err := json.Marshal(rebased[0])
+	require.NoError(t, err)
+	require.Contains(t, string(raw), `"future_flag":true`)
+}
+
+func TestSub2APIMenuStoreRebasePublicURLNoopWithoutChange(t *testing.T) {
+	store := NewSub2APIMenuStore(nil, "")
+	// 旧地址为空或未变化时不访问数据库（db 为 nil 也不会报错）。
+	require.NoError(t, store.RebasePublicURL(context.Background(), "", "https://code.example.com/aux"))
+	require.NoError(t, store.RebasePublicURL(context.Background(), "https://code.example.com/aux/", "https://code.example.com/aux"))
 }
 
 func TestSub2APIMenuStoreManagedMenuID(t *testing.T) {
@@ -46,7 +125,7 @@ func TestSub2APIMenuStorePublicationMatchesManagedFields(t *testing.T) {
 	actual := expected
 	actual.URL = "https://aux.example.com/p/docs"
 
-	matched, reason := store.PublicationMatches(expected, actual)
+	matched, reason := store.PublicationMatches(context.Background(), expected, actual)
 	require.True(t, matched, reason)
 
 	tests := []struct {
@@ -64,7 +143,7 @@ func TestSub2APIMenuStorePublicationMatchesManagedFields(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			changed := actual
 			tt.mutate(&changed)
-			matched, reason := store.PublicationMatches(expected, changed)
+			matched, reason := store.PublicationMatches(context.Background(), expected, changed)
 			require.False(t, matched)
 			require.NotEmpty(t, reason)
 		})

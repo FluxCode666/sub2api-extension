@@ -34,19 +34,99 @@ const clientImportMenuIconSVG = `<svg fill="none" viewBox="0 0 24 24" stroke="cu
 
 const asyncTaskMenuIconSVG = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><rect width="18" height="14" x="3" y="5" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M7 9.5h4M7 13h7M7 16.5h3"/><circle cx="17" cy="10" r="1.5"/></svg>`
 
+// PublicURLSourceConfig 和 PublicURLSourceEnv 标识当前生效的扩展公网地址来源。
+const (
+	PublicURLSourceConfig = "config"
+	PublicURLSourceEnv    = "env"
+)
+
+// publicURLSource 提供管理端「系统配置」中保存的扩展公网地址。
+type publicURLSource interface {
+	ExtensionPublicURL(ctx context.Context) (string, error)
+}
+
+// managedFeatureMenuIDs 是扩展自身入口使用的固定菜单 ID；页面菜单另由
+// isManagedMenuID 识别。公网地址变更时只重写这些条目的 URL 前缀。
+var managedFeatureMenuIDs = map[string]bool{
+	"aux-dashboard":     true,
+	"aux-homepage":      true,
+	"aux-invoice":       true,
+	"aux-tickets":       true,
+	"aux-promotions":    true,
+	"aux-client-import": true,
+	"aux-async-tasks":   true,
+}
+
 // Sub2APIMenuStore 直接读写 sub2api settings 表中的 custom_menu_items 设置。
 // 只修改由本扩展创建的菜单项，其余 sub2api 菜单字段会原样保留。
 type Sub2APIMenuStore struct {
 	db        *sql.DB
 	publicURL string
+	source    publicURLSource
 }
 
-func NewSub2APIMenuStore(db *sql.DB, publicURL string) *Sub2APIMenuStore {
-	return &Sub2APIMenuStore{db: db, publicURL: strings.TrimRight(strings.TrimSpace(publicURL), "/")}
+// NewSub2APIMenuStore 创建菜单存储。publicURL 来自 SUB2API_EXTENSION_PUBLIC_URL；
+// 可选 source 为系统配置中的地址，非空时优先生效，便于无需重建容器即可修正域名。
+func NewSub2APIMenuStore(db *sql.DB, publicURL string, sources ...publicURLSource) *Sub2APIMenuStore {
+	store := &Sub2APIMenuStore{db: db, publicURL: strings.TrimRight(strings.TrimSpace(publicURL), "/")}
+	if len(sources) > 0 {
+		store.source = sources[0]
+	}
+	return store
 }
 
-func (s *Sub2APIMenuStore) TicketMenuPublishAvailable() bool {
-	return s != nil && s.db != nil && s.publicURL != ""
+// MenuPublishAvailable 报告 Sub2API 数据库与扩展公网地址是否都已就绪。
+func (s *Sub2APIMenuStore) MenuPublishAvailable(ctx context.Context) bool {
+	if s == nil || s.db == nil {
+		return false
+	}
+	base, _ := s.EffectivePublicURL(ctx)
+	return base != ""
+}
+
+// EffectivePublicURL 返回当前用于生成菜单 URL 的扩展公网地址及其来源。
+// 系统配置读取失败时回退环境变量，避免配置库抖动导致已有入口无法同步。
+func (s *Sub2APIMenuStore) EffectivePublicURL(ctx context.Context) (string, string) {
+	if s == nil {
+		return "", ""
+	}
+	if s.source != nil {
+		configured, err := s.source.ExtensionPublicURL(ctx)
+		if err != nil {
+			log.Printf("[Sub2APIMenuStore.EffectivePublicURL] read configured public URL failed, falling back to environment: %v", err)
+		} else if configured = strings.TrimRight(strings.TrimSpace(configured), "/"); configured != "" {
+			return configured, PublicURLSourceConfig
+		}
+	}
+	if s.publicURL != "" {
+		return s.publicURL, PublicURLSourceEnv
+	}
+	return "", ""
+}
+
+// RebasePublicURL 在扩展公网地址变更后，把扩展管理的菜单项 URL 从旧前缀
+// 迁移到新前缀；Sub2API 自有菜单和其他字段保持不变。
+func (s *Sub2APIMenuStore) RebasePublicURL(ctx context.Context, oldBase, newBase string) error {
+	oldBase = strings.TrimRight(strings.TrimSpace(oldBase), "/")
+	newBase = strings.TrimRight(strings.TrimSpace(newBase), "/")
+	if oldBase == "" || newBase == "" || oldBase == newBase {
+		return nil
+	}
+	return s.mutate(ctx, func(items []customMenuItem) ([]customMenuItem, error) {
+		return rebaseManagedMenuItems(items, oldBase, newBase), nil
+	})
+}
+
+func rebaseManagedMenuItems(items []customMenuItem, oldBase, newBase string) []customMenuItem {
+	for i, item := range items {
+		if !managedFeatureMenuIDs[item.ID] && !isManagedMenuID(item.ID) {
+			continue
+		}
+		if item.URL == oldBase || strings.HasPrefix(item.URL, oldBase+"/") {
+			items[i].URL = newBase + strings.TrimPrefix(item.URL, oldBase)
+		}
+	}
+	return items
 }
 
 type customMenuItem struct {
@@ -167,7 +247,7 @@ func (s *Sub2APIMenuStore) Publish(ctx context.Context, publication sub2apimenu.
 		log.Printf("[Sub2APIMenuStore.Publish] invalid visibility menu_id=%q slug=%q visibility=%q", publication.MenuID, publication.Slug, publication.Visibility)
 		return fmt.Errorf("invalid sub2api menu visibility: %s", publication.Visibility)
 	}
-	menuURL, err := s.absoluteURL(publication.URL)
+	menuURL, err := s.absoluteURL(ctx, publication.URL)
 	if err != nil {
 		log.Printf("[Sub2APIMenuStore.Publish] invalid URL menu_id=%q slug=%q: %v", publication.MenuID, publication.Slug, err)
 		return err
@@ -210,7 +290,7 @@ func (s *Sub2APIMenuStore) Publish(ctx context.Context, publication sub2apimenu.
 // extension's desired publication. The menu ID alone is not sufficient: an
 // administrator can edit custom_menu_items directly and change the label,
 // URL, role, or page_slug while leaving aux-page-<id> intact.
-func (s *Sub2APIMenuStore) PublicationMatches(expected, actual sub2apimenu.PagePublication) (bool, string) {
+func (s *Sub2APIMenuStore) PublicationMatches(ctx context.Context, expected, actual sub2apimenu.PagePublication) (bool, string) {
 	if s == nil {
 		return false, "sub2api menu store unavailable"
 	}
@@ -226,7 +306,7 @@ func (s *Sub2APIMenuStore) PublicationMatches(expected, actual sub2apimenu.PageP
 	if expected.PageSlug != actual.PageSlug {
 		return false, "menu page_slug changed"
 	}
-	expectedURL, err := s.absoluteURL(expected.URL)
+	expectedURL, err := s.absoluteURL(ctx, expected.URL)
 	if err != nil {
 		return false, fmt.Sprintf("expected URL is invalid: %v", err)
 	}
@@ -323,7 +403,7 @@ func (s *Sub2APIMenuStore) SetInvoiceMenu(ctx context.Context, enabled bool) err
 			return filtered, nil
 		})
 	}
-	menuURL, err := s.absoluteURL("/invoice")
+	menuURL, err := s.absoluteURL(ctx, "/invoice")
 	if err != nil {
 		return err
 	}
@@ -360,7 +440,7 @@ func (s *Sub2APIMenuStore) SetTicketMenu(ctx context.Context, enabled bool) erro
 			return filtered, nil
 		})
 	}
-	menuURL, err := s.absoluteURL("/tickets")
+	menuURL, err := s.absoluteURL(ctx, "/tickets")
 	if err != nil {
 		return err
 	}
@@ -386,7 +466,7 @@ func (s *Sub2APIMenuStore) SetClientImportMenu(ctx context.Context, enabled bool
 			return filtered, nil
 		})
 	}
-	menuURL, err := s.absoluteURL("/client-import")
+	menuURL, err := s.absoluteURL(ctx, "/client-import")
 	if err != nil {
 		return err
 	}
@@ -412,7 +492,7 @@ func (s *Sub2APIMenuStore) SetAsyncTaskMenu(ctx context.Context, enabled bool) e
 			return filtered, nil
 		})
 	}
-	menuURL, err := s.absoluteURL("/async-tasks")
+	menuURL, err := s.absoluteURL(ctx, "/async-tasks")
 	if err != nil {
 		return err
 	}
@@ -547,7 +627,7 @@ func (s *Sub2APIMenuStore) SetPromotionMenu(ctx context.Context, enabled bool) e
 			return filtered, nil
 		})
 	}
-	menuURL, err := s.absoluteURL("/promotions")
+	menuURL, err := s.absoluteURL(ctx, "/promotions")
 	if err != nil {
 		return err
 	}
@@ -588,7 +668,7 @@ func (s *Sub2APIMenuStore) SetHomepageMenu(ctx context.Context, enabled bool, la
 			return filtered, nil
 		})
 	}
-	menuURL, err := s.absoluteURL("/admin/dashboard")
+	menuURL, err := s.absoluteURL(ctx, "/admin/dashboard")
 	if err != nil {
 		return err
 	}
@@ -632,7 +712,7 @@ func mergeInvoiceMenuItem(existing customMenuItem, menuURL string) customMenuIte
 	}
 }
 
-func (s *Sub2APIMenuStore) absoluteURL(path string) (string, error) {
+func (s *Sub2APIMenuStore) absoluteURL(ctx context.Context, path string) (string, error) {
 	path = strings.TrimSpace(path)
 	if path == "" {
 		return "", errors.New("sub2api menu URL is required")
@@ -647,10 +727,11 @@ func (s *Sub2APIMenuStore) absoluteURL(path string) (string, error) {
 		}
 		return path, nil
 	}
-	if s.publicURL == "" {
+	base, _ := s.EffectivePublicURL(ctx)
+	if base == "" {
 		return "", errors.New("sub2api public URL is required to publish a page")
 	}
-	full := s.publicURL + "/" + strings.TrimLeft(path, "/")
+	full := base + "/" + strings.TrimLeft(path, "/")
 	parsed, err := url.ParseRequestURI(full)
 	if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
 		if err == nil {

@@ -27,5 +27,5 @@ type Publisher interface {
 // compatible; the service falls back to comparing the portable fields when it
 // is not implemented.
 type PublicationMatcher interface {
-	PublicationMatches(expected, actual PagePublication) (bool, string)
+	PublicationMatches(ctx context.Context, expected, actual PagePublication) (bool, string)
 }

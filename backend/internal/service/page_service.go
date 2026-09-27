@@ -206,7 +206,7 @@ func (s *PageService) ListAdmin(ctx context.Context) ([]PageListItem, error) {
 		items[i].Sub2APIPublished = false
 		expected := pagePublicationForFields(items[i].ID, items[i].PageID, items[i].Slug, items[i].Title, items[i].Visibility, items[i].Sub2APIVisibility, items[i].Sub2APIMenuName)
 		if publication, ok := published[expected.MenuID]; ok {
-			matched, reason := s.publicationMatches(expected, publication)
+			matched, reason := s.publicationMatches(ctx, expected, publication)
 			if matched {
 				matchedCount++
 				items[i].Sub2APIPublished = true
@@ -246,7 +246,7 @@ func (s *PageService) GetByID(ctx context.Context, id int) (*Page, error) {
 	}
 	expected := pagePublicationForPage(p)
 	if publication, ok := published[expected.MenuID]; ok {
-		matched, reason := s.publicationMatches(expected, publication)
+		matched, reason := s.publicationMatches(ctx, expected, publication)
 		if matched {
 			p.Sub2APIPublished = true
 			p.Sub2APIVisibility = publication.Visibility
@@ -398,9 +398,9 @@ func pagePublicationForFields(id int, pageID, slug, title string, pageVisibility
 	}
 }
 
-func (s *PageService) publicationMatches(expected, actual sub2apimenu.PagePublication) (bool, string) {
+func (s *PageService) publicationMatches(ctx context.Context, expected, actual sub2apimenu.PagePublication) (bool, string) {
 	if matcher, ok := s.publisher.(sub2apimenu.PublicationMatcher); ok {
-		return matcher.PublicationMatches(expected, actual)
+		return matcher.PublicationMatches(ctx, expected, actual)
 	}
 	if expected.MenuID != actual.MenuID {
 		return false, "menu id changed"

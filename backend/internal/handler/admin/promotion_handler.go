@@ -32,7 +32,7 @@ func (h *PromotionAdminHandler) GetFeature(c *gin.Context) {
 		response.InternalError(c, "failed to read promotion publication setting")
 		return
 	}
-	response.Success(c, gin.H{"enabled": enabled, "publish_available": h.publisher != nil})
+	response.Success(c, gin.H{"enabled": enabled, "publish_available": menuPublishAvailable(c.Request.Context(), h.publisher)})
 }
 
 func (h *PromotionAdminHandler) SetFeature(c *gin.Context) {

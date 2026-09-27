@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react'
-import { CircleCheck, ImageIcon, Loader2, RefreshCw, Save, Settings2, Trash2, UploadCloud } from 'lucide-react'
+import { CircleCheck, ImageIcon, Loader2, LocateFixed, RefreshCw, Save, Settings2, Trash2, UploadCloud } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiClient, type AuxEnvelope } from '@/lib/api-client'
 import { DEFAULT_SUB2API_SYSTEM_NAME, resolveSystemName } from '@/lib/system-name'
@@ -7,12 +7,21 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { DEFAULT_SYSTEM_POSITION, normalizeSystemPosition, type SystemPosition } from '@/lib/system-position'
 import './SystemConfigPage.css'
-import { withAppBasePath } from '@/lib/app-base-path'
+import { toCurrentOriginURI, withAppBasePath } from '@/lib/app-base-path'
 
 const DEFAULT_MODEL = 'gpt-6-astra'
 const ALLOWED_LOGO_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
+const EXTENSION_PUBLIC_URL_LIMIT = 300
+
+/** Sub2API 菜单实际使用的扩展地址；source 为 config（系统配置）、env（环境变量）或空（未配置）。 */
+interface MenuPublication {
+  available: boolean
+  effectiveUrl: string
+  source: '' | 'config' | 'env'
+}
 
 interface UploadedImageAsset {
   id: number
@@ -38,6 +47,8 @@ interface HomepageConfig {
   sub2apiPublished?: boolean
   clientImportPublished?: boolean
   asyncTasksPublished?: boolean
+  extensionPublicUrl?: string
+  menuPublication?: MenuPublication
   [key: string]: unknown
 }
 
@@ -59,6 +70,30 @@ const DEFAULT_CONFIG: HomepageConfig = {
   sub2apiPublished: false,
   clientImportPublished: false,
   asyncTasksPublished: false,
+  extensionPublicUrl: '',
+}
+
+/** 与后端 NormalizeExtensionPublicURL 一致：仅接受无账号、查询串和片段的 HTTP(S) 基础地址。 */
+function normalizeExtensionPublicUrl(value: string): string | null {
+  const trimmed = value.trim().replace(/\/+$/, '')
+  if (!trimmed) return ''
+  if (trimmed.length > EXTENSION_PUBLIC_URL_LIMIT || /[\s\\#]/.test(trimmed)) return null
+  try {
+    const parsed = new URL(trimmed)
+    if ((parsed.protocol !== 'http:' && parsed.protocol !== 'https:') || !parsed.host) return null
+    if (parsed.username || parsed.password || parsed.search || trimmed.includes('?')) return null
+    return trimmed
+  } catch {
+    return null
+  }
+}
+
+function describeMenuPublication(publication?: MenuPublication): { text: string; warning: boolean } {
+  if (!publication?.effectiveUrl) {
+    return { text: '当前未配置：Sub2API 菜单无法上架扩展控制台、发票、工单等入口。', warning: true }
+  }
+  const source = publication.source === 'config' ? '系统配置' : '环境变量 SUB2API_EXTENSION_PUBLIC_URL'
+  return { text: `当前生效：${publication.effectiveUrl}（来自${source}）`, warning: false }
 }
 
 function mergeConfig(value?: HomepageConfig): HomepageConfig {
@@ -83,6 +118,7 @@ export default function SystemConfigPage() {
   const [draftSub2APIPublished, setDraftSub2APIPublished] = useState(false)
   const [draftClientImportPublished, setDraftClientImportPublished] = useState(false)
   const [draftAsyncTasksPublished, setDraftAsyncTasksPublished] = useState(false)
+  const [draftExtensionPublicUrl, setDraftExtensionPublicUrl] = useState('')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -108,6 +144,7 @@ export default function SystemConfigPage() {
       setDraftSub2APIPublished(nextConfig.sub2apiPublished === true)
       setDraftClientImportPublished(nextConfig.clientImportPublished === true)
       setDraftAsyncTasksPublished(nextConfig.asyncTasksPublished === true)
+      setDraftExtensionPublicUrl(nextConfig.extensionPublicUrl?.trim() ?? '')
       setLogoPreviewFailed(false)
       if (showToast) toast.success('系统配置已刷新')
     } catch (reason) {
@@ -216,6 +253,13 @@ export default function SystemConfigPage() {
       toast.error(message)
       return
     }
+    const extensionPublicUrl = normalizeExtensionPublicUrl(draftExtensionPublicUrl)
+    if (extensionPublicUrl === null) {
+      const message = '扩展系统公网地址必须是完整的 HTTP(S) 地址，且不能包含账号、查询参数或 # 片段。'
+      setError(message)
+      toast.error(message)
+      return
+    }
     if (!model) {
       const message = '请填写默认模型名称。'
       setError(message)
@@ -232,9 +276,11 @@ export default function SystemConfigPage() {
     setSaving(true)
     setError('')
     try {
-      // 将已读取的完整配置一起提交，避免只保存 model 时覆盖其他兼容字段。
+      // 将已读取的完整配置一起提交，避免只保存 model 时覆盖其他兼容字段；
+      // menuPublication 是服务端计算的只读状态，不回传。
+      const { menuPublication: _menuPublication, ...persistedConfig } = config
       const response = await apiClient.put<AuxEnvelope<HomepageConfig>>('/admin/homepage/config', {
-        ...config,
+        ...persistedConfig,
         [config.siteName !== undefined ? 'siteName' : 'heroTitle']: systemName,
         systemPosition: draftSystemPosition,
         systemDomain,
@@ -243,6 +289,7 @@ export default function SystemConfigPage() {
         sub2apiPublished: draftSub2APIPublished,
         clientImportPublished: draftClientImportPublished,
         asyncTasksPublished: draftAsyncTasksPublished,
+        extensionPublicUrl,
       })
       if (response.code !== 0 || !response.data) throw new Error(response.message || '系统配置保存失败')
       const savedConfig = mergeConfig(response.data)
@@ -255,6 +302,7 @@ export default function SystemConfigPage() {
       setDraftSub2APIPublished(savedConfig.sub2apiPublished === true)
       setDraftClientImportPublished(savedConfig.clientImportPublished === true)
       setDraftAsyncTasksPublished(savedConfig.asyncTasksPublished === true)
+      setDraftExtensionPublicUrl(savedConfig.extensionPublicUrl?.trim() ?? '')
       setLogoPreviewFailed(false)
       if (response.reason) {
         toast.warning('系统配置已保存，但菜单同步未完成', { description: response.reason })
@@ -279,9 +327,16 @@ export default function SystemConfigPage() {
     setDraftSub2APIPublished(false)
     setDraftClientImportPublished(false)
     setDraftAsyncTasksPublished(false)
+    setDraftExtensionPublicUrl('')
     setLogoPreviewFailed(false)
     setError('')
   }
+
+  const fillCurrentOrigin = () => {
+    setDraftExtensionPublicUrl(toCurrentOriginURI('/').replace(/\/+$/, ''))
+  }
+
+  const publicationHint = describeMenuPublication(config.menuPublication)
 
   const draftIsDefault = draftSystemName === (DEFAULT_CONFIG.siteName ?? DEFAULT_SUB2API_SYSTEM_NAME)
     && draftSystemPosition === DEFAULT_SYSTEM_POSITION
@@ -291,6 +346,7 @@ export default function SystemConfigPage() {
     && !draftSub2APIPublished
     && !draftClientImportPublished
     && !draftAsyncTasksPublished
+    && draftExtensionPublicUrl === ''
 
   if (loading) {
     return (
@@ -432,6 +488,36 @@ export default function SystemConfigPage() {
                 aria-label="系统定位 ToB"
               />
             </div>
+          </div>
+          <div className="aux-system-config-field aux-system-config-extension-url">
+            <Label htmlFor="extension-public-url">扩展系统公网地址</Label>
+            <div className="aux-system-config-url-row">
+              <Input
+                id="extension-public-url"
+                aria-label="扩展系统公网地址"
+                aria-describedby="extension-public-url-hint extension-public-url-status"
+                value={draftExtensionPublicUrl}
+                maxLength={EXTENSION_PUBLIC_URL_LIMIT}
+                inputMode="url"
+                autoComplete="url"
+                spellCheck={false}
+                placeholder="https://example.com/aux"
+                disabled={saving}
+                onChange={(event) => setDraftExtensionPublicUrl(event.target.value)}
+              />
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button type="button" variant="outline" size="icon" className="aux-system-config-url-action" onClick={fillCurrentOrigin} disabled={saving} aria-label="使用当前访问地址">
+                      <LocateFixed aria-hidden="true" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>使用当前访问地址</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <small id="extension-public-url-hint">浏览器访问本扩展的完整地址（含反向代理路径，如 <code>/aux</code>），用于生成 Sub2API 菜单链接；留空则使用环境变量 <code>SUB2API_EXTENSION_PUBLIC_URL</code>。</small>
+            <small id="extension-public-url-status" className={publicationHint.warning ? 'is-warning' : undefined}>{publicationHint.text}</small>
           </div>
           <div className="aux-system-config-publication">
             <div>

@@ -4,7 +4,7 @@
 
 ## 用户入口
 
-管理员可在 `/admin/tickets` 的“上架到用户端”开关控制是否发布菜单。开关状态保存于附属系统 `system_meta` 的 `ticket.feature.enabled`，默认关闭；开启后，服务会在 Sub2API `settings.custom_menu_items` 中幂等创建/更新用户菜单 `id=aux-tickets`、`visibility=user`，目标为扩展 `/tickets`，关闭后会移除该菜单。服务启动时也会按已保存状态重新同步，避免重启后菜单状态漂移。菜单以 iframe 打开并由 Sub2API 注入 token，无需修改 Sub2API 源码。未配置 `SUB2API_DATABASE_*` 或浏览器可访问的 `SUB2API_EXTENSION_PUBLIC_URL` 时，开关状态仍可保存，但无法同步 Sub2API 菜单。
+管理员可在 `/admin/tickets` 的“上架到用户端”开关控制是否发布菜单。开关状态保存于附属系统 `system_meta` 的 `ticket.feature.enabled`，默认关闭；开启后，服务会在 Sub2API `settings.custom_menu_items` 中幂等创建/更新用户菜单 `id=aux-tickets`、`visibility=user`，目标为扩展 `/tickets`，关闭后会移除该菜单。服务启动时也会按已保存状态重新同步，避免重启后菜单状态漂移。菜单以 iframe 打开并由 Sub2API 注入 token，无需修改 Sub2API 源码。未配置 `SUB2API_DATABASE_*` 或浏览器可访问的扩展公网地址（系统配置“扩展系统公网地址”或 `SUB2API_EXTENSION_PUBLIC_URL`）时，开关状态仍可保存，但无法同步 Sub2API 菜单。
 
 用户通过 `/tickets` 创建工单、查看对话和回复。用户身份由 `X-Aux-Token` 经 `UserGuard` 实时向 Sub2API 验证；请求不接受客户端指定的用户 ID。新工单初始为 `OPEN`，用户只能读取或回复自己的工单；关闭工单后用户不能继续回复。
 

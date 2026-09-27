@@ -281,3 +281,49 @@ func TestHomepageConfigService_PersistsSiteLogoURL(t *testing.T) {
 		})
 	}
 }
+
+func TestNormalizeExtensionPublicURL(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+		ok    bool
+	}{
+		{name: "empty means unset", input: "  ", want: "", ok: true},
+		{name: "trims trailing slash", input: " https://code.example.com/aux/ ", want: "https://code.example.com/aux", ok: true},
+		{name: "http with port", input: "http://localhost:3100", want: "http://localhost:3100", ok: true},
+		{name: "rejects javascript", input: "javascript:alert(1)", ok: false},
+		{name: "rejects relative path", input: "/aux", ok: false},
+		{name: "rejects userinfo", input: "https://user:pass@code.example.com/aux", ok: false},
+		{name: "rejects query", input: "https://code.example.com/aux?token=1", ok: false},
+		{name: "rejects fragment", input: "https://code.example.com/aux#x", ok: false},
+		{name: "rejects whitespace", input: "https://code.example.com/a ux", ok: false},
+		{name: "rejects overlong", input: "https://code.example.com/" + strings.Repeat("a", 300), ok: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := NormalizeExtensionPublicURL(tt.input)
+			assert.Equal(t, tt.ok, ok)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestHomepageConfigService_ExtensionPublicURL(t *testing.T) {
+	store := &memoryHomepageConfigStore{}
+	svc := NewHomepageConfigService(store)
+	ctx := context.Background()
+
+	saved, err := svc.Save(ctx, HomepageConfig{SiteName: "Sub2API", ExtensionPublicURL: "https://code.example.com/aux/"})
+	require.NoError(t, err)
+	assert.Equal(t, "https://code.example.com/aux", saved.ExtensionPublicURL)
+	got, err := svc.ExtensionPublicURL(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "https://code.example.com/aux", got)
+
+	_, err = svc.Save(ctx, HomepageConfig{SiteName: "Sub2API", ExtensionPublicURL: "ftp://code.example.com"})
+	require.ErrorIs(t, err, ErrInvalidExtensionPublicURL)
+	got, err = svc.ExtensionPublicURL(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "https://code.example.com/aux", got, "invalid input must not overwrite the stored URL")
+}

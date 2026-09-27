@@ -64,4 +64,6 @@ docker compose --env-file .env -f docker-compose.yml pull
 docker compose --env-file .env -f docker-compose.yml up -d
 ```
 
+扩展公网地址（Sub2API 菜单 URL 前缀）无需为此改 `.env` 重建容器：在「系统配置」填写“扩展系统公网地址”并保存即可生效，且优先于 `SUB2API_EXTENSION_PUBLIC_URL`。
+
 不要使用可变的 `latest` 作为长期回退依据，生产环境建议固定正式 tag，并在升级前保留数据库和上传资源备份。

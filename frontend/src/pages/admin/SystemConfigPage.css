@@ -158,7 +158,8 @@
 .aux-system-config-field + .aux-system-config-field { margin-top: 24px; }
 .aux-system-config-field > label { display: block; margin-bottom: 9px; font-size: 13px; font-weight: 680; }
 
-.aux-system-config-field > input:not([type="file"]) {
+.aux-system-config-field > input:not([type="file"]),
+.aux-system-config-url-row > input {
   display: block;
   width: 100%;
   min-height: 52px;
@@ -173,8 +174,15 @@
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
-.aux-system-config-field > input:not([type="file"]):focus { border-color: var(--console-accent); box-shadow: 0 0 0 4px var(--console-accent-soft); }
+.aux-system-config-field > input:not([type="file"]):focus,
+.aux-system-config-url-row > input:focus { border-color: var(--console-accent); box-shadow: 0 0 0 4px var(--console-accent-soft); }
 .aux-system-config-field small { display: block; margin-top: 10px; color: var(--console-subtle); font-size: 12px; line-height: 1.6; }
+.aux-system-config-extension-url { margin-top: 24px; }
+.aux-system-config-url-row { display: flex; align-items: stretch; gap: 10px; }
+.aux-system-config-url-row > input { flex: 1 1 auto; min-width: 0; }
+.aux-system-config-url-action { flex: 0 0 auto; width: 52px; height: auto; min-height: 52px; border-radius: 13px; }
+.aux-system-config-field small + small { margin-top: 6px; }
+.aux-system-config-field small.is-warning { color: var(--console-warm); font-weight: 600; }
 .aux-system-config-field small code { color: var(--console-accent); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
 
 .aux-system-config-logo-upload {

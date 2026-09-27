@@ -23,10 +23,6 @@ type ticketMenuPublisher interface {
 	SetTicketMenu(context.Context, bool) error
 }
 
-type ticketMenuAvailability interface {
-	TicketMenuPublishAvailable() bool
-}
-
 func NewTicketHandler(svc *service.TicketService, publishers ...ticketMenuPublisher) *TicketHandler {
 	var publisher ticketMenuPublisher
 	if len(publishers) > 0 {
@@ -46,7 +42,7 @@ func (h *TicketHandler) GetFeature(c *gin.Context) {
 		response.InternalError(c, "failed to read ticket publication setting")
 		return
 	}
-	response.Success(c, gin.H{"enabled": enabled, "publish_available": h.publishAvailable()})
+	response.Success(c, gin.H{"enabled": enabled, "publish_available": h.publishAvailable(c.Request.Context())})
 }
 
 func (h *TicketHandler) SetFeature(c *gin.Context) {
@@ -73,17 +69,14 @@ func (h *TicketHandler) SetFeature(c *gin.Context) {
 			return
 		}
 	}
-	response.Success(c, gin.H{"enabled": *input.Enabled, "published": h.publishAvailable() && *input.Enabled})
+	response.Success(c, gin.H{"enabled": *input.Enabled, "published": h.publishAvailable(c.Request.Context()) && *input.Enabled})
 }
 
-func (h *TicketHandler) publishAvailable() bool {
+func (h *TicketHandler) publishAvailable(ctx context.Context) bool {
 	if h == nil || h.publisher == nil {
 		return false
 	}
-	if availability, ok := h.publisher.(ticketMenuAvailability); ok {
-		return availability.TicketMenuPublishAvailable()
-	}
-	return true
+	return menuPublishAvailable(ctx, h.publisher)
 }
 
 func (h *TicketHandler) List(c *gin.Context) {

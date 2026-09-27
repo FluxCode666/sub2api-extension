@@ -126,14 +126,18 @@ func main() {
 	}
 	var sub2apiDB *sql.DB
 	var sub2apiRedis *redis.Client
+	// 旧版首页配置 API 兼容链：复用 system_meta 存储；当前官网内容以 pages.home 为准。
+	// 提前创建，是因为系统配置中的扩展公网地址会优先于环境变量用于菜单 URL。
+	homepageStore := service.NewEntHomepageConfigStore(entClient)
+	homepageService := service.NewHomepageConfigService(homepageStore)
 	if cfg.Sub2API.Database.Host != "" {
 		if strings.TrimSpace(cfg.Sub2API.PublicURL) == "" {
 			// The database connection is still useful for reads (for example the
 			// operations dashboard), but publishing a page needs a browser-reachable
 			// origin to build the custom_menu_items URL. Keep startup successful and
 			// make the missing setting explicit instead of hiding it until a toggle is
-			// clicked in the admin UI.
-			log.Printf("[main] sub2api menu publication configured without public URL; set SUB2API_EXTENSION_PUBLIC_URL (for local Vite: http://localhost:3100, Docker: the mapped extension origin)")
+			// clicked in the admin UI. 系统配置页填写的扩展公网地址可替代该环境变量。
+			log.Printf("[main] sub2api menu publication env public URL is empty; configure it in admin system settings or set SUB2API_EXTENSION_PUBLIC_URL (for local Vite: http://localhost:3100, Docker: the mapped extension origin)")
 		} else {
 			// Do not print the URL itself: deployments may include credentials or
 			// other sensitive query material even though a plain origin is expected.
@@ -148,7 +152,7 @@ func main() {
 				log.Printf("[main] failed to close sub2api database: %v", closeErr)
 			}
 		}()
-		menuStore := integration.NewSub2APIMenuStore(sub2apiDB, cfg.Sub2API.PublicURL)
+		menuStore := integration.NewSub2APIMenuStore(sub2apiDB, cfg.Sub2API.PublicURL, homepageService)
 		sub2apiMenuPublisher = menuStore
 		invoiceMenuPublisher = menuStore
 		promotionMenuPublisher = menuStore
@@ -191,9 +195,6 @@ func main() {
 	analyticsService := service.NewAnalyticsService(analyticsStore)
 	analyticsHandler := adminhandler.NewAnalyticsHandler(analyticsService)
 
-	// 旧版首页配置 API 兼容链：复用 system_meta 存储；当前官网内容以 pages.home 为准。
-	homepageStore := service.NewEntHomepageConfigStore(entClient)
-	homepageService := service.NewHomepageConfigService(homepageStore)
 	if clientImportMenuPublisher != nil {
 		syncCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		config, readErr := homepageService.Get(syncCtx)
@@ -247,18 +248,6 @@ func main() {
 	// 始终保存在扩展自己的数据库/私有文件目录中。
 	invoiceOrderStore := integration.NewSub2APIPaymentOrderStore(sub2apiDB)
 	invoiceService := service.NewInvoiceService(entClient, invoiceOrderStore, cfg.Assets.Dir)
-	if invoiceMenuPublisher != nil {
-		syncCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		enabled, readErr := invoiceService.FeatureEnabled(syncCtx)
-		if readErr != nil {
-			log.Printf("[main] failed to read invoice feature state for menu sync: %v", readErr)
-		} else if enabled {
-			if syncErr := invoiceMenuPublisher.SetInvoiceMenu(syncCtx, true); syncErr != nil {
-				log.Printf("[main] failed to sync enabled invoice menu: %v", syncErr)
-			}
-		}
-		cancel()
-	}
 	invoiceUserHandler := handler.NewInvoiceUserHandler(invoiceService, sub2apiClient)
 	invoiceAdminHandler := adminhandler.NewInvoiceAdminHandler(invoiceService, invoiceMenuPublisher)
 	promotionBalanceStore := integration.NewSub2APIPromotionBalanceStore(sub2apiDB, sub2apiRedis)
@@ -273,18 +262,46 @@ func main() {
 	// 异步任务页只读 Sub2API Redis 快照与 PostgreSQL 记录，不代替用户调用网关。
 	asyncTaskService := service.NewAsyncTaskService(integration.NewSub2APIAsyncTaskStore(sub2apiDB, sub2apiRedis))
 	asyncTaskHandler := handler.NewAsyncTaskUserHandler(asyncTaskService, sub2apiClient)
-	ticketPublished, ticketFeatureReadErr := ticketService.FeatureEnabled(context.Background())
-	if ticketFeatureReadErr != nil {
-		log.Printf("[main] failed to read ticket publication setting: %v", ticketFeatureReadErr)
-	}
 	ticketAdminHandler := adminhandler.NewTicketHandler(ticketService, ticketMenuPublisher)
-	if ticketMenuPublisher != nil && ticketFeatureReadErr == nil {
-		syncCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		if syncErr := ticketMenuPublisher.SetTicketMenu(syncCtx, ticketPublished); syncErr != nil {
-			log.Printf("[main] failed to sync ticket portal menu enabled=%t: %v", ticketPublished, syncErr)
+	// 发票、工单、促销入口由各自功能开关决定；启动时和扩展公网地址首次可用时
+	// 都按当前开关补齐菜单，修复此前因缺少地址而未写入的入口。
+	reconcileFeatureMenus := func(ctx context.Context) error {
+		var errs []error
+		if invoiceMenuPublisher != nil {
+			if enabled, readErr := invoiceService.FeatureEnabled(ctx); readErr != nil {
+				errs = append(errs, fmt.Errorf("read invoice feature state: %w", readErr))
+			} else if enabled {
+				if syncErr := invoiceMenuPublisher.SetInvoiceMenu(ctx, true); syncErr != nil {
+					errs = append(errs, fmt.Errorf("sync enabled invoice menu: %w", syncErr))
+				}
+			}
+		}
+		if ticketMenuPublisher != nil {
+			if enabled, readErr := ticketService.FeatureEnabled(ctx); readErr != nil {
+				errs = append(errs, fmt.Errorf("read ticket publication setting: %w", readErr))
+			} else if syncErr := ticketMenuPublisher.SetTicketMenu(ctx, enabled); syncErr != nil {
+				errs = append(errs, fmt.Errorf("sync ticket portal menu enabled=%t: %w", enabled, syncErr))
+			}
+		}
+		if promotionMenuPublisher != nil {
+			if enabled, readErr := promotionService.FeatureEnabled(ctx); readErr != nil {
+				errs = append(errs, fmt.Errorf("read promotion publication setting: %w", readErr))
+			} else if enabled {
+				if syncErr := promotionMenuPublisher.SetPromotionMenu(ctx, true); syncErr != nil {
+					errs = append(errs, fmt.Errorf("sync enabled promotion menu: %w", syncErr))
+				}
+			}
+		}
+		return errors.Join(errs...)
+	}
+	{
+		syncCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		if syncErr := reconcileFeatureMenus(syncCtx); syncErr != nil {
+			log.Printf("[main] failed to reconcile feature menus: %v", syncErr)
 		}
 		cancel()
 	}
+	homepageHandler.SetMenuReconciler(reconcileFeatureMenus)
 
 	// 运维首字延迟看板直接读取 sub2api PostgreSQL 的 usage_logs/groups/accounts。
 	// 未配置数据库时仍注册 handler，由接口返回清晰的 503，而不是让前端遇到无意义的 404。

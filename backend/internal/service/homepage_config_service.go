@@ -16,6 +16,11 @@ import (
 
 const HomepageConfigKey = "homepage.config"
 
+const extensionPublicURLLimit = 300
+
+// ErrInvalidExtensionPublicURL 表示扩展公网地址不是可用于 iframe 菜单的 HTTP(S) 基础地址。
+var ErrInvalidExtensionPublicURL = errors.New("invalid extension public URL")
+
 // SystemPosition controls which public homepage receives documentation links.
 type SystemPosition string
 
@@ -80,6 +85,9 @@ type HomepageConfig struct {
 	Sub2APIPublished                  bool           `json:"sub2apiPublished"`
 	ClientImportPublished             bool           `json:"clientImportPublished"`
 	AsyncTasksPublished               bool           `json:"asyncTasksPublished"`
+	// ExtensionPublicURL 是浏览器访问本扩展的公网地址（含反代路径前缀），
+	// 用于生成 Sub2API 自定义菜单 URL；为空时回退 SUB2API_EXTENSION_PUBLIC_URL。
+	ExtensionPublicURL string `json:"extensionPublicUrl"`
 	// ShowDevelopersSection 使用指针区分旧配置中缺失字段与明确关闭。
 	ShowDevelopersSection *bool                    `json:"showDevelopersSection"`
 	ShowQuickstartSection *bool                    `json:"showQuickstartSection"`
@@ -120,6 +128,7 @@ func DefaultHomepageConfig() HomepageConfig {
 		Sub2APIPublished:                  false,
 		ClientImportPublished:             false,
 		AsyncTasksPublished:               false,
+		ExtensionPublicURL:                "",
 		ShowDevelopersSection:             &showDevelopersSection,
 		ShowQuickstartSection:             &showQuickstartSection,
 		NavigationItems: []HomepageNavigationItem{
@@ -167,7 +176,21 @@ func (s *HomepageConfigService) Get(ctx context.Context) (HomepageConfig, error)
 	return normalizeHomepageConfig(*config), nil
 }
 
+// ExtensionPublicURL 返回系统配置中保存的扩展公网地址；未配置时返回空字符串。
+func (s *HomepageConfigService) ExtensionPublicURL(ctx context.Context) (string, error) {
+	config, err := s.Get(ctx)
+	if err != nil {
+		return "", err
+	}
+	return config.ExtensionPublicURL, nil
+}
+
 func (s *HomepageConfigService) Save(ctx context.Context, config HomepageConfig) (HomepageConfig, error) {
+	if raw := strings.TrimSpace(config.ExtensionPublicURL); raw != "" {
+		if _, ok := NormalizeExtensionPublicURL(raw); !ok {
+			return config, ErrInvalidExtensionPublicURL
+		}
+	}
 	config = normalizeHomepageConfig(config)
 	if s == nil || s.store == nil {
 		return config, errors.New("homepage config store is unavailable")
@@ -224,6 +247,7 @@ func normalizeHomepageConfig(config HomepageConfig) HomepageConfig {
 	config.TermsURL = safeHref(config.TermsURL, defaults.TermsURL)
 	config.UserTermsURL = safeHref(config.UserTermsURL, defaults.UserTermsURL)
 	config.PrivacyURL = safeHref(config.PrivacyURL, defaults.PrivacyURL)
+	config.ExtensionPublicURL, _ = NormalizeExtensionPublicURL(config.ExtensionPublicURL)
 
 	if config.NavigationItems == nil {
 		config.NavigationItems = defaults.NavigationItems
@@ -309,6 +333,27 @@ func safeHref(value, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+// NormalizeExtensionPublicURL 清洗扩展公网基础地址：仅允许带 host 的 HTTP(S)，
+// 拒绝账号信息、查询串和片段，并去掉尾部斜杠以便直接拼接菜单路径。
+// 空字符串视为未配置并返回 ok=true。
+func NormalizeExtensionPublicURL(value string) (string, bool) {
+	value = strings.TrimRight(strings.TrimSpace(value), "/")
+	if value == "" {
+		return "", true
+	}
+	if len(value) > extensionPublicURLLimit || strings.ContainsAny(value, "\\ \r\n\t") {
+		return "", false
+	}
+	parsed, err := url.Parse(value)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return "", false
+	}
+	if parsed.User != nil || parsed.RawQuery != "" || parsed.ForceQuery || parsed.Fragment != "" || strings.Contains(value, "#") {
+		return "", false
+	}
+	return value, true
 }
 
 func safeAssetURL(value string) string {

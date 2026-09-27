@@ -15,7 +15,7 @@ sub2api本地项目路径：`/Users/duegin/project/sub2api`
 - **附属管理端** —— 通过 sub2api 的 `custom_menu_items` 以 iframe 方式打开，也支持独立登录。
 - **Sub2API API 文档** —— 内置 OpenAI/Anthropic/Gemini 兼容接口说明，可挂载到 sub2api 菜单，也可作为公开 iframe 嵌入其他系统。
 - **工单中心** —— Sub2API 用户从「工单中心」菜单提交问题并跟进回复；管理员在当前系统查看、回复和更新状态，新工单可按通知事件配置发送提醒。
-- **系统配置** —— 在管理端动态设置系统名称、系统 Logo、系统定位（ToC/ToB）、系统域名与 API 文档调用示例的默认模型；Logo 支持选择或拖拽 PNG、JPEG、GIF、WebP 图片上传。
+- **系统配置** —— 在管理端动态设置系统名称、系统 Logo、系统定位（ToC/ToB）、系统域名、扩展系统公网地址（Sub2API 菜单 URL 前缀，优先于 `SUB2API_EXTENSION_PUBLIC_URL`）与 API 文档调用示例的默认模型；Logo 支持选择或拖拽 PNG、JPEG、GIF、WebP 图片上传。
 - **动态页面编写** —— 管理员可以创建、编辑、启停和删除数据库页面，不需要改动前端源码。
 - **页面分析与埋点** —— 统计当前页面的访问量和功能点击，在分析仪表盘中查看使用情况。
   - 客户端接入页与 API 文档页统计章节导航、客户端/平台选择、安装下载、截图查看、端点展开、参数/语言切换及成功复制；兼容入口 `/docs` 的访问归入 `api-docs`。统计口径和事件 ID 见 [文档页埋点与统计](docs/DOCS_TELEMETRY.md)。
@@ -30,7 +30,7 @@ sub2api本地项目路径：`/Users/duegin/project/sub2api`
 | `/` | 重定向到 `/admin/dashboard`，不是官网首页 |
 | `/admin/dashboard` | 分析仪表盘，展示页面访问和功能使用度 |
 | `/admin/pages` | 动态页面管理，管理员编写和维护页面 |
-| `/admin/system-config` | 系统配置，设置 Sub2API 系统名称、Logo、系统定位、系统域名和文档示例默认模型 |
+| `/admin/system-config` | 系统配置，设置 Sub2API 系统名称、Logo、系统定位、系统域名、扩展系统公网地址和文档示例默认模型 |
 | `/admin/files` | 文件管理（图片与发票文件） |
 | `/admin/tickets` | 工单管理：查看用户工单、回复与更新状态 |
 | `/tickets` | 用户工单中心；启动时同步为 Sub2API 用户菜单 `aux-tickets` |
@@ -319,6 +319,7 @@ make dev
 如果直接运行 `go run ./cmd/server`（不经过 Makefile），也必须显式传入
 `SUB2API_EXTENSION_PUBLIC_URL=http://localhost:3100/aux`；否则页面数据仍会保存，
 但同步 `custom_menu_items` 时会提示 `sub2api public URL is required to publish a page`。
+也可以在「系统配置」中填写“扩展系统公网地址”，它优先于该环境变量且保存后立即生效。
 
 ### 前端
 
