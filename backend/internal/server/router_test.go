@@ -101,6 +101,23 @@ func TestTicketRoutesRequireUserAndAdminAuthentication(t *testing.T) {
 	require.Equal(t, http.StatusUnauthorized, adminResponse.Code)
 }
 
+func TestClientDocsModelRouteIsPublicAndRateLimited(t *testing.T) {
+	authHandler, authService := newTestAuthDeps()
+	modelHandler := handler.NewClientModelHandler(service.NewClientModelService(integration.NewSub2APIClient("http://127.0.0.1:1")))
+	router := SetupRouter(newTestConfig(), web.NewHealthHandler(), authHandler, authService, nil, nil, nil, nil, modelHandler)
+
+	statuses := make([]int, 0, 11)
+	for range 11 {
+		request := httptest.NewRequest(http.MethodGet, "/api/aux/client-docs/models", nil)
+		request.RemoteAddr = "203.0.113.9:1234"
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		statuses = append(statuses, response.Code)
+	}
+	require.Equal(t, http.StatusServiceUnavailable, statuses[0], "anonymous callers reach the handler; the unreachable upstream maps to 503")
+	require.Equal(t, http.StatusTooManyRequests, statuses[10])
+}
+
 func TestAsyncTaskRouteRequiresUserAuthentication(t *testing.T) {
 	authHandler, authService := newTestAuthDeps()
 	asyncTaskHandler := handler.NewAsyncTaskUserHandler(service.NewAsyncTaskService(nil), integration.NewSub2APIClient("http://127.0.0.1:1"))
@@ -110,6 +127,12 @@ func TestAsyncTaskRouteRequiresUserAuthentication(t *testing.T) {
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
 	require.Equal(t, http.StatusUnauthorized, response.Code)
+
+	request = httptest.NewRequest(http.MethodPost, "/api/aux/async-tasks/refresh", strings.NewReader(`{"kind":"video","id":"req-1","user_id":1}`))
+	request.Header.Set("Content-Type", "application/json")
+	response = httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	require.Equal(t, http.StatusUnauthorized, response.Code, "refresh must stay behind UserGuard")
 }
 
 func TestSetupRouter_HealthEndpoint(t *testing.T) {
@@ -244,6 +267,50 @@ func TestSetupRouter_AdminFileNoteRouteIsRegistered(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestSetupRouter_ClientImportPolicyRoutesAreGuarded(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cfg := newTestConfig()
+	healthHandler := web.NewHealthHandler()
+	authHandler, authService := newTestAuthDeps()
+	policyHandler := adminhandler.NewClientImportPolicyHandler(nil, nil)
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler(), nil, nil, policyHandler)
+
+	for _, route := range []struct{ method, path string }{
+		{http.MethodGet, "/api/aux/admin/client-import/policy"},
+		{http.MethodPut, "/api/aux/admin/client-import/policy"},
+		{http.MethodGet, "/api/aux/admin/client-import/groups"},
+	} {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(route.method, route.path, strings.NewReader(`{}`)))
+		require.Equal(t, http.StatusUnauthorized, w.Code, route.path)
+	}
+
+	// 有管理员会话时路由已注册；未配置 Sub2API 数据库时分组列表返回 503 而不是 404。
+	token, err := authService.IssueSession(&integration.Sub2APIUserInfo{ID: 1, Email: "a@e.com", Username: "admin", Role: "admin"})
+	require.NoError(t, err)
+	req := httptest.NewRequest(http.MethodGet, "/api/aux/admin/client-import/groups", nil)
+	req.Header.Set("X-Aux-Session", token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	require.Equal(t, http.StatusServiceUnavailable, w.Code)
+}
+
+func TestSetupRouter_ClientImportUserRoutesRequireUserToken(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cfg := newTestConfig()
+	healthHandler := web.NewHealthHandler()
+	authHandler, authService := newTestAuthDeps()
+	// 空 token 在访问上游前即被 UserGuard 拒绝，因此无需真实 Sub2API。
+	importHandler := handler.NewClientImportHandler(integration.NewSub2APIClient("http://127.0.0.1:1"), nil)
+	r := SetupRouter(cfg, healthHandler, authHandler, authService, newTestTelemetryHandler(), newTestAnalyticsHandler(), nil, nil, importHandler)
+
+	for _, path := range []string{"/api/aux/client-import/keys", "/api/aux/client-import/keys/3/models"} {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
+		require.Equal(t, http.StatusUnauthorized, w.Code, path)
+	}
 }
 
 type mockFileAssetProviderForRouter struct{}

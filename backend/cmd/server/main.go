@@ -258,9 +258,15 @@ func main() {
 	notificationAdminHandler := adminhandler.NewNotificationAdminHandler(notificationService)
 	ticketService := service.NewTicketService(service.NewEntTicketStore(entClient), notificationService)
 	ticketUserHandler := handler.NewTicketUserHandler(ticketService, sub2apiClient)
-	clientImportHandler := handler.NewClientImportHandler(sub2apiClient)
-	// 异步任务页只读 Sub2API Redis 快照与 PostgreSQL 记录，不代替用户调用网关。
-	asyncTaskService := service.NewAsyncTaskService(integration.NewSub2APIAsyncTaskStore(sub2apiDB, sub2apiRedis))
+	// 客户端导入限制保存在扩展库 system_meta；分组列表只读查询 Sub2API groups 表。
+	clientImportPolicyService := service.NewClientImportPolicyService(service.NewEntClientImportPolicyStore(entClient))
+	clientImportHandler := handler.NewClientImportHandler(sub2apiClient, clientImportPolicyService)
+	clientImportPolicyHandler := adminhandler.NewClientImportPolicyHandler(clientImportPolicyService, integration.NewSub2APIGroupStore(sub2apiDB))
+	clientModelHandler := handler.NewClientModelHandler(service.NewClientModelService(sub2apiClient))
+	// 异步任务页只读 Sub2API Redis 快照与 PostgreSQL 记录；仅用户手动刷新未结束的视频任务时，
+	// 才用其创建任务的 API Key 调用网关状态查询（与调用端轮询等价）。
+	asyncTaskService := service.NewAsyncTaskService(integration.NewSub2APIAsyncTaskStore(sub2apiDB, sub2apiRedis)).
+		WithVideoGateway(sub2apiClient, sub2apiClient)
 	asyncTaskHandler := handler.NewAsyncTaskUserHandler(asyncTaskService, sub2apiClient)
 	ticketAdminHandler := adminhandler.NewTicketHandler(ticketService, ticketMenuPublisher)
 	// 发票、工单、促销入口由各自功能开关决定；启动时和扩展公网地址首次可用时
@@ -329,7 +335,7 @@ func main() {
 		releaseSource,
 		update.NewManager(releaseSource, releaseSource, Version),
 	)
-	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, tobHomepageHandler, imageAssetHandler, fileAssetHandler, ttftHandler, costHandler, invoiceUserHandler, invoiceAdminHandler, promotionUserHandler, promotionAdminHandler, ticketUserHandler, ticketAdminHandler, clientImportHandler, asyncTaskHandler, notificationAdminHandler, logService, logHandler, systemHandler)
+	r := server.SetupRouter(cfg, healthHandler, authHandler, authService, telemetryHandler, analyticsHandler, pagePublicHandler, pageAdminHandler, homepageHandler, tobHomepageHandler, imageAssetHandler, fileAssetHandler, ttftHandler, costHandler, invoiceUserHandler, invoiceAdminHandler, promotionUserHandler, promotionAdminHandler, ticketUserHandler, ticketAdminHandler, clientImportHandler, clientModelHandler, asyncTaskHandler, notificationAdminHandler, clientImportPolicyHandler, logService, logHandler, systemHandler)
 
 	// 启动 HTTP 服务器
 	addr := cfg.Server.Address()

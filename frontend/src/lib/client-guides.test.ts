@@ -8,9 +8,10 @@ describe('client guide configuration', () => {
   })
 
   it('does not register screenshots for the new client guides or Codex import flow', () => {
-    const newClients = ['codex', 'grok-build', 'gemini-cli', 'vscode-codex', 'vscode-claude', 'openai-compatible', 'ide-plugins']
+    const newClients = ['codex', 'claude-desktop', 'grok-build', 'gemini-cli', 'vscode-codex', 'vscode-claude', 'openai-compatible', 'ide-plugins']
     expect(CLIENT_GUIDES.filter(guide => newClients.includes(guide.id)).every(guide => !guide.screenshots)).toBe(true)
     expect(getCCSwitchGuide('codex').screenshots).toBeUndefined()
+    expect(getCCSwitchGuide('claude-desktop').screenshots).toBeUndefined()
   })
   it.each([
     ['https://api.example.com/', 'https://api.example.com'],
@@ -47,7 +48,12 @@ describe('client guide configuration', () => {
     expect(getClientGuide('codex').ccSwitch).toBeUndefined()
     expect(getClientGuide('claude-code').ccSwitch).toBeUndefined()
     expect(getClientGuide('claude-desktop').ccSwitch).toBeUndefined()
-    expect(CC_SWITCH_GUIDES.map(guide => guide.id)).toEqual(['codex', 'claude-code', 'claude-desktop', 'grok-build'])
+    expect(CC_SWITCH_GUIDES.map(guide => guide.id)).toEqual(['codex', 'claude-code', 'claude-desktop', 'pi', 'grok-build'])
+    expect(getClientGuide('pi').ccSwitch).toBeUndefined()
+    expect(getClientGuide('pi').screenshots).toBeUndefined()
+    expect(getCCSwitchGuide('pi').steps).toHaveLength(5)
+    expect(getCCSwitchGuide('pi').steps[3]).toContain('启用')
+    expect(getCCSwitchExample('pi', 'https://gateway.test', 'model-id')?.code).toContain('接口地址      https://gateway.test/v1\n')
     expect(getCCSwitchGuide('codex')).toMatchObject({ id: 'codex', clientId: 'codex' })
     expect(getCCSwitchGuide('codex').steps).toHaveLength(5)
     expect(getCCSwitchGuide('codex').steps[0]).toContain('创建一个 API Key')
@@ -56,10 +62,26 @@ describe('client guide configuration', () => {
     expect(getCCSwitchGuide('codex').steps[3]).toContain('启用')
     expect(getCCSwitchGuide('codex').steps[4]).toContain('重新打开 Codex Desktop')
     expect(getCCSwitchGuide('claude-desktop').steps.join(' ')).toContain('需要模型映射')
+    expect(getCCSwitchGuide('claude-desktop').steps).toHaveLength(5)
+    expect(getCCSwitchGuide('claude-desktop').steps[1]).toContain('导入到 CCS')
+    expect(getCCSwitchGuide('claude-desktop').steps[3]).toContain('将 Claude Code 中已有的供应商导入')
+    expect(getCCSwitchGuide('claude-desktop').steps[4]).toContain('重新打开 Claude Desktop')
     expect(findCCSwitchGuide('codex')?.clientId).toBe('codex')
     expect(findCCSwitchGuide('vscode-codex')?.clientId).toBe('codex')
     expect(getCCSwitchExample('vscode-codex', 'https://gateway.test', 'model-id')?.code).toContain('接口地址      https://gateway.test\n')
     expect(findCCSwitchGuide('gemini-cli')).toBeUndefined()
+  })
+
+  it('documents the Claude Desktop in-app gateway without a CLI install or verify command', () => {
+    const example = getConfigExample('claude-desktop', 'https://gateway.test', 'claude-opus-5', 'windows')
+    expect(example.language).toBe('界面填写参考')
+    expect(example.code).toContain('Inference provider     Gateway')
+    expect(example.code.match(/Gateway base URL\s+(\S+)/)?.[1]).toBe('https://gateway.test')
+    expect(example.code).toContain('Gateway API key        sk-YOUR_API_KEY')
+    expect(example.code).toContain('claude-opus-5')
+    expect(getClientGuide('claude-desktop').configSteps?.join(' ')).toContain('Configure Third-Party Inference')
+    expect(getInstallCommand('claude-desktop', 'unix')).toBeNull()
+    expect(getVerifyCommand('claude-desktop', 'claude-opus-5', 'unix')).toBeNull()
   })
 
   it('generates the added client configurations with the correct base URL rules', () => {

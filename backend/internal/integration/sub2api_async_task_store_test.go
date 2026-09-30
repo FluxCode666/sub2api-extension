@@ -117,3 +117,33 @@ func TestSub2APIAsyncTaskStoreReportsMissingSources(t *testing.T) {
 	_, err = store.APIKeyNames(ctx, 1)
 	require.True(t, errors.Is(err, asynctask.ErrSourceUnavailable))
 }
+
+func TestMergeVideoTasksSplitsSeedanceProvider(t *testing.T) {
+	created := time.Date(2026, 9, 27, 1, 0, 0, 0, time.UTC)
+	pending := []pendingVideoSnapshot{
+		{suffix: "42:7:seedance:cgt-1", requestID: "seedance:cgt-1", apiKeyID: 7, payload: grokVideoPendingPayload{Model: "doubao-seedance", CreatedAt: created.Format(time.RFC3339Nano)}},
+		{suffix: "42:7:req-1", requestID: "req-1", apiKeyID: 7, payload: grokVideoPendingPayload{Model: "grok-video", CreatedAt: created.Add(time.Minute).Format(time.RFC3339Nano)}},
+	}
+	billed := []billedVideoRow{{requestID: "seedance:cgt-0", apiKeyID: 7, model: "doubao-seedance", createdAt: created.Add(-time.Hour)}}
+
+	tasks := mergeVideoTasks(pending, nil, billed)
+
+	require.Len(t, tasks, 3)
+	require.Equal(t, "req-1", tasks[0].ID)
+	require.Equal(t, asynctask.ProviderGrok, tasks[0].Provider)
+	require.Equal(t, "cgt-1", tasks[1].ID)
+	require.Equal(t, asynctask.ProviderSeedance, tasks[1].Provider)
+	require.Equal(t, "cgt-0", tasks[2].ID)
+	require.Equal(t, asynctask.ProviderSeedance, tasks[2].Provider)
+}
+
+func TestSub2APIAsyncTaskStoreSingleTaskReadsReportMissingSources(t *testing.T) {
+	store := NewSub2APIAsyncTaskStore(nil, nil)
+	ctx := context.Background()
+	_, err := store.ImageTask(ctx, 1, "imgtask_1")
+	require.ErrorIs(t, err, asynctask.ErrSourceUnavailable)
+	_, err = store.VideoTask(ctx, 1, asynctask.ProviderGrok, "req-1")
+	require.ErrorIs(t, err, asynctask.ErrSourceUnavailable)
+	_, err = store.BatchTask(ctx, 1, "batch_1")
+	require.ErrorIs(t, err, asynctask.ErrSourceUnavailable)
+}

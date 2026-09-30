@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -16,13 +17,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type asyncTaskLister interface {
+type asyncTaskUserService interface {
 	ListForUser(ctx context.Context, userID int64, query service.AsyncTaskQuery) (service.AsyncTaskList, error)
+	RefreshForUser(ctx context.Context, userID int64, token string, ref service.AsyncTaskRef) (service.AsyncTaskRefreshResult, error)
 }
 
-// AsyncTaskUserHandler 为 Sub2API 用户菜单中的异步任务页提供只读列表。
+// maxAsyncTaskRefreshBodyBytes 限制刷新请求体；请求只包含类型、来源和任务 ID。
+const maxAsyncTaskRefreshBodyBytes = 4 << 10
+
+// AsyncTaskUserHandler 为 Sub2API 用户菜单中的异步任务页提供列表与单条进度查询。
 type AsyncTaskUserHandler struct {
-	service  asyncTaskLister
+	service  asyncTaskUserService
 	verifier userTokenVerifier
 }
 
@@ -30,7 +35,7 @@ type userTokenVerifier interface {
 	VerifyUserJWT(ctx context.Context, token string) (*integration.Sub2APIUserInfo, error)
 }
 
-func NewAsyncTaskUserHandler(svc asyncTaskLister, verifier userTokenVerifier) *AsyncTaskUserHandler {
+func NewAsyncTaskUserHandler(svc asyncTaskUserService, verifier userTokenVerifier) *AsyncTaskUserHandler {
 	return &AsyncTaskUserHandler{service: svc, verifier: verifier}
 }
 
@@ -71,6 +76,59 @@ func (h *AsyncTaskUserHandler) List(c *gin.Context) {
 		default:
 			log.Printf("[AsyncTaskUserHandler.List] failed user_id=%d: %v", user.ID, err)
 			response.InternalError(c, "failed to list async tasks")
+		}
+		return
+	}
+	response.Success(c, result)
+}
+
+type asyncTaskRefreshRequest struct {
+	Kind     string `json:"kind"`
+	Provider string `json:"provider"`
+	ID       string `json:"id"`
+}
+
+// Refresh 手动查询当前用户一条任务的最新进度。视频任务会用创建任务的 API Key
+// 代用户向 Sub2API 网关查询一次，路由层需叠加 per-user 限流。
+func (h *AsyncTaskUserHandler) Refresh(c *gin.Context) {
+	if h == nil || h.service == nil {
+		response.ServiceUnavailable(c, "async task service is unavailable")
+		return
+	}
+	user, ok := invoiceAuthenticatedUser(c)
+	if !ok {
+		return
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxAsyncTaskRefreshBodyBytes)
+	var body asyncTaskRefreshRequest
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.BadRequest(c, "invalid async task reference")
+		return
+	}
+	ref := service.AsyncTaskRef{Kind: body.Kind, Provider: body.Provider, ID: body.ID}
+	token := strings.TrimSpace(c.GetHeader("X-Aux-Token"))
+	result, err := h.service.RefreshForUser(c.Request.Context(), user.ID, token, ref)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrInvalidAsyncTaskRef):
+			response.BadRequest(c, "invalid async task reference")
+		case errors.Is(err, service.ErrAsyncTaskNotFound):
+			response.ErrorWithReason(c, http.StatusNotFound, "async task not found", "ASYNC_TASK_NOT_FOUND")
+		case errors.Is(err, integration.ErrVideoTaskNotFound):
+			response.ErrorWithReason(c, http.StatusNotFound, "sub2api gateway could not find this video task", "VIDEO_TASK_NOT_FOUND")
+		case errors.Is(err, service.ErrAsyncTaskAPIKeyUnavailable):
+			response.ErrorWithReason(c, http.StatusConflict, "the api key that created this task is unavailable", "API_KEY_UNAVAILABLE")
+		case errors.Is(err, integration.ErrInvalidToken):
+			response.Unauthorized(c, "valid sub2api login is required")
+		case errors.Is(err, integration.ErrVideoStatusRejected):
+			response.ErrorWithReason(c, http.StatusUnprocessableEntity, "sub2api gateway rejected this video status request", "VIDEO_STATUS_REJECTED")
+		case errors.Is(err, integration.ErrVideoStatusRateLimited):
+			response.ErrorWithReason(c, http.StatusTooManyRequests, "sub2api gateway rate limited this video status request", "VIDEO_STATUS_RATE_LIMITED")
+		case errors.Is(err, service.ErrAsyncTaskUnavailable), errors.Is(err, integration.ErrSub2APIUnreachable), errors.Is(err, context.DeadlineExceeded):
+			response.ServiceUnavailable(c, "sub2api async task data is unavailable")
+		default:
+			log.Printf("[AsyncTaskUserHandler.Refresh] failed user_id=%d kind=%s id=%s: %v", user.ID, ref.Kind, ref.ID, err)
+			response.InternalError(c, "failed to refresh async task")
 		}
 		return
 	}

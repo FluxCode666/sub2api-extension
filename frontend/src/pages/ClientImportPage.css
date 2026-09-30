@@ -41,7 +41,7 @@
 .client-import-config-step { grid-column: 1 / -1; }
 .client-import-preview-step { grid-column: 1 / -1; }
 .client-import-tabs { width: 100%; height: 42px; justify-content: stretch; background: #efefeb; }
-.client-import-tabs button { flex: 1; gap: 7px; }
+.client-import-tabs button { flex: 1 1 0; min-width: 0; gap: 7px; }
 .client-import-target-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 18px; }
 .client-import-target { position: relative; display: flex; min-height: 72px; align-items: center; justify-content: flex-start; gap: 11px; padding: 11px; border-color: var(--import-line); color: var(--import-ink); text-align: left; white-space: normal; }
 .client-import-target:hover { border-color: #b8a1a5; background: #fff; }
@@ -51,18 +51,36 @@
 .client-import-target-copy strong { font-size: 12px; }
 .client-import-target-copy small { color: var(--import-muted); font-size: 10px; line-height: 1.4; }
 .client-import-target-check { position: absolute; top: 10px; right: 9px; color: var(--import-accent); }
+.client-import-target.is-restricted { border-style: dashed; background: #f7f6f2; }
+.client-import-target.is-restricted .client-import-target-icon { color: var(--import-muted); background: #efefeb; }
+.client-import-target.is-restricted .client-import-target-copy strong { color: var(--import-muted); }
+.client-import-target.is-restricted:not(.is-selected) .client-import-target-check { color: var(--import-muted); }
+.client-import-target.is-restricted:disabled { opacity: .78; }
 .client-import-key-summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px 14px; padding: 14px; border: 1px solid #e2d9da; border-radius: 10px; background: #fbf5f5; }
 .client-import-key-summary div { display: grid; gap: 3px; min-width: 0; }
 .client-import-key-summary span, .client-import-key-summary small { color: var(--import-muted); font-size: 11px; }
 .client-import-key-summary strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .client-import-key-summary code { align-self: center; color: var(--import-accent); font-size: 11px; }
 .client-import-key-summary small { grid-column: 1 / -1; }
+.client-import-group-alert { border-color: #ecd9a8; color: #6b4f1d; background: #fff8e6; }
+.client-import-group-alert > svg { width: 16px; height: 16px; color: #a8741a; }
+.client-import-group-alert h5 { font-size: 13px; font-weight: 700; }
+.client-import-group-alert p { margin: 0 0 10px; font-size: 12px; }
 .client-import-config-fields { display: grid; grid-template-columns: 1.45fr 1fr 1fr; gap: 18px; }
 .client-import-field { display: grid; align-content: start; gap: 8px; }
 .client-import-field label { font-size: 12px; font-weight: 700; }
 .client-import-field label span { color: var(--import-muted); font-weight: 500; }
 .client-import-field small { min-height: 34px; color: var(--import-muted); font-size: 11px; line-height: 1.45; }
 .client-import-field small.is-error { color: #a42f3e; }
+.client-import-field--wide { grid-column: 1 / -1; }
+.client-import-field--wide small { min-height: 0; }
+.client-import-candidates { display: grid; gap: 10px; }
+.client-import-candidates .client-import-model-trigger { max-width: 420px; font-family: inherit; font-size: 14px; }
+.client-import-candidate-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.client-import-candidate { display: inline-flex; max-width: 100%; align-items: center; gap: 2px; padding: 2px 2px 2px 10px; border-color: #d9d6cf; background: #fafaf8; color: inherit; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; font-weight: 500; }
+.client-import-candidate > span { min-width: 0; overflow-wrap: anywhere; }
+.client-import-candidate .client-import-candidate-remove { width: 22px; height: 22px; flex: 0 0 auto; border-radius: 999px; color: #6c7079; }
+.client-import-candidate .client-import-candidate-remove:hover { background: #f7e9eb; color: #8d2737; }
 .client-import-preview { border: 1px solid var(--import-line); border-radius: 12px; overflow: hidden; background: #fff; }
 .client-import-preview-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 16px; border-bottom: 1px solid #ecece7; }
 .client-import-preview-head > div { display: flex; align-items: center; gap: 10px; min-width: 0; }
@@ -70,6 +88,7 @@
 .client-import-preview-head strong { font-size: 13px; }
 .client-import-preview-head small { overflow: hidden; color: var(--import-muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .client-import-preview-status { padding: 4px 8px; border-radius: 999px; color: #7b5b25; background: #fff4d7; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.client-import-preview-status.is-blocked { color: var(--import-accent); background: var(--import-accent-soft); }
 .client-import-detail-list { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0; }
 .client-import-detail-list div { display: grid; gap: 5px; min-width: 0; padding: 16px; border-right: 1px solid #ecece7; }
 .client-import-detail-list div:last-child { border-right: 0; }
@@ -103,6 +122,7 @@
   .client-import-key-step, .client-import-target-step, .client-import-config-step, .client-import-preview-step { grid-column: 1; }
   .client-import-config-fields { grid-template-columns: minmax(0, 1fr); gap: 14px; }
   .client-import-field small { min-height: 0; }
+  .client-import-candidates .client-import-model-trigger { max-width: none; }
   .client-import-footer-note { display: grid; }
 }
 
@@ -113,6 +133,8 @@
   .client-import-header > button { padding-inline: 0; }
   .client-import-hero h1 { font-size: 2.55rem; }
   .client-import-lede { font-size: 14px; }
+  .client-import-tabs button { flex: 1 1 auto; gap: 0; padding-inline: 4px; font-size: 13px; }
+  .client-import-tabs button svg { display: none; }
   .client-import-target-grid { grid-template-columns: minmax(0, 1fr); }
   .client-import-detail-list { grid-template-columns: minmax(0, 1fr); }
   .client-import-detail-list div { border-right: 0; border-bottom: 1px solid #ecece7; }
@@ -123,3 +145,23 @@
 @media (prefers-reduced-motion: reduce) {
   .client-import-page *, .client-import-page *::before, .client-import-page *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
 }
+
+/* 默认模型下拉：选项来自所选 API Key 的网关模型列表。Popover 渲染在 body 下，颜色直接取导入页色值。 */
+.client-import-model-trigger { display: flex; width: 100%; height: 36px; background: transparent; align-items: center; justify-content: space-between; gap: 8px; padding-inline: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; font-weight: 400; }
+.client-import-model-trigger > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.client-import-model-trigger > svg { flex: 0 0 auto; color: #6c7079; }
+.client-import-model-trigger:hover, .client-import-model-trigger[aria-expanded="true"] { border-color: #bdc0bd; background: #fafaf8; color: inherit; }
+.client-import-model-trigger .client-model-placeholder { color: #6c7079; font-family: inherit; }
+.client-import-model-trigger .client-model-spinner { animation: client-import-model-spin .9s linear infinite; }
+@keyframes client-import-model-spin { to { transform: rotate(360deg); } }
+.client-import-model-popover { width: var(--radix-popover-trigger-width); min-width: min(280px, calc(100vw - 32px)); max-width: calc(100vw - 32px); padding: 0; }
+.client-import-model-popover [cmdk-input] { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+.client-import-model-popover [cmdk-item] { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; cursor: pointer; }
+.client-import-model-popover [cmdk-item] > span { min-width: 0; overflow-wrap: anywhere; }
+.client-import-model-popover [cmdk-item] > svg { flex: 0 0 auto; opacity: 0; }
+.client-import-model-popover [cmdk-item] > svg.is-selected { opacity: 1; color: #8d2737; }
+.client-import-model-popover [cmdk-item][data-selected='true'] { background: #f7e9eb; color: #8d2737; }
+.client-import-model-popover [cmdk-item] > svg.is-clear { opacity: .7; }
+.client-import-model-popover [cmdk-empty] { padding: 16px; color: #6c7079; font-size: 12px; text-align: center; }
+.client-import-field small .client-import-model-retry { height: auto; padding: 0 0 0 4px; font-size: 11px; vertical-align: baseline; }
+@media (prefers-reduced-motion: reduce) { .client-import-model-trigger .client-model-spinner { animation: none; } }

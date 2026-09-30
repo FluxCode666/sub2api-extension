@@ -259,8 +259,10 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 	var ticketUserHandler *handler.TicketUserHandler
 	var ticketAdminHandler *adminhandler.TicketHandler
 	var clientImportHandler *handler.ClientImportHandler
+	var clientModelHandler *handler.ClientModelHandler
 	var asyncTaskHandler *handler.AsyncTaskUserHandler
 	var notificationAdminHandler *adminhandler.NotificationAdminHandler
+	var clientImportPolicyHandler *adminhandler.ClientImportPolicyHandler
 	for _, optionalHandler := range optionalHandlers {
 		switch typed := optionalHandler.(type) {
 		case *adminhandler.SystemHandler:
@@ -295,10 +297,14 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			ticketAdminHandler = typed
 		case *handler.ClientImportHandler:
 			clientImportHandler = typed
+		case *handler.ClientModelHandler:
+			clientModelHandler = typed
 		case *handler.AsyncTaskUserHandler:
 			asyncTaskHandler = typed
 		case *adminhandler.NotificationAdminHandler:
 			notificationAdminHandler = typed
+		case *adminhandler.ClientImportPolicyHandler:
+			clientImportPolicyHandler = typed
 		}
 	}
 	if homepageHandler == nil {
@@ -356,12 +362,21 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			clientImport := aux.Group("/client-import")
 			clientImport.Use(clientImportHandler.Guard())
 			clientImport.GET("/keys", clientImportHandler.ListKeys)
+			clientImport.GET("/keys/:id/models", clientImportHandler.ListKeyModels)
+		}
+		if clientModelHandler != nil {
+			// 接入文档模型下拉：公开只读代理 Sub2API 模型广场，按 IP 限流并由服务层缓存匿名结果。
+			clientDocs := aux.Group("/client-docs")
+			clientDocs.Use(middleware.PublicReadRateLimit(2, 10))
+			clientDocs.GET("/models", clientModelHandler.List)
 		}
 		if asyncTaskHandler != nil {
-			// 用户异步任务只读视图：UserGuard 验证 X-Aux-Token，归属用户只取验证结果。
+			// 用户异步任务视图：UserGuard 验证 X-Aux-Token，归属用户只取验证结果。
+			// 单条刷新可能代用户调用 Sub2API 网关（视频状态查询），按用户限流。
 			asyncTasks := aux.Group("/async-tasks")
 			asyncTasks.Use(asyncTaskHandler.Guard())
 			asyncTasks.GET("", asyncTaskHandler.List)
+			asyncTasks.POST("/refresh", middleware.UserRateLimit(0.5, 5), asyncTaskHandler.Refresh)
 		}
 
 		// U5: 埋点上报端点(匿名可写,不经 AdminGuard)。
@@ -420,6 +435,12 @@ func registerAuxRoutes(r *gin.Engine, authHandler *handler.AuthHandler, authServ
 			guarded.PUT("/homepage/config", homepageHandler.UpdateConfig)
 			guarded.GET("/tob-homepage/config", tobHomepageHandler.GetConfig)
 			guarded.PUT("/tob-homepage/config", tobHomepageHandler.UpdateConfig)
+			// 客户端导入限制：按 Sub2API 分组平台或分组限制可导入的客户端，分组列表只读查询 Sub2API 数据库。
+			if clientImportPolicyHandler != nil {
+				guarded.GET("/client-import/policy", clientImportPolicyHandler.GetPolicy)
+				guarded.PUT("/client-import/policy", clientImportPolicyHandler.UpdatePolicy)
+				guarded.GET("/client-import/groups", clientImportPolicyHandler.ListGroups)
+			}
 
 			// 动态页面管理 CRUD(受 AdminGuard 保护)
 			if pageAdminHandler != nil {

@@ -24,6 +24,23 @@ function renderPage(entry = '/client-docs') {
   return render(<MemoryRouter initialEntries={[entry]}><ClientDocsPage /><BackButton /></MemoryRouter>)
 }
 
+function openModelSearch(query: string) {
+  fireEvent.click(screen.getByRole('combobox', { name: '模型名称' }))
+  fireEvent.change(screen.getByRole('combobox', { name: '搜索模型' }), { target: { value: query } })
+}
+
+function chooseModel(model: string) {
+  openModelSearch(model)
+  const existing = screen.queryByRole('option', { name: model })
+  fireEvent.click(existing ?? screen.getByRole('option', { name: `使用「${model}」` }))
+}
+
+function mockModelCatalog(items: { id: string; platforms: string[] }[]) {
+  vi.mocked(apiClient.get).mockImplementation(async (path: string) => path === '/client-docs/models'
+    ? { code: 0, message: 'success', data: { items } }
+    : { code: 0, message: 'success', data: {} })
+}
+
 function mockSystemTheme(initialDark: boolean) {
   let dark = initialDark
   const listeners = new Set<() => void>()
@@ -74,13 +91,12 @@ describe('ClientDocsPage', () => {
   })
 
   it('tracks downloads without collecting input or illustration contents', () => {
-    renderPage('/client-docs?client=claude-desktop&token=private-token&api_base=https%3A%2F%2Fprivate-gateway.test')
-    fireEvent.change(screen.getByLabelText('模型名称'), { target: { value: 'private-model' } })
+    const importFlow = renderPage('/client-docs?client=claude-desktop&token=private-token&api_base=https%3A%2F%2Fprivate-gateway.test')
     fireEvent.change(screen.getByRole('searchbox', { name: '搜索客户端' }), { target: { value: 'private-search' } })
     expect(trackFeatureClick).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('link', { name: '下载 Claude Desktop' }))
-    fireEvent.click(screen.getByRole('link', { name: '官方文档' }))
     const config = screen.getByRole('region', { name: 'CC Switch · Claude Desktop 配置' })
+    fireEvent.click(within(config).getByRole('link', { name: '下载 Claude Desktop' }))
+    fireEvent.click(screen.getByRole('link', { name: '官方文档' }))
     fireEvent.click(within(config).getByRole('link', { name: '下载 CC Switch' }))
     fireEvent.click(within(config).getByRole('link', { name: '配置说明' }))
     expect(vi.mocked(trackFeatureClick).mock.calls).toEqual([
@@ -89,9 +105,13 @@ describe('ClientDocsPage', () => {
       ['client-docs', 'open-cc-switch-claude-desktop-download'],
       ['client-docs', 'open-cc-switch-claude-desktop-docs'],
     ])
+    importFlow.unmount()
 
+    renderPage('/client-docs?client=claude-desktop&method=manual&token=private-token&api_base=https%3A%2F%2Fprivate-gateway.test')
+    chooseModel('private-model')
     const diagram = screen.getByRole('figure', { name: 'claude-desktop 界面操作示意' })
     expect(diagram).toHaveTextContent('private-model')
+    expect(diagram).toHaveTextContent('https://private-gateway.test')
     expect(diagram.querySelector('img')).not.toBeInTheDocument()
     expect(trackFeatureClick).toHaveBeenCalledTimes(4)
     expect(JSON.stringify(vi.mocked(trackFeatureClick).mock.calls)).not.toContain('private-')
@@ -108,7 +128,7 @@ describe('ClientDocsPage', () => {
 
   it('counts a successful configuration copy without collecting its contents', async () => {
     renderPage('/client-docs?client=codex&method=manual&api_base=https%3A%2F%2Fprivate-gateway.test')
-    fireEvent.change(screen.getByLabelText('模型名称'), { target: { value: 'private-model' } })
+    chooseModel('private-model')
     fireEvent.click(screen.getByRole('button', { name: '复制~/.codex/config.toml' }))
     await waitFor(() => expect(vi.mocked(trackFeatureClick).mock.calls).toEqual([['client-docs', 'copy-codex-config']]))
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(expect.stringContaining('private-model'))
@@ -304,7 +324,7 @@ describe('ClientDocsPage', () => {
     expect(button).toHaveAttribute('aria-busy', 'true')
     fireEvent.click(button)
     expect(navigator.clipboard.writeText).toHaveBeenCalledTimes(1)
-    fireEvent.change(screen.getByLabelText('模型名称'), { target: { value: 'updated-model' } })
+    chooseModel('updated-model')
     await act(async () => { completeCopy() })
     expect(button).toBeEnabled()
     expect(button).toHaveTextContent('复制')
@@ -342,7 +362,7 @@ describe('ClientDocsPage', () => {
 
   it('generates copyable config from the address and model while retaining each client model', async () => {
     renderPage('/client-docs?client=pi&method=manual&api_base=https%3A%2F%2Fgateway.test%2Fv1%2F')
-    fireEvent.change(screen.getByLabelText('模型名称'), { target: { value: 'custom-model' } })
+    chooseModel('custom-model')
     fireEvent.click(screen.getByRole('button', { name: '复制~/.pi/agent/models.json' }))
     await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalled())
     const value = vi.mocked(navigator.clipboard.writeText).mock.calls[0][0]
@@ -351,7 +371,7 @@ describe('ClientDocsPage', () => {
     fireEvent.click(within(directory).getByRole('button', { name: 'Codex' }))
     fireEvent.change(screen.getByRole('searchbox', { name: '搜索客户端' }), { target: { value: 'Pi' } })
     fireEvent.click(within(directory).getByRole('button', { name: 'Pi' }))
-    expect(screen.getByLabelText('模型名称')).toHaveValue('custom-model')
+    expect(screen.getByRole('combobox', { name: '模型名称' })).toHaveTextContent('custom-model')
   })
 
   it('routes Paseo prerequisites to each supported guide while preserving gateway and display context', () => {
@@ -402,13 +422,12 @@ describe('ClientDocsPage', () => {
 
   it.each([
     ['hermes', 'Hermes', 'https://gateway.test/proxy/v1'],
-    ['pi', 'Pi', 'https://gateway.test/proxy/v1'],
   ])('keeps %s CC Switch parameters in sync with valid input and hides stale values', async (id, name, expectedBase) => {
     renderPage(`/client-docs?client=${id}&api_base=https%3A%2F%2Fgateway.test%2Fproxy%2Fv1%2F`)
     const quickConfig = screen.getByRole('region', { name: 'CC Switch 快捷配置' })
     expect(document.querySelector('#configure')).toContainElement(quickConfig)
     expect(within(quickConfig).getByRole('link', { name: '下载 CC Switch' })).toHaveAttribute('href', 'https://ccswitch.io/')
-    fireEvent.change(screen.getByLabelText('模型名称'), { target: { value: 'custom-model' } })
+    chooseModel('custom-model')
     fireEvent.click(within(quickConfig).getByText('复制填写参数'))
     fireEvent.click(within(quickConfig).getByRole('button', { name: `复制${name} · CC Switch 填写参考` }))
     await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalled())
@@ -425,26 +444,48 @@ describe('ClientDocsPage', () => {
     fireEvent.click(within(quickConfig).getByText('复制填写参数'))
     expect(within(quickConfig).getByRole('button', { name: `复制${name} · CC Switch 填写参考` })).toBeEnabled()
     expect(quickConfig).toHaveTextContent('https://updated.test')
-    fireEvent.change(screen.getByLabelText('模型名称'), { target: { value: ' ' } })
-    expect(within(quickConfig).queryByRole('button', { name: `复制${name} · CC Switch 填写参考` })).not.toBeInTheDocument()
+  })
+
+  it('walks Pi through CC Switch sketches with live parameters while keeping manual models.json', async () => {
+    renderPage('/client-docs?client=pi&api_base=https%3A%2F%2Fgateway.test%2Fproxy%2Fv1%2F')
+    expect(screen.getByRole('tab', { name: 'CC Switch（推荐）' })).toHaveAttribute('data-state', 'active')
+    const toc = within(screen.getByRole('navigation', { name: '本页内容' }))
+    for (const [title, id] of [['安装 Pi 与 CC Switch', 'install'], ['添加供应商', 'pi-step-1'], ['填写供应商信息', 'pi-step-2'], ['添加模型', 'pi-step-3'], ['启用供应商', 'pi-step-4'], ['重新打开 Pi', 'pi-step-5']] as const) {
+      expect(toc.getByRole('link', { name: title })).toHaveAttribute('href', `#${id}`)
+      expect(document.getElementById(id)).toBeInTheDocument()
+    }
+    expect(document.querySelector('.client-breadcrumb')).toHaveTextContent('CC Switch')
+    expect(document.querySelector('#configure img[src*="client-docs/pi"]')).not.toBeInTheDocument()
+    const config = screen.getByRole('region', { name: 'CC Switch · Pi 配置' })
+    chooseModel('custom-model')
+    expect(config.querySelector('#pi-step-2')).toHaveTextContent('https://gateway.test/proxy/v1')
+    expect(config.querySelector('#pi-step-3')).toHaveTextContent('custom-model')
+    fireEvent.click(within(config).getByText('复制填写参数'))
+    fireEvent.click(within(config).getByRole('button', { name: '复制Pi · CC Switch 填写参考' }))
+    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalled())
+    const copied = vi.mocked(navigator.clipboard.writeText).mock.lastCall![0]
+    expect(copied.match(/接口地址\s+(\S+)/)?.[1]).toBe('https://gateway.test/proxy/v1')
+    expect(copied).toContain('custom-model')
+
+    fireEvent.mouseDown(screen.getByRole('tab', { name: '手动配置' }), { button: 0 })
+    expect(screen.getByRole('button', { name: '复制~/.pi/agent/models.json' })).toBeInTheDocument()
+    expect(screen.queryByRole('figure', { name: /Pi 操作示意/ })).not.toBeInTheDocument()
   })
 
   it.each([
-    ['claude-desktop', 'Claude Desktop', 'https://gateway.test/proxy'],
     ['grok-build', 'Grok Build', 'https://gateway.test/proxy/v1'],
   ])('renders the in-page CC Switch method for %s with live parameters', async (id, name, expectedBase) => {
     renderPage(`/client-docs?method=cc-switch&client=${id}&api_base=https%3A%2F%2Fgateway.test%2Fproxy%2Fv1`)
     expect(screen.getByRole('heading', { name: `${name} 接入指南` })).toBeInTheDocument()
-    if (id !== 'claude-desktop') expect(screen.getByRole('tab', { name: 'CC Switch（推荐）' })).toHaveAttribute('data-state', 'active')
+    expect(screen.getByRole('tab', { name: 'CC Switch（推荐）' })).toHaveAttribute('data-state', 'active')
     const config = screen.getByRole('region', { name: `CC Switch · ${name} 配置` })
-    fireEvent.change(screen.getByLabelText('模型名称'), { target: { value: 'custom-model' } })
+    chooseModel('custom-model')
     fireEvent.click(within(config).getByText('复制填写参数'))
     fireEvent.click(within(config).getByRole('button', { name: `复制${name} · CC Switch 填写参考` }))
     await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalled())
     const copied = vi.mocked(navigator.clipboard.writeText).mock.lastCall![0]
     expect(copied.match(/接口地址\s+(\S+)/)?.[1]).toBe(expectedBase)
     expect(copied).toContain('custom-model')
-    if (id === 'claude-desktop') expect(config).toHaveTextContent('需要模型映射')
   })
 
   it('recommends CC Switch inside Codex with its own flow directory and switches to manual setup', async () => {
@@ -581,19 +622,62 @@ describe('ClientDocsPage', () => {
     expect(screen.queryByRole('figure', { name: /Codex 操作示意/ })).not.toBeInTheDocument()
   })
 
-  it('keeps Claude Desktop on its own CC Switch setup without offering a fake manual method', () => {
-    renderPage('/client-docs?client=claude-desktop')
+  it('recommends CC Switch key import for Claude Desktop like Codex and keeps in-app manual setup separate', async () => {
+    renderPage('/client-docs?client=claude-desktop&api_base=https%3A%2F%2Fgateway.test')
     expect(screen.getByRole('heading', { name: 'Claude Desktop 接入指南' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '下载 Claude Desktop' })).toHaveAttribute('href', 'https://claude.ai/download')
-    expect(screen.getByLabelText('模型名称')).toHaveValue('claude-opus-5')
-    expect(document.querySelector('#install code')).not.toBeInTheDocument()
-    expect(screen.queryByRole('tablist', { name: '操作系统' })).not.toBeInTheDocument()
-    expect(document.querySelector('#verify code')).toHaveTextContent('当前时间')
-    expect(screen.queryByRole('heading', { name: '手动配置' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('tablist', { name: '配置方式' })).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Claude Desktop 接入指南' })).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: 'CC Switch · Claude Desktop 配置' })).toHaveTextContent('需要模型映射')
+    expect(screen.getByRole('tab', { name: 'CC Switch（推荐）' })).toHaveAttribute('data-state', 'active')
+    expect(screen.getByRole('tabpanel', { name: 'CC Switch（推荐）' })).toHaveAttribute('aria-labelledby', 'client-method-cc-switch')
+    expect(screen.queryByRole('heading', { name: '准备接入信息' })).not.toBeInTheDocument()
+    expect(document.getElementById('install')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('API 基础地址')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('模型名称')).not.toBeInTheDocument()
+    expect(document.querySelector('.client-breadcrumb')).toHaveTextContent('CC Switch')
 
+    const toc = within(screen.getByRole('navigation', { name: '本页内容' }))
+    const steps = [
+      ['创建 API Key', 'claude-desktop-step-1'],
+      ['导入到 CCS', 'claude-desktop-step-2'],
+      ['确认导入', 'claude-desktop-step-3'],
+      ['启用配置', 'claude-desktop-step-4'],
+      ['重启并验证', 'claude-desktop-step-5'],
+    ] as const
+    for (const [title, id] of steps) {
+      expect(toc.getByRole('link', { name: title })).toHaveAttribute('href', `#${id}`)
+      expect(document.getElementById(id)).toBeInTheDocument()
+    }
+    const config = screen.getByRole('region', { name: 'CC Switch · Claude Desktop 配置' })
+    expect(within(config).getByRole('link', { name: '下载 Claude Desktop' })).toHaveAttribute('href', 'https://claude.ai/download')
+    expect(config).toHaveTextContent('在刚创建的 API Key 所在行点击「导入到 CCS」')
+    expect(config).toHaveTextContent('将 Claude Code 中已有的供应商导入')
+    expect(config).toHaveTextContent('需要模型映射')
+    expect(within(config).getAllByRole('figure')).toHaveLength(4)
+    expect(config.querySelector('#claude-desktop-step-5')).toHaveTextContent('完全退出并重新打开 Claude Desktop')
+    expect(config.querySelector('.client-parameter-details')).not.toBeInTheDocument()
+    expect(document.querySelector('#verify code')).toHaveTextContent('当前时间')
+    expect(screen.getByText('CC Switch · Claude Desktop 配置提示')).toBeInTheDocument()
+
+    fireEvent.mouseDown(screen.getByRole('tab', { name: '手动配置' }), { button: 0 })
+    expect(trackFeatureClick).toHaveBeenCalledWith('client-docs', 'method-claude-desktop-manual')
+    expect(screen.getByRole('tabpanel', { name: '手动配置' })).toHaveAttribute('aria-labelledby', 'client-method-manual')
+    expect(screen.getByRole('heading', { name: '手动配置 Claude Desktop' })).toBeInTheDocument()
+    expect(within(screen.getByRole('navigation', { name: '本页内容' })).getByRole('link', { name: '手动配置' })).toHaveAttribute('href', '#configure')
+    expect(screen.queryByRole('region', { name: 'CC Switch · Claude Desktop 配置' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('API 基础地址')).toHaveValue('https://gateway.test')
+    expect(screen.getByRole('combobox', { name: '模型名称' })).toHaveTextContent('claude-opus-5')
+    expect(document.querySelector('#configure')).toHaveTextContent('Developer → Configure Third-Party Inference…')
+    fireEvent.click(screen.getByRole('button', { name: '复制Configure Third-Party Inference · Gateway' }))
+    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalled())
+    const copied = vi.mocked(navigator.clipboard.writeText).mock.lastCall![0]
+    expect(copied.match(/Gateway base URL\s+(\S+)/)?.[1]).toBe('https://gateway.test')
+    expect(copied).toContain('sk-YOUR_API_KEY')
+    expect(copied).toContain('claude-opus-5')
+    expect(screen.getByRole('figure', { name: 'claude-desktop 界面操作示意' })).toHaveTextContent('Apply Changes')
+    expect(screen.queryByText('CC Switch · Claude Desktop 配置提示')).not.toBeInTheDocument()
+    expect(screen.getByText('Claude Desktop 配置提示')).toBeInTheDocument()
+  })
+
+  it('keeps directory switching working after leaving Claude Desktop', () => {
+    renderPage('/client-docs?client=claude-desktop')
     const directory = screen.getByRole('navigation', { name: '接入目录' })
     fireEvent.change(screen.getByRole('searchbox', { name: '搜索客户端' }), { target: { value: 'Pi' } })
     fireEvent.click(within(directory).getByRole('button', { name: 'Pi' }))
@@ -622,14 +706,62 @@ describe('ClientDocsPage', () => {
     expect(vi.mocked(navigator.clipboard.writeText).mock.lastCall?.[0]).toContain('Bearer sk-YOUR_API_KEY')
   })
 
+  it('loads model IDs from Sub2API into a searchable dropdown filtered by client protocol', async () => {
+    mockModelCatalog([
+      { id: 'claude-opus-5', platforms: ['anthropic'] },
+      { id: 'claude-sonnet-5', platforms: ['antigravity'] },
+      { id: 'gemini-3-pro', platforms: ['antigravity'] },
+      { id: 'gpt-6-astra', platforms: ['openai'] },
+    ])
+    renderPage('/client-docs?client=claude-desktop&method=manual&api_base=https%3A%2F%2Fgateway.test')
+    const trigger = screen.getByRole('combobox', { name: '模型名称' })
+    await waitFor(() => expect(document.getElementById('client-model-help')).toHaveTextContent('列表来自平台模型广场'))
+    expect(apiClient.get).toHaveBeenCalledWith('/client-docs/models')
+    expect(trigger).toHaveTextContent('claude-opus-5')
+
+    fireEvent.click(trigger)
+    expect(within(document.querySelector('.client-model-popover') as HTMLElement).getAllByRole('option').map(option => option.textContent)).toEqual(['claude-opus-5', 'claude-sonnet-5'])
+    fireEvent.click(screen.getByRole('option', { name: 'claude-sonnet-5' }))
+    expect(trigger).toHaveTextContent('claude-sonnet-5')
+    expect(screen.getByText(/Models\s+claude-sonnet-5/, { selector: 'code' })).toBeInTheDocument()
+
+    fireEvent.click(within(screen.getByRole('navigation', { name: '接入目录' })).getByRole('button', { name: 'Codex' }))
+    fireEvent.mouseDown(screen.getByRole('tab', { name: '手动配置' }), { button: 0 })
+    expect(screen.getByRole('combobox', { name: '模型名称' })).toHaveTextContent('gpt-6-astra')
+    fireEvent.click(screen.getByRole('combobox', { name: '模型名称' }))
+    expect(within(document.querySelector('.client-model-popover') as HTMLElement).getAllByRole('option').map(option => option.textContent)).toEqual(['gpt-6-astra'])
+  })
+
+  it('picks the first platform model when the guide default is not offered and keeps custom IDs available', async () => {
+    mockModelCatalog([{ id: 'deepseek-v4', platforms: ['deepseek'] }, { id: 'kimi-k2', platforms: ['kimi'] }])
+    renderPage('/client-docs?client=pi&method=manual&api_base=https%3A%2F%2Fgateway.test')
+    await waitFor(() => expect(screen.getByRole('combobox', { name: '模型名称' })).toHaveTextContent('deepseek-v4'))
+    chooseModel('vendor/private-model')
+    expect(screen.getByRole('combobox', { name: '模型名称' })).toHaveTextContent('vendor/private-model')
+    expect(screen.getByText(/"id": "vendor\/private-model"/, { selector: 'code' })).toBeInTheDocument()
+  })
+
+  it('keeps the guide default model and manual entry when the Sub2API model list is unavailable', async () => {
+    vi.mocked(apiClient.get).mockImplementation(async (path: string) => {
+      if (path === '/client-docs/models') throw new Error('MODEL_PLAZA_DISABLED')
+      return { code: 0, message: 'success', data: {} }
+    })
+    renderPage('/client-docs?client=codex&method=manual')
+    await waitFor(() => expect(document.getElementById('client-model-help')).toHaveTextContent('暂时无法读取平台模型列表'))
+    expect(screen.getByRole('combobox', { name: '模型名称' })).toHaveTextContent('gpt-6-astra')
+    expect(screen.getByRole('button', { name: '复制~/.codex/config.toml' })).toBeInTheDocument()
+    expect(document.querySelector('[role="alert"]')).not.toBeInTheDocument()
+  })
+
   it('blocks invalid config instead of copying stale values', () => {
     renderPage('/client-docs?client=codex&method=manual')
     fireEvent.change(screen.getByLabelText('API 基础地址'), { target: { value: 'https://gateway.test/v1/responses' } })
     expect(screen.getByLabelText('API 基础地址')).toHaveAttribute('aria-invalid', 'true')
     expect(screen.queryByRole('button', { name: '复制~/.codex/config.toml' })).not.toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('API 基础地址'), { target: { value: 'https://gateway.test' } })
-    fireEvent.change(screen.getByLabelText('模型名称'), { target: { value: '   ' } })
-    expect(screen.queryByRole('button', { name: '复制~/.codex/config.toml' })).not.toBeInTheDocument()
+    openModelSearch('bad\u0007model')
+    expect(screen.queryByRole('option', { name: /使用「/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '复制~/.codex/config.toml' })).toBeInTheDocument()
   })
 
   it('offers manual copying when the clipboard is unavailable', async () => {

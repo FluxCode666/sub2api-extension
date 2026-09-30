@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"sort"
@@ -23,6 +24,7 @@ const (
 	grokVideoPendingKeyPrefix = "grok_video_pending:"
 	grokVideoBilledKeyPrefix  = "grok_video_billed:"
 	grokVideoRequestPrefix    = "grok-video:"
+	seedanceRequestPrefix     = "seedance:"
 
 	// Sub2API 的异步生图和 Grok 视频快照没有按用户建立索引，只能 SCAN。
 	// 扫描结果在进程内短暂共享，并限制单轮扫描规模，避免用户频繁刷新时
@@ -48,7 +50,9 @@ const (
 //   - PostgreSQL usage_logs(request_id = 'grok-video:<request>')：视频计费记录；
 //   - PostgreSQL batch_image_jobs：批量生图任务。
 //
-// 这里从不调用 Sub2API 网关或上游，也不读取 API Key 明文。
+// Seedance 视频任务复用 Grok 视频的挂起/计费键，request ID 带 "seedance:" 前缀。
+// 这里从不调用 Sub2API 网关或上游，也不读取 API Key 明文；单条视频任务的上游代查
+// 由 Sub2APIClient.QueryVideoTaskStatus 使用用户自己的 API Key 完成。
 type Sub2APIAsyncTaskStore struct {
 	db    *sql.DB
 	redis *redis.Client
@@ -118,10 +122,35 @@ func (s *Sub2APIAsyncTaskStore) ListImageTasks(ctx context.Context, userID int64
 	return asynctask.SourceResult{Tasks: tasks, Truncated: snapshot.imageTruncated}, nil
 }
 
+// ImageTask 绕过列表快照直接读取单条异步生图任务；不存在、已过期或不属于该用户时
+// 返回 asynctask.ErrTaskNotFound。
+func (s *Sub2APIAsyncTaskStore) ImageTask(ctx context.Context, userID int64, id string) (asynctask.Task, error) {
+	if !s.RedisAvailable() {
+		return asynctask.Task{}, asynctask.ErrSourceUnavailable
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return asynctask.Task{}, asynctask.ErrTaskNotFound
+	}
+	raw, err := s.redis.Get(ctx, imageTaskKeyPrefix+id).Bytes()
+	if errors.Is(err, redis.Nil) {
+		return asynctask.Task{}, asynctask.ErrTaskNotFound
+	}
+	if err != nil {
+		return asynctask.Task{}, fmt.Errorf("load image task: %w", err)
+	}
+	task, owner, ok := parseImageTaskRecord(raw)
+	if !ok || owner != userID || task.ID != id {
+		return asynctask.Task{}, asynctask.ErrTaskNotFound
+	}
+	return task, nil
+}
+
 // ListVideoTasks 合并 Redis 创建快照与 usage_logs 计费记录。
 //
-// Sub2API 只在用户轮询到 done 时计费，本系统不代替用户查询上游，因此
-// 只有创建快照的任务显示为“等待结果”，而不是断言其仍在生成。
+// Sub2API 只在用户轮询到完成状态时计费，列表不会代替用户查询上游，因此
+// 只有创建快照的任务显示为“等待结果”，而不是断言其仍在生成；用户可对单条任务
+// 手动触发上游查询。
 func (s *Sub2APIAsyncTaskStore) ListVideoTasks(ctx context.Context, userID int64) (asynctask.SourceResult, error) {
 	if !s.RedisAvailable() && !s.DatabaseAvailable() {
 		return asynctask.SourceResult{}, asynctask.ErrSourceUnavailable
@@ -153,22 +182,70 @@ func (s *Sub2APIAsyncTaskStore) ListVideoTasks(ctx context.Context, userID int64
 	return asynctask.SourceResult{Tasks: mergeVideoTasks(pending, billedClaims, billed), Truncated: truncated}, nil
 }
 
+// VideoTask 按来源与展示 ID 查找用户的一条视频任务，归属规则与 ListVideoTasks 相同。
+func (s *Sub2APIAsyncTaskStore) VideoTask(ctx context.Context, userID int64, provider, id string) (asynctask.Task, error) {
+	result, err := s.ListVideoTasks(ctx, userID)
+	if err != nil {
+		return asynctask.Task{}, err
+	}
+	id = strings.TrimSpace(id)
+	for _, task := range result.Tasks {
+		if task.Provider == provider && task.ID == id {
+			return task, nil
+		}
+	}
+	return asynctask.Task{}, asynctask.ErrTaskNotFound
+}
+
 // ListBatchTasks 返回近 30 天内用户未删除的批量生图任务。
 func (s *Sub2APIAsyncTaskStore) ListBatchTasks(ctx context.Context, userID int64) (asynctask.SourceResult, error) {
 	if !s.DatabaseAvailable() {
 		return asynctask.SourceResult{}, asynctask.ErrSourceUnavailable
 	}
+	tasks, err := s.queryBatchTasks(ctx, userID, "")
+	if err != nil {
+		return asynctask.SourceResult{}, err
+	}
+	return asynctask.SourceResult{Tasks: tasks}, nil
+}
+
+// BatchTask 直接读取单条批量生图任务，时间窗口与删除过滤与列表一致。
+func (s *Sub2APIAsyncTaskStore) BatchTask(ctx context.Context, userID int64, id string) (asynctask.Task, error) {
+	if !s.DatabaseAvailable() {
+		return asynctask.Task{}, asynctask.ErrSourceUnavailable
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return asynctask.Task{}, asynctask.ErrTaskNotFound
+	}
+	tasks, err := s.queryBatchTasks(ctx, userID, id)
+	if err != nil {
+		return asynctask.Task{}, err
+	}
+	if len(tasks) == 0 {
+		return asynctask.Task{}, asynctask.ErrTaskNotFound
+	}
+	return tasks[0], nil
+}
+
+// queryBatchTasks 读取用户批量任务；batchID 非空时只匹配该任务。
+func (s *Sub2APIAsyncTaskStore) queryBatchTasks(ctx context.Context, userID int64, batchID string) ([]asynctask.Task, error) {
 	columns, err := s.columns(ctx, "batch_image_jobs")
 	if err != nil {
-		return asynctask.SourceResult{}, fmt.Errorf("inspect batch_image_jobs: %w", err)
+		return nil, fmt.Errorf("inspect batch_image_jobs: %w", err)
 	}
 	if len(columns) == 0 {
 		// 旧版 Sub2API 没有批量生图，视为空列表而不是错误。
-		return asynctask.SourceResult{}, nil
+		return nil, nil
 	}
-	deletedFilter := ""
+	filters := ""
 	if columns["user_deleted_at"] {
-		deletedFilter = " AND b.user_deleted_at IS NULL"
+		filters = " AND b.user_deleted_at IS NULL"
+	}
+	args := []any{userID, s.now().Add(-asyncTaskDatabaseLookback)}
+	if batchID != "" {
+		filters += " AND b.batch_id = $3"
+		args = append(args, batchID)
 	}
 	query := fmt.Sprintf(`
 		SELECT b.batch_id, COALESCE(b.api_key_id, 0), COALESCE(b.model, ''), COALESCE(b.status, ''),
@@ -178,10 +255,10 @@ func (s *Sub2APIAsyncTaskStore) ListBatchTasks(ctx context.Context, userID int64
 		FROM batch_image_jobs b
 		WHERE b.user_id = $1 AND b.created_at >= $2%s
 		ORDER BY b.created_at DESC
-		LIMIT %d`, textColumnExpression("b", columns, "task_name"), deletedFilter, asyncTaskPerUserLimit)
-	rows, err := s.db.QueryContext(ctx, query, userID, s.now().Add(-asyncTaskDatabaseLookback))
+		LIMIT %d`, textColumnExpression("b", columns, "task_name"), filters, asyncTaskPerUserLimit)
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return asynctask.SourceResult{}, fmt.Errorf("query batch_image_jobs: %w", err)
+		return nil, fmt.Errorf("query batch_image_jobs: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 	tasks := make([]asynctask.Task, 0)
@@ -196,7 +273,7 @@ func (s *Sub2APIAsyncTaskStore) ListBatchTasks(ctx context.Context, userID int64
 			&task.ItemCount, &task.SuccessCount, &task.FailCount, &task.CancelledCount,
 			&estimated, &actual, &task.Currency, &task.TaskName, &task.ErrorMessage,
 			&task.CreatedAt, &finishedAt, &expiresAt); err != nil {
-			return asynctask.SourceResult{}, fmt.Errorf("scan batch_image_jobs: %w", err)
+			return nil, fmt.Errorf("scan batch_image_jobs: %w", err)
 		}
 		task.Kind = asynctask.KindBatch
 		task.Status = normalizeBatchStatus(task.RawStatus)
@@ -220,9 +297,9 @@ func (s *Sub2APIAsyncTaskStore) ListBatchTasks(ctx context.Context, userID int64
 		tasks = append(tasks, task)
 	}
 	if err := rows.Err(); err != nil {
-		return asynctask.SourceResult{}, fmt.Errorf("iterate batch_image_jobs: %w", err)
+		return nil, fmt.Errorf("iterate batch_image_jobs: %w", err)
 	}
-	return asynctask.SourceResult{Tasks: tasks}, nil
+	return tasks, nil
 }
 
 // APIKeyNames 返回用户 API Key 的 ID 与名称，不读取 key 字段。
@@ -588,11 +665,21 @@ func mergeVideoTasks(pending []pendingVideoSnapshot, billedClaims map[string]boo
 		}
 	}
 	tasks := make([]asynctask.Task, 0, len(order))
-	for _, id := range order {
-		tasks = append(tasks, *byID[id])
+	for _, requestID := range order {
+		task := *byID[requestID]
+		task.Provider, task.ID = videoTaskIdentity(requestID)
+		tasks = append(tasks, task)
 	}
 	sort.SliceStable(tasks, func(i, j int) bool { return tasks[i].CreatedAt.After(tasks[j].CreatedAt) })
 	return tasks
+}
+
+// videoTaskIdentity 把 Sub2API 内部 request ID 拆成来源与用户在调用端看到的任务 ID。
+func videoTaskIdentity(requestID string) (string, string) {
+	if id, ok := strings.CutPrefix(requestID, seedanceRequestPrefix); ok {
+		return asynctask.ProviderSeedance, id
+	}
+	return asynctask.ProviderGrok, requestID
 }
 
 func normalizeImageStatus(status string) asynctask.Status {

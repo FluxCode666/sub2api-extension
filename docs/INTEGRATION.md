@@ -68,8 +68,8 @@ Sub2API HTTP API 配置；扩展不会调用 Sub2API 的首字延迟接口。
 促销返利还应配置 `SUB2API_REDIS_HOST`（及对应凭据），这样入账后会立即删除
 Sub2API 的用户余额缓存；未配置时数据库余额仍会更新，但网关最多可能在余额缓存 TTL
 内显示旧值。
-用户端异步任务页（`/async-tasks`）同样依赖 `SUB2API_REDIS_*` 读取异步生图和 Grok
-视频提交记录；未配置 Redis 时页面仍可显示批量生图任务，并提示其余来源不可用。
+用户端异步任务页（`/async-tasks`）同样依赖 `SUB2API_REDIS_*` 读取异步生图和视频
+（Grok / Seedance）提交记录；未配置 Redis 时页面仍可显示批量生图任务，并提示其余来源不可用。
 
 扩展公网地址也可以在管理端「系统配置」的“扩展系统公网地址”中填写（例如
 `https://code.example.com/aux`，需包含反向代理路径前缀），保存后立即用于生成所有
@@ -161,15 +161,23 @@ Sub2API 会把 URL 作为 iframe 地址。官网内容通过 `/admin/pages` 维�
 
 用户端异步任务页在「系统配置」中打开“异步任务页上架到 Sub2API”后，会同步用户菜单 `aux-async-tasks`（标签“异步任务”，URL `/async-tasks`，`visibility=user`，iframe 模式）；关闭开关会移除该菜单，服务重启时按持久化状态恢复或移除。菜单已存在时保留管理员修改过的图标和排序。
 
-页面调用 `GET /api/aux/async-tasks?kind=&status=&model=&api_key_id=&keyword=&created_from=&created_to=&page=&page_size=`，接口位于 `UserGuard` 下，任务归属只取 `X-Aux-Token` 在 Sub2API `/auth/me` 验证得到的用户 ID，忽略请求中的 `user_id`。数据全部只读，不调用网关、不使用用户 API Key：
+页面调用 `GET /api/aux/async-tasks?kind=&status=&model=&api_key_id=&keyword=&created_from=&created_to=&page=&page_size=`，接口位于 `UserGuard` 下，任务归属只取 `X-Aux-Token` 在 Sub2API `/auth/me` 验证得到的用户 ID，忽略请求中的 `user_id`。列表接口全部只读，不调用网关、不使用用户 API Key（单条手动查询见下文）：
 
 | 类型 | 来源 | 说明 |
 |------|------|------|
 | 异步生图 | Redis `image_task:<id>`（24 小时 TTL） | 按记录中的 `user_id` 过滤；只返回 http(s) 结果链接，丢弃 base64 数据和带凭据的 URL，错误信息截断到 300 字 |
-| Grok 视频 | Redis `grok_video_pending:<uid>:<key>:<req>`、`grok_video_billed:*`，数据库 `usage_logs`（`request_id` 以 `grok-video:` 开头） | 只有提交快照时显示“等待结果”；存在计费标记或使用记录时显示“已完成”并展示实际费用。视频成品需要调用端继续轮询获取，本页不代查 |
+| 视频生成（Grok / Seedance） | Redis `grok_video_pending:<uid>:<key>:<req>`、`grok_video_billed:*`，数据库 `usage_logs`（`request_id` 以 `grok-video:` 开头）；Seedance 复用同一套键，`<req>` 带 `seedance:` 前缀 | 响应中 `provider` 为 `grok` 或 `seedance`，任务 ID 已去掉 `seedance:` 前缀。只有提交快照时显示“等待结果”；存在计费标记或使用记录时显示“已完成”并展示实际费用。Sub2API 没有后台轮询，视频只在调用端查询状态时推进，可在页面逐条手动查询（见下文） |
 | 批量生图 | 数据库 `batch_image_jobs` | 运行时探测可选列 `task_name`、`user_deleted_at`；表不存在时返回空列表 |
 
 查询参数：`kind`（`image`/`video`/`batch`）、`status`（`processing`/`pending`/`completed`/`failed`/`cancelled`）、`model`（精确匹配）、`api_key_id`（正整数）、`keyword`（按任务 ID 或批量任务名做不区分大小写的包含匹配，最多 128 字）；`created_from`、`created_to` 为带时区的 RFC3339 时间，起点包含、终点不包含，终点必须晚于起点；`page_size` 最大 100。参数非法返回 400。前端把本地日期转换为当日零点，结束日期取次日零点。响应中的 `summary` 在日期/模型/Key/关键字条件后统计，类型计数不受类型筛选影响、状态计数跟随类型筛选；`filter_options.models` / `filter_options.api_keys` 来自用户全部近期任务，用于下拉选项。
+
+单条任务手动查询：页面对“生成中/等待结果”的任务在状态旁提供查询按钮，调用 `POST /api/aux/async-tasks/refresh`，请求体为 `{"kind":"image|video|batch","provider":"grok|seedance","id":"..."}`（`provider` 仅视频使用，缺省为 `grok`；请求体上限 4 KiB）。接口位于 `UserGuard` 下，并按 Sub2API 用户 ID 做令牌桶限流（每 2 秒 1 次、突发 5 次，超限 429）：
+
+- 异步生图、批量生图由 Sub2API 后台推进，这里只重新读取该条 Redis 记录或 `batch_image_jobs` 行，不调用网关。
+- 视频任务未结束时，后端用 `X-Aux-Token` 调用 Sub2API `GET /api/v1/keys` 取得创建该任务的 API Key（按任务记录的 `api_key_id` 匹配且必须为 `active`，不会换用其他密钥），再以该密钥调用网关：Grok 为 `GET /v1/videos/{id}`，Seedance 为 `GET /v1/contents/generations/tasks/{id}`。该请求与用户自行轮询等价：受网关计费校验和 RPM 限流约束，首次观察到完成时 Sub2API 按该任务计费一次，重复查询不会重复扣费。API Key 明文只放在 `Authorization` 请求头，不写日志、URL、响应或数据库。
+- 上游状态映射：`done`/`succeeded` → 已完成，`failed` → 失败，`expired` → 失败（“上游任务已过期”），`cancelled` → 已取消，其余视为生成中。确认完成时响应附带 `video_url`（可直接打开的 http(s) 地址，如 Seedance 签名地址）或 `video_content_path`（网关代理的 `/v1/videos/<id>/content`，下载时需携带同一 API Key）；地址只返回给任务所属用户，不写入本系统数据库。
+- Sub2API 在上游返回失败或过期时不会清理提交快照，列表仍显示“等待结果”；页面在当前会话中保留手动查询得到的终态。
+- 错误：任务不存在或不属于当前用户 404 `ASYNC_TASK_NOT_FOUND`；网关找不到任务（超过保留期或密钥分组已变化）404 `VIDEO_TASK_NOT_FOUND`；创建任务的密钥已删除或停用 409 `API_KEY_UNAVAILABLE`；网关拒绝（401/402/403）422 `VIDEO_STATUS_REJECTED`；网关限流 429 `VIDEO_STATUS_RATE_LIMITED`；token 失效 401；Sub2API 或数据源不可用 503。
 
 Redis 没有按用户的索引，因此后端使用 `SCAN` 读取快照：单次最多 200 次 `SCAN`（`COUNT 1000`）或 20000 个键、总超时 4 秒，结果进程内缓存 10 秒；达到上限时页面提示“只读取到部分近期记录”。数据库查询回看 30 天，每个来源最多 200 条。任一来源失败时返回其余来源并在页面上提示，全部失败时返回 503。
 
@@ -187,6 +195,25 @@ Redis 没有按用户的索引，因此后端使用 `SCAN` 读取快照：单次
 保存后，Sub2API 会通过 `buildEmbeddedUrl` 附加 `user_id`、`token`、`theme`、`lang`、`ui_mode` 等参数。aux-system 的 `AdminGuard` 使用 token 验证管理员身份并签发自己的会话。
 
 管理端必须从 sub2api 的这个菜单入口打开（推荐 URL 使用 `/admin/dashboard`）；不要把不带查询参数的扩展 URL 直接当作已登录入口收藏或访问。sub2api 的登录 JWT 保存在 sub2api 自身的浏览器 origin 中，浏览器不会允许扩展跨 origin 读取它；只有菜单 iframe 注入的 `token`（或扩展自身已有的 `X-Aux-Session`）可以完成免登录进入。扩展会保留入口 URL 上的嵌入参数，根路径重定向不会丢失 `token`。
+
+#### 客户端导入限制
+
+管理员可在「系统配置」的「客户端导入限制」中，按 API Key 所属分组的平台或具体分组限制可导入的客户端。配置保存在 `system_meta` 的 `client_import.policy`，结构为 `{"platforms":[{"platform":"openai","allowedClients":["codex","pi"]}],"groups":[{"groupId":5,"allowedClients":[]}],"multiModelClients":["chatbox","zcode","workbuddy","pi"]}`：
+
+- 解析顺序：未选择分组的密钥始终不可导入；分组规则优先；其次按分组平台（不区分大小写）匹配平台规则；都未配置时允许全部客户端。`allowedClients` 为空数组表示不允许导入任何客户端。
+- 客户端 ID 固定为 `claude-code`、`claude-desktop`、`codex`、`gemini`、`grok-build`、`opencode`、`openclaw`、`hermes`、`cherry-studio`、`chatbox`、`zcode`、`workbuddy`、`pi`，未知 ID、重复规则、非法平台或非正分组 ID 会被拒绝（400）；平台规则最多 32 条，分组规则最多 500 条。
+- 管理端点均在 `AdminGuard` 下：`GET/PUT /api/aux/admin/client-import/policy` 读写规则；`GET /api/aux/admin/client-import/groups` 只读查询 Sub2API `groups` 表（`deleted_at IS NULL`）返回 `id`、`name`、`platform`、`status`，未配置 `SUB2API_DATABASE_*` 时返回 503，此时仍可配置平台规则。
+- `GET /api/aux/client-import/keys` 的每个密钥返回 `allowed_clients`；读取规则失败时整体返回 500，不会放行。前端只据此禁用界面，限制以后端计算结果为准。
+- `multiModelClients` 控制哪些客户端允许在导入页配置多个候选模型 ID，只接受支持多模型的 `chatbox`、`zcode`、`workbuddy`、`pi`，其他客户端返回 400；字段缺省（含升级前保存的规则）时视为四者全部开启，显式 `[]` 表示全部只允许单个模型。`GET /api/aux/client-import/keys` 响应的 `data.multi_model_clients` 返回当前生效列表，未配置策略服务时同样返回全部四个客户端。
+
+#### 客户端导入的密钥模型列表
+
+客户端导入页的「默认模型 ID」下拉通过 `GET /api/aux/client-import/keys/:id/models` 读取所选 API Key 可用的模型：
+
+- 端点位于 `UserGuard` 下，前端只传密钥 ID，不传密钥明文。后端用 `X-Aux-Token` 重新列出当前用户的密钥，找到对应的有效密钥后，以 `Authorization: Bearer <API Key>` 调用同一 `SUB2API_BASE_URL` 的网关 `GET /v1/models`；密钥只放在请求头中，不写入 URL、日志或错误信息。
+- 网关按密钥所属分组的平台和模型白名单返回列表，因此结果就是该密钥实际可调用的模型。同时兼容 `{"data":[{"id":…}]}` 和 Gemini 原生 `{"models":[{"name":"models/…"}]}` 两种格式；去重后保持原顺序，最多返回 500 个，响应体上限 2 MiB。成功时返回 `{"items":[...]}`，空列表返回 `[]`。
+- 错误映射：密钥 ID 非法返回 400；密钥不属于当前用户、未激活或为空返回 404；未选择分组返回 409 `API_KEY_UNGROUPED`（不请求网关）；网关返回 401/402/403/429 时返回 422 `API_KEY_MODELS_REJECTED`；网关不可达、返回其他非 200 状态或非法 JSON 时返回 503。
+- 读取模型列表会以该密钥的身份请求网关，是否计入网关限流以 Sub2API 配置为准；页面只在选中或切换密钥、点击「重新读取」时请求。
 
 ### 2.3 从页面管理直接上架
 
@@ -243,7 +270,9 @@ https://aux.example.com/api-docs?embed=1&api_base=https%3A%2F%2Fapi.example.com
 ></iframe>
 ```
 
-文档页只读取 `api_base` 来替换示例地址，不读取父页面 Cookie、Token 或 DOM。生产环境应继续使用 HTTPS，并确认反向代理没有添加 `X-Frame-Options`；`frame-src` 允许列表由 Sub2API 根据 `custom_menu_items[].url` 的 origin 刷新。
+文档页只读取 `api_base` 来替换示例地址，不读取父页面 Cookie、Token 或 DOM。
+
+客户端接入文档 `/client-docs` 的「模型名称」为可搜索下拉，选项来自 `GET /api/aux/client-docs/models`。该端点公开只读，由扩展后端代理 Sub2API 的模型广场 `GET /api/v1/model-plaza`，按模型 ID 去重后返回 `{"items":[{"id":"claude-opus-5","platforms":["anthropic"]}]}`，不返回价格和倍率；前端再按客户端协议筛选平台（Claude 类取 `anthropic`，Codex 取 `openai`，Gemini CLI 取 `gemini`，Grok Build 取 `grok`，Antigravity 分组按 `claude`/`gemini` 前缀归类，多协议客户端展示全部）。请求带 `X-Aux-Token` 时转为 `Authorization: Bearer` 以读取该用户可见的专属分组，token 失效时回退匿名视图；匿名结果进程内缓存 60 秒，端点按 IP 限流（2 次/秒、突发 10 次）。模型广场是 Sub2API 的可选功能，需要在 Sub2API 管理后台开启；未开启、要求登录但无 token 或上游不可达时返回 503（`reason` 分别为 `MODEL_PLAZA_DISABLED`、`MODEL_PLAZA_AUTH_REQUIRED` 或空），页面保留指南默认模型，并允许在下拉搜索框中直接输入模型 ID。生产环境应继续使用 HTTPS，并确认反向代理没有添加 `X-Frame-Options`；`frame-src` 允许列表由 Sub2API 根据 `custom_menu_items[].url` 的 origin 刷新。
 
 ### 2.5 动态配置系统名称与示例模型
 

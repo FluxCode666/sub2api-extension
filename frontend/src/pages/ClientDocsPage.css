@@ -130,6 +130,26 @@ html:has(.client-docs), body:has(.client-docs) { overflow-x: clip; scroll-behavi
 .client-settings input[aria-invalid='true'] { border-color: var(--color-cg-error); }
 .client-settings > div > p { font-size: var(--text-cg-small); color: var(--color-cg-muted); line-height: 1.6; min-height: 1lh; margin: var(--space-cg-sm) 0 0; overflow-wrap: anywhere; }
 .client-settings .client-field-error { color: var(--color-cg-error); }
+.client-settings .client-model-trigger { display: flex; width: 100%; height: 48px; align-items: center; justify-content: space-between; gap: var(--space-cg-sm); padding-inline: var(--space-cg-md); border: var(--rule-cg-width) solid var(--color-cg-control); border-radius: var(--radius-cg-small); background: var(--color-cg-surface); color: var(--color-cg-ink); font-family: var(--font-cg-code); font-size: var(--text-cg-ui); font-weight: 400; box-shadow: none; }
+.client-settings .client-model-trigger > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.client-settings .client-model-trigger > svg { flex: 0 0 auto; color: var(--color-cg-muted); }
+.client-settings .client-model-trigger[aria-invalid='true'] { border-color: var(--color-cg-error); }
+.client-settings .client-model-trigger:focus-visible { outline: 2px solid var(--color-cg-accent); outline-offset: 2px; }
+.client-model-placeholder { color: var(--color-cg-muted); }
+.client-model-spinner { animation: client-model-spin 0.9s linear infinite; }
+@keyframes client-model-spin { to { transform: rotate(360deg); } }
+.client-directory-select-content.client-model-popover { width: var(--radix-popover-trigger-width); min-width: min(280px, calc(100vw - 32px)); max-width: calc(100vw - 32px); padding: 0; border-color: var(--color-cg-control); background: var(--color-cg-surface); color: var(--color-cg-ink); }
+.client-model-popover [cmdk-root] { background: transparent; color: inherit; }
+.client-model-popover .client-model-search { border-color: var(--color-cg-rule); }
+.client-model-popover [cmdk-input] { color: var(--color-cg-ink); font-family: var(--font-cg-code); }
+.client-model-popover [cmdk-group-heading] { padding: 6px 8px; color: var(--color-cg-muted); font-size: var(--text-cg-small); }
+.client-model-popover [cmdk-item] { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px; border-radius: var(--radius-cg-small); font-family: var(--font-cg-code); font-size: var(--text-cg-small); cursor: pointer; }
+.client-model-popover [cmdk-item] > span { min-width: 0; overflow-wrap: anywhere; }
+.client-model-popover [cmdk-item] > svg { flex: 0 0 auto; opacity: 0; }
+.client-model-popover [cmdk-item] > svg.is-selected { opacity: 1; color: var(--color-cg-accent); }
+.client-model-popover [cmdk-item][data-selected='true'] { background: var(--color-cg-selected); color: var(--color-cg-accent); }
+.client-model-popover [cmdk-empty] { padding: var(--space-cg-md); color: var(--color-cg-muted); font-size: var(--text-cg-small); text-align: center; }
+@media (prefers-reduced-motion: reduce) { .client-model-spinner { animation: none; } }
 .client-key-note { display: flex; align-items: flex-start; gap: var(--space-cg-md); grid-column: 1 / -1; }
 .client-key-note > svg { margin-top: var(--space-cg-xs); color: var(--color-cg-muted); }
 .client-settings .client-key-note > p { margin: 0; }
@@ -225,7 +245,7 @@ html:has(.client-docs), body:has(.client-docs) { overflow-x: clip; scroll-behavi
 .sub2api-key-actions .codex-number-callout { position: absolute; top: -13px; left: -12px; }
 .sub2api-table-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; color: #7d8896; font-size: 8px; }
 .sub2api-table-footer > span:last-child { padding: 4px 7px; border: 1px solid #e1e6eb; border-radius: 5px; background: #fff; white-space: nowrap; }
-.sub2api-dialog-backdrop, .ccswitch-dialog-backdrop { position: absolute; z-index: 2; inset: 0; display: grid; place-items: center; padding: 14px; background: rgb(24 32 43 / 42%); }
+.sub2api-dialog-backdrop { position: absolute; z-index: 2; inset: 0; display: grid; place-items: center; padding: 14px; background: rgb(24 32 43 / 42%); }
 .sub2api-create-dialog { width: min(100%, 470px); max-height: calc(100% - 12px); overflow: auto; border: 1px solid #dce1e7; border-radius: 10px; background: #fff; color: #273246; box-shadow: 0 16px 50px rgb(13 23 39 / 22%); }
 .sub2api-create-dialog > header, .sub2api-create-dialog > footer { display: flex; align-items: center; justify-content: space-between; min-height: 42px; padding: 8px 16px; border-bottom: 1px solid #e9edf1; font-size: 12px; }
 .sub2api-create-dialog > header span { color: #98a2af; font-size: 17px; }
@@ -243,66 +263,6 @@ html:has(.client-docs), body:has(.client-docs) { overflow-x: clip; scroll-behavi
 .sub2api-create-dialog > footer > span, .sub2api-create-dialog > footer > strong { position: relative; display: inline-flex; align-items: center; min-height: 28px; padding: 0 11px; border: 1px solid #e0e5ea; border-radius: 6px; font-size: 9px; font-weight: 500; }
 .sub2api-create-dialog > footer > strong { border-color: #0da798; color: #fff; background: #0da798; }
 .sub2api-create-dialog > footer .codex-number-callout { position: absolute; top: -9px; right: -9px; color: #8a4c00; background: #fff8e9; }
-.ccswitch-window { grid-template-columns: minmax(0, 1fr); min-height: 450px; background: #fff; }
-.ccswitch-main { position: relative; display: grid; grid-template-rows: 18px 34px 42px 1fr; min-width: 0; background: #fff; }
-.ccswitch-window-controls { display: flex; align-items: center; gap: 5px; padding-inline: 10px; border-bottom: 1px solid #edf0f2; background: #fafbfc; }
-.ccswitch-window-controls i { width: 7px; height: 7px; border-radius: 50%; background: #ff6058; }
-.ccswitch-window-controls i:nth-child(2) { background: #ffbd2e; }
-.ccswitch-window-controls i:nth-child(3) { background: #28c840; }
-.ccswitch-topbar { display: flex; align-items: center; gap: 9px; padding: 5px 12px; border-bottom: 1px solid #e8eaed; background: #fff; }
-.ccswitch-topbar > strong { display: inline-flex; align-items: center; gap: 4px; color: #3972dc; font-size: 10px; font-weight: 650; }
-.ccswitch-brand-mark { color: #e8752a; font-size: 15px; }
-.ccswitch-settings { color: #758092; font-size: 12px; }
-.ccswitch-route-label { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; color: #778292; font-size: 8px; }
-.ccswitch-route-label i { width: 26px; height: 14px; border-radius: 99px; background: #e5e8ec; }
-.ccswitch-appbar { display: flex; align-items: center; justify-content: space-between; gap: 7px; min-width: 0; padding: 5px 10px; border-bottom: 1px solid #e8eaed; background: #fff; }
-.ccswitch-app-tabs, .ccswitch-toolbar { display: flex; align-items: center; gap: 4px; min-width: 0; }
-.ccswitch-app-tabs { overflow: hidden; }
-.ccswitch-app-tabs > span { display: grid; width: 23px; height: 23px; place-items: center; border: 1px solid transparent; border-radius: 5px; color: #758092; font-size: 10px; white-space: nowrap; }
-.ccswitch-app-tabs > span.is-current { border-color: #cfddff; color: #3166d6; background: #f2f6ff; }
-.ccswitch-toolbar > span, .ccswitch-toolbar > b { display: grid; width: 22px; height: 22px; place-items: center; border: 1px solid #e4e7eb; border-radius: 5px; color: #748093; font-size: 9px; font-weight: 500; }
-.ccswitch-toolbar > b { border-color: #f05a1a; color: #fff; background: #f05a1a; font-size: 14px; }
-.ccswitch-content { display: grid; align-content: start; gap: 8px; min-width: 0; padding: 12px; }
-.ccswitch-tabs { display: flex; align-items: center; justify-content: space-between; padding: 0 2px 7px; border-bottom: 1px solid #e9ebee; }
-.ccswitch-tabs strong { color: #495466; font-size: 9px; font-weight: 600; }
-.ccswitch-tabs span { color: #738095; font-size: 8px; }
-.ccswitch-provider-card { display: grid; grid-template-columns: 12px 30px minmax(120px, 1fr) minmax(130px, .6fr) minmax(150px, auto); align-items: center; gap: 8px; min-width: 0; min-height: 66px; padding: 8px; border: 1px solid #e2e5ea; border-radius: 8px; background: #fff; }
-.ccswitch-provider-new { border-color: #cbd9ff; background: #fbfcff; }
-.ccswitch-provider-drag { color: #9ba4b1; font-size: 11px; }
-.ccswitch-provider-logo { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid #eaedf0; border-radius: 7px; color: #159f93; background: #f5fbfa; font-size: 16px; }
-.ccswitch-provider-logo-openai { color: #394454; background: #f6f7f8; }
-.ccswitch-provider-info, .ccswitch-provider-meta { display: grid; gap: 3px; min-width: 0; }
-.ccswitch-provider-info strong { color: #30394a; font-size: 9px; font-weight: 600; }
-.ccswitch-provider-info > span { overflow: hidden; color: #4d81df; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
-.ccswitch-provider-info small { color: #8791a0; font-size: 7px; }
-.ccswitch-provider-meta { color: #8992a0; font-size: 7px; }
-.ccswitch-provider-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; color: #8992a0; font-size: 7px; white-space: nowrap; }
-.ccswitch-provider-actions > span { color: #a2a8b1; }
-.ccswitch-provider-actions > span.is-current { color: #189778; }
-.ccswitch-toggle { display: grid; width: 25px; height: 14px; align-items: center; padding-left: 2px; border-radius: 99px; color: #fff; background: #cdd2da; font-size: 9px; line-height: 1; }
-.ccswitch-toggle.is-on { justify-items: end; padding: 0 2px 0 0; background: #159f93; }
-.ccswitch-provider-tools { display: inline-flex; align-items: center; gap: 5px; margin-left: 4px; color: #9aa3af; font-size: 9px; }
-.ccswitch-enable { position: relative; padding: 4px 8px; border: 1px solid #f3a63b; border-radius: 5px; color: #526071; background: #fff8e9; font-size: 8px; font-weight: 550; }
-.ccswitch-enable { cursor: pointer; transition: border-color .16s ease, background-color .16s ease, color .16s ease, box-shadow .16s ease, transform .16s ease; }
-.ccswitch-enable:hover { border-color: #f05b18; color: #c94812; background: #fff0e5; box-shadow: 0 2px 8px rgb(240 91 24 / 18%); }
-.ccswitch-enable:active { transform: translateY(1px); }
-.ccswitch-enable:focus-visible { outline: 2px solid #f05b18; outline-offset: 2px; }
-.ccswitch-enable .codex-number-callout { position: absolute; top: -10px; right: -9px; }
-.ccswitch-provider-muted { opacity: .72; }
-.ccswitch-dialog-backdrop { inset: 84px 0 0; }
-.ccswitch-confirm-dialog { display: grid; gap: 9px; width: min(100%, 370px); padding: 17px; border: 1px solid #e0e5eb; border-radius: 10px; background: #fff; box-shadow: 0 14px 40px rgb(13 23 39 / 22%); }
-.ccswitch-confirm-mark { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 8px; color: #315bc5; background: #eaf0ff; font-size: 15px; }
-.ccswitch-confirm-dialog > strong { font-size: 12px; }
-.ccswitch-confirm-dialog > p { margin: 0; color: #768292; font-size: 9px; }
-.ccswitch-confirm-dialog > div:not(.ccswitch-confirm-mark) { display: flex; justify-content: space-between; padding: 7px; border: 1px solid #e5e8ed; border-radius: 6px; color: #808b99; font-size: 9px; }
-.ccswitch-confirm-dialog > div > span { color: #364356; }
-.ccswitch-confirm-dialog footer { display: flex; justify-content: flex-end; gap: 7px; margin-top: 3px; }
-.ccswitch-confirm-dialog footer > span, .ccswitch-confirm-dialog footer > b { padding: 6px 10px; border: 1px solid #dfe4e9; border-radius: 6px; font-size: 9px; font-weight: 500; }
-.ccswitch-confirm-dialog footer > b { position: relative; cursor: pointer; border-color: #315bc5; color: #fff; background: #315bc5; transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease, transform .16s ease; }
-.ccswitch-confirm-dialog footer > b:hover { border-color: #244aa8; background: #244aa8; box-shadow: 0 3px 10px rgb(49 91 197 / 24%); }
-.ccswitch-confirm-dialog footer > b:active { transform: translateY(1px); }
-.ccswitch-confirm-dialog footer > b:focus-visible { outline: 2px solid #315bc5; outline-offset: 2px; }
-.ccswitch-confirm-dialog footer .codex-number-callout { position: absolute; top: -10px; right: -8px; color: #8a4c00; background: #fff8e9; }
 .codex-setup-diagram-note { margin: 0; color: var(--color-cg-muted); font-size: var(--text-cg-small); }
 @media (min-width: 40rem) {
   .client-setup-diagram-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -324,21 +284,6 @@ html:has(.client-docs), body:has(.client-docs) { overflow-x: clip; scroll-behavi
   .sub2api-key-table { min-width: 820px; }
   .sub2api-create-dialog > header, .sub2api-create-dialog > footer { padding-inline: 12px; }
   .sub2api-dialog-fields { padding-inline: 12px; }
-  .ccswitch-window { grid-template-columns: minmax(0, 1fr); min-height: 330px; }
-  .ccswitch-main { grid-template-rows: 18px 32px 40px 1fr; }
-  .ccswitch-appbar { align-items: flex-start; }
-  .ccswitch-app-tabs { flex: 1; overflow-x: auto; }
-  .ccswitch-app-tabs > span { width: 20px; height: 20px; font-size: 9px; }
-  .ccswitch-toolbar { gap: 2px; }
-  .ccswitch-toolbar > span, .ccswitch-toolbar > b { width: 17px; height: 19px; }
-  .ccswitch-content { padding: 8px; }
-  .ccswitch-provider-card { grid-template-columns: 9px 22px minmax(0, 1fr) auto; gap: 5px; min-height: 60px; padding: 6px; }
-  .ccswitch-provider-logo { width: 22px; height: 22px; }
-  .ccswitch-provider-meta { grid-column: 3; grid-row: 2; display: flex; flex-wrap: wrap; gap: 4px 8px; }
-  .ccswitch-provider-actions { grid-column: 4; grid-row: 1 / span 2; flex-direction: column; align-items: flex-end; gap: 4px; }
-  .ccswitch-provider-tools { display: none; }
-  .ccswitch-dialog-backdrop { inset: 90px 0 0; padding: 8px; }
-  .ccswitch-confirm-dialog { padding: 12px; }
 }
 .client-verification-note { display: flex; align-items: flex-start; gap: var(--space-cg-md); color: var(--color-cg-accent); margin-block: var(--space-cg-xl); }
 .client-verification-note > svg { margin-top: var(--space-cg-xs); }
@@ -420,7 +365,7 @@ html:has(.client-docs), body:has(.client-docs) { overflow-x: clip; scroll-behavi
   .client-docs :is(.client-code-bar button, .client-platform-trigger, .client-sidebar nav button, .client-theme-picker select):hover:not(:disabled) { background: var(--color-cg-selected); color: var(--color-cg-accent); }
   .client-faq summary:hover, .client-mobile-toc summary:hover { color: var(--color-cg-accent); }
   .client-docs :is(.client-search button, .client-next-guide button):hover { color: var(--color-cg-accent); }
-  .client-docs :is(.client-settings input, .client-mobile-select-trigger):hover { border-color: var(--color-cg-accent); }
+  .client-docs :is(.client-settings input, .client-settings .client-model-trigger, .client-mobile-select-trigger):hover { border-color: var(--color-cg-accent); }
 }
 @media (prefers-reduced-motion: reduce) {
   html:has(.client-docs) { scroll-behavior: auto; }
@@ -530,188 +475,10 @@ html:has(.client-docs), body:has(.client-docs) { overflow-x: clip; scroll-behavi
 .sub2api-create-dialog > footer > strong { position: relative; }
 .sub2api-create-dialog > footer .codex-number-callout { top: -10px; right: -10px; }
 
-.ccswitch-window { min-height: 560px; border-radius: 14px; background: #fff; box-shadow: 0 12px 42px rgb(26 32 44 / 10%); }
-.ccswitch-main { grid-template-rows: 23px 48px 62px minmax(0, 1fr); background: #fff; }
-.ccswitch-window-controls { gap: 6px; padding-inline: 13px; background: #fcfcfd; }
-.ccswitch-window-controls i { width: 9px; height: 9px; }
-.ccswitch-topbar { gap: 14px; padding: 7px 20px; }
-.ccswitch-topbar > strong { gap: 7px; color: #3275e9; font-size: 14px; }
-.ccswitch-brand-mark { display: inline-grid; width: 22px; height: 22px; place-items: center; background: conic-gradient(from -22deg, #f07835 0 12deg, transparent 12deg 45deg, #f2ad4e 45deg 57deg, transparent 57deg 90deg, #73b978 90deg 102deg, transparent 102deg 135deg, #46aaa5 135deg 147deg, transparent 147deg 180deg, #53b8c7 180deg 192deg, transparent 192deg 225deg, #6586da 225deg 237deg, transparent 237deg 270deg, #9f76c6 270deg 282deg, transparent 282deg 315deg, #ed8b61 315deg 327deg, transparent 327deg); -webkit-mask: radial-gradient(circle, transparent 0 2px, #000 2.5px 10px, transparent 10.5px); mask: radial-gradient(circle, transparent 0 2px, #000 2.5px 10px, transparent 10.5px); }
-.ccswitch-settings { display: grid; place-items: center; color: #707987; }
-.ccswitch-route-label { gap: 6px; margin-left: 0; padding: 5px 7px; border-radius: 8px; color: #7f8995; background: #f4f5f6; }
-.ccswitch-route-label > span { font-size: 12px; }
-.ccswitch-route-label i { position: relative; width: 35px; height: 20px; background: #d7dbe0; }
-.ccswitch-route-label i::before { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; content: ''; }
-.ccswitch-appbar { justify-content: space-between; gap: 12px; padding: 8px 18px; border-bottom: 0; }
-.ccswitch-app-tabs { gap: 2px; padding: 5px; border-radius: 11px; background: #f5f6f7; }
-.ccswitch-app-tabs > span { width: 36px; height: 34px; border: 1px solid transparent; border-radius: 8px; }
-.ccswitch-app-tabs > span.is-current { border-color: #dce4f5; background: #fff; box-shadow: 0 1px 4px rgb(27 43 66 / 8%); }
-.ccswitch-app-icon { display: grid; width: 23px; height: 23px; place-items: center; border-radius: 6px; font-size: 15px; font-style: normal; line-height: 1; }
-.ccswitch-app-icon-claude-code, .ccswitch-app-icon-claude-desktop { background: #fff4ef; }
-.ccswitch-app-icon-codex { background: #fff; }
-.ccswitch-app-icon-gemini { color: #3e75ec; background: #edf3ff; }
-.ccswitch-app-icon-opencode { color: #616c7e; background: #eaedf1; }
-.ccswitch-app-icon-openclaw { color: #e34b61; background: #fff0f2; }
-.ccswitch-app-icon-hermes { color: #111827; background: #edf0f3; font-size: 12px; font-weight: 700; }
-.ccswitch-app-icon img { display: block; width: 100%; height: 100%; object-fit: contain; }
-.ccswitch-toolbar { gap: 4px; padding: 4px; border-radius: 10px; background: #f5f6f7; }
-.ccswitch-toolbar > span, .ccswitch-toolbar > b { width: 32px; height: 32px; border: 0; border-radius: 7px; background: transparent; }
-.ccswitch-toolbar > b { width: 35px; height: 35px; margin-left: 5px; border-radius: 50%; background: #f05b18; }
-.ccswitch-content { gap: 10px; padding: 4px 20px 20px; }
-.ccswitch-provider-card { grid-template-columns: 16px 34px minmax(150px, 1fr) minmax(165px, .5fr) minmax(190px, auto); gap: 10px; min-height: 74px; padding: 9px 12px; border-color: #e1e4e8; border-radius: 13px; }
-.ccswitch-provider-active { border-color: #8aafff; background: #fbfcff; }
-.ccswitch-provider-new { border-color: #8aafff; background: #f7f9ff; }
-.ccswitch-provider-drag { color: #b0b7c0; }
-.ccswitch-provider-logo { width: 31px; height: 31px; border: 1px solid #e4e8ee; border-radius: 8px; color: #303846; background: #f3f5f7; font-size: 15px; font-weight: 700; }
-.ccswitch-provider-logo img { width: 22px; height: 22px; object-fit: contain; }
-.ccswitch-provider-logo-packycode { color: #576272; background: #edf1f8; }
-.ccswitch-provider-logo-minimax { color: #e85b69; background: #fff3f4; }
-.ccswitch-provider-logo-openrouter { color: #6558ef; background: #f2f0ff; }
-.ccswitch-provider-logo-codex-desktop { color: #161f2c; background: #edf0f5; }
-.ccswitch-provider-info { gap: 4px; }
-.ccswitch-provider-info strong { color: #202832; font-size: 12px; font-weight: 550; }
-.ccswitch-provider-info > span { color: #3275e9; font-size: 10px; }
-.ccswitch-provider-meta { justify-items: end; gap: 5px; color: #7e8996; font-size: 9px; }
-.ccswitch-provider-usage { color: #7d8996; white-space: nowrap; }
-.ccswitch-provider-sync { display: inline-flex; align-items: center; gap: 4px; color: #87919d; }
-.ccswitch-provider-actions { gap: 12px; color: #8c96a1; font-size: 9px; }
-.ccswitch-current-state { padding: 4px 8px; border-radius: 5px; color: #1d986a; background: #e9f8ef; white-space: nowrap; }
-.ccswitch-enable { min-width: 49px; padding: 5px 9px; border-color: #e4e7eb; border-radius: 6px; color: #505d6d; background: #fff; text-align: center; }
-.ccswitch-enable:hover { border-color: #f05b18; color: #c94812; background: #fff0e5; }
-.ccswitch-enable .codex-number-callout { top: -11px; right: -10px; }
-.ccswitch-provider-tools { gap: 8px; margin-left: 0; color: #89939f; }
-.ccswitch-provider-tools > span { display: grid; width: 22px; height: 24px; place-items: center; }
-.ccswitch-dialog-backdrop { inset: 0; padding: 16px; background: rgb(25 32 42 / 30%); }
-.ccswitch-confirm-dialog { width: min(100%, 440px); gap: 0; padding: 0; overflow: visible; border-color: #e3e7eb; border-radius: 13px; box-shadow: 0 20px 60px rgb(11 20 34 / 24%); }
-.ccswitch-confirm-dialog > header { display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 12px 17px; border-bottom: 1px solid #eaedf0; font-size: 12px; }
-.ccswitch-confirm-dialog > header svg { color: #8994a1; }
-.ccswitch-confirm-content { display: flex; align-items: flex-start; gap: 11px; padding: 17px 18px 12px; }
-.ccswitch-confirm-mark { flex: 0 0 auto; width: 30px; height: 30px; border-radius: 8px; }
-.ccswitch-confirm-content > div > strong { font-size: 11px; }
-.ccswitch-confirm-content p { margin: 4px 0 0; color: #748091; font-size: 9px; }
-.ccswitch-confirm-dialog dl { display: grid; gap: 0; margin: 0; padding: 0 18px 15px; }
-.ccswitch-confirm-dialog dl > div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid #edf0f3; font-size: 9px; }
-.ccswitch-confirm-dialog dt { color: #7f8997; }
-.ccswitch-confirm-dialog dd { max-width: 70%; margin: 0; color: #344051; text-align: right; overflow-wrap: anywhere; }
-.ccswitch-confirm-dialog footer { padding: 11px 18px 15px; }
-.ccswitch-confirm-dialog footer > span, .ccswitch-confirm-dialog footer > b { min-height: 31px; padding: 7px 12px; border-radius: 7px; }
-.ccswitch-confirm-dialog footer > b { border-color: #f05b18; background: #f05b18; }
-.ccswitch-confirm-dialog footer > b:hover { border-color: #d94810; background: #d94810; box-shadow: 0 4px 12px rgb(240 91 24 / 26%); }
-.ccswitch-confirm-dialog footer > b:focus-visible { outline-color: #f05b18; }
-.ccswitch-confirm-dialog footer .codex-number-callout { top: -11px; right: -10px; }
-
 .sub2api-brand { grid-template-columns: 26px minmax(0, 1fr); }
 .sub2api-brand > span { width: 25px; height: 25px; }
 .sub2api-user-tools b { width: 25px; height: 25px; border-radius: 8px; }
 .sub2api-user-tools b svg { width: 13px; height: 13px; }
-.ccswitch-window { min-height: 540px; border-radius: 14px; box-shadow: 0 8px 32px rgb(26 32 44 / 9%); }
-.ccswitch-main { grid-template-rows: 25px 48px 66px minmax(0, 1fr); }
-.ccswitch-topbar { gap: 12px; padding: 7px 18px; }
-.ccswitch-topbar > strong { gap: 7px; color: #3975e8; font-size: 14px; }
-.ccswitch-route-label { padding: 4px 6px; border-radius: 7px; background: #f5f6f7; }
-.ccswitch-route-label > svg { color: #7f8995; }
-.ccswitch-route-label i { position: relative; width: 35px; height: 20px; background: #d7dbe0; }
-.ccswitch-route-label i::before { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; content: ''; }
-.ccswitch-appbar { justify-content: flex-end; gap: 10px; padding: 8px 18px; border-bottom: 0; }
-.ccswitch-app-tabs { flex: 0 0 auto; gap: 2px; padding: 4px; overflow: visible; border-radius: 10px; background: #f5f6f7; }
-.ccswitch-app-tabs > span { flex: 0 0 32px; width: 32px; height: 32px; border-radius: 7px; }
-.ccswitch-app-tabs > span.is-current { border-color: #e1e5eb; background: #fff; box-shadow: 0 1px 4px rgb(27 43 66 / 8%); }
-.ccswitch-app-icon { width: 24px; height: 24px; border-radius: 6px; }
-.ccswitch-app-icon :is(img, svg) { display: block; }
-.ccswitch-toolbar { gap: 9px; padding: 0; background: transparent; }
-.ccswitch-tool-group { display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: 9px; background: #f4f5f6; }
-.ccswitch-toolbar > .ccswitch-tool-group > span { display: grid; width: 31px; height: 31px; place-items: center; border: 0; border-radius: 7px; color: #6f7986; background: transparent; }
-.ccswitch-toolbar > .ccswitch-tool-group > span:hover { background: #fff; }
-.ccswitch-toolbar > b { flex: 0 0 35px; width: 35px; height: 35px; margin: 0; border-radius: 50%; }
-.ccswitch-content { gap: 9px; padding: 3px 18px 18px; }
-.ccswitch-provider-card { grid-template-columns: 14px 34px minmax(140px, 1fr) minmax(180px, .75fr) minmax(175px, auto); gap: 9px; min-height: 72px; padding: 9px 11px; border-color: #e1e4e8; border-radius: 12px; }
-.ccswitch-provider-active, .ccswitch-provider-new { border-color: #aac2ff; background: #f8faff; }
-.ccswitch-provider-logo { width: 31px; height: 31px; border-radius: 8px; }
-.ccswitch-provider-info { gap: 2px; }
-.ccswitch-provider-info strong { color: #222a35; font-size: 12px; font-weight: 550; }
-.ccswitch-provider-info > span { color: #3275e9; font-size: 10px; }
-.ccswitch-provider-meta { justify-items: end; gap: 4px; color: #88919c; font-size: 9px; }
-.ccswitch-provider-usage { color: #757f8c; font-size: 9px; white-space: nowrap; }
-.ccswitch-provider-sync { gap: 4px; font-size: 8px; }
-.ccswitch-provider-actions { gap: 8px; font-size: 9px; }
-.ccswitch-current-state { padding: 4px 8px; border-radius: 5px; color: #16885e; background: #e9f8ef; }
-.ccswitch-enable { min-width: 48px; padding: 5px 8px; border-color: #e4e7eb; border-radius: 6px; background: #fff; font-size: 9px; }
-.ccswitch-enable:hover { border-color: #f05b18; color: #c94812; background: #fff0e5; }
-.ccswitch-provider-tools { gap: 2px; }
-.ccswitch-provider-tools > span { width: 22px; height: 23px; }
-.ccswitch-dialog-backdrop { background: rgb(25 32 42 / 32%); }
-.ccswitch-confirm-dialog { width: min(100%, 420px); border-radius: 12px; box-shadow: 0 18px 48px rgb(11 20 34 / 22%); }
-.ccswitch-confirm-dialog > header { min-height: 44px; padding: 10px 15px; font-size: 11px; }
-.ccswitch-confirm-content { padding: 15px 16px 11px; }
-.ccswitch-confirm-dialog dl { padding-inline: 16px; }
-.ccswitch-confirm-dialog dl > div { font-size: 9px; }
-.ccswitch-confirm-dialog footer { padding: 10px 16px 14px; }
-
-.ccswitch-window { min-height: 0; aspect-ratio: 920 / 596; container-type: inline-size; }
-.ccswitch-main { grid-template-rows: 25px minmax(48px, auto) minmax(0, 1fr); }
-.ccswitch-topbar { gap: 7px; min-width: 0; }
-.ccswitch-appbar { display: contents; }
-.ccswitch-app-tabs { margin-left: auto; }
-.ccswitch-app-tabs > span { flex-basis: 27px; width: 27px; height: 27px; }
-.ccswitch-app-icon { width: 20px; height: 20px; }
-.ccswitch-app-icon-gemini svg { fill: #6b70e8; }
-.ccswitch-app-icon-opencode svg { fill: #17191d; stroke: #fff; stroke-width: 1.8; }
-.ccswitch-toolbar { gap: 5px; }
-.ccswitch-toolbar > .ccswitch-tool-group { gap: 1px; padding: 3px; }
-.ccswitch-toolbar > .ccswitch-tool-group > span { width: 24px; height: 26px; }
-.ccswitch-toolbar > b { flex-basis: 29px; width: 29px; height: 29px; }
-.ccswitch-provider-card { min-height: 61px; padding-block: 6px; }
-.ccswitch-provider-logo svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
-.ccswitch-provider-logo-minimax { color: #ef5262; background: #fff8f8; }
-.ccswitch-provider-logo-openrouter { color: #7666e8; background: #f7f6ff; }
-.ccswitch-provider-logo-packycode { color: #29313d; background: #f6f7f8; }
-.ccswitch-provider-logo-openai { background: #f6f7f8; }
-.ccswitch-provider-logo-openai svg { width: 20px; height: 20px; fill: currentColor; stroke: none; }
-.ccswitch-provider-info strong { font-size: 11px; }
-.ccswitch-provider-info > span { font-size: 9px; }
-
-@container (max-width: 720px) {
-  .ccswitch-window { min-height: 0; }
-  .ccswitch-main { grid-template-rows: 19px minmax(43px, auto) minmax(0, 1fr); }
-  .ccswitch-window-controls { padding-inline: 9px; }
-  .ccswitch-window-controls i { width: 7px; height: 7px; }
-  .ccswitch-topbar { gap: 5px; padding: 4px 9px; }
-  .ccswitch-topbar > strong { gap: 4px; font-size: 10px; }
-  .ccswitch-brand-mark { font-size: 12px; }
-  .ccswitch-settings svg { width: 12px; height: 12px; }
-  .ccswitch-route-label { gap: 3px; padding: 2px 3px; }
-  .ccswitch-route-label > svg { width: 10px; height: 10px; }
-  .ccswitch-route-label i { width: 23px; height: 14px; }
-  .ccswitch-route-label i::before { width: 10px; height: 10px; }
-  .ccswitch-app-tabs { gap: 0; padding: 2px; }
-  .ccswitch-app-tabs > span { flex-basis: 24px; width: 24px; height: 24px; }
-  .ccswitch-app-icon { width: 18px; height: 18px; }
-  .ccswitch-toolbar { gap: 3px; }
-  .ccswitch-tool-group { gap: 0; padding: 2px; }
-  .ccswitch-toolbar > .ccswitch-tool-group > span { width: 19px; height: 22px; }
-  .ccswitch-toolbar > .ccswitch-tool-group svg { width: 11px; height: 11px; }
-  .ccswitch-toolbar > b { flex-basis: 25px; width: 25px; height: 25px; }
-  .ccswitch-toolbar > b svg { width: 13px; height: 13px; }
-  .ccswitch-content { gap: 6px; padding: 8px 10px 10px; }
-  .ccswitch-provider-card { grid-template-columns: 10px 26px minmax(0, 1fr) minmax(110px, .65fr) minmax(112px, auto); gap: 6px; min-height: 57px; padding: 5px 7px; }
-  .ccswitch-provider-logo { width: 25px; height: 25px; }
-  .ccswitch-provider-logo svg { width: 17px; height: 17px; }
-  .ccswitch-provider-info strong { font-size: 10px; }
-  .ccswitch-provider-info > span { font-size: 8px; }
-  .ccswitch-provider-meta, .ccswitch-provider-usage { font-size: 7px; }
-  .ccswitch-provider-sync { font-size: 7px; }
-  .ccswitch-provider-actions { gap: 4px; font-size: 7px; }
-  .ccswitch-provider-tools { gap: 0; }
-  .ccswitch-provider-tools > span { width: 17px; height: 18px; }
-  .ccswitch-provider-tools svg { width: 10px; height: 10px; }
-}
-
-@container (max-width: 560px) {
-  .ccswitch-topbar { flex-wrap: wrap; min-height: 84px; }
-  .ccswitch-appbar { display: flex; flex: 1 0 100%; justify-content: space-between; gap: 4px; }
-  .ccswitch-app-tabs { flex: 1 1 auto; margin-left: 0; overflow-x: auto; }
-  .ccswitch-toolbar { flex: 0 0 auto; }
-}
 
 @container (max-width: 1200px) {
   .sub2api-key-table { min-width: 0; }
@@ -752,27 +519,125 @@ html:has(.client-docs), body:has(.client-docs) { overflow-x: clip; scroll-behavi
   .sub2api-dialog-fields { gap: 8px; padding-inline: 13px; }
   .sub2api-vendor-options { gap: 4px; }
   .sub2api-vendor-options > span { min-height: 58px; font-size: 8px; }
-  .ccswitch-window { min-height: 500px; }
-  .ccswitch-main { grid-template-rows: 20px 84px 56px minmax(0, 1fr); }
-  .ccswitch-topbar { padding-inline: 11px; }
-  .ccswitch-appbar { align-items: center; gap: 5px; padding-inline: 8px; }
-  .ccswitch-app-tabs { flex: 1 1 auto; gap: 0; overflow-x: auto; }
-  .ccswitch-app-tabs > span { flex: 0 0 28px; width: 28px; height: 28px; }
-  .ccswitch-app-icon { width: 20px; height: 20px; }
-  .ccswitch-toolbar { gap: 0; padding: 0; }
-  .ccswitch-tool-group { display: none; }
-  .ccswitch-toolbar > b { width: 29px; height: 29px; margin: 0; }
-  .ccswitch-content { gap: 7px; padding: 4px 8px 10px; }
-  .ccswitch-provider-card { grid-template-columns: 11px 25px minmax(0, 1fr) auto; gap: 6px; min-height: 66px; padding: 6px; }
-  .ccswitch-provider-logo { width: 24px; height: 24px; }
-  .ccswitch-provider-info strong { font-size: 10px; }
-  .ccswitch-provider-info > span { font-size: 8px; }
-  .ccswitch-provider-meta { grid-column: 3; grid-row: 2; justify-items: start; display: flex; gap: 4px 8px; }
-  .ccswitch-provider-usage { overflow: hidden; text-overflow: ellipsis; }
-  .ccswitch-provider-sync { display: none; }
-  .ccswitch-provider-actions { grid-column: 4; grid-row: 1 / span 2; flex-direction: column; align-items: flex-end; gap: 4px; }
-  .ccswitch-provider-tools { display: none; }
-  .ccswitch-current-state, .ccswitch-enable { padding: 4px 6px; font-size: 8px; }
-  .ccswitch-dialog-backdrop { padding: 8px; }
-  .ccswitch-confirm-dialog { padding: 0; }
+}
+
+/* CC Switch 界面草图：参照 ccswitch.io 产品预览（Zinc 中性色、蓝色品牌字、橙色添加按钮）按文档栏宽等比收紧。 */
+.codex-product-window.ccswitch-window { display: flex; flex-direction: column; width: min(100%, 1000px); min-height: 0; container-type: inline-size; border: 1px solid #e4e4e7; border-radius: 16px; background: #fff; color: #09090b; font-family: Inter, 'SF Pro Display', -apple-system, system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 12px; line-height: 1.45; box-shadow: 0 18px 40px -16px rgb(0 0 0 / 22%); }
+.ccswitch-window-controls { display: flex; flex: 0 0 26px; align-items: center; gap: 6px; padding-inline: 14px; }
+.ccswitch-window-controls i { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; }
+.ccswitch-window-controls i:nth-child(2) { background: #eab308; }
+.ccswitch-window-controls i:nth-child(3) { background: #22c55e; }
+.ccswitch-main { position: relative; display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.ccswitch-topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; padding: 8px 18px 12px; }
+.ccswitch-brand { display: flex; flex: 0 0 auto; align-items: center; gap: 7px; }
+.ccswitch-brand strong { color: #3b82f6; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; }
+.ccswitch-icon-button { display: grid; width: 26px; height: 26px; place-items: center; border-radius: 6px; color: #71717a; }
+.ccswitch-route { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding-inline: 5px; border-radius: 8px; color: #71717a; background: rgb(244 244 245 / 60%); }
+.ccswitch-route i { display: block; width: 32px; height: 18px; padding: 2px; border-radius: 999px; background: rgb(113 113 122 / 30%); }
+.ccswitch-route i::before { display: block; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 10%); content: ''; }
+.ccswitch-appbar { display: flex; flex: 0 1 auto; align-items: center; gap: 8px; min-width: 0; }
+.ccswitch-app-tabs { display: inline-flex; flex: 0 1 auto; align-items: center; gap: 2px; min-width: 0; padding: 3px; overflow: hidden; border-radius: 11px; background: #f4f4f5; }
+.ccswitch-app-tabs > span { display: grid; flex: 0 0 26px; width: 26px; height: 26px; place-items: center; border-radius: 6px; }
+.ccswitch-app-tabs > span.is-current { background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 6%); }
+.ccswitch-app-icon { position: relative; display: block; width: 17px; height: 17px; font-style: normal; }
+.ccswitch-app-icon img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.ccswitch-app-badge { position: absolute; right: -3px; bottom: -3px; display: grid; width: 10px; height: 10px; place-items: center; border: 1px solid #fff; border-radius: 3px; color: #71717a; background: #f4f4f5; }
+.is-current .ccswitch-app-badge { border-color: #e4e4e7; color: #09090b; background: #fff; }
+.ccswitch-toolbar { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; }
+.ccswitch-tool-group { display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 11px; color: #71717a; background: #f4f4f5; }
+.ccswitch-tool-group > span { display: grid; width: 26px; height: 26px; place-items: center; border-radius: 6px; }
+.ccswitch-add { position: relative; display: grid; width: 28px; height: 28px; place-items: center; border-radius: 50%; color: #fff; background: #f97316; box-shadow: 0 8px 12px -4px rgb(249 115 22 / 35%); }
+.ccswitch-add .codex-number-callout { position: absolute; top: -11px; right: -11px; }
+.ccswitch-content { display: grid; gap: 9px; min-width: 0; margin: 0; padding: 0 18px 20px; list-style: none; }
+.ccswitch-provider-card { position: relative; display: flex; align-items: center; gap: 10px; min-width: 0; padding: 11px 13px; border: 1px solid #e4e4e7; border-radius: 13px; background: #fff; }
+.ccswitch-provider-active { border-color: rgb(59 130 246 / 60%); background: linear-gradient(to right, rgb(59 130 246 / 10%), transparent) #fff; box-shadow: 0 1px 2px rgb(59 130 246 / 10%); }
+.ccswitch-provider-new { border-color: rgb(59 130 246 / 45%); box-shadow: 0 1px 3px rgb(0 0 0 / 6%); }
+.ccswitch-provider-drag { flex: 0 0 auto; margin-left: -4px; color: rgb(113 113 122 / 50%); }
+.ccswitch-provider-logo { display: grid; flex: 0 0 28px; width: 28px; height: 28px; place-items: center; border: 1px solid #e4e4e7; border-radius: 8px; background: #f4f4f5; }
+.ccswitch-provider-logo img { width: 17px; height: 17px; object-fit: contain; }
+.ccswitch-provider-logo b { color: #3f3f46; font-size: 12px; font-weight: 700; }
+.ccswitch-provider-info { display: grid; flex: 1 1 auto; gap: 1px; min-width: 0; }
+.ccswitch-provider-info strong { overflow: hidden; color: #09090b; font-size: 13.5px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.ccswitch-provider-info > span { overflow: hidden; color: #3b82f6; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.ccswitch-provider-meta { display: grid; flex: 0 0 auto; justify-items: end; gap: 3px; margin-left: auto; color: #71717a; font-size: 10.5px; white-space: nowrap; }
+.ccswitch-provider-sync { display: inline-flex; align-items: center; gap: 4px; color: rgb(113 113 122 / 75%); font-size: 9.5px; }
+.ccswitch-provider-sync svg:last-child { margin-left: 4px; color: #71717a; }
+.ccswitch-provider-usage { display: inline-flex; align-items: center; gap: 8px; }
+.ccswitch-provider-usage em { color: #1ca64f; font-style: normal; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ccswitch-provider-usage small { display: inline-flex; align-items: center; gap: 1px; margin-left: 3px; color: rgb(113 113 122 / 60%); font-size: 9.5px; }
+.ccswitch-provider-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; }
+.ccswitch-enable { position: relative; display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 8px; color: #fff; background: #1f8fff; font-size: 11px; font-weight: 500; white-space: nowrap; }
+.ccswitch-enable .codex-number-callout { position: absolute; top: -11px; right: -10px; }
+.ccswitch-enable-additive { background: #10b981; }
+.ccswitch-provider-tools { display: flex; align-items: center; gap: 1px; color: #71717a; }
+.ccswitch-provider-tools > span { display: grid; width: 24px; height: 24px; place-items: center; border-radius: 6px; }
+.ccswitch-import-hint { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 12px; border: 1px dashed rgb(59 130 246 / 45%); border-radius: 13px; color: #3b82f6; background: rgb(59 130 246 / 5%); font-size: 11.5px; font-weight: 500; }
+.ccswitch-import-hint svg { color: #1ca64f; }
+.ccswitch-dialog-backdrop { position: absolute; z-index: 2; inset: 0; display: grid; place-items: center; padding: 16px; background: rgb(9 9 11 / 40%); }
+.ccswitch-confirm-dialog { display: grid; width: min(100%, 390px); border: 1px solid #e4e4e7; border-radius: 14px; background: #fff; box-shadow: 0 20px 40px -12px rgb(0 0 0 / 30%); }
+.ccswitch-confirm-dialog > header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 0; color: #71717a; }
+.ccswitch-confirm-dialog > header strong { color: #09090b; font-size: 14px; font-weight: 600; }
+.ccswitch-confirm-content { display: flex; gap: 10px; padding: 12px 16px; }
+.ccswitch-confirm-content strong { font-size: 12.5px; font-weight: 600; }
+.ccswitch-confirm-content p { margin: 2px 0 0; color: #71717a; font-size: 11px; }
+.ccswitch-confirm-mark { display: grid; flex: 0 0 30px; width: 30px; height: 30px; place-items: center; border-radius: 8px; color: #3b82f6; background: #eff6ff; }
+.ccswitch-confirm-dialog dl { display: grid; gap: 6px; margin: 0 16px; }
+.ccswitch-confirm-dialog dl > div { display: flex; justify-content: space-between; gap: 12px; min-width: 0; padding: 6px 10px; border-radius: 8px; background: #fafafa; font-size: 11px; }
+.ccswitch-confirm-dialog dt { flex: 0 0 auto; color: #71717a; }
+.ccswitch-confirm-dialog dd { min-width: 0; margin: 0; overflow: hidden; color: #09090b; text-overflow: ellipsis; white-space: nowrap; }
+.ccswitch-confirm-dialog > footer { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 16px; }
+.ccswitch-confirm-dialog > footer > span, .ccswitch-confirm-dialog > footer > b { position: relative; padding: 6px 12px; border: 1px solid #e4e4e7; border-radius: 8px; font-size: 11.5px; font-weight: 500; }
+.ccswitch-confirm-dialog > footer > b { border-color: #1f8fff; color: #fff; background: #1f8fff; }
+.ccswitch-confirm-dialog > footer .codex-number-callout { position: absolute; top: -11px; right: -10px; }
+.ccswitch-form { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.ccswitch-form-header { display: flex; align-items: center; gap: 12px; padding: 8px 20px 12px; }
+.ccswitch-form-header strong { font-size: 15px; font-weight: 600; }
+.ccswitch-back { width: 32px; height: 32px; border: 1px solid #e4e4e7; border-radius: 10px; color: #09090b; }
+.ccswitch-form-body { display: grid; gap: 12px; min-width: 0; margin: 0 20px; padding: 14px 16px 16px; border: 1px solid #e4e4e7; border-bottom: 0; border-radius: 12px 12px 0 0; }
+.ccswitch-form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.ccswitch-form-body :is(label, .ccswitch-form-field) { position: relative; display: grid; gap: 5px; min-width: 0; color: #09090b; font-size: 11.5px; font-weight: 500; }
+.ccswitch-form-body label > span:not(.codex-number-callout), .ccswitch-model-input { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; height: 32px; padding-inline: 10px; overflow: hidden; border: 1px solid #e4e4e7; border-radius: 8px; background: #fff; font-size: 12px; font-weight: 400; white-space: nowrap; }
+.ccswitch-form-body label > span.is-placeholder { color: #a1a1aa; }
+.ccswitch-form-body .ccswitch-select { display: flex; width: 100%; height: 32px; align-items: center; justify-content: space-between; padding-inline: 10px; border: 1px solid #3b82f6; border-radius: 8px; background: #fff; color: #09090b; font-family: inherit; font-size: 12px; font-weight: 400; box-shadow: 0 0 0 1px rgb(59 130 246 / 20%); cursor: pointer; }
+.ccswitch-form-body .ccswitch-select:focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; }
+.ccswitch-form-body .ccswitch-select > svg { color: #71717a; opacity: 1; }
+.ccswitch-select-content { border-color: #e4e4e7; background: #fff; color: #09090b; font-family: Inter, 'SF Pro Display', -apple-system, system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 12px; }
+.ccswitch-select-content [role='option'] { font-size: 12px; }
+.ccswitch-select-content [role='option'][data-highlighted] { background: #f4f4f5; color: #09090b; }
+.ccswitch-form-body :is(label, .ccswitch-form-field) > small, .ccswitch-model-config > small { color: #71717a; font-size: 10.5px; font-weight: 400; }
+.ccswitch-secret { letter-spacing: 0.05em; }
+.ccswitch-secret svg, .ccswitch-select svg, .ccswitch-model-input svg { flex: 0 0 auto; color: #71717a; }
+.ccswitch-field-marked .codex-number-callout { position: absolute; top: -4px; left: 52px; }
+.ccswitch-model-config { display: grid; gap: 10px; min-width: 0; }
+.ccswitch-model-head { display: flex; align-items: center; gap: 8px; }
+.ccswitch-model-head strong { flex: 1; font-size: 12.5px; font-weight: 600; }
+.ccswitch-outline-button { position: relative; display: inline-flex; align-items: center; gap: 4px; padding: 5px 9px; border: 1px solid #e4e4e7; border-radius: 8px; font-size: 11px; white-space: nowrap; }
+.ccswitch-outline-button .codex-number-callout { position: absolute; top: -11px; right: -10px; }
+.ccswitch-model-grid { display: grid; grid-template-columns: 16px minmax(0, 1fr) minmax(0, 1fr) 16px; align-items: center; gap: 6px 8px; color: #71717a; }
+.ccswitch-model-grid > small { font-size: 10.5px; }
+.ccswitch-model-grid > small i { color: #ef4444; font-style: normal; }
+.ccswitch-model-input { color: #09090b; }
+.ccswitch-form-footer { display: flex; justify-content: flex-end; padding: 12px 18px; border-top: 1px solid #e4e4e7; }
+.ccswitch-form-footer b { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 9px; color: #fff; background: #1f8fff; font-size: 12px; font-weight: 500; }
+
+@container (max-width: 620px) {
+  .ccswitch-topbar { flex-wrap: wrap; row-gap: 8px; padding-inline: 14px; }
+  .ccswitch-appbar { flex: 1 0 100%; justify-content: space-between; }
+  .ccswitch-tool-group, .ccswitch-provider-meta, .ccswitch-provider-tools { display: none; }
+  .ccswitch-content { padding-inline: 14px; }
+  .ccswitch-form-body { margin-inline: 14px; padding-inline: 12px; }
+  .ccswitch-form-header { padding-inline: 14px; }
+}
+
+@container (max-width: 400px) {
+  .ccswitch-app-tabs { gap: 0; padding: 2px; }
+  .ccswitch-app-tabs > span { flex-basis: 23px; width: 23px; height: 23px; }
+  .ccswitch-app-icon { width: 14px; height: 14px; }
+  .ccswitch-provider-card { gap: 8px; padding: 9px 10px; }
+  .ccswitch-provider-drag { display: none; }
+  .ccswitch-provider-info strong { font-size: 12.5px; }
+  .ccswitch-provider-info > span { font-size: 11px; }
+  .ccswitch-form-row { grid-template-columns: minmax(0, 1fr); }
+  .ccswitch-model-head strong { flex-basis: 100%; }
+  .ccswitch-model-head { flex-wrap: wrap; }
 }

@@ -90,13 +90,151 @@
   font-size: 13px;
 }
 
-.aux-system-config-layout {
+.aux-system-config-shell {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: 228px minmax(0, 1fr);
+  align-items: start;
+  gap: 28px;
   max-width: 1160px;
   margin: 38px auto 0;
 }
+
+/* 管理端 main 带 overflow:auto 但不限高，实际滚动的是窗口；本页改为横向 clip，
+   避免 main 成为 sticky 的参照容器，使目录和保存栏相对视口吸附。 */
+.aux-admin-main:has(.aux-system-config-shell) {
+  overflow: visible;
+  overflow-x: clip;
+}
+
+.aux-system-config-layout,
+.aux-system-config-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  min-width: 0;
+}
+
+/* 配置目录 */
+.aux-system-config-nav {
+  position: sticky;
+  /* 让出 68px 吸顶顶栏。 */
+  top: 92px;
+  z-index: 5;
+  display: grid;
+  gap: 12px;
+}
+
+.aux-system-config-nav-title {
+  margin: 0;
+  padding: 0 12px;
+  color: var(--console-subtle);
+  font-size: 11px;
+  font-weight: 720;
+  letter-spacing: .08em;
+}
+
+.aux-system-config-nav-list { display: grid; gap: 18px; }
+.aux-system-config-nav-group { display: grid; gap: 4px; }
+
+.aux-system-config-nav-group-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px 4px;
+}
+
+.aux-system-config-nav-group-label span { color: var(--console-muted); font-size: 12px; font-weight: 680; }
+.aux-system-config-nav-group-label small { color: var(--console-subtle); font-size: 11px; }
+
+.aux-system-config-nav .aux-system-config-nav-item {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: auto;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 11px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 13px;
+  color: var(--console-muted);
+  text-align: left;
+  white-space: normal;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.aux-system-config-nav .aux-system-config-nav-item:hover { background: color-mix(in srgb, var(--console-surface) 70%, transparent); color: var(--console-ink); }
+.aux-system-config-nav .aux-system-config-nav-item > svg { width: 16px; height: 16px; flex: 0 0 auto; }
+
+.aux-system-config-nav .aux-system-config-nav-item.is-active {
+  border-color: var(--console-line);
+  background: var(--console-surface-strong);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--console-shadow) 55%, transparent);
+  color: var(--console-ink);
+}
+
+.aux-system-config-nav .aux-system-config-nav-item.is-active > svg { color: var(--console-accent); }
+.aux-system-config-nav-copy { display: grid; min-width: 0; flex: 1 1 auto; gap: 2px; }
+.aux-system-config-nav-copy strong { font-size: 13px; font-weight: 660; line-height: 1.35; }
+.aux-system-config-nav-copy small { overflow: hidden; color: var(--console-subtle); font-size: 11px; font-weight: 500; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.aux-system-config-nav-dirty { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 999px; background: var(--console-warm); box-shadow: 0 0 0 3px color-mix(in srgb, var(--console-warm) 20%, transparent); }
+
+/* 配置板块 */
+.aux-system-config-section { scroll-margin-top: 92px; }
+.aux-system-config-card-title { display: flex; min-width: 0; align-items: center; gap: 12px; }
+
+.aux-system-config-card-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--console-accent-soft);
+  color: var(--console-accent);
+}
+
+.aux-system-config-card-icon svg { width: 18px; height: 18px; }
+.aux-system-config-card h2:focus { outline: none; }
+.aux-system-config-card h2:focus-visible { border-radius: 6px; outline: 2px solid var(--console-accent); outline-offset: 3px; }
+.aux-system-config-description + .aux-system-config-field { margin-top: 0; }
+
+/* 基础配置保存栏：在基础配置区域内吸附在视口底部 */
+.aux-system-config-savebar {
+  position: sticky;
+  bottom: 16px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px 14px 20px;
+  border: 1px solid var(--console-line-strong);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--console-surface-strong) 90%, transparent);
+  box-shadow: 0 18px 44px color-mix(in srgb, var(--console-shadow) 80%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.aux-system-config-savebar.is-dirty { border-color: color-mix(in srgb, var(--console-warm) 48%, var(--console-line-strong)); }
+
+.aux-system-config-savebar-status {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0;
+  color: var(--console-ink);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.aux-system-config-savebar-status > svg { width: 15px; height: 15px; color: #238457; }
+.aux-system-config-savebar-status small { flex-basis: 100%; color: var(--console-subtle); font-size: 11px; font-weight: 500; }
+.aux-system-config-savebar-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--console-warm); }
+.aux-system-config-savebar-actions { display: flex; flex: 0 0 auto; gap: 10px; }
 
 .aux-system-config-card {
   border: 1px solid var(--console-line);
@@ -112,16 +250,6 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-}
-
-.aux-system-config-card-kicker {
-  display: block;
-  margin-bottom: 9px;
-  color: var(--console-subtle);
-  font-size: 10px;
-  font-weight: 760;
-  letter-spacing: .12em;
-  text-transform: uppercase;
 }
 
 .aux-system-config-card h2 {
@@ -145,10 +273,11 @@
 }
 
 .aux-system-config-status svg { width: 14px; height: 14px; }
+.aux-system-config-status.is-warning { background: color-mix(in srgb, var(--console-warm) 16%, transparent); color: #b45a33; }
 
 .aux-system-config-description {
   max-width: 680px;
-  margin: 18px 0 34px;
+  margin: 16px 0 28px;
   color: var(--console-muted);
   font-size: 13px;
   line-height: 1.75;
@@ -268,11 +397,36 @@
 .aux-system-config-spin { animation: aux-system-config-spin 900ms linear infinite; }
 @keyframes aux-system-config-spin { to { transform: rotate(360deg); } }
 
+@media (max-width: 1023px) {
+  .aux-system-config-shell { grid-template-columns: minmax(0, 1fr); gap: 16px; margin-top: 30px; }
+  .aux-system-config-nav {
+    padding: 6px;
+    border: 1px solid var(--console-line);
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--console-surface-strong) 88%, transparent);
+    box-shadow: 0 12px 30px color-mix(in srgb, var(--console-shadow) 60%, transparent);
+    backdrop-filter: blur(14px);
+  }
+  .aux-system-config-nav-title,
+  .aux-system-config-nav-group-label,
+  .aux-system-config-nav-copy small { display: none; }
+  .aux-system-config-nav-list { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  .aux-system-config-nav-list::-webkit-scrollbar { display: none; }
+  .aux-system-config-nav-group { display: flex; flex: 0 0 auto; gap: 4px; }
+  .aux-system-config-nav-group + .aux-system-config-nav-group { padding-left: 4px; border-left: 1px solid var(--console-line); }
+  .aux-system-config-nav .aux-system-config-nav-item { width: auto; flex: 0 0 auto; gap: 7px; padding: 8px 12px; border-radius: 11px; white-space: nowrap; }
+  .aux-system-config-nav .aux-system-config-nav-item.is-active { box-shadow: none; }
+  .aux-system-config-nav { top: 76px; }
+  .aux-system-config-section { scroll-margin-top: 142px; }
+}
+
 @media (max-width: 760px) {
   .aux-system-config-page { padding: 24px 18px 40px; }
   .aux-system-config-header { align-items: flex-start; flex-direction: column; }
   .aux-system-config-refresh { width: 100%; }
-  .aux-system-config-layout { margin-top: 28px; }
+  .aux-system-config-savebar { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px; }
+  .aux-system-config-savebar-status small { display: none; }
+  .aux-system-config-savebar-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .aux-system-config-logo-upload { grid-template-columns: 64px minmax(0, 1fr); padding: 15px; }
   .aux-system-config-logo-preview { width: 64px; height: 64px; }
   .aux-system-config-position { align-items: flex-start; }
@@ -288,10 +442,66 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .aux-system-config-nav .aux-system-config-nav-item,
   .aux-system-config-logo-upload,
   .aux-system-config-refresh,
   .aux-system-config-primary,
   .aux-system-config-secondary { transition: none; }
   .aux-system-config-spin,
   .aux-system-config-logo-progress svg { animation: none; }
+}
+
+/* 客户端导入限制 */
+.aux-import-policy-section { margin-top: 28px; }
+.aux-import-policy-section-head { display: grid; gap: 5px; margin-bottom: 14px; }
+.aux-import-policy-section-head h3 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -.015em; }
+.aux-import-policy-section-head small { color: var(--console-subtle); font-size: 12px; line-height: 1.55; }
+.aux-import-policy-rules { display: grid; gap: 10px; }
+.aux-import-policy-rule { padding: 14px 16px; border: 1px solid var(--console-line-strong); border-radius: 13px; background: color-mix(in srgb, var(--console-surface-strong) 78%, transparent); }
+.aux-import-policy-rule.is-restricted { border-color: color-mix(in srgb, var(--console-accent) 32%, var(--console-line-strong)); }
+.aux-import-policy-rule-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.aux-import-policy-rule-head > div:first-child { display: grid; gap: 4px; min-width: 0; }
+.aux-import-policy-rule-head strong { overflow-wrap: anywhere; font-size: 13px; font-weight: 680; }
+.aux-import-policy-rule-head small { color: var(--console-subtle); font-size: 12px; }
+.aux-import-policy-inline-icon { display: inline-block; width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; color: var(--console-accent); }
+.aux-import-policy-rule-head small.is-warning { color: var(--console-warm); font-weight: 600; }
+.aux-import-policy-toggle { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 10px; }
+.aux-import-policy-toggle label { color: var(--console-muted); font-size: 12px; font-weight: 600; cursor: pointer; }
+.aux-import-policy-remove { flex: 0 0 auto; color: #b64b54; }
+.aux-import-policy-remove svg { width: 16px; height: 16px; }
+.aux-import-policy-clients { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--console-line-strong); }
+.aux-import-policy-bulk { display: flex; justify-content: flex-end; gap: 4px; margin-bottom: 8px; }
+.aux-import-policy-bulk button { height: 28px; padding: 0 10px; color: var(--console-muted); font-size: 12px; }
+.aux-import-policy-client-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 8px; }
+.aux-import-policy-client { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 40px; padding: 8px 11px; border: 1px solid var(--console-line); border-radius: 10px; background: var(--console-surface); }
+.aux-import-policy-client label { min-width: 0; color: var(--console-muted); font-size: 12px; font-weight: 600; cursor: pointer; }
+.aux-import-policy-client.is-allowed { border-color: color-mix(in srgb, var(--console-accent) 26%, var(--console-line)); background: var(--console-accent-soft); }
+.aux-import-policy-client.is-allowed label { color: var(--console-ink); }
+.aux-import-policy-add { display: flex; gap: 10px; margin-bottom: 12px; }
+.aux-import-policy-select { flex: 1 1 auto; min-width: 0; height: 42px; border-radius: 12px; }
+.aux-import-policy-add-button { flex: 0 0 auto; height: 42px; border-radius: 12px; }
+.aux-import-policy-add-button svg { width: 16px; height: 16px; }
+.aux-import-policy-empty { margin: 0; padding: 16px; border: 1px dashed var(--console-line-strong); border-radius: 13px; color: var(--console-subtle); font-size: 12px; text-align: center; }
+.aux-import-policy-loading { display: flex; align-items: center; gap: 10px; margin-top: 24px; color: var(--console-muted); font-size: 13px; }
+.aux-import-policy-loading svg { width: 16px; height: 16px; color: var(--console-accent); }
+.aux-import-policy-alert { margin-top: 20px; margin-bottom: 12px; border-color: color-mix(in srgb, var(--console-warm) 36%, var(--console-line)); background: color-mix(in srgb, var(--console-warm) 8%, var(--console-surface)); color: var(--console-ink); }
+.aux-import-policy-alert > svg { width: 16px; height: 16px; color: var(--console-warm); }
+.aux-import-policy-alert h5 { font-size: 13px; font-weight: 700; }
+.aux-import-policy-alert p { margin: 0 0 10px; color: var(--console-muted); font-size: 12px; }
+.aux-import-policy-alert.is-error { border-color: color-mix(in srgb, #e66767 34%, transparent); background: color-mix(in srgb, #e66767 8%, var(--console-surface)); }
+.aux-import-policy-alert.is-error > svg { color: #c23c4a; }
+.aux-import-policy-groups-alert { margin-top: 0; }
+.aux-import-policy-card .aux-system-config-secondary svg { width: 15px; height: 15px; }
+
+@media (max-width: 760px) {
+  .aux-import-policy-add { flex-direction: column; }
+  .aux-import-policy-add-button { width: 100%; }
+  .aux-import-policy-client-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+}
+
+@media (max-width: 430px) {
+  .aux-import-policy-rule { padding: 13px; }
+  .aux-import-policy-rule-head { align-items: flex-start; }
+  .aux-import-policy-toggle { flex-direction: column-reverse; align-items: flex-end; gap: 6px; }
+  .aux-import-policy-client-grid { grid-template-columns: minmax(0, 1fr); }
 }

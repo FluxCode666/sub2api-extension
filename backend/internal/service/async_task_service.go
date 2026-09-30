@@ -34,11 +34,16 @@ const (
 )
 
 // AsyncTaskStore 是 Sub2API 异步任务只读来源。
+//
+// 单条读取方法在任务不存在或不属于该用户时返回 asynctask.ErrTaskNotFound。
 type AsyncTaskStore interface {
 	ListImageTasks(ctx context.Context, userID int64) (AsyncTaskSourceResult, error)
 	ListVideoTasks(ctx context.Context, userID int64) (AsyncTaskSourceResult, error)
 	ListBatchTasks(ctx context.Context, userID int64) (AsyncTaskSourceResult, error)
 	APIKeyNames(ctx context.Context, userID int64) (map[int64]string, error)
+	ImageTask(ctx context.Context, userID int64, id string) (AsyncTask, error)
+	VideoTask(ctx context.Context, userID int64, provider, id string) (AsyncTask, error)
+	BatchTask(ctx context.Context, userID int64, id string) (AsyncTask, error)
 }
 
 // AsyncTaskQuery 的 CreatedFrom 为包含边界，CreatedTo 为不包含边界；零值表示不限制。
@@ -90,8 +95,10 @@ type AsyncTaskList struct {
 }
 
 type AsyncTaskService struct {
-	store AsyncTaskStore
-	now   func() time.Time
+	store        AsyncTaskStore
+	keys         AsyncTaskKeyLister
+	videoGateway AsyncTaskVideoGateway
+	now          func() time.Time
 }
 
 func NewAsyncTaskService(store AsyncTaskStore) *AsyncTaskService {

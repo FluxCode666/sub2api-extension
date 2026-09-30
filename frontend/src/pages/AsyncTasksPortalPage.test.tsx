@@ -9,10 +9,10 @@ import { localDayBoundary, type AsyncTask, type AsyncTaskPage } from '@/lib/asyn
 
 vi.mock('@/lib/api-client', async importOriginal => ({
   ...(await importOriginal<typeof import('@/lib/api-client')>()),
-  apiClient: { get: vi.fn() },
+  apiClient: { get: vi.fn(), post: vi.fn() },
 }))
 vi.mock('@/lib/telemetry-sdk', () => ({ trackFeatureClick: vi.fn() }))
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() }, Toaster: () => <div data-testid="async-task-toaster" /> }))
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }, Toaster: () => <div data-testid="async-task-toaster" /> }))
 
 const summary = { total: 3, image: 1, video: 1, batch: 1, processing: 1, pending: 1, completed: 1, failed: 0, cancelled: 0 }
 
@@ -42,7 +42,8 @@ const imageTask: AsyncTask = {
   image_urls: ['https://cdn.example.com/a.png'],
   image_count: 3,
 }
-const videoTask: AsyncTask = { id: 'req-video', kind: 'video', status: 'pending', raw_status: 'pending', model: 'grok-imagine-video', created_at: '2026-09-27T01:10:00Z', resolution: '720p', duration_seconds: 8 }
+const videoTask: AsyncTask = { id: 'req-video', kind: 'video', provider: 'grok', status: 'pending', raw_status: 'pending', model: 'grok-imagine-video', created_at: '2026-09-27T01:10:00Z', resolution: '720p', duration_seconds: 8 }
+const seedanceTask: AsyncTask = { id: 'cgt-1', kind: 'video', provider: 'seedance', status: 'pending', raw_status: 'pending', model: 'doubao-seedance', api_key_id: 7, created_at: '2026-09-27T01:30:00Z' }
 const batchTask: AsyncTask = { id: 'batch_1', kind: 'batch', status: 'processing', raw_status: 'running', task_name: '海报批量', created_at: '2026-09-27T01:20:00Z', item_count: 4, success_count: 1, fail_count: 1, cost: 0.4, cost_estimated: true }
 
 describe('AsyncTasksPortalPage', () => {
@@ -70,7 +71,13 @@ describe('AsyncTasksPortalPage', () => {
     expect(within(table).getByRole('columnheader', { name: '模型' })).toBeInTheDocument()
     expect(screen.getByText('预估')).toBeInTheDocument()
     expect(screen.getByRole('progressbar', { name: '批量任务进度' })).toHaveAttribute('aria-valuenow', '50')
-    expect(screen.getByText('结果需在调用端轮询获取')).toBeInTheDocument()
+    expect(screen.getAllByText('可点击状态旁按钮查询进度')).toHaveLength(1)
+    expect(within(table).getAllByRole('button', { name: '查询任务进度' })).toHaveLength(2)
+    const videoRow = within(table).getByText('req-video').closest('tr') as HTMLElement
+    expect(within(videoRow).getAllByText('视频生成')).toHaveLength(2)
+    expect(within(videoRow).getByText('Grok')).toBeInTheDocument()
+    const imageRow = within(table).getByText('imgtask_completed_0001').closest('tr') as HTMLElement
+    expect(within(imageRow).queryByRole('button', { name: '查询任务进度' })).not.toBeInTheDocument()
     const link = screen.getByRole('link', { name: '打开第 1 张结果图' })
     expect(link).toHaveAttribute('href', 'https://cdn.example.com/a.png')
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
@@ -90,7 +97,7 @@ describe('AsyncTasksPortalPage', () => {
     await waitFor(() => expect(lastParams().get('page')).toBe('2'))
 
     await user.click(screen.getByRole('combobox', { name: '任务类型' }))
-    await user.click(await screen.findByRole('option', { name: /Grok 视频/ }))
+    await user.click(await screen.findByRole('option', { name: /视频生成/ }))
     await waitFor(() => expect(apiClient.get).toHaveBeenLastCalledWith('/async-tasks?page=1&page_size=20&kind=video'))
 
     await user.click(screen.getByRole('combobox', { name: '任务状态' }))
@@ -211,5 +218,96 @@ describe('AsyncTasksPortalPage', () => {
 
     await act(async () => { await vi.advanceTimersByTimeAsync(ASYNC_TASK_POLL_INTERVAL_MS * 2) })
     expect(apiClient.get).toHaveBeenCalledTimes(2)
+  })
+
+  describe('single task refresh', () => {
+    const rowOf = async (id: string) => (await screen.findByText(id)).closest('tr') as HTMLElement
+
+    it('queries a Seedance video upstream, shows the signed link and keeps it after a silent reload', async () => {
+      const user = userEvent.setup()
+      vi.mocked(apiClient.get).mockResolvedValue({ code: 0, message: 'success', data: page([seedanceTask, imageTask]) })
+      vi.mocked(apiClient.post).mockResolvedValue({
+        code: 0,
+        message: 'success',
+        data: { task: { ...seedanceTask, status: 'completed', raw_status: 'succeeded' }, upstream_checked: true, video_url: 'https://ark.example.com/v.mp4?sig=1', checked_at: '2026-09-27T02:00:00Z' },
+      })
+      render(<AsyncTasksPortalPage />)
+      const row = await rowOf('cgt-1')
+      expect(within(row).getByText('Seedance')).toBeInTheDocument()
+
+      await user.click(within(row).getByRole('button', { name: '查询任务进度' }))
+
+      expect(apiClient.post).toHaveBeenCalledWith('/async-tasks/refresh', { kind: 'video', id: 'cgt-1', provider: 'seedance' }, { timeout: 25000 })
+      await waitFor(() => expect(toast.success).toHaveBeenCalledWith('任务已完成', { description: '可在结果列打开视频。' }))
+      await waitFor(() => expect(apiClient.get).toHaveBeenCalledTimes(2))
+      const refreshedRow = await rowOf('cgt-1')
+      expect(within(refreshedRow).getByText('已完成')).toBeInTheDocument()
+      expect(within(refreshedRow).queryByRole('button', { name: '查询任务进度' })).not.toBeInTheDocument()
+      const link = within(refreshedRow).getByRole('link', { name: '打开视频' })
+      expect(link).toHaveAttribute('href', 'https://ark.example.com/v.mp4?sig=1')
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+      expect(link).toHaveAttribute('target', '_blank')
+    })
+
+    it('offers to copy the gateway content path for Grok videos', async () => {
+      const user = userEvent.setup()
+      const writeText = vi.fn().mockResolvedValue(undefined)
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+      vi.mocked(apiClient.post).mockResolvedValue({
+        code: 0,
+        message: 'success',
+        data: { task: { ...videoTask, status: 'completed', raw_status: 'done' }, upstream_checked: true, video_content_path: '/v1/videos/req-video/content', checked_at: '2026-09-27T02:00:00Z' },
+      })
+      render(<AsyncTasksPortalPage />)
+
+      await user.click(within(await rowOf('req-video')).getByRole('button', { name: '查询任务进度' }))
+      expect(apiClient.post).toHaveBeenCalledWith('/async-tasks/refresh', { kind: 'video', id: 'req-video', provider: 'grok' }, { timeout: 25000 })
+      await waitFor(() => expect(toast.success).toHaveBeenCalledWith('任务已完成', { description: '可在结果列复制下载路径。' }))
+
+      await user.click(within(await rowOf('req-video')).getByRole('button', { name: '复制下载路径' }))
+      expect(writeText).toHaveBeenCalledWith('/v1/videos/req-video/content')
+      expect(within(await rowOf('req-video')).queryByRole('link', { name: '打开视频' })).not.toBeInTheDocument()
+    })
+
+    it('rereads batch tasks without an upstream query and reports that they are still running', async () => {
+      const user = userEvent.setup()
+      vi.mocked(apiClient.post).mockResolvedValue({ code: 0, message: 'success', data: { task: { ...batchTask, success_count: 3 }, upstream_checked: false, checked_at: '2026-09-27T02:00:00Z' } })
+      render(<AsyncTasksPortalPage />)
+
+      await user.click(within(await rowOf('batch_1')).getByRole('button', { name: '查询任务进度' }))
+      expect(apiClient.post).toHaveBeenCalledWith('/async-tasks/refresh', { kind: 'batch', id: 'batch_1' }, { timeout: 25000 })
+      await waitFor(() => expect(toast.info).toHaveBeenCalledWith('任务仍在生成中', { description: '已读取最新状态，请稍后再试。' }))
+      expect(within(await rowOf('batch_1')).getByText('3 成功')).toBeInTheDocument()
+    })
+
+    it('keeps an upstream failure for the session even though the list still shows pending', async () => {
+      const user = userEvent.setup()
+      vi.mocked(apiClient.post).mockResolvedValue({
+        code: 0,
+        message: 'success',
+        data: { task: { ...videoTask, status: 'failed', raw_status: 'expired', error_message: '上游任务已过期' }, upstream_checked: true, checked_at: '2026-09-27T02:00:00Z' },
+      })
+      render(<AsyncTasksPortalPage />)
+
+      await user.click(within(await rowOf('req-video')).getByRole('button', { name: '查询任务进度' }))
+      await waitFor(() => expect(toast.warning).toHaveBeenCalledWith('任务已失败', { description: '上游任务已过期' }))
+      await waitFor(() => expect(apiClient.get).toHaveBeenCalledTimes(2))
+      const row = await rowOf('req-video')
+      expect(within(row).getByText('失败')).toBeInTheDocument()
+      expect(within(row).getByRole('button', { name: '失败原因：上游任务已过期' })).toBeInTheDocument()
+    })
+
+    it('notifies actionable errors and re-enables the button', async () => {
+      const user = userEvent.setup()
+      vi.mocked(apiClient.post).mockRejectedValue(new AuxApiError(409, 'api key unavailable', 'API_KEY_UNAVAILABLE'))
+      render(<AsyncTasksPortalPage />)
+
+      const button = within(await rowOf('req-video')).getByRole('button', { name: '查询任务进度' })
+      await user.click(button)
+      await waitFor(() => expect(toast.error).toHaveBeenCalledWith('查询失败', { description: expect.stringContaining('API Key 已删除或停用') }))
+      expect(within(await rowOf('req-video')).getByRole('button', { name: '查询任务进度' })).toBeEnabled()
+      expect(within(await rowOf('req-video')).getByText('等待结果')).toBeInTheDocument()
+      expect(apiClient.get).toHaveBeenCalledTimes(1)
+    })
   })
 })

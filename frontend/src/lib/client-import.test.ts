@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildCCSwitchImportURL, buildConfigFile, buildDirectImportURL, defaultImportBaseURL, maskAPIKey, normalizeImportBaseURL } from './client-import'
+import { allowedClientTargets, buildCCSwitchImportURL, buildConfigFile, buildDirectImportURL, defaultImportBaseURL, describeKeyGroup, formatGroupPlatform, hasKeyGroup, isClientAllowedForKey, maskAPIKey, mergeClientModels, normalizeImportBaseURL, normalizeKeyModels, supportsMultiModel } from './client-import'
 
 const key = {
   id: 1,
@@ -13,6 +13,25 @@ const key = {
 }
 
 describe('client-import helpers', () => {
+  it('describes the key group with its platform and detects ungrouped keys', () => {
+    expect(describeKeyGroup(key)).toBe('Anthropic · Anthropic')
+    expect(describeKeyGroup({ ...key, group: { name: '图像组', platform: 'antigravity' } })).toBe('图像组 · Antigravity')
+    expect(describeKeyGroup({ ...key, group: undefined })).toBe('分组 #2 · 未知平台')
+    expect(formatGroupPlatform('custom-platform')).toBe('custom-platform')
+    expect(hasKeyGroup({ ...key, group_id: null, group: undefined })).toBe(false)
+    expect(describeKeyGroup({ ...key, group_id: null, group: undefined })).toBe('未选择分组')
+  })
+
+  it('applies the admin import restrictions returned for each key', () => {
+    expect(isClientAllowedForKey(key, 'pi')).toBe(true)
+    expect(allowedClientTargets(key)).toHaveLength(13)
+    const restricted = { ...key, allowed_clients: ['codex', 'pi'] }
+    expect(isClientAllowedForKey(restricted, 'claude-code')).toBe(false)
+    expect(allowedClientTargets(restricted).map((target) => target.id)).toEqual(['codex', 'pi'])
+    expect(allowedClientTargets({ ...key, allowed_clients: [] })).toEqual([])
+    expect(isClientAllowedForKey({ ...key, group_id: null, group: undefined }, 'codex')).toBe(false)
+  })
+
   it('normalizes only safe HTTP(S) gateway roots', () => {
     expect(normalizeImportBaseURL('https://api.example.com/v1/')).toBe('https://api.example.com')
     expect(normalizeImportBaseURL('https://user:pass@api.example.com')).toBeNull()
@@ -84,10 +103,64 @@ describe('client-import helpers', () => {
     })
   })
 
+  it('builds Pi models.json with the gateway provider on the Chat Completions endpoint', () => {
+    expect(buildConfigFile('pi', key, 'https://api.example.com', 'gpt-5.5', 'Gateway')).toEqual({
+      providers: {
+        gateway: {
+          baseUrl: 'https://api.example.com/v1',
+          api: 'openai-completions',
+          apiKey: key.key,
+          models: [{ id: 'gpt-5.5', name: 'gpt-5.5' }],
+        },
+      },
+    })
+  })
+
+  it('merges candidate models after the default model without duplicates', () => {
+    expect(mergeClientModels(' gpt-5.5 ', ['gpt-5.5-mini', 'gpt-5.5', ' ', 'gpt-5.5-mini', 'o5'])).toEqual(['gpt-5.5', 'gpt-5.5-mini', 'o5'])
+    expect(mergeClientModels('', ['o5', 'gpt-5.5'])).toEqual(['o5', 'gpt-5.5'])
+    expect(mergeClientModels('')).toEqual([])
+  })
+
+  it('only allows multiple models for capable clients enabled by the admin', () => {
+    expect(supportsMultiModel('pi', ['pi', 'zcode'])).toBe(true)
+    expect(supportsMultiModel('workbuddy', ['pi', 'zcode'])).toBe(false)
+    expect(supportsMultiModel('claude-code', ['claude-code'])).toBe(false)
+    expect(supportsMultiModel('pi', undefined)).toBe(false)
+  })
+
+  it('writes candidate models after the default model for multi-model clients', () => {
+    const candidates = ['claude-sonnet-5', 'claude-opus-5', 'claude-haiku-5']
+    expect(buildConfigFile('pi', key, 'https://api.example.com', 'claude-opus-5', 'Gateway', candidates)).toMatchObject({
+      providers: { gateway: { models: [
+        { id: 'claude-opus-5', name: 'claude-opus-5' },
+        { id: 'claude-sonnet-5', name: 'claude-sonnet-5' },
+        { id: 'claude-haiku-5', name: 'claude-haiku-5' },
+      ] } },
+    })
+    expect(buildConfigFile('zcode', key, 'https://api.example.com', 'claude-opus-5', 'Gateway', candidates)).toMatchObject({
+      models: [{ id: 'claude-opus-5' }, { id: 'claude-sonnet-5' }, { id: 'claude-haiku-5' }],
+    })
+    expect(buildConfigFile('chatbox', key, 'https://api.example.com', '', 'Gateway', candidates)).toMatchObject({
+      settings: { models: candidates.map((modelId) => ({ modelId, type: 'chat' })) },
+    })
+    const workbuddy = buildConfigFile('workbuddy', key, 'https://api.example.com', 'claude-opus-5', 'Gateway', ['claude-sonnet-5'])
+    expect(workbuddy.availableModels).toEqual(['claude-opus-5', 'claude-sonnet-5'])
+    expect((workbuddy.models as { id: string, vendor: string }[]).map((model) => [model.id, model.vendor])).toEqual([['claude-opus-5', 'Gateway'], ['claude-sonnet-5', 'Gateway']])
+    expect(buildConfigFile('cherry-studio', key, 'https://api.example.com', 'claude-opus-5', 'Gateway', candidates)).not.toHaveProperty('models')
+  })
+
+  it('does not offer Pi as a CC Switch deep link target', async () => {
+    const { getClientImportTarget } = await import('./client-import')
+    expect(getClientImportTarget('pi')).toMatchObject({ kind: 'config-file' })
+    expect(getClientImportTarget('pi').app).toBeUndefined()
+  })
+
   it('uses the expected filenames for downloadable configurations', async () => {
     const { configFileName } = await import('./client-import')
     expect(configFileName('zcode')).toBe('zcode-provider.json')
     expect(configFileName('workbuddy')).toBe('models.json')
+    expect(configFileName('pi')).toBe('models.json')
   })
 
   it.each(['cherry-studio', 'chatbox'] as const)('encodes Unicode and the key in the %s deep link', (targetId) => {
@@ -102,5 +175,16 @@ describe('client-import helpers', () => {
     const decoded = new TextDecoder().decode(Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0)))
     expect(JSON.parse(decoded)).toEqual(config)
     expect(link.href).not.toContain(key.key)
+  })
+})
+
+describe('normalizeKeyModels', () => {
+  it('keeps valid model ID strings once in gateway order', () => {
+    expect(normalizeKeyModels([' claude-opus-5 ', 'claude-sonnet-5', 'claude-opus-5', '', 42, null, 'bad\nmodel', 'x'.repeat(161)])).toEqual(['claude-opus-5', 'claude-sonnet-5'])
+  })
+
+  it('returns an empty list for malformed responses', () => {
+    expect(normalizeKeyModels(undefined)).toEqual([])
+    expect(normalizeKeyModels({ items: ['claude-opus-5'] })).toEqual([])
   })
 })

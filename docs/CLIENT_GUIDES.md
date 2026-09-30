@@ -2,11 +2,15 @@
 
 公开入口：`/client-docs`。控制台侧栏和 API 文档导航均提供入口。页面按静态身份 `client-docs` 统计访问；客户端选择、章节导航、平台切换、安装下载和成功复制使用功能点击埋点，不上报用户填写的地址或模型。事件标识、API 文档埋点和仪表盘口径见 [文档页埋点与统计](DOCS_TELEMETRY.md)。
 
-用户端客户端导入工具入口为 `/client-import`。该页面必须从 Sub2API 用户菜单以带 `token` 的 iframe 打开，通过附属后端用户守卫读取当前用户的有效 API Key；页面不会把密钥写入 localStorage 或附属数据库。CC Switch 使用 `ccswitch://v1/import`，Cherry Studio 使用 `cherrystudio://providers/api-keys?v=1&data=...`，Chatbox 使用 `chatbox://provider/import?config=...`，均由用户点击后唤起本机客户端并在客户端内确认；未安装或浏览器未唤起客户端时可下载或复制同一份有效配置。配置文件页签还提供 ZCode `zcode-provider.json` 和 WorkBuddy `models.json` 下载：ZCode 文件是便于手动填写供应商设置的参考文件，WorkBuddy 文件按 `models.json` 结构生成。深度链接和配置文件都包含完整 API Key，不应分享、截图或写入日志；链接只在当前页面生成，不把密钥上传到第三方服务。
+用户端客户端导入工具入口为 `/client-import`。该页面必须从 Sub2API 用户菜单以带 `token` 的 iframe 打开，通过附属后端用户守卫读取当前用户的有效 API Key，下拉中展示每个密钥的分组名称和分组平台；未选择分组的 API Key 不允许导入任何客户端（深度链接、配置文件下载和复制均禁用），页面提示用户先在 Sub2API 为密钥选择分组；管理员可在「系统配置 → 客户端导入限制」按分组平台或具体分组设置可导入的客户端白名单（默认不限制，分组规则优先于平台规则），`/api/aux/client-import/keys` 为每个密钥返回后端计算的 `allowed_clients`，被限制的客户端在页面上显示为禁用且不可选择（某种导入方式下没有允许的客户端时该页签也不可切换），读取或切换密钥后自动选中第一个允许的客户端，受限客户端不会生成深度链接或配置；页面不会把密钥写入 localStorage 或附属数据库。CC Switch 使用 `ccswitch://v1/import`，Cherry Studio 使用 `cherrystudio://providers/api-keys?v=1&data=...`，Chatbox 使用 `chatbox://provider/import?config=...`，均由用户点击后唤起本机客户端并在客户端内确认；未安装或浏览器未唤起客户端时可下载或复制同一份有效配置。配置文件页签还提供 ZCode `zcode-provider.json`、WorkBuddy `models.json` 和 Pi `models.json` 下载：ZCode 文件是便于手动填写供应商设置的参考文件，WorkBuddy 文件按 `models.json` 结构生成；Pi 文件为 `~/.pi/agent/models.json` 原生结构（`providers.gateway`，OpenAI Chat Completions）。CC Switch 的 provider 深度链接不接受 `app=pi`（只能在其 Pi 面板手动添加），所以 Pi 不在 CC Switch 页签中提供深度链接。深度链接和配置文件都包含完整 API Key，不应分享、截图或写入日志；链接只在当前页面生成，不把密钥上传到第三方服务。
 
 Cherry Studio 的 `data` 为 URL 安全 Base64 编码的 `{id, name, type, apiKey, baseUrl}`，Chatbox 的 `config` 为 Base64 编码的自定义提供方 `{id, name, type, isCustom, urls, settings}`，其中 `settings` 使用 `apiHost`、`apiPath`、`apiKey` 和 `models`。配置 ID 由网关域名与密钥 ID 生成，重复导入同一密钥可识别已有提供方。参考 Cherry Studio 源码 `src/main/services/protocol/handlers/providersImport.ts`、`src/renderer/pages/settings/ProviderSettings/hooks/useProviderDeepLinkImport.ts`，以及 Chatbox 官方[提供方导入规范](https://github.com/chatboxai/chatbox-docs/blob/main/guides/providers/import-config.md)。
 
 在 Sub2API iframe 中，网关地址默认使用客户端导入页当前访问的 origin，不使用宿主页面的 `document.referrer` 或 `src_host`；用户仍可手动修改 `API 基础地址`，或通过 `api_base` 参数指定其他网关地址。
+
+导入页的「默认模型 ID」为 shadcn/ui `Popover + Command` 可搜索下拉，选项来自所选 API Key 的网关模型列表（`GET /api/aux/client-import/keys/:id/models`，接口与错误码见 [INTEGRATION.md](INTEGRATION.md) 的客户端导入一节）。未手动选择时，当前模型在列表中则保留，否则改用列表首项；手动选择或清除后，切换密钥和重新读取都不会覆盖用户的选择。下拉顶部提供「不指定默认模型」，清除后使用客户端默认模型；列表为空、读取失败或模型未列出时，可在搜索框输入并选择「使用「模型 ID」」。读取失败时字段下方显示原因和「重新读取」按钮；未选择分组的密钥不请求模型列表，下拉保持禁用。
+
+管理员在「系统配置 → 客户端导入限制 → 多模型候选」为 Chatbox、ZCode、WorkBuddy、Pi 开启多模型后（默认全部开启），导入页在默认模型下方显示「候选模型 ID」多选：同样基于 `Popover + Command`，选项为该密钥的模型列表（已作为默认模型的不重复列出），可连续勾选、输入自定义 ID、在下方标签中逐个移除或一次清空。生成配置时默认模型排在首位，候选模型按选择顺序追加并去重：Chatbox 写入 `settings.models`，ZCode 写入 `models`，WorkBuddy 写入 `models` 与 `availableModels`，Pi 写入 `providers.gateway.models`。CC Switch 深度链接只支持单个 `model` 参数、Cherry Studio 导入不含模型，因此不显示候选模型；管理员关闭某客户端的多模型后，该客户端只写入默认模型。
 
 页尾站点名称读取「系统配置 → Sub2API 系统名称」，通过公开接口 `/api/aux/homepage/config` 获取 `siteName`，兼容旧配置的 `heroTitle`。保存系统名称后重新打开或刷新文档页即可更新，无需重新部署；配置读取失败时显示通用的「客户端接入文档」。
 
@@ -17,7 +21,7 @@ Cherry Studio 的 `data` 为 URL 安全 Base64 编码的 `{id, name, type, apiKe
 可用参数：
 
 - `client=claude-code|claude-desktop|codex|grok-build|gemini-cli|vscode-codex|vscode-claude|openai-compatible|ide-plugins|pi|hermes|openclaw|paseo|zcode|deepseek-harness|obsidian`：直达对应客户端；未知值回退到 Claude Code。Codex 页面展示面向新手的 Desktop 路径；`vscode-*` 同时覆盖 VS Code 和 Cursor；Obsidian 使用 Claudian 插件（YishenTu/claudian）。
-- `method=cc-switch|manual`：支持 CC Switch 的客户端默认展示 CC Switch Tab；`manual` 直达手动配置。Claude Desktop 只提供 CC Switch 流程，其他不支持 CC Switch 的客户端忽略此参数。旧的 `method=cc-switch&client=...` 入口仍有效。
+- `method=cc-switch|manual`：支持 CC Switch 的客户端默认展示 CC Switch Tab；`manual` 直达手动配置。Claude Desktop 与 Codex 一样提供 CC Switch 与手动配置两个页签，不支持 CC Switch 的客户端忽略此参数。旧的 `method=cc-switch&client=...` 入口仍有效。
 - `api_base=https%3A%2F%2Fapi.example.com`：预填与文档页不同域名的实际网关地址；缺省使用当前访问站点的 origin。
 - `embed=1` 或 `ui_mode=embedded`：嵌入入口；页面处于真实 iframe 时也会自动识别。嵌入态不渲染顶部菜单栏。
 - `theme=system|light|dark`：指定跟随系统、浅色或深色；兼容宿主传入的主题参数。
@@ -28,7 +32,7 @@ Cherry Studio 的 `data` 为 URL 安全 Base64 编码的 `{id, name, type, apiKe
 
 ## 页面结构与交互
 
-页面以直接阅读指南为主：桌面左侧固定展示 Codex、Claude、Grok、Gemini、VS Code/Cursor 与其他客户端六个主题，无折叠交互。Claude 和编辑器扩展在正文使用客户端 Tab，其他客户端在正文选择具体工具；可搜索全部 16 个客户端及别名。支持 CC Switch 的客户端在正文使用配置方式 Tab，默认 CC Switch，手动配置作为备选。一般客户端正文展示准备、安装、配置、验证与常见问题；Codex Desktop 直接从配置模块填写地址和模型，省略独立的准备与安装模块。宽屏右侧提供章节导航；无搜索结果时可清空并继续选择。
+页面以直接阅读指南为主：桌面左侧固定展示 Codex、Claude、Grok、Gemini、VS Code/Cursor 与其他客户端六个主题，无折叠交互。Claude 和编辑器扩展在正文使用客户端 Tab，其他客户端在正文选择具体工具；可搜索全部 16 个客户端及别名。支持 CC Switch 的客户端在正文使用配置方式 Tab，默认 CC Switch，手动配置作为备选。一般客户端正文展示准备、安装、配置、验证与常见问题；Codex Desktop 与 Claude Desktop 直接从配置模块填写地址和模型，省略独立的准备与安装模块，桌面应用下载入口放在 CC Switch 配置区。宽屏右侧提供章节导航；无搜索结果时可清空并继续选择。
 
 小于 960px 时，接入目录变为按上述六个主题分组的 shadcn/ui 下拉选择；小于 1280px 时，章节导航收进「本页内容」。标题下显示当前指南适用的实际客户端，并可直接跳到配置或验证。FAQ 使用独立展开项，页尾在所有宽度下提供 API 参考入口。切换入口时保留网关地址、各客户端填写的模型与主题，并支持浏览器前进、后退。
 
@@ -38,7 +42,7 @@ Cherry Studio 的 `data` 为 URL 安全 Base64 编码的 `{id, name, type, apiKe
 
 ## 界面操作示意
 
-`/client-docs` 的新客户端指南及 Codex 导入主流程不再使用客户端配置截图；部分既有指南仍保留原有截图。Codex 的 CC Switch 主流程共五步：前四步使用 HTML/CSS 绘制 Sub2API 用户端密钥管理、创建弹窗和 CC Switch 界面草图；CC Switch 参照官网首页 Codex 产品预览的窗口栏、客户端图标切换、功能工具组和供应商卡片结构重绘，呈现供应商名称、地址、用量、启用状态及行操作，不嵌入官网页面或截图。①—④只标在对应草图的操作控件上，不另设步骤编号图例或在标题重复编号。第五步「重启 Codex 客户端」仅以文字说明，不绘制客户端界面。Sub2API 草图仅展示用户可见的「我的账户」导航，不包含管理板块，并保留完整密钥管理页面框架。CC Switch、Paseo、ZCode 和 DeepSeek Harness 的部分界面操作由 `frontend/src/pages/ClientSetupDiagram.tsx` 绘制。草图不是客户端真实界面，不绘制浏览器或操作系统外框。Codex 导入路径不要求在本页手工填写密钥、地址或模型；手动配置示例中的 API Key 仍只使用占位值。配置文件、命令和验证结果继续使用可复制代码与文字。
+`/client-docs` 的新客户端指南、Codex 导入主流程及 Claude Desktop、Pi 指南不再使用客户端截图；部分既有指南仍保留原有截图。Codex 的 CC Switch 主流程共五步：前四步使用 HTML/CSS 绘制 Sub2API 用户端密钥管理、创建弹窗和 CC Switch 界面草图；CC Switch 草图对齐 <https://ccswitch.io/zh/> 首页产品预览（v3.20.4）：蓝色「CC Switch」标题、设置与本地路由开关、按官网顺序排列的 10 个应用切换（Claude Code、Claude Desktop、Codex、Gemini、Grok Build、OpenCode、OpenClaw、Hermes、Pi、MiniMax Code，Claude 两个入口带终端/桌面角标）、Skills/提示词/会话/MCP 工具组与橙色圆形添加按钮；供应商卡片为 Zinc 中性色边框、当前项蓝色描边与渐变，右侧显示刷新时间和用量，操作区（启用、编辑、复制、检测连通、用量查询、删除）与官网一致只在需要点击的卡片上以悬停状态展示。示例供应商只使用 CC Switch 内置的官方预设：Claude 面板为 Claude Official，Codex 面板为 OpenAI Official，Claude Desktop 面板为 Claude Desktop Official，Pi 面板为 OpenAI 与 Anthropic，并统一附带 DeepSeek、智谱 GLM，不出现第三方中转供应商。应用与供应商图标取自官网使用的 lobe-icons（MIT），保存在 `frontend/src/pages/ccswitch-sketch-icons.ts`；不嵌入官网页面或截图。①—④只标在对应草图的操作控件上，不另设步骤编号图例或在标题重复编号。第五步「重启 Codex 客户端」仅以文字说明，不绘制客户端界面。Sub2API 草图仅展示用户可见的「我的账户」导航，不包含管理板块，并保留完整密钥管理页面框架。CC Switch、Paseo、ZCode 和 DeepSeek Harness 的部分界面操作由 `frontend/src/pages/ClientSetupDiagram.tsx` 绘制。草图不是客户端真实界面，不绘制浏览器或操作系统外框。Codex 导入路径不要求在本页手工填写密钥、地址或模型；手动配置示例中的 API Key 仍只使用占位值。配置文件、命令和验证结果继续使用可复制代码与文字。
 
 仓库仍保留 `backend/data/assets/client-docs/` 中的旧资源文件，供既有指南、静态资源接口及历史链接使用；新增客户端指南不必上传截图。若客户端设置项或入口路径改变，应同步调整 `ClientSetupDiagram.tsx` 与测试，并核对官方文档。
 
@@ -51,13 +55,15 @@ Cherry Studio 的 `data` 为 URL 安全 Base64 编码的 `{id, name, type, apiKe
 
 桌面应用或插件可通过 `installSteps` 提供自身的下载链接与安装步骤，`installTitle` 标明安装或启动命令的用途，`configSteps` 提供界面操作步骤。依赖另一个客户端时，通过 `prerequisiteClients` 登记可选客户端并链接到各自的配置指南，在 `prerequisite` 中说明前置要求，不把底层 CLI 的安装命令当作当前客户端的安装方法。链接保留网关地址与嵌入、主题参数。没有终端安装、配置或验证命令时返回 `null`，页面自动隐藏相应命令块；完全沿用其他客户端配置时，`endpoint` 设为 `null`，准备步骤展示前置指南入口。所有客户端统一提供可复制的「当前时间」验证消息，不要求输入 `/status`。
 
-API 地址会规范化去除尾部斜线和末尾 `/v1`；配置再按协议添加所需路径。Codex 手动配置的 `base_url` 使用网关根地址，不要加 `/v1`，实际 Responses 请求使用 `/v1/responses`。非法地址阻止配置生成。模型 ID 不写入浏览器存储；手动配置示例中的 API Key 始终使用 `sk-YOUR_API_KEY` 占位，由用户复制后在本地替换。
+API 地址会规范化去除尾部斜线和末尾 `/v1`；配置再按协议添加所需路径。Codex 手动配置的 `base_url` 使用网关根地址，不要加 `/v1`，实际 Responses 请求使用 `/v1/responses`。非法地址阻止配置生成。模型名称使用 shadcn/ui `Popover + Command` 可搜索下拉，选项来自 Sub2API 模型广场并按客户端协议筛选（接口与降级规则见 [INTEGRATION.md](INTEGRATION.md) 的 API 文档挂载一节）；未手动选择时优先使用指南默认模型，平台未开放该模型时改用列表首项；列表未列出或读取失败时，可在搜索框输入并选择「使用「模型 ID」」，空值和控制字符不会生成配置。模型 ID 不写入浏览器存储；手动配置示例中的 API Key 始终使用 `sk-YOUR_API_KEY` 占位，由用户复制后在本地替换。
 
 Claude Code 提供官方安装器与 npm 两种安装方式，任选其一。npm 方式要求 Node.js 22 或更新版本，执行 `npm install -g @anthropic-ai/claude-code`；安装后重新打开终端并继续配置。额外安装方式通过 `installAlternatives` 登记说明与可复制命令。
 
-Claude Desktop 从官网下载桌面安装包，通过其文档页内的 CC Switch 指南配置，支持 macOS 与 Windows。它使用独立的 3P profile，无需先安装 Claude Code。默认以 `claude-opus-5` 和 Anthropic Messages 直连；如需非 Claude 角色模型或协议转换，可开启模型映射并保持 CC Switch 本地路由运行。切换后必须完全退出并重启 Claude Desktop。
+Claude Desktop 从官网下载桌面安装包，页面结构与 Codex 一致：默认 CC Switch 页签走 API Key 导入五步流程，手动配置页签使用 Claude Desktop 自带的第三方推理配置窗口。它使用独立的 3P 配置，无需先安装 Claude Code。CC Switch 深度链接只能导入到 Claude（Claude Code）面板，因此第四步在 CC Switch 的「Claude Desktop」面板点击「将 Claude Code 中已有的供应商导入」后启用；面板没有导入入口时改用「+」手动添加同一地址与密钥。CC Switch 写入 Claude Desktop 配置目前支持 macOS 与 Windows，默认以 `claude-opus-5` 和 Anthropic Messages 直连；非 Claude 模型需开启模型映射并保持 CC Switch 本地路由运行。手动配置依次启用「Help → Troubleshooting → Enable Developer Mode」，打开「Developer → Configure Third-Party Inference…」，将 Inference provider 设为 Gateway，Gateway base URL 填网关根地址（不加 `/v1`），Gateway API key 填平台密钥，Credential kind 为 Static API key、auth scheme 为 Bearer，再点击「Apply Changes」；网关提供 `/v1/models` 时模型自动读取。两种方式切换后都必须完全退出并重启 Claude Desktop。
 
-Codex 与 Claude Code 的 CC Switch 主流程都由 `CC_SWITCH_GUIDES` 登记五步说明，`ClientSetupDiagram.tsx` 为前四步展示界面草图；最后一步仅有文字，不配界面图。步骤依次为：在平台创建 API Key、点击新密钥所在行的「导入到 CCS」、确认导入、在 CC Switch 对应客户端面板启用配置、重新打开客户端（Claude Code 从新终端启动）并验证；Codex 扩展用户最后一步改为重载 VS Code/Cursor。①—④只作为草图内部控件定位标记，不额外解释“第几步”，也不将⑤用于无界面的最后一步。CC Switch 草图参照产品预览绘制窗口栏、客户端图标栏、管理工具组和供应商卡片；Claude Code 面板选中 Claude 图标，创建密钥时示意 Anthropic 分组。Sub2API 草图使用用户端导航，不展示管理板块，并分别呈现密钥创建弹窗和密钥行操作。Codex 与 Claude Code 的右侧及移动端“本页内容”目录均含对应五步锚点并支持平滑滚动；主流程不显示手工填写参数块。手动配置页签分别保留 Codex 的 `config.toml`、`auth.json` 示例及 Claude Code 的终端环境变量示例。Claude Desktop 与 Grok Build 的 CC Switch 内容也由 `CC_SWITCH_GUIDES` 登记步骤、验证和排错内容；Pi 与 Hermes 使用各自 `ccSwitch` 字段。其他客户端的 `getCCSwitchExample` 仍按协议生成填写参考：Claude Desktop 使用根地址，Grok Build、Pi、Hermes 使用 `/v1` 地址；Claude Desktop 额外提示模型映射与本地路由。参数无效时隐藏参考内容。Pi 从 `/model` 中选择实际保存的供应商，启动命令不强制覆盖为手动示例的 `gateway`。
+Codex、Claude Code 与 Claude Desktop 的 CC Switch 主流程都由 `CC_SWITCH_GUIDES` 登记五步说明，`ClientSetupDiagram.tsx` 为前四步展示界面草图；最后一步仅有文字，不配界面图。步骤依次为：在平台创建 API Key、点击新密钥所在行的「导入到 CCS」、确认导入、在 CC Switch 对应客户端面板启用配置、重新打开客户端（Claude Code 从新终端启动）并验证；Codex 扩展用户最后一步改为重载 VS Code/Cursor；Claude Desktop 的确认导入草图停在 Claude 面板，第四步草图切到 Claude Desktop 面板并示意「将 Claude Code 中已有的供应商导入」。①—④只作为草图内部控件定位标记，不额外解释“第几步”，也不将⑤用于无界面的最后一步。CC Switch 草图参照产品预览绘制窗口栏、客户端图标栏、管理工具组和供应商卡片；Claude Code 面板选中 Claude 图标，创建密钥时示意 Anthropic 分组。Sub2API 草图使用用户端导航，不展示管理板块，并分别呈现密钥创建弹窗和密钥行操作。Codex、Claude Code 与 Claude Desktop 的右侧及移动端“本页内容”目录均含对应五步锚点并支持平滑滚动；主流程不显示手工填写参数块。手动配置页签分别保留 Codex 的 `config.toml`、`auth.json` 示例、Claude Code 的终端环境变量示例，以及 Claude Desktop 第三方推理配置窗口的填写参考和界面示意。Grok Build 的 CC Switch 内容也由 `CC_SWITCH_GUIDES` 登记步骤、验证和排错内容；Hermes 使用自己的 `ccSwitch` 字段。其他客户端的 `getCCSwitchExample` 仍按协议生成填写参考：Grok Build、Pi、Hermes 使用 `/v1` 地址。参数无效时隐藏参考内容。Pi 从 `/model` 中选择实际保存的供应商，启动命令不强制覆盖为手动示例的 `gateway`。
+
+Pi 的 CC Switch 页签同样按五步草图展示，但 Sub2API 的「导入到 CCS」只会生成 claude、codex、gemini、grokbuild 深度链接，CC Switch 的供应商深度链接也不接受 `pi`，因此 Pi 保留「准备接入信息」和「安装 Pi 与 CC Switch」两节，并按本页地址与模型手动添加：选择 Pi 面板点击「+」、填写供应商名称/供应商标识/接口格式（OpenAI Chat Completions）/API Key/以 `/v1` 结尾的 Base URL、在「模型配置」添加模型并保存、点击绿色「启用」写入 Pi（Pi 为累加模式，可同时启用多个供应商，已启用卡片显示「移除」），最后重新打开 Pi 在 `/model` 中选择。草图中的地址和模型随页面填写实时更新，并保留「复制填写参数」。「填写供应商信息」草图的接口格式使用 shadcn/ui `Select`，可展开并选择 CC Switch Pi 表单的 5 种格式（OpenAI Chat Completions、OpenAI Responses、Anthropic Messages、Google Generative AI、Amazon Bedrock），仅切换草图展示：Chat Completions 与 Responses 的 Base URL 显示 `/v1` 地址，Anthropic Messages 与 Google Generative AI 显示网关根地址，Amazon Bedrock 提示平台网关不提供此格式；不影响页面生成的配置和复制内容。手动配置页签仍提供 `~/.pi/agent/models.json` 示例。
 
 Codex Desktop 的手动配置备选方式使用两份文件：`~/.codex/config.toml` 配置模型与网关，并设置顶层 `cli_auth_credentials_store = "file"` 及提供方的 `requires_openai_auth = true`；API Key 写入 `~/.codex/auth.json` 的 `OPENAI_API_KEY` 字段。Desktop 不需要安装 Codex CLI、Node.js 或 npm，也不使用 `GATEWAY_API_KEY` 环境变量方式。手动配置页签以可复制代码块展示两份文件；若用户自定义了 `CODEX_HOME`，两份文件都应位于该目录。
 
@@ -74,7 +80,7 @@ Obsidian 示例以已配置可用的 Claude Code 为前置条件，安装步骤�
 接入方式于 2026-09-22 对照以下资料核对。HeyRoute 的 Clients 集合作为客户端覆盖范围和操作顺序参考，所有文案均按本站接口、品牌和安全边界重新编写，未复制其截图、令牌链接或品牌内容。模型名称、账号权限、运行时版本要求以服务方与客户端当前版本为准；示例中的 `your-model-id` 必须替换为平台实际开放的模型。
 
 - Claude Code：<https://code.claude.com/docs/en/llm-gateway-connect> 与 <https://code.claude.com/docs/en/setup#install-with-npm>
-- Claude Desktop：<https://claude.ai/download>，CC Switch 的桌面接入说明见 <https://github.com/farion1231/cc-switch/blob/v3.20.3/docs/user-manual/zh/2-providers/2.6-claude-desktop.md>
+- Claude Desktop：<https://claude.ai/download>，网关与应用内配置见 <https://claude.com/docs/third-party/claude-desktop/gateway> 和 <https://claude.com/docs/third-party/claude-desktop/in-app-configuration>，CC Switch 的桌面接入说明见 <https://github.com/farion1231/cc-switch/blob/v3.20.3/docs/user-manual/zh/2-providers/2.6-claude-desktop.md>
 - CC Switch：以 v3.20.3 文档核对 `docs/user-manual/zh/2-providers/2.1-add.md`、`2.2-switch.md` 与 `2.6-claude-desktop.md`；下载入口使用官方站点 <https://ccswitch.io/>。
 - Codex：<https://developers.openai.com/codex/config-advanced>，提供方字段另对照 <https://github.com/openai/codex/blob/main/codex-rs/core/config.schema.json>
 - Grok Build：<https://x.ai/cli> 与 xAI CLI 安装、`config.toml` 说明。

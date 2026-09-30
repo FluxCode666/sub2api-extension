@@ -33,6 +33,33 @@ func (s *asyncTaskStoreStub) ListBatchTasks(context.Context, int64) (AsyncTaskSo
 	return AsyncTaskSourceResult{Tasks: s.batches}, s.batchErr
 }
 
+func (s *asyncTaskStoreStub) ImageTask(_ context.Context, userID int64, id string) (AsyncTask, error) {
+	s.userIDs = append(s.userIDs, userID)
+	return findAsyncTaskStub(s.images, "", id, s.imageErr)
+}
+
+func (s *asyncTaskStoreStub) VideoTask(_ context.Context, userID int64, provider, id string) (AsyncTask, error) {
+	s.userIDs = append(s.userIDs, userID)
+	return findAsyncTaskStub(s.videos, provider, id, s.videoErr)
+}
+
+func (s *asyncTaskStoreStub) BatchTask(_ context.Context, userID int64, id string) (AsyncTask, error) {
+	s.userIDs = append(s.userIDs, userID)
+	return findAsyncTaskStub(s.batches, "", id, s.batchErr)
+}
+
+func findAsyncTaskStub(tasks []AsyncTask, provider, id string, err error) (AsyncTask, error) {
+	if err != nil {
+		return AsyncTask{}, err
+	}
+	for _, task := range tasks {
+		if task.ID == id && (provider == "" || task.Provider == provider) {
+			return task, nil
+		}
+	}
+	return AsyncTask{}, asynctask.ErrTaskNotFound
+}
+
 func (s *asyncTaskStoreStub) APIKeyNames(context.Context, int64) (map[int64]string, error) {
 	return s.names, s.namesErr
 }

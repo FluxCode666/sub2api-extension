@@ -7,8 +7,12 @@ import (
 	"time"
 )
 
-// ErrSourceUnavailable 表示某个数据源（Sub2API PostgreSQL 或 Redis）未配置。
-var ErrSourceUnavailable = errors.New("async task source is unavailable")
+var (
+	// ErrSourceUnavailable 表示某个数据源（Sub2API PostgreSQL 或 Redis）未配置。
+	ErrSourceUnavailable = errors.New("async task source is unavailable")
+	// ErrTaskNotFound 表示指定任务不存在、已过期或不属于当前用户。
+	ErrTaskNotFound = errors.New("async task not found")
+)
 
 // Kind 是任务来源类别。
 type Kind string
@@ -17,6 +21,13 @@ const (
 	KindImage Kind = "image"
 	KindVideo Kind = "video"
 	KindBatch Kind = "batch"
+)
+
+// 视频任务的上游来源。Sub2API 把 Seedance 任务与 Grok 视频放在同一套
+// 挂起/计费键中，仅以 request ID 的 "seedance:" 前缀区分。
+const (
+	ProviderGrok     = "grok"
+	ProviderSeedance = "seedance"
 )
 
 // Status 是跨来源归一化后的任务状态；RawStatus 保留 Sub2API 原始值。
@@ -34,6 +45,7 @@ const (
 type Task struct {
 	ID              string     `json:"id"`
 	Kind            Kind       `json:"kind"`
+	Provider        string     `json:"provider,omitempty"`
 	Status          Status     `json:"status"`
 	RawStatus       string     `json:"raw_status"`
 	Model           string     `json:"model,omitempty"`

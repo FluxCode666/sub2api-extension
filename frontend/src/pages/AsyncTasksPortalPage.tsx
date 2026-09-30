@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { format, startOfDay, subDays } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
-import { AlertTriangle, CalendarDays, Check, ChevronsUpDown, Clapperboard, Copy, ImageIcon, Inbox, Info, Layers, ListChecks, RefreshCw, RotateCcw, Search } from 'lucide-react'
+import { AlertTriangle, CalendarDays, Check, ChevronsUpDown, Clapperboard, Copy, ExternalLink, ImageIcon, Inbox, Info, Layers, Link2, ListChecks, RefreshCw, RotateCcw, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import ErrorState from '@/components/ErrorState'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -26,20 +26,25 @@ import {
   ASYNC_TASK_PAGE_SIZES,
   ASYNC_TASK_STATUS_LABELS,
   ASYNC_TASK_STATUS_OPTIONS,
+  ASYNC_TASK_VIDEO_PROVIDER_LABELS,
+  asyncTaskKey,
   batchProgress,
   buildAsyncTaskPageItems,
   describeAsyncTaskError,
+  describeAsyncTaskRefreshError,
   fetchAsyncTasks,
   formatElapsed,
   formatRelativeTime,
   formatTaskCost,
   formatTaskTime,
   isActiveAsyncTask,
+  refreshAsyncTask,
   shortTaskID,
   type AsyncTask,
   type AsyncTaskKind,
   type AsyncTaskKindFilter,
   type AsyncTaskPage,
+  type AsyncTaskRefreshResult,
   type AsyncTaskStatus,
   type AsyncTaskStatusFilter,
 } from '@/lib/async-tasks'
@@ -52,7 +57,7 @@ const KEYWORD_DEBOUNCE_MS = 400
 const MAX_THUMBNAILS = 3
 /** 与后端数据库回看窗口一致；更早的视频/批量记录不会返回。 */
 const ASYNC_TASK_LOOKBACK_DAYS = 30
-/** 有生成中/等待结果的任务时静默轮询；只读 Sub2API 已有数据，不代用户查询上游。 */
+/** 有生成中/等待结果的任务时静默轮询；只读 Sub2API 已有数据，不代用户查询上游（视频上游查询只由用户逐条手动触发）。 */
 export const ASYNC_TASK_POLL_INTERVAL_MS = 15000
 
 const kindIcons: Record<AsyncTaskKind, typeof ImageIcon> = { image: ImageIcon, video: Clapperboard, batch: Layers }
@@ -92,7 +97,48 @@ async function copyText(value: string): Promise<void> {
   if (!copied) throw new Error('clipboard is unavailable')
 }
 
-function TaskResult({ task }: { task: AsyncTask }) {
+/** 手动查询的视频结果：签名地址直接打开，网关相对路径需携带创建任务的 API Key 下载，只提供复制。 */
+function VideoResultLink({ refresh }: { refresh: AsyncTaskRefreshResult }) {
+  if (refresh.video_url) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button asChild variant="outline" size="sm" className="h-7 gap-1 px-2 text-xs">
+            <a href={refresh.video_url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" onClick={() => trackFeatureClick(PAGE_ID, 'open-video')}>
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+              打开视频
+            </a>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs break-words">上游视频地址可能有时效，过期后可重新查询</TooltipContent>
+      </Tooltip>
+    )
+  }
+  const path = refresh.video_content_path
+  if (!path) return null
+  const copyPath = async () => {
+    trackFeatureClick(PAGE_ID, 'copy-video-path')
+    try {
+      await copyText(path)
+      toast.success('下载路径已复制', { description: '请在 Sub2API API 地址后拼接该路径，并携带创建任务的 API Key 下载。' })
+    } catch {
+      toast.error('复制失败', { description: path })
+    }
+  }
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button type="button" variant="outline" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={() => void copyPath()}>
+          <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
+          复制下载路径
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs break-words">视频由 Sub2API 网关代理，下载时需携带创建该任务的 API Key</TooltipContent>
+    </Tooltip>
+  )
+}
+
+function TaskResult({ task, refresh }: { task: AsyncTask; refresh?: AsyncTaskRefreshResult }) {
   if (task.kind === 'image') {
     const urls = task.image_urls ?? []
     const hidden = Math.max(0, (task.image_count ?? urls.length) - Math.min(urls.length, MAX_THUMBNAILS))
@@ -137,20 +183,34 @@ function TaskResult({ task }: { task: AsyncTask }) {
     )
   }
   const spec = [task.resolution, task.duration_seconds ? `${task.duration_seconds} 秒` : ''].filter(Boolean).join(' · ')
+  const active = isActiveAsyncTask(task)
+  const link = task.status === 'completed' && refresh ? <VideoResultLink refresh={refresh} /> : null
   return (
-    <div className="text-xs text-[var(--aux-page-muted)]">
+    <div className="space-y-1 text-xs text-[var(--aux-page-muted)]">
       {spec && <p className="tabular-nums">{spec}</p>}
-      {task.status === 'pending' && <p>结果需在调用端轮询获取</p>}
-      {!spec && task.status !== 'pending' && '—'}
+      {active && <p>可点击状态旁按钮查询进度</p>}
+      {link}
+      {!spec && !active && !link && '—'}
     </div>
   )
 }
 
-function TaskRow({ task }: { task: AsyncTask }) {
+interface TaskRowProps {
+  task: AsyncTask
+  refresh?: AsyncTaskRefreshResult
+  refreshing: boolean
+  onRefresh: (task: AsyncTask) => void
+}
+
+function TaskRow({ task, refresh, refreshing, onRefresh }: TaskRowProps) {
   const Icon = kindIcons[task.kind]
   const cost = formatTaskCost(task.cost, task.currency)
   const elapsed = formatElapsed(task.created_at, task.completed_at)
   const title = task.kind === 'batch' && task.task_name ? task.task_name : ASYNC_TASK_KIND_LABELS[task.kind]
+  const provider = task.kind === 'video' ? ASYNC_TASK_VIDEO_PROVIDER_LABELS[task.provider ?? 'grok'] : ''
+  const refreshHint = task.kind === 'video'
+    ? '向 Sub2API 查询最新进度；若视频已生成，将按该任务计费一次（与调用端查询相同）'
+    : '重新读取该任务最新状态'
   const errorText = task.status === 'failed' && task.error_message ? `${task.http_status ? `HTTP ${task.http_status}：` : ''}${task.error_message}` : ''
 
   const copyID = async () => {
@@ -186,10 +246,23 @@ function TaskRow({ task }: { task: AsyncTask }) {
           </div>
         </div>
       </TableCell>
-      <TableCell className="whitespace-nowrap text-[var(--aux-page-muted)]">{ASYNC_TASK_KIND_LABELS[task.kind]}</TableCell>
+      <TableCell className="whitespace-nowrap text-[var(--aux-page-muted)]">
+        {ASYNC_TASK_KIND_LABELS[task.kind]}
+        {provider && <Badge variant="secondary" className="ml-1.5 px-1.5 py-0 text-[10px] font-medium">{provider}</Badge>}
+      </TableCell>
       <TableCell>
         <div className="flex items-center gap-1">
           <AsyncTaskStatusBadge status={task.status} />
+          {isActiveAsyncTask(task) && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" aria-label="查询任务进度" disabled={refreshing} onClick={() => onRefresh(task)}>
+                  <RefreshCw className={cn('h-3.5 w-3.5', refreshing && 'animate-spin motion-reduce:animate-none')} aria-hidden="true" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs break-words">{refreshing ? '正在查询…' : refreshHint}</TooltipContent>
+            </Tooltip>
+          )}
           {errorText && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -217,7 +290,7 @@ function TaskRow({ task }: { task: AsyncTask }) {
           </span>
         ) : '—'}
       </TableCell>
-      <TableCell className="pr-4"><TaskResult task={task} /></TableCell>
+      <TableCell className="pr-4"><TaskResult task={task} refresh={refresh} /></TableCell>
     </TableRow>
   )
 }
@@ -328,6 +401,9 @@ export default function AsyncTasksPortalPage() {
   const [data, setData] = useState<AsyncTaskPage | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+  /** 本次会话内的单条查询结果；网关失败/过期不会回写 Sub2API 列表，只能靠这里保留。 */
+  const [refreshed, setRefreshed] = useState<Record<string, AsyncTaskRefreshResult>>({})
+  const [refreshingKeys, setRefreshingKeys] = useState<Record<string, true>>({})
   const requestRef = useRef(0)
   const hasDataRef = useRef(false)
 
@@ -378,7 +454,12 @@ export default function AsyncTasksPortalPage() {
     return () => window.clearTimeout(timer)
   }, [keywordDraft, filters.keyword])
 
-  const hasActive = data?.items.some(isActiveAsyncTask) ?? false
+  // 列表仍显示未结束时才用会话内查询结果覆盖；列表已进入终态则以 Sub2API 记录为准。
+  const items = (data?.items ?? []).map(task => {
+    const result = refreshed[asyncTaskKey(task)]
+    return result && isActiveAsyncTask(task) ? { ...task, ...result.task } : task
+  })
+  const hasActive = items.some(isActiveAsyncTask)
   useEffect(() => {
     if (!hasActive) return undefined
     const timer = window.setInterval(() => {
@@ -409,6 +490,36 @@ export default function AsyncTasksPortalPage() {
     trackFeatureClick(PAGE_ID, 'refresh')
     void load('manual')
   }
+  const refreshTask = async (task: AsyncTask) => {
+    const key = asyncTaskKey(task)
+    if (refreshingKeys[key]) return
+    trackFeatureClick(PAGE_ID, `refresh-task-${task.kind}`)
+    setRefreshingKeys(current => ({ ...current, [key]: true }))
+    try {
+      const result = await refreshAsyncTask(task)
+      setRefreshed(current => ({ ...current, [key]: result }))
+      const next = result.task
+      if (next.status === 'completed') {
+        const hint = next.kind === 'video' ? (result.video_url ? '可在结果列打开视频。' : result.video_content_path ? '可在结果列复制下载路径。' : undefined) : undefined
+        toast.success('任务已完成', hint ? { description: hint } : undefined)
+      } else if (next.status === 'failed') {
+        toast.warning('任务已失败', next.error_message ? { description: next.error_message } : undefined)
+      } else if (next.status === 'cancelled') {
+        toast.warning('任务已取消')
+      } else {
+        toast.info('任务仍在生成中', { description: result.upstream_checked ? '已向 Sub2API 查询，请稍后再试。' : '已读取最新状态，请稍后再试。' })
+      }
+      void load('silent')
+    } catch (caught) {
+      console.error('[AsyncTasksPortalPage] failed to refresh async task', task.kind, task.id, caught)
+      toast.error('查询失败', { description: describeAsyncTaskRefreshError(caught) })
+    } finally {
+      setRefreshingKeys(current => {
+        const { [key]: _done, ...rest } = current
+        return rest
+      })
+    }
+  }
   const changePage = (next: number) => {
     if (next < 1 || next > totalPages || next === page || loading) return
     setPage(next)
@@ -431,7 +542,6 @@ export default function AsyncTasksPortalPage() {
   }
 
   const summary = data?.summary
-  const items = data?.items ?? []
   const total = data?.total ?? 0
   const currentPage = Math.min(page, totalPages)
   const firstItem = total === 0 ? 0 : (currentPage - 1) * (data?.page_size ?? pageSize) + 1
@@ -455,7 +565,7 @@ export default function AsyncTasksPortalPage() {
                 <ListChecks className="h-7 w-7 text-[var(--aux-page-accent)]" aria-hidden="true" />
                 异步任务
               </h1>
-              <p className="mt-2 text-sm text-[var(--aux-page-muted)]">查看近期异步生图、Grok 视频和批量生图任务的进度与结果，进行中的任务会自动刷新。</p>
+              <p className="mt-2 text-sm text-[var(--aux-page-muted)]">查看近期异步生图、视频生成和批量生图任务的进度与结果，进行中的任务会自动刷新；未结束的任务可逐条手动查询进度。</p>
             </div>
             {summary && (
               <dl className="flex gap-5 text-sm" aria-label="当前筛选统计">
@@ -578,7 +688,7 @@ export default function AsyncTasksPortalPage() {
                 <Inbox className="h-8 w-8 text-muted-foreground/60" aria-hidden="true" />
                 <p className="text-sm font-medium">{filtersActive ? '没有符合筛选条件的任务' : '近期没有异步任务'}</p>
                 <p className="max-w-md text-xs text-muted-foreground">
-                  {filtersActive ? '可以放宽日期范围或清除部分条件后再查看。' : '通过 API 提交异步生图、Grok 视频或批量生图后，任务会显示在这里。异步生图记录保留 24 小时。'}
+                  {filtersActive ? '可以放宽日期范围或清除部分条件后再查看。' : '通过 API 提交异步生图、视频生成或批量生图后，任务会显示在这里。异步生图记录保留 24 小时。'}
                 </p>
                 {filtersActive && <Button type="button" variant="outline" size="sm" className="mt-2" onClick={resetFilters}>重置筛选</Button>}
               </div>
@@ -598,7 +708,10 @@ export default function AsyncTasksPortalPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map(task => <TaskRow key={`${task.kind}:${task.id}`} task={task} />)}
+                  {items.map(task => {
+                    const key = asyncTaskKey(task)
+                    return <TaskRow key={key} task={task} refresh={refreshed[key]} refreshing={Boolean(refreshingKeys[key])} onRefresh={task => void refreshTask(task)} />
+                  })}
                 </TableBody>
               </Table>
             )}
@@ -657,7 +770,7 @@ export default function AsyncTasksPortalPage() {
           {data?.generated_at && (
             <p className="flex items-center gap-1.5 text-xs text-[var(--aux-page-muted)]">
               <Info className="h-3 w-3" aria-hidden="true" />
-              数据更新于 {formatTaskTime(data.generated_at)}；异步生图记录保留 24 小时，视频结果需在调用端轮询获取，本页只展示提交与计费状态。
+              数据更新于 {formatTaskTime(data.generated_at)}；异步生图记录保留 24 小时。视频任务不会自动推进，可点击状态旁的查询按钮向 Sub2API 获取进度，视频地址仅在本次查询中展示、不会保存。
             </p>
           )}
         </div>

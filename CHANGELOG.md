@@ -1,5 +1,42 @@
 # Changelog
 
+## 未发布
+
+### 新增
+
+- 管理端「系统配置」新增「客户端导入限制」：可按 API Key 所属分组的平台（Anthropic、OpenAI、Gemini、Antigravity、Grok 及分组中出现的其他平台），或按具体 Sub2API 分组，设置允许导入的客户端白名单。默认不限制；分组规则优先于平台规则；规则可设为不允许导入任何客户端；未选择分组的 API Key 始终不能导入。分组列表从 Sub2API `groups` 表只读查询，数据库不可用时仍可配置平台规则。
+- 客户端导入页按管理员规则禁用被限制的客户端：被限制的客户端显示虚线样式、禁止图标和限制说明，不可点选；某种导入方式下没有允许的客户端时，对应页签不可切换。读取或切换密钥后自动选中第一个允许的客户端；分组不允许导入任何客户端时，全部客户端不可选，并禁止生成深度链接、下载和复制配置。
+- 新增管理端点 `GET/PUT /api/aux/admin/client-import/policy`、`GET /api/aux/admin/client-import/groups`（位于 `AdminGuard` 下）；用户端点 `GET /api/aux/client-import/keys` 的每个密钥新增 `allowed_clients`，由后端按规则计算，读取规则失败时返回 500 而不放行。
+- 客户端导入页的「默认模型 ID」由文本框改为可搜索下拉，选项为所选 API Key 通过 Sub2API 网关 `GET /v1/models` 获取的可用模型；未手动选择时自动选中可用模型，支持清除（不指定默认模型）、输入自定义模型 ID，读取失败时显示原因并可「重新读取」。
+- 「客户端导入限制」新增「多模型候选」开关组，控制 Chatbox、ZCode、WorkBuddy、Pi 是否允许配置多个模型 ID（默认全部开启）；CC Switch 深度链接只能传单个模型、Cherry Studio 导入不含模型，不在此列。开启的客户端在导入页「默认模型 ID」下方显示「候选模型 ID」多选（来源同默认模型，可输入自定义 ID、移除或清空），生成的配置以默认模型为首位，候选模型按选择顺序追加并自动去重；`GET /api/aux/client-import/keys` 响应新增 `multi_model_clients`。
+- 异步任务页为“生成中/等待结果”的任务新增「查询任务进度」按钮（状态旁的刷新图标，Tooltip 说明行为）。视频任务由后端用创建该任务的同一 API Key 向 Sub2API 网关查询一次状态（Grok `GET /v1/videos/{id}`、Seedance `GET /v1/contents/generations/tasks/{id}`），与调用端轮询等价，视频已生成时 Sub2API 会按该任务计费一次；完成后结果列提供「打开视频」（签名地址）或「复制下载路径」（网关代理路径，需携带同一 API Key）。异步生图和批量生图只重新读取该条记录。查询结果通过右上角通知反馈，上游返回的失败/过期在当前会话中保留。
+- 新增用户端点 `POST /api/aux/async-tasks/refresh`（位于 `UserGuard` 下，按 Sub2API 用户限流每 2 秒 1 次、突发 5 次）：任务不存在 404 `ASYNC_TASK_NOT_FOUND`，网关找不到 404 `VIDEO_TASK_NOT_FOUND`，创建任务的密钥不可用 409 `API_KEY_UNAVAILABLE`，网关拒绝 422 `VIDEO_STATUS_REJECTED`，网关限流 429 `VIDEO_STATUS_RATE_LIMITED`，不可用 503。视频地址只返回给任务所属用户，不写入数据库。
+- 新增用户端点 `GET /api/aux/client-import/keys/:id/models`（位于 `UserGuard` 下）：前端只传密钥 ID，后端校验密钥归属、状态和分组后，用该密钥调用网关模型列表；未分组返回 409 `API_KEY_UNGROUPED`，网关拒绝返回 422 `API_KEY_MODELS_REJECTED`，网关不可用返回 503。
+
+### 变更
+
+- 异步任务页的「Grok 视频」类型更名为「视频生成」，同时展示 Seedance 视频任务并在类型列标注来源（Grok / Seedance）；Seedance 任务 ID 不再带 `seedance:` 前缀，列表响应新增 `provider` 字段。类型筛选项不变。
+- Claude Desktop 接入指南参照 Codex 重做：新增「CC Switch（推荐）/ 手动配置」页签。CC Switch 页签改为从 API Key「导入到 CCS」的五步流程（创建密钥、导入、确认、在 Claude Desktop 面板导入并启用、重启验证），配套界面草图和章节锚点；手动配置页签使用 Claude Desktop 自带的「Developer → Configure Third-Party Inference…」网关配置，可按当前地址和模型生成填写参考。
+- `/client-docs?client=claude-desktop&method=manual` 现可直达手动配置，不再被强制切回 CC Switch。
+- 客户端接入文档的「模型名称」由文本框改为可搜索下拉，模型 ID 通过新增的公开只读接口 `GET /api/aux/client-docs/models` 从 Sub2API 模型广场获取，并按客户端协议筛选；列表未列出或不可用时仍可在搜索框输入自定义模型 ID。
+- CC Switch 界面草图按官网 ccswitch.io 产品预览重绘：蓝色标题与本地路由开关、10 个应用切换（新增 Grok Build、Pi、MiniMax Code，Claude 入口带终端/桌面角标）、官网同款工具组与橙色添加按钮，供应商卡片、用量与悬停操作区对齐官网，图标改用官网同源 lobe-icons；示例列表只保留 OpenAI、Anthropic、DeepSeek、智谱 GLM 等官方预设，不再出现第三方中转供应商。
+- Pi 接入指南的 CC Switch 页签改为五步界面草图（添加供应商、填写供应商信息、添加模型、启用、重新打开 Pi），草图随页面地址与模型实时更新；Pi 在 CC Switch 中为累加模式，启用按钮按实际显示为绿色「启用」；「填写供应商信息」草图中的接口格式为可交互下拉，列出 CC Switch Pi 表单的全部 5 种格式，切换后仅更新草图中的 Base URL 展示。Pi 不再展示客户端截图。
+- Claude Desktop 指南与 Codex 一致不再展示客户端截图，改由界面草图和文字说明；原截图文件保留在资源目录但不再引用。
+- 客户端导入页的「配置文件」页签新增 Pi：按当前 API Key、地址和模型生成 Pi 原生 `models.json`（`providers.gateway`，OpenAI Chat Completions，`/v1` 端点），支持下载和复制。CC Switch 的 provider 深度链接不接受 `app=pi`，因此 Pi 不放在 CC Switch 页签，并在该页签提示改用配置文件。
+- 客户端导入页的 API Key 下拉与摘要改为展示「分组名称 · 分组平台」（Anthropic、OpenAI、Gemini、Antigravity、Grok，未知平台原样显示）；默认选中第一个已分组的密钥。未选择分组的 API Key 会显示警示并禁止导入任何客户端：CC Switch、Cherry Studio、Chatbox 深度链接不再生成，配置文件的下载、复制与预览一并禁用，提示先在 Sub2API 为密钥选择分组后重新读取。
+- 管理端「系统配置」按类别重构布局：分为「基础配置」（品牌标识、文档与站点、Sub2API 菜单，统一保存）和「访问控制」（客户端导入限制，独立保存）两组四个板块。桌面端左侧新增吸顶「配置目录」，点击平滑跳转到对应板块并随滚动高亮当前板块，跳转后焦点移至板块标题；窄屏改为顶部吸附的横向目录。目录项和吸底保存栏会标记有未保存更改的板块；开启「减少动态效果」时跳转不使用平滑滚动。
+
+### 修复
+
+- 客户端导入页在窄屏（≤520px）下「CC Switch / Cherry / Chatbox / 配置文件」页签超出页签栏：页签改为可收缩，窄屏隐藏页签图标并按文字宽度分配，320px 起三个页签均完整显示。
+
+### 兼容性与升级
+
+- 新增后端公开端点 `GET /api/aux/client-docs/models`（按 IP 限流、匿名结果缓存 60 秒），依赖 Sub2API 模型广场 `GET /api/v1/model-plaza`；需在 Sub2API 管理后台开启模型广场，未开启时页面回退为默认模型加手动输入。无数据库迁移和环境变量变化；回滚到 `v0.12.0` 即恢复原 CC Switch 单一流程。
+- 客户端导入限制保存在现有 `system_meta` 表的 `client_import.policy` 键中，无需数据库迁移；首次升级时没有该键，行为与升级前一致（全部客户端可导入）。回滚到旧版本时该键被忽略，客户端导入恢复不限制。规则新增的 `multiModelClients` 字段缺省时视为全部支持多模型的客户端均开启，显式空数组表示全部只允许单个模型；旧版本会忽略该字段，回滚后导入页不再显示候选模型。
+- 异步任务单条查询复用现有 `SUB2API_BASE_URL`（网关视频状态接口）与 Sub2API `GET /api/v1/keys`，无数据库迁移和环境变量变化；视频查询以用户密钥身份发出，计入该密钥的网关 RPM，首次观察到完成时由 Sub2API 按任务计费（与用户自行轮询相同，不会重复扣费）。回滚后页面不再显示查询按钮，视频任务恢复为只能在调用端轮询。
+- 密钥模型列表复用现有 `SUB2API_BASE_URL` 访问网关 `/v1/models`，无数据库迁移和环境变量变化；该请求以用户密钥身份发出，可能计入网关的密钥限流。回滚后导入页恢复为手动输入模型 ID。
+
 ## [0.12.0] - 2026-09-28
 
 ### 新增

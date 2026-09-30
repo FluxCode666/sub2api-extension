@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import SystemConfigPage from './SystemConfigPage'
 import { toast } from 'sonner'
@@ -234,6 +234,41 @@ describe('SystemConfigPage', () => {
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('扩展系统公网地址')))
     expect(putConfig).not.toHaveBeenCalled()
+  })
+
+  it('groups sections in the table of contents and jumps to the selected section', async () => {
+    const scrollIntoView = vi.fn()
+    Element.prototype.scrollIntoView = scrollIntoView
+    render(<SystemConfigPage />)
+
+    const nav = await screen.findByRole('navigation', { name: '配置目录' })
+    expect(within(nav).getByRole('group', { name: '基础配置' })).toBeInTheDocument()
+    expect(within(nav).getByRole('group', { name: '访问控制' })).toBeInTheDocument()
+    expect(within(nav).getByRole('button', { name: '品牌标识' })).toHaveAttribute('aria-current', 'location')
+
+    const target = within(nav).getByRole('button', { name: 'Sub2API 菜单' })
+    fireEvent.click(target)
+
+    expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ block: 'start' }))
+    expect(scrollIntoView.mock.contexts[0]).toBe(document.getElementById('system-config-menu'))
+    expect(target).toHaveAttribute('aria-current', 'location')
+    expect(within(nav).getByRole('button', { name: '品牌标识' })).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('heading', { level: 2, name: 'Sub2API 菜单' })).toHaveFocus()
+  })
+
+  it('marks sections with unsaved changes in the table of contents and save bar', async () => {
+    render(<SystemConfigPage />)
+
+    const input = await screen.findByRole('textbox', { name: 'Sub2API 系统名称' })
+    const saveBar = screen.getByRole('region', { name: '基础配置保存' })
+    expect(saveBar).toHaveTextContent('基础配置已保存')
+
+    fireEvent.change(input, { target: { value: 'Example Cloud' } })
+
+    const nav = screen.getByRole('navigation', { name: '配置目录' })
+    expect(within(nav).getByRole('button', { name: '品牌标识（有未保存的更改）' })).toBeInTheDocument()
+    expect(within(nav).getByRole('button', { name: '文档与站点' })).toBeInTheDocument()
+    expect(saveBar).toHaveTextContent('未保存：品牌标识')
   })
 
   it('normalizes a trailing slash before saving the public URL', async () => {

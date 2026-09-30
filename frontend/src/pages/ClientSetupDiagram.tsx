@@ -1,35 +1,49 @@
 import {
   Activity,
+  ArrowLeft,
   Ban,
   Bell,
   BookOpen,
+  ChartColumn,
   Check,
   ChevronDown,
+  ChevronRight,
   Clock3,
   CodeXml,
   Copy,
   CornerDownRight,
+  Download,
   ExternalLink,
+  Eye,
   Gift,
   GripVertical,
   History,
   KeyRound,
-  MoreHorizontal,
   Monitor,
+  MoreHorizontal,
+  Play,
   Plus,
+  Radio,
   RefreshCw,
+  Save,
   Search,
+  Server,
   Settings,
   ShieldCheck,
-  Sparkles,
+  SquarePen,
   Terminal,
+  Trash2,
   UserRound,
   WalletCards,
+  Wrench,
   X,
 } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { ClientId } from '@/lib/client-guides'
 import { DEFAULT_SUB2API_SYSTEM_NAME } from '@/lib/system-name'
 import { withAppBasePath } from '@/lib/app-base-path'
+import { CCSWITCH_ICON_ANTHROPIC, CCSWITCH_ICON_CLAUDE, CCSWITCH_ICON_GEMINI, CCSWITCH_ICON_DEEPSEEK, CCSWITCH_ICON_GROK, CCSWITCH_ICON_MINIMAX, CCSWITCH_ICON_OPENAI, CCSWITCH_ICON_OPENCLAW, CCSWITCH_ICON_OPENCODE, CCSWITCH_ICON_PI, CCSWITCH_ICON_ZHIPU } from './ccswitch-sketch-icons'
 
 interface DiagramField {
   label: string
@@ -59,7 +73,16 @@ const CLAUDE_CODE_STEP_TITLES = [
   '启用导入的配置',
   '打开 Claude Code 并验证',
 ] as const
+const CLAUDE_DESKTOP_STEP_TITLES = [
+  '创建 API Key',
+  '点击「导入到 CCS」',
+  '确认导入',
+  '导入 Claude Desktop 并启用',
+  '重启 Claude Desktop 并验证',
+] as const
 const CODEX_STEP_MARKERS = ['①', '②', '③', '④'] as const
+
+type KeyImportClient = 'codex' | 'claude-code' | 'claude-desktop'
 
 const SUB2API_ACCOUNT_LINKS = ['API 密钥', '使用记录', '兑换', '个人资料', 'API 文档']
 
@@ -119,7 +142,8 @@ function Sub2APIKeyTable({ highlight, baseURL, systemName }: { highlight: 'creat
   </div>
 }
 
-function CreateAPIKeyDialog({ clientId = 'codex', systemName }: { clientId?: 'codex' | 'claude-code'; systemName: string }) {
+function CreateAPIKeyDialog({ clientId = 'codex', systemName }: { clientId?: KeyImportClient; systemName: string }) {
+  const anthropic = clientId !== 'codex'
   return <div className="sub2api-dialog-backdrop">
     <div className="sub2api-create-dialog">
       <header><strong>创建密钥</strong><X size={18} /></header>
@@ -127,12 +151,12 @@ function CreateAPIKeyDialog({ clientId = 'codex', systemName }: { clientId?: 'co
         <label>名称<span>{systemName}</span></label>
         <div className="sub2api-vendor-label">厂商</div>
         <div className="sub2api-vendor-options">
-          <span className={clientId === 'claude-code' ? 'is-selected' : undefined}><i className="sub2api-vendor-symbol sub2api-vendor-symbol-anthropic">✳</i>Anthropic{clientId === 'claude-code' && <b>✓</b>}</span>
-          <span className={clientId === 'codex' ? 'is-selected' : undefined}><i className="sub2api-vendor-symbol sub2api-vendor-symbol-openai">◎</i>OpenAI{clientId === 'codex' && <b>✓</b>}</span>
+          <span className={anthropic ? 'is-selected' : undefined}><i className="sub2api-vendor-symbol sub2api-vendor-symbol-anthropic">✳</i>Anthropic{anthropic && <b>✓</b>}</span>
+          <span className={anthropic ? undefined : 'is-selected'}><i className="sub2api-vendor-symbol sub2api-vendor-symbol-openai">◎</i>OpenAI{!anthropic && <b>✓</b>}</span>
           <span><i className="sub2api-vendor-symbol sub2api-vendor-symbol-cn">K</i>国产模型</span>
           <span><i className="sub2api-vendor-symbol sub2api-vendor-symbol-other">✦</i>其他</span>
         </div>
-        <small className="sub2api-vendor-hint">选择 {clientId === 'claude-code' ? 'Anthropic / Claude' : 'OpenAI / GPT'} 的可用分组</small>
+        <small className="sub2api-vendor-hint">选择 {anthropic ? 'Anthropic / Claude' : 'OpenAI / GPT'} 的可用分组</small>
         <label>分组<span>选择分组<ChevronDown size={14} /></span></label>
         <div className="sub2api-switch-row">自定义密钥 <i /></div>
         <div className="sub2api-switch-row">IP 限制 <i /></div>
@@ -145,7 +169,7 @@ function CreateAPIKeyDialog({ clientId = 'codex', systemName }: { clientId?: 'co
   </div>
 }
 
-function Sub2APIKeyManagement({ highlight, showCreateDialog = false, baseURL, systemName, siteLogoUrl, clientId }: { highlight: 'create' | 'import'; showCreateDialog?: boolean; baseURL: string | null; systemName: string; siteLogoUrl: string; clientId: 'codex' | 'claude-code' }) {
+function Sub2APIKeyManagement({ highlight, showCreateDialog = false, baseURL, systemName, siteLogoUrl, clientId }: { highlight: 'create' | 'import'; showCreateDialog?: boolean; baseURL: string | null; systemName: string; siteLogoUrl: string; clientId: KeyImportClient }) {
   return <div className="codex-product-window sub2api-window" aria-hidden="true">
     <aside className="sub2api-sidebar">
       <div className="sub2api-brand"><span>{siteLogoUrl ? <img src={withAppBasePath(siteLogoUrl)} alt="" /> : <b>{systemName.slice(0, 2)}</b>}</span><strong title={systemName}>{systemName}</strong><small>用户中心</small></div>
@@ -160,137 +184,271 @@ function Sub2APIKeyManagement({ highlight, showCreateDialog = false, baseURL, sy
   </div>
 }
 
-interface CCSwitchProviderProps {
-  name: string
-  url: string
-  usage: string
-  updated?: string
-  state: 'active' | 'inactive' | 'new'
-}
+type CCSwitchApp = 'claude-code' | 'claude-desktop' | 'codex' | 'gemini' | 'grok-build' | 'opencode' | 'openclaw' | 'hermes' | 'pi' | 'minimax'
+type CCSwitchPanel = 'claude-code' | 'claude-desktop' | 'codex' | 'pi'
 
-function CCSwitchProvider({ name, url, usage, updated, state }: CCSwitchProviderProps) {
-  const logo = name === 'Anthropic'
-    ? <CCSwitchAppIcon app="claude-code" />
-    : name === 'OpenAI'
-    ? <OpenAILogo />
-    : name === 'MiniMax'
-      ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6m4-10v14m4-17v20m4-15v10m4-12v14m4-10v6" /></svg>
-      : name === 'OpenRouter'
-        ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 8 8-4 8 4-8 4-8-4Zm0 4 8 4 8-4M4 16l8 4 8-4" /></svg>
-        : <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8.5 8 5h11v3H9l-1 1.5h10l-2 3H6l-2 2 2 3h12" /></svg>
-  return <div className={`ccswitch-provider-card ccswitch-provider-${state}`}>
-    <GripVertical className="ccswitch-provider-drag" size={14} aria-hidden="true" />
-    <span className={`ccswitch-provider-logo ccswitch-provider-logo-${name.toLowerCase().replace(/\s+/g, '-')}`}>{logo}</span>
-    <div className="ccswitch-provider-info"><strong>{name}</strong><span>{url}</span></div>
-    <div className="ccswitch-provider-meta">
-      {usage && <span className="ccswitch-provider-usage">{usage}</span>}
-      {updated && <span className="ccswitch-provider-sync"><Clock3 size={11} />{updated}<RefreshCw size={10} /></span>}
-    </div>
-    <div className="ccswitch-provider-actions">
-      {state === 'active'
-        ? <span className="ccswitch-current-state">使用中</span>
-        : <b className="ccswitch-enable">启用{state === 'new' && <NumberCallout>{CODEX_STEP_MARKERS[3]}</NumberCallout>}</b>}
-      <div className="ccswitch-provider-tools">
-        <span title="编辑供应商"><Settings size={13} /></span>
-        <span title="复制供应商"><Copy size={13} /></span>
-        <span title="模型测试"><Activity size={13} /></span>
-        <span title="配置用量查询"><WalletCards size={13} /></span>
-        <span title="更多操作"><MoreHorizontal size={13} /></span>
-      </div>
-    </div>
-  </div>
-}
+// 与 CC Switch 官网产品预览的应用切换顺序一致。
+const CCSWITCH_APPS: readonly [CCSwitchApp, string][] = [
+  ['claude-code', 'Claude Code'],
+  ['claude-desktop', 'Claude Desktop'],
+  ['codex', 'Codex'],
+  ['gemini', 'Gemini'],
+  ['grok-build', 'Grok Build'],
+  ['opencode', 'OpenCode'],
+  ['openclaw', 'OpenClaw'],
+  ['hermes', 'Hermes'],
+  ['pi', 'Pi'],
+  ['minimax', 'MiniMax Code'],
+]
 
-type CCSwitchApp = 'claude-code' | 'claude-desktop' | 'codex' | 'gemini' | 'opencode' | 'openclaw' | 'hermes'
-
-function OpenAILogo() {
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.55 10.004a5.416 5.416 0 00-.478-4.501c-1.217-2.09-3.662-3.166-6.05-2.66A5.59 5.59 0 0010.831 1C8.39.995 6.224 2.546 5.473 4.838A5.553 5.553 0 001.76 7.496a5.487 5.487 0 00.691 6.5 5.416 5.416 0 00.477 4.502c1.217 2.09 3.662 3.165 6.05 2.66A5.586 5.586 0 0013.168 23c2.443.006 4.61-1.546 5.361-3.84a5.553 5.553 0 003.715-2.66 5.488 5.488 0 00-.693-6.497v.001zm-8.381 11.558a4.199 4.199 0 01-2.675-.954c.034-.018.093-.05.132-.074l4.44-2.53a.71.71 0 00.364-.623v-6.176l1.877 1.069c.02.01.033.029.036.05v5.115c-.003 2.274-1.87 4.118-4.174 4.123zM4.192 17.78a4.059 4.059 0 01-.498-2.763c.032.02.09.055.131.078l4.44 2.53c.225.13.504.13.73 0l5.42-3.088v2.138a.068.068 0 01-.027.057L9.9 19.288c-1.999 1.136-4.552.46-5.707-1.51h-.001zM3.023 8.216A4.15 4.15 0 015.198 6.41l-.002.151v5.06a.711.711 0 00.364.624l5.42 3.087-1.876 1.07a.067.067 0 01-.063.005l-4.489-2.559c-1.995-1.14-2.679-3.658-1.53-5.63h.001zm15.417 3.54l-5.42-3.088L14.896 7.6a.067.067 0 01.063-.006l4.489 2.557c1.998 1.14 2.683 3.662 1.529 5.633a4.163 4.163 0 01-2.174 1.807V12.38a.71.71 0 00-.363-.623zm1.867-2.773a6.04 6.04 0 00-.132-.078l-4.44-2.53a.731.731 0 00-.729 0l-5.42 3.088V7.325a.068.068 0 01.027-.057L14.1 4.713c2-1.137 4.555-.46 5.707 1.513.487.833.664 1.809.499 2.757h.001zm-11.741 3.81l-1.877-1.068a.065.065 0 01-.036-.051V6.559c.001-2.277 1.873-4.122 4.181-4.12.976 0 1.92.338 2.671.954-.034.018-.092.05-.131.073l-4.44 2.53a.71.71 0 00-.365.623l-.003 6.173v.002zm1.02-2.168L12 9.25l2.414 1.375v2.75L12 14.75l-2.415-1.375v-2.75z" /></svg>
+const CCSWITCH_APP_ICONS: Record<CCSwitchApp, string> = {
+  'claude-code': CCSWITCH_ICON_CLAUDE,
+  'claude-desktop': CCSWITCH_ICON_CLAUDE,
+  codex: CCSWITCH_ICON_OPENAI,
+  gemini: CCSWITCH_ICON_GEMINI,
+  'grok-build': CCSWITCH_ICON_GROK,
+  opencode: CCSWITCH_ICON_OPENCODE,
+  openclaw: CCSWITCH_ICON_OPENCLAW,
+  hermes: '/client-icons/hermes.svg',
+  pi: CCSWITCH_ICON_PI,
+  minimax: CCSWITCH_ICON_MINIMAX,
 }
 
 function CCSwitchAppIcon({ app }: { app: CCSwitchApp }) {
-  if (app === 'codex') return <OpenAILogo />
-
-  const iconPath = app === 'claude-code'
-    ? '/client-icons/claude-code.svg'
-    : app === 'claude-desktop'
-      ? '/client-icons/claude-desktop.svg'
-      : app === 'openclaw'
-        ? '/client-icons/openclaw.svg'
-        : app === 'hermes'
-          ? '/client-icons/hermes.svg'
-          : null
-
-  if (iconPath) return <img src={withAppBasePath(iconPath)} alt="" aria-hidden="true" />
-
-  if (app === 'gemini') return <svg className="ccswitch-gemini-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5c1.05 5.13 3.38 7.46 10.5 10.5-7.12 3.04-9.45 5.37-10.5 10.5C10.95 17.37 8.62 15.04 1.5 12 8.62 8.96 10.95 6.63 12 1.5Z" /></svg>
-  if (app === 'opencode') return <svg className="ccswitch-opencode-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 8h7l-6 8h6" /></svg>
-
-  const Icon = app === 'claude-code'
-    ? CodeXml
-    : app === 'claude-desktop'
-      ? Monitor
-      : app === 'openclaw'
-        ? UserRound
-        : Terminal
-
-  return <Icon size={17} strokeWidth={2} aria-hidden="true" />
+  const src = CCSWITCH_APP_ICONS[app]
+  const Badge = app === 'claude-code' ? Terminal : app === 'claude-desktop' ? Monitor : null
+  return <>
+    <img src={src.startsWith('data:') ? src : withAppBasePath(src)} alt="" aria-hidden="true" />
+    {Badge && <b className="ccswitch-app-badge"><Badge size={8} strokeWidth={2.5} /></b>}
+  </>
 }
 
-function CCSwitchWindow({ view, baseURL, systemName, clientId = 'codex' }: { view: 'confirm' | 'enable'; baseURL: string | null; systemName: string; clientId?: 'codex' | 'claude-code' }) {
-  const endpoint = baseURL ?? 'https://你的 Sub2API 域名'
-  const clientName = clientId === 'claude-code' ? 'Claude Code' : 'Codex'
+interface CCSwitchProviderProps {
+  name: string
+  url: string
+  icon?: string
+  updated?: string
+  usage?: ReactNode
+  state: 'active' | 'inactive' | 'new'
+  callout?: string
+  /** Pi 等累加模式应用可同时写入多个供应商，未加入配置的卡片显示绿色「启用」。 */
+  additive?: boolean
+}
+
+function CCSwitchProvider({ name, url, icon, updated, usage, state, callout, additive = false }: CCSwitchProviderProps) {
+  const slug = name.toLowerCase().replace(/\s+/g, '-')
+  return <li className={`ccswitch-provider-card ccswitch-provider-${state}`}>
+    <GripVertical className="ccswitch-provider-drag" size={14} aria-hidden="true" />
+    <span className={`ccswitch-provider-logo ccswitch-provider-logo-${slug}`}>{icon ? <img src={icon} alt="" aria-hidden="true" /> : <b>{name.slice(0, 1).toUpperCase()}</b>}</span>
+    <div className="ccswitch-provider-info"><strong>{name}</strong><span>{url}</span></div>
+    {(updated || usage) && <div className="ccswitch-provider-meta">
+      {updated && <span className="ccswitch-provider-sync"><Clock3 size={10} />{updated}<RefreshCw size={10} /></span>}
+      {usage && <span className="ccswitch-provider-usage">{usage}</span>}
+    </div>}
+    {/* 官网卡片的操作区只在悬停时出现；草图只为需要点击的卡片展示，模拟鼠标停留状态。 */}
+    {state === 'new' && <div className="ccswitch-provider-actions">
+      <b className={`ccswitch-enable${additive ? ' ccswitch-enable-additive' : ''}`}>{additive ? <Plus size={11} /> : <Play size={10} />}启用{callout && <NumberCallout>{callout}</NumberCallout>}</b>
+      <div className="ccswitch-provider-tools">
+        <span title="编辑供应商"><SquarePen size={14} /></span>
+        <span title="复制供应商"><Copy size={14} /></span>
+        <span title="检测连通"><Activity size={14} /></span>
+        <span title="配置用量查询"><ChartColumn size={14} /></span>
+        <span title="删除供应商"><Trash2 size={14} /></span>
+      </div>
+    </div>}
+  </li>
+}
+
+function QuotaUsage({ fiveHour, fiveHourReset, week, weekReset }: { fiveHour: string; fiveHourReset: string; week: string; weekReset: string }) {
+  return <>
+    <span>5h: <em>{fiveHour}</em><small><Clock3 size={9} />{fiveHourReset}</small></span>
+    <span>7d: <em>{week}</em><small><Clock3 size={9} />{weekReset}</small></span>
+  </>
+}
+
+const OFFICIAL_QUOTA = <QuotaUsage fiveHour="36%" fiveHourReset="2h10m" week="64%" weekReset="3d8h" />
+
+// 草图只展示 CC Switch 内置的官方预设，不出现第三方中转供应商。
+function OfficialPresets() {
+  return <>
+    <CCSwitchProvider name="DeepSeek" url="https://platform.deepseek.com" icon={CCSWITCH_ICON_DEEPSEEK} state="inactive" />
+    <CCSwitchProvider name="智谱 GLM" url="https://open.bigmodel.cn" icon={CCSWITCH_ICON_ZHIPU} state="inactive" />
+  </>
+}
+
+function CCSwitchProviders({ panel, view, systemName, endpoint }: { panel: CCSwitchPanel; view: 'list' | 'confirm' | 'enable'; systemName: string; endpoint: string }) {
+  const imported = view === 'enable'
+  const newCallout = imported ? CODEX_STEP_MARKERS[3] : undefined
+  const importedCard = imported && <CCSwitchProvider name={systemName} url={endpoint} updated="刚刚" state="new" callout={newCallout} additive={panel === 'pi'} />
+  if (panel === 'claude-desktop') return <ul className="ccswitch-content">
+    <li className="ccswitch-import-hint"><Check size={12} />将 Claude Code 中已有的供应商导入</li>
+    {importedCard}
+    <CCSwitchProvider name="Claude Desktop Official" url="Claude 官方登录" icon={CCSWITCH_ICON_CLAUDE} state="active" />
+    <OfficialPresets />
+  </ul>
+  if (panel === 'codex') return <ul className="ccswitch-content">
+    {importedCard}
+    <CCSwitchProvider name="OpenAI Official" url="https://chatgpt.com/codex" icon={CCSWITCH_ICON_OPENAI} updated="1 分钟前" usage={OFFICIAL_QUOTA} state="active" />
+    <OfficialPresets />
+  </ul>
+  if (panel === 'pi') return <ul className="ccswitch-content">
+    {importedCard}
+    <CCSwitchProvider name="OpenAI" url="https://platform.openai.com" icon={CCSWITCH_ICON_OPENAI} state="active" />
+    <CCSwitchProvider name="Anthropic" url="https://console.anthropic.com" icon={CCSWITCH_ICON_ANTHROPIC} state="inactive" />
+    <OfficialPresets />
+  </ul>
+  return <ul className="ccswitch-content">
+    {importedCard}
+    <CCSwitchProvider name="Claude Official" url="https://www.anthropic.com/claude-code" icon={CCSWITCH_ICON_ANTHROPIC} updated="1 分钟前" usage={OFFICIAL_QUOTA} state="active" />
+    <OfficialPresets />
+  </ul>
+}
+
+/** 参照 ccswitch.io 产品预览重绘的主窗口：标题、本地路由开关、应用切换、工具组与供应商列表。 */
+function CCSwitchFrame({ panel, addCallout, children }: { panel: CCSwitchPanel; addCallout?: string; children: ReactNode }) {
   return <div className="codex-product-window ccswitch-window" aria-hidden="true">
-    <main className="ccswitch-main">
-      <div className="ccswitch-window-controls"><i /><i /><i /></div>
+    <div className="ccswitch-window-controls"><i /><i /><i /></div>
+    <div className="ccswitch-main">
       <header className="ccswitch-topbar">
-        <strong><span className="ccswitch-brand-mark" aria-hidden="true" /> CC Switch</strong>
-        <span className="ccswitch-settings" title="设置"><Settings size={15} /></span>
-        <span className="ccswitch-route-label" title="本地路由开关"><Activity size={12} /><i /></span>
-      <div className="ccswitch-appbar">
-        <div className="ccswitch-app-tabs" aria-label="客户端">
-          {([
-            ['claude-code', 'Claude Code'],
-            ['claude-desktop', 'Claude Desktop'],
-            ['codex', 'Codex'],
-            ['gemini', 'Gemini'],
-            ['opencode', 'OpenCode'],
-            ['openclaw', 'OpenClaw'],
-            ['hermes', 'Hermes'],
-          ] as const).map(([app, label]) => <span className={app === clientId ? 'is-current' : undefined} title={label} key={app} aria-label={label}>
-            <i className={`ccswitch-app-icon ccswitch-app-icon-${app}`}><CCSwitchAppIcon app={app} /></i>
-          </span>)}
+        <div className="ccswitch-brand">
+          <strong>CC Switch</strong>
+          <span className="ccswitch-icon-button" title="设置"><Settings size={15} /></span>
+          <span className="ccswitch-route" title="路由"><Radio size={14} /><i /></span>
         </div>
-        <div className="ccswitch-toolbar">
-          <div className="ccswitch-tool-group">
-            <span title="Skills 管理"><Sparkles size={13} /></span>
-            <span title="提示词管理"><BookOpen size={13} /></span>
-            <span title="会话管理"><History size={13} /></span>
-            <span title="MCP 管理"><CodeXml size={13} /></span>
+        <div className="ccswitch-appbar">
+          <div className="ccswitch-app-tabs" aria-label="客户端">
+            {CCSWITCH_APPS.map(([app, label]) => <span className={app === panel ? 'is-current' : undefined} title={label} key={app} aria-label={label}>
+              <i className={`ccswitch-app-icon ccswitch-app-icon-${app}`}><CCSwitchAppIcon app={app} /></i>
+            </span>)}
           </div>
-          <b title="添加供应商"><Plus size={15} /></b>
+          <div className="ccswitch-toolbar">
+            <div className="ccswitch-tool-group">
+              <span title="Skills 管理"><Wrench size={15} /></span>
+              <span title="提示词管理"><BookOpen size={15} /></span>
+              <span title="会话管理"><History size={15} /></span>
+              <span title="MCP 管理"><Server size={15} /></span>
+            </div>
+            <b className="ccswitch-add" title="添加供应商"><Plus size={17} />{addCallout && <NumberCallout>{addCallout}</NumberCallout>}</b>
+          </div>
         </div>
-      </div>
       </header>
-      <div className="ccswitch-content">
-        {view === 'enable' && <CCSwitchProvider name={systemName} url={endpoint} usage="刚刚导入" updated="刚刚" state="new" />}
-        <CCSwitchProvider name="PackyCode" url="https://www.packyapi.ai" usage="已使用：672　剩余：66 USD" updated="10 分钟前" state="active" />
-        <CCSwitchProvider name="MiniMax" url="https://platform.minimaxi.com" usage="5h：43% · 2h40m　7d：12% · 6d" updated="2 分钟前" state="inactive" />
-        <CCSwitchProvider name="OpenRouter" url="https://openrouter.ai" usage="" state="inactive" />
-        {clientId === 'claude-code'
-          ? <CCSwitchProvider name="Anthropic" url="https://api.anthropic.com" usage="" state="inactive" />
-          : <CCSwitchProvider name="OpenAI" url="https://chatgpt.com/codex" usage="" state="inactive" />}
-      </div>
-      {view === 'confirm' && <div className="ccswitch-dialog-backdrop"><div className="ccswitch-confirm-dialog">
-        <header><strong>导入供应商配置</strong><X size={16} /></header>
-        <div className="ccswitch-confirm-content"><span className="ccswitch-confirm-mark">⇧</span><div><strong>确认导入到 CC Switch？</strong><p>该 API Key 将作为 {clientName} 的供应商配置保存。</p></div></div>
-        <dl><div><dt>客户端</dt><dd>{clientName}</dd></div><div><dt>供应商名称</dt><dd>{systemName}</dd></div><div><dt>API 地址</dt><dd>{endpoint}</dd></div><div><dt>API Key</dt><dd>sk-••••••••••••</dd></div></dl>
-        <footer><span>取消</span><b>确认导入 <NumberCallout>{CODEX_STEP_MARKERS[2]}</NumberCallout></b></footer>
-      </div></div>}
-    </main>
+      {children}
+    </div>
   </div>
 }
 
-function CodexSketch({ step, baseURL, systemName, siteLogoUrl, clientId }: { step: number; baseURL: string | null; systemName: string; siteLogoUrl: string; clientId: 'codex' | 'claude-code' }) {
+function CCSwitchWindow({ view, baseURL, systemName, clientId = 'codex' }: { view: 'confirm' | 'enable'; baseURL: string | null; systemName: string; clientId?: KeyImportClient }) {
+  const endpoint = baseURL ?? 'https://你的 Sub2API 域名'
+  // CC Switch 深度链接只能导入 Claude 面板，Claude Desktop 需在自己的面板中再导入已有供应商。
+  const panel = clientId === 'claude-desktop' && view === 'confirm' ? 'claude-code' : clientId
+  const clientName = panel === 'claude-code' ? 'Claude Code' : 'Codex'
+  return <CCSwitchFrame panel={panel}>
+    <CCSwitchProviders panel={panel} view={view} systemName={systemName} endpoint={endpoint} />
+    {view === 'confirm' && <div className="ccswitch-dialog-backdrop"><div className="ccswitch-confirm-dialog">
+      <header><strong>导入供应商配置</strong><X size={16} /></header>
+      <div className="ccswitch-confirm-content"><span className="ccswitch-confirm-mark"><Download size={15} /></span><div><strong>确认导入到 CC Switch？</strong><p>该 API Key 将作为 {clientName} 的供应商配置保存。</p></div></div>
+      <dl><div><dt>客户端</dt><dd>{clientName}</dd></div><div><dt>供应商名称</dt><dd>{systemName}</dd></div><div><dt>API 地址</dt><dd>{endpoint}</dd></div><div><dt>API Key</dt><dd>sk-••••••••••••</dd></div></dl>
+      <footer><span>取消</span><b>确认导入 <NumberCallout>{CODEX_STEP_MARKERS[2]}</NumberCallout></b></footer>
+    </div></div>}
+  </CCSwitchFrame>
+}
+
+// 与 CC Switch Pi 表单的接口格式选项一致；Bedrock 不经过本平台网关，仅保留选项以对齐界面。
+const PI_API_FORMATS = [
+  { value: 'openai-completions', label: 'OpenAI Chat Completions', baseSuffix: '/v1' },
+  { value: 'openai-responses', label: 'OpenAI Responses', baseSuffix: '/v1' },
+  { value: 'anthropic-messages', label: 'Anthropic Messages', baseSuffix: '' },
+  { value: 'google-generative-ai', label: 'Google Generative AI', baseSuffix: '' },
+  { value: 'bedrock-converse-stream', label: 'Amazon Bedrock', baseSuffix: null },
+] as const
+
+type PiAPIFormat = typeof PI_API_FORMATS[number]['value']
+
+/** Pi 供应商编辑页草图，版式参照 CC Switch「编辑供应商」全屏表单；接口格式可切换查看，仅影响草图展示。 */
+function PiProviderForm({ section, baseURL, model, systemName }: { section: 'provider' | 'models'; baseURL: string | null; model: string; systemName: string }) {
+  const [apiFormat, setAPIFormat] = useState<PiAPIFormat>('openai-completions')
+  const format = PI_API_FORMATS.find(option => option.value === apiFormat) ?? PI_API_FORMATS[0]
+  const gateway = baseURL ?? 'https://你的 Sub2API 域名'
+  const endpoint = format.baseSuffix === null ? '平台网关不提供此格式' : `${gateway}${format.baseSuffix}`
+  const interactive = section === 'provider'
+  return <div className="codex-product-window ccswitch-window ccswitch-form-window" aria-hidden={interactive ? undefined : true}>
+    <div className="ccswitch-window-controls" aria-hidden="true"><i /><i /><i /></div>
+    <div className="ccswitch-form">
+      <header className="ccswitch-form-header" aria-hidden="true"><span className="ccswitch-icon-button ccswitch-back"><ArrowLeft size={16} /></span><strong>添加供应商</strong></header>
+      <div className="ccswitch-form-body">
+        {interactive ? <>
+          <div className="ccswitch-form-row" aria-hidden="true">
+            <label>供应商名称<span>{systemName}</span></label>
+            <label>备注<span className="is-placeholder">例如：公司专用账号</span></label>
+          </div>
+          <label aria-hidden="true">供应商标识<span>gateway</span><small>写入 Pi 配置的唯一标识，已存在时请换一个</small></label>
+          <label aria-hidden="true">官网链接<span className="is-placeholder">https://example.com（可选）</span></label>
+          <div className="ccswitch-form-field ccswitch-field-marked">
+            <span className="ccswitch-form-label" aria-hidden="true">接口格式</span>
+            <Select value={apiFormat} onValueChange={value => setAPIFormat(value as PiAPIFormat)}>
+              <SelectTrigger className="ccswitch-select" aria-label="示意：Pi 接口格式（仅切换草图展示）"><SelectValue /></SelectTrigger>
+              <SelectContent className="ccswitch-select-content">
+                {PI_API_FORMATS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <small aria-hidden="true">选择 AI 服务的 API 接口格式</small>
+            <span aria-hidden="true"><NumberCallout>{CODEX_STEP_MARKERS[1]}</NumberCallout></span>
+          </div>
+          <label aria-hidden="true">API Key<span className="ccswitch-secret">••••••••••••••••••••••••••••<Eye size={14} /></span></label>
+          <label aria-hidden="true">Base URL<span className={format.baseSuffix === null ? 'is-placeholder' : undefined}>{endpoint}</span><small>自定义 API 端点地址</small></label>
+        </> : <div className="ccswitch-model-config">
+          <div className="ccswitch-model-head"><strong>模型配置</strong><span className="ccswitch-outline-button"><Download size={13} />获取模型列表</span><span className="ccswitch-outline-button">
+            <Plus size={13} />添加模型<NumberCallout>{CODEX_STEP_MARKERS[2]}</NumberCallout></span></div>
+          <div className="ccswitch-model-grid">
+            <span />
+            <small>模型 ID <i>*</i></small>
+            <small>显示名称 <i>*</i></small>
+            <span />
+            <ChevronRight size={14} />
+            <span className="ccswitch-model-input">{model || 'your-model-id'}<ChevronDown size={13} /></span>
+            <span className="ccswitch-model-input">{model || 'your-model-id'}</span>
+            <Trash2 size={14} />
+          </div>
+          <small>配置可用的模型及其显示名称</small>
+        </div>}
+      </div>
+      <footer className="ccswitch-form-footer"><b><Save size={14} />保存</b></footer>
+    </div>
+  </div>
+}
+
+const PI_STEP_TITLES = [
+  '打开 Pi 面板并添加供应商',
+  '填写供应商信息',
+  '添加模型并保存',
+  '启用供应商',
+  '重新打开 Pi 并验证',
+] as const
+
+function PiCCSwitchDiagrams({ steps, baseURL, model, systemName }: { steps: readonly string[]; baseURL: string | null; model: string; systemName: string }) {
+  const endpoint = `${baseURL ?? 'https://你的 Sub2API 域名'}/v1`
+  const sketches = [
+    <CCSwitchFrame panel="pi" addCallout={CODEX_STEP_MARKERS[0]} key="add"><CCSwitchProviders panel="pi" view="list" systemName={systemName} endpoint={endpoint} /></CCSwitchFrame>,
+    <PiProviderForm section="provider" baseURL={baseURL} model={model} systemName={systemName} key="provider" />,
+    <PiProviderForm section="models" baseURL={baseURL} model={model} systemName={systemName} key="models" />,
+    <CCSwitchFrame panel="pi" key="enable"><CCSwitchProviders panel="pi" view="enable" systemName={systemName} endpoint={endpoint} /></CCSwitchFrame>,
+  ]
+  return <div className="codex-setup-diagrams" aria-label="Pi CC Switch 配置操作示意">
+    {PI_STEP_TITLES.map((title, index) => index === 4
+      ? <section id="pi-step-5" className="codex-setup-step codex-setup-text-step" key={title} aria-labelledby="pi-step-final-title">
+        <h3 id="pi-step-final-title">{title}</h3>
+        <p>{steps[index] ?? title}</p>
+      </section>
+      : <figure id={`pi-step-${index + 1}`} className="codex-setup-step" key={title} aria-label={`Pi 操作示意：${title}`}>
+        <figcaption><h3>{title}</h3></figcaption>
+        <p>{steps[index] ?? title}</p>
+        {sketches[index]}
+      </figure>)}
+    <p className="codex-setup-diagram-note">界面均为参照 CC Switch 官网产品预览绘制的 HTML/CSS 草图，不是客户端截图；不同版本的按钮位置和文案可能略有差异。</p>
+  </div>
+}
+
+function CodexSketch({ step, baseURL, systemName, siteLogoUrl, clientId }: { step: number; baseURL: string | null; systemName: string; siteLogoUrl: string; clientId: KeyImportClient }) {
   if (step === 0) return <Sub2APIKeyManagement highlight="create" showCreateDialog baseURL={baseURL} systemName={systemName} siteLogoUrl={siteLogoUrl} clientId={clientId} />
   if (step === 1) return <Sub2APIKeyManagement highlight="import" baseURL={baseURL} systemName={systemName} siteLogoUrl={siteLogoUrl} clientId={clientId} />
   if (step === 2) return <CCSwitchWindow view="confirm" baseURL={baseURL} systemName={systemName} clientId={clientId} />
@@ -298,10 +456,10 @@ function CodexSketch({ step, baseURL, systemName, siteLogoUrl, clientId }: { ste
   return null
 }
 
-function CodexCCSwitchDiagrams({ steps, baseURL, systemName, siteLogoUrl, clientId }: { steps: readonly string[]; baseURL: string | null; systemName: string; siteLogoUrl: string; clientId: 'codex' | 'claude-code' }) {
-  const titles = clientId === 'claude-code' ? CLAUDE_CODE_STEP_TITLES : CODEX_STEP_TITLES
-  const prefix = clientId === 'claude-code' ? 'claude-code-step' : 'codex-step'
-  const clientName = clientId === 'claude-code' ? 'Claude Code' : 'Codex'
+function CodexCCSwitchDiagrams({ steps, baseURL, systemName, siteLogoUrl, clientId }: { steps: readonly string[]; baseURL: string | null; systemName: string; siteLogoUrl: string; clientId: KeyImportClient }) {
+  const titles = clientId === 'claude-code' ? CLAUDE_CODE_STEP_TITLES : clientId === 'claude-desktop' ? CLAUDE_DESKTOP_STEP_TITLES : CODEX_STEP_TITLES
+  const prefix = `${clientId}-step`
+  const clientName = clientId === 'claude-code' ? 'Claude Code' : clientId === 'claude-desktop' ? 'Claude Desktop' : 'Codex'
   return <div className="codex-setup-diagrams" aria-label={`${clientName} CC Switch 配置操作示意`}>
     {titles.map((title, index) => index === 4
       ? <section id={`${prefix}-5`} className="codex-setup-step codex-setup-text-step" key={title} aria-labelledby={`${prefix}-final-title`}>
@@ -330,6 +488,20 @@ function diagramContent(clientId: ClientId, method: 'cc-switch' | 'manual', base
       finish: '启用提供方，在工作区选择对应模型',
     }
     if (!baseURL) return null
+    if (clientId === 'claude-desktop') return {
+      title: '配置第三方推理网关',
+      entry: 'Developer → Configure Third-Party Inference… → Connection',
+      fields: [
+        { label: 'Inference provider', value: 'Gateway' },
+        { label: 'Credential kind', value: 'Static API key' },
+        { label: 'Gateway base URL', value: baseURL, wide: true },
+        { label: 'Gateway API key', value: 'sk-YOUR_API_KEY' },
+        { label: 'Gateway auth scheme', value: 'Bearer' },
+        { label: '模型 ID', value: model, wide: true },
+      ],
+      finish: '点击 Apply Changes，应用重启后生效',
+      note: '找不到 Developer 菜单时，先在 Help → Troubleshooting 中启用开发者模式。',
+    }
     if (clientId === 'zcode') return {
       title: '添加自定义供应商',
       entry: '设置 → 模型设置 → 添加供应商',
@@ -359,17 +531,15 @@ function diagramContent(clientId: ClientId, method: 'cc-switch' | 'manual', base
   if (!baseURL) return null
   const target = clientId === 'codex' ? 'Codex Desktop'
     : clientId === 'vscode-codex' ? 'Codex' : clientId === 'claude-code' ? 'Claude Code'
-    : clientId === 'claude-desktop' ? 'Claude Desktop' : clientId === 'grok-build' ? 'Grok Build'
-      : clientId === 'pi' ? 'Pi' : clientId === 'hermes' ? 'Hermes' : 'Codex'
-  const versioned = clientId === 'pi' || clientId === 'hermes' || clientId === 'grok-build'
-  const protocol = clientId === 'pi' || clientId === 'hermes' || clientId === 'grok-build'
-    ? 'OpenAI Chat Completions' : clientId === 'claude-code' || clientId === 'claude-desktop'
+    : clientId === 'grok-build' ? 'Grok Build'
+      : clientId === 'hermes' ? 'Hermes' : 'Codex'
+  const versioned = clientId === 'hermes' || clientId === 'grok-build'
+  const protocol = clientId === 'hermes' || clientId === 'grok-build'
+    ? 'OpenAI Chat Completions' : clientId === 'claude-code'
       ? 'Anthropic Messages' : 'OpenAI Responses'
   const isCodex = clientId === 'codex' || clientId === 'vscode-codex'
-  const extraFields: DiagramField[] = clientId === 'pi' ? [{ label: '供应商标识', value: 'gateway' }] : []
   const note = isCodex ? 'API 请求地址填写网关根地址，兼容 OpenAI Responses。'
-    : clientId === 'claude-desktop' ? '非 Claude 角色模型需另外启用模型映射和本地路由。'
-    : clientId === 'pi' ? '模型还需添加到 Pi 的模型列表。' : undefined
+    : undefined
   return {
     title: `${target} 供应商`,
     entry: `CC Switch → ${target} → 添加自定义供应商`,
@@ -378,10 +548,9 @@ function diagramContent(clientId: ClientId, method: 'cc-switch' | 'manual', base
       { label: 'API Key', value: 'sk-YOUR_API_KEY' },
       { label: isCodex ? 'API 请求地址' : '请求地址', value: `${baseURL}${versioned ? '/v1' : ''}`, wide: true },
       ...(!isCodex ? [{ label: 'API 格式', value: protocol, wide: true }] : []),
-      ...extraFields,
       { label: '模型 ID', value: model, wide: true },
     ],
-    finish: clientId === 'claude-desktop' ? '保存并启用，完全退出后重启 Claude Desktop' : '保存并启用供应商',
+    finish: '保存并启用供应商',
     note,
   }
 }
@@ -395,8 +564,11 @@ export function ClientSetupDiagram({ clientId, method, baseURL, model, steps = [
   systemName?: string
   siteLogoUrl?: string
 }) {
-  if (method === 'cc-switch' && (clientId === 'codex' || clientId === 'vscode-codex' || clientId === 'claude-code')) {
-    return <CodexCCSwitchDiagrams steps={steps} baseURL={baseURL} systemName={systemName} siteLogoUrl={siteLogoUrl} clientId={clientId === 'claude-code' ? 'claude-code' : 'codex'} />
+  if (method === 'cc-switch' && clientId === 'pi') {
+    return <PiCCSwitchDiagrams steps={steps} baseURL={baseURL} model={model} systemName={systemName} />
+  }
+  if (method === 'cc-switch' && (clientId === 'codex' || clientId === 'vscode-codex' || clientId === 'claude-code' || clientId === 'claude-desktop')) {
+    return <CodexCCSwitchDiagrams steps={steps} baseURL={baseURL} systemName={systemName} siteLogoUrl={siteLogoUrl} clientId={clientId === 'vscode-codex' ? 'codex' : clientId} />
   }
 
   const content = diagramContent(clientId, method, baseURL, model)

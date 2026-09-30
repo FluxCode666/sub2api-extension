@@ -3,12 +3,16 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
+	"aux-system/internal/asynctask"
 	"aux-system/internal/integration"
+	"aux-system/internal/server/middleware"
 	"aux-system/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -25,9 +29,12 @@ func (asyncTaskVerifierStub) VerifyUserJWT(_ context.Context, token string) (*in
 }
 
 type asyncTaskListerStub struct {
-	userID int64
-	query  service.AsyncTaskQuery
-	err    error
+	userID     int64
+	query      service.AsyncTaskQuery
+	err        error
+	token      string
+	ref        service.AsyncTaskRef
+	refreshErr error
 }
 
 func (s *asyncTaskListerStub) ListForUser(_ context.Context, userID int64, query service.AsyncTaskQuery) (service.AsyncTaskList, error) {
@@ -39,6 +46,18 @@ func (s *asyncTaskListerStub) ListForUser(_ context.Context, userID int64, query
 	return service.AsyncTaskList{Items: []service.AsyncTask{{ID: "imgtask_1"}}, Total: 1, Page: query.Page, PageSize: query.PageSize}, nil
 }
 
+func (s *asyncTaskListerStub) RefreshForUser(_ context.Context, userID int64, token string, ref service.AsyncTaskRef) (service.AsyncTaskRefreshResult, error) {
+	s.userID, s.token, s.ref = userID, token, ref
+	if s.refreshErr != nil {
+		return service.AsyncTaskRefreshResult{}, s.refreshErr
+	}
+	return service.AsyncTaskRefreshResult{
+		Task:            service.AsyncTask{ID: ref.ID, Kind: asynctask.KindVideo, Provider: ref.Provider, Status: asynctask.StatusCompleted},
+		UpstreamChecked: true,
+		VideoURL:        "https://cdn.example.com/v.mp4",
+	}, nil
+}
+
 func asyncTaskTestRouter(lister *asyncTaskListerStub) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	h := NewAsyncTaskUserHandler(lister, asyncTaskVerifierStub{})
@@ -46,7 +65,17 @@ func asyncTaskTestRouter(lister *asyncTaskListerStub) *gin.Engine {
 	group := router.Group("/api/aux/async-tasks")
 	group.Use(h.Guard())
 	group.GET("", h.List)
+	group.POST("/refresh", middleware.UserRateLimit(0.5, 5), h.Refresh)
 	return router
+}
+
+func newAsyncTaskRefreshRequest(body, token string) *http.Request {
+	request := httptest.NewRequest(http.MethodPost, "/api/aux/async-tasks/refresh", strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	if token != "" {
+		request.Header.Set("X-Aux-Token", token)
+	}
+	return request
 }
 
 func TestAsyncTaskUserHandlerRequiresSub2APIToken(t *testing.T) {
@@ -112,4 +141,90 @@ func TestAsyncTaskUserHandlerMapsServiceErrors(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, response.Code, rawQuery)
 		require.Zero(t, lister.userID, rawQuery)
 	}
+}
+
+func TestAsyncTaskUserHandlerRefreshRequiresSub2APIToken(t *testing.T) {
+	lister := &asyncTaskListerStub{}
+	response := httptest.NewRecorder()
+	asyncTaskTestRouter(lister).ServeHTTP(response, newAsyncTaskRefreshRequest(`{"kind":"video","id":"req-1","user_id":42}`, ""))
+
+	require.Equal(t, http.StatusUnauthorized, response.Code)
+	require.Zero(t, lister.userID)
+}
+
+func TestAsyncTaskUserHandlerRefreshUsesVerifiedUser(t *testing.T) {
+	lister := &asyncTaskListerStub{}
+	response := httptest.NewRecorder()
+	asyncTaskTestRouter(lister).ServeHTTP(response, newAsyncTaskRefreshRequest(`{"kind":"video","provider":"seedance","id":"cgt-1","user_id":99}`, "valid-token"))
+
+	require.Equal(t, http.StatusOK, response.Code)
+	require.Equal(t, int64(42), lister.userID, "body user_id must never select the owner")
+	require.Equal(t, "valid-token", lister.token)
+	require.Equal(t, service.AsyncTaskRef{Kind: "video", Provider: "seedance", ID: "cgt-1"}, lister.ref)
+	var envelope struct {
+		Code int `json:"code"`
+		Data struct {
+			Task            service.AsyncTask `json:"task"`
+			UpstreamChecked bool              `json:"upstream_checked"`
+			VideoURL        string            `json:"video_url"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &envelope))
+	require.Equal(t, 0, envelope.Code)
+	require.Equal(t, "seedance", envelope.Data.Task.Provider)
+	require.True(t, envelope.Data.UpstreamChecked)
+	require.Equal(t, "https://cdn.example.com/v.mp4", envelope.Data.VideoURL)
+}
+
+func TestAsyncTaskUserHandlerRefreshMapsErrors(t *testing.T) {
+	cases := []struct {
+		err    error
+		status int
+		reason string
+	}{
+		{service.ErrInvalidAsyncTaskRef, http.StatusBadRequest, ""},
+		{service.ErrAsyncTaskNotFound, http.StatusNotFound, "ASYNC_TASK_NOT_FOUND"},
+		{integration.ErrVideoTaskNotFound, http.StatusNotFound, "VIDEO_TASK_NOT_FOUND"},
+		{service.ErrAsyncTaskAPIKeyUnavailable, http.StatusConflict, "API_KEY_UNAVAILABLE"},
+		{integration.ErrInvalidToken, http.StatusUnauthorized, ""},
+		{fmt.Errorf("%w: status 403", integration.ErrVideoStatusRejected), http.StatusUnprocessableEntity, "VIDEO_STATUS_REJECTED"},
+		{integration.ErrVideoStatusRateLimited, http.StatusTooManyRequests, "VIDEO_STATUS_RATE_LIMITED"},
+		{service.ErrAsyncTaskUnavailable, http.StatusServiceUnavailable, ""},
+		{fmt.Errorf("%w: dial", integration.ErrSub2APIUnreachable), http.StatusServiceUnavailable, ""},
+		{context.DeadlineExceeded, http.StatusServiceUnavailable, ""},
+		{fmt.Errorf("boom"), http.StatusInternalServerError, ""},
+	}
+	for _, tc := range cases {
+		response := httptest.NewRecorder()
+		asyncTaskTestRouter(&asyncTaskListerStub{refreshErr: tc.err}).ServeHTTP(response, newAsyncTaskRefreshRequest(`{"kind":"video","id":"req-1"}`, "valid-token"))
+		require.Equal(t, tc.status, response.Code, tc.err.Error())
+		var envelope struct {
+			Code   int    `json:"code"`
+			Reason string `json:"reason"`
+		}
+		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &envelope), tc.err.Error())
+		require.Equal(t, tc.status, envelope.Code)
+		require.Equal(t, tc.reason, envelope.Reason, tc.err.Error())
+		require.NotContains(t, response.Body.String(), "boom")
+	}
+
+	for _, body := range []string{`not json`, `{"kind":` + `"` + strings.Repeat("x", 5000) + `"}`} {
+		lister := &asyncTaskListerStub{}
+		response := httptest.NewRecorder()
+		asyncTaskTestRouter(lister).ServeHTTP(response, newAsyncTaskRefreshRequest(body, "valid-token"))
+		require.Equal(t, http.StatusBadRequest, response.Code)
+		require.Zero(t, lister.userID)
+	}
+}
+
+func TestAsyncTaskUserHandlerRefreshIsRateLimitedPerUser(t *testing.T) {
+	router := asyncTaskTestRouter(&asyncTaskListerStub{})
+	codes := make([]int, 0, 7)
+	for range 7 {
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, newAsyncTaskRefreshRequest(`{"kind":"image","id":"imgtask_1"}`, "valid-token"))
+		codes = append(codes, response.Code)
+	}
+	require.Equal(t, http.StatusOK, codes[0])
+	require.Equal(t, http.StatusTooManyRequests, codes[len(codes)-1])
 }

@@ -4,10 +4,13 @@ export type AsyncTaskKind = 'image' | 'video' | 'batch'
 export type AsyncTaskStatus = 'processing' | 'pending' | 'completed' | 'failed' | 'cancelled'
 export type AsyncTaskKindFilter = 'all' | AsyncTaskKind
 export type AsyncTaskStatusFilter = 'all' | AsyncTaskStatus
+export type AsyncTaskVideoProvider = 'grok' | 'seedance'
 
 export interface AsyncTask {
   id: string
   kind: AsyncTaskKind
+  /** 仅视频任务：Grok 或 Seedance。 */
+  provider?: AsyncTaskVideoProvider
   status: AsyncTaskStatus
   raw_status: string
   model?: string
@@ -56,6 +59,16 @@ export interface AsyncTaskFilterOptions {
   api_keys: Array<{ id: number; name?: string }>
 }
 
+/** 单条任务手动查询结果；视频地址只在本次上游确认完成时返回，不会出现在列表接口中。 */
+export interface AsyncTaskRefreshResult {
+  task: AsyncTask
+  upstream_checked: boolean
+  video_url?: string
+  /** 网关代理的相对下载路径，下载时需携带创建任务的同一 API Key。 */
+  video_content_path?: string
+  checked_at: string
+}
+
 export interface AsyncTaskPage {
   items: AsyncTask[]
   total: number
@@ -82,8 +95,13 @@ export interface AsyncTaskQuery {
 
 export const ASYNC_TASK_KIND_LABELS: Record<AsyncTaskKind, string> = {
   image: '异步生图',
-  video: 'Grok 视频',
+  video: '视频生成',
   batch: '批量生图',
+}
+
+export const ASYNC_TASK_VIDEO_PROVIDER_LABELS: Record<AsyncTaskVideoProvider, string> = {
+  grok: 'Grok',
+  seedance: 'Seedance',
 }
 
 export const ASYNC_TASK_STATUS_LABELS: Record<AsyncTaskStatus, string> = {
@@ -141,6 +159,37 @@ export async function fetchAsyncTasks(query: AsyncTaskQuery): Promise<AsyncTaskP
   const envelope = await apiClient.get<AuxEnvelope<AsyncTaskPage>>(buildAsyncTaskPath(query))
   if (envelope.code !== 0 || !envelope.data) throw new Error(envelope.message || '异步任务读取失败')
   return envelope.data
+}
+
+/** 视频上游查询最长 20 秒，前端超时需略长于后端。 */
+const ASYNC_TASK_REFRESH_TIMEOUT_MS = 25000
+
+/** 查询单条任务的最新进度：视频任务由后端用创建任务的 API Key 代查网关，生图与批量只重新读取记录。 */
+export async function refreshAsyncTask(task: Pick<AsyncTask, 'kind' | 'provider' | 'id'>): Promise<AsyncTaskRefreshResult> {
+  const body = { kind: task.kind, id: task.id, ...(task.kind === 'video' ? { provider: task.provider ?? 'grok' } : {}) }
+  const envelope = await apiClient.post<AuxEnvelope<AsyncTaskRefreshResult>>('/async-tasks/refresh', body, { timeout: ASYNC_TASK_REFRESH_TIMEOUT_MS })
+  if (envelope.code !== 0 || !envelope.data) throw new Error(envelope.message || '任务进度查询失败')
+  return envelope.data
+}
+
+/** 任务在列表中的稳定身份；Grok 与 Seedance 的任务 ID 可能重复。 */
+export function asyncTaskKey(task: Pick<AsyncTask, 'kind' | 'provider' | 'id'>): string {
+  return `${task.kind}:${task.kind === 'video' ? task.provider ?? 'grok' : ''}:${task.id}`
+}
+
+/** 手动查询失败时的可执行提示；reason 由后端稳定返回，不依赖错误文案。 */
+export function describeAsyncTaskRefreshError(error: unknown): string {
+  if (error instanceof AuxApiError) {
+    if (error.status === 401) return '登录状态已失效，请从 Sub2API 用户菜单重新打开此页面。'
+    if (error.status === 404 && error.reason === 'VIDEO_TASK_NOT_FOUND') return 'Sub2API 网关找不到该视频任务，可能已超过保留期，或创建任务的 API Key 分组已变更。'
+    if (error.status === 404) return '任务不存在或已过期，请刷新列表。'
+    if (error.status === 409) return '创建该任务的 API Key 已删除或停用，无法代为查询，请使用调用端查询。'
+    if (error.status === 422) return 'Sub2API 拒绝查询：请检查该 API Key 的状态、余额或分组权限。'
+    if (error.status === 429) return '查询过于频繁，请稍后再试。'
+    if (error.status === 503) return 'Sub2API 暂时不可用，请稍后重试。'
+    if (error.status === 400) return '任务参数无效，请刷新列表后重试。'
+  }
+  return '任务进度查询失败，请稍后重试。'
 }
 
 /** 将接口错误转成用户可执行的提示，不展示后端内部错误。 */

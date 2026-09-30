@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { AuxApiError } from '@/lib/api-client'
 import {
+  asyncTaskKey,
   batchProgress,
   buildAsyncTaskPageItems,
   buildAsyncTaskPath,
   describeAsyncTaskError,
+  describeAsyncTaskRefreshError,
   formatElapsed,
   formatRelativeTime,
   formatTaskCost,
@@ -74,5 +76,20 @@ describe('async task helpers', () => {
     expect(isActiveAsyncTask(task({ status: 'processing' }))).toBe(true)
     expect(isActiveAsyncTask(task({ status: 'pending' }))).toBe(true)
     expect(isActiveAsyncTask(task({ status: 'failed' }))).toBe(false)
+  })
+
+  it('keys video tasks by provider because Grok and Seedance ids can collide', () => {
+    expect(asyncTaskKey(task({ kind: 'video', provider: 'seedance', id: 'x' }))).not.toBe(asyncTaskKey(task({ kind: 'video', provider: 'grok', id: 'x' })))
+    expect(asyncTaskKey(task({ kind: 'video', id: 'x' }))).toBe(asyncTaskKey(task({ kind: 'video', provider: 'grok', id: 'x' })))
+    expect(asyncTaskKey(task({ kind: 'image', provider: 'grok', id: 'x' }))).toBe('image::x')
+  })
+
+  it('describes refresh errors by status and stable reason', () => {
+    expect(describeAsyncTaskRefreshError(new AuxApiError(404, 'x', 'VIDEO_TASK_NOT_FOUND'))).toContain('网关找不到')
+    expect(describeAsyncTaskRefreshError(new AuxApiError(404, 'x', 'ASYNC_TASK_NOT_FOUND'))).toContain('不存在或已过期')
+    expect(describeAsyncTaskRefreshError(new AuxApiError(409, 'x', 'API_KEY_UNAVAILABLE'))).toContain('API Key 已删除或停用')
+    expect(describeAsyncTaskRefreshError(new AuxApiError(422, 'x', 'VIDEO_STATUS_REJECTED'))).toContain('余额')
+    expect(describeAsyncTaskRefreshError(new AuxApiError(429, 'x'))).toContain('过于频繁')
+    expect(describeAsyncTaskRefreshError(new AuxApiError(500, 'internal detail'))).toBe('任务进度查询失败，请稍后重试。')
   })
 })
