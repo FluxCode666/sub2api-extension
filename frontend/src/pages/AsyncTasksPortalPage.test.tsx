@@ -135,6 +135,9 @@ describe('AsyncTasksPortalPage', () => {
   })
 
   it('filters by a created date range with one calendar and can clear it', async () => {
+    // 固定在月中：双月日历会显示相邻月份的日期，月初或月末时同一天会出现两次。
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 8, 17, 12))
     const user = userEvent.setup()
     const today = new Date()
     const yesterday = subDays(today, 1)

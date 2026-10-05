@@ -295,6 +295,7 @@ beforeAll(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("消费核算", () => {
@@ -354,6 +355,9 @@ describe("消费核算", () => {
   });
 
   it("支持 OAuth 回本和账号成本列表的搜索、创建时间筛选与分页", async () => {
+    // 日历默认显示当前月份，固定日期后才能稳定点选测试数据所在的 2026-09-01。
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 8, 17, 12));
     vi.mocked(apiClient.get).mockResolvedValue(responseWithAccountLists);
     render(<ConsumptionPage />);
 
