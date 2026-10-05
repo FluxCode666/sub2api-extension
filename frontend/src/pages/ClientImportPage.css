@@ -95,6 +95,16 @@
 .client-import-detail-list dt { color: var(--import-muted); font-size: 11px; }
 .client-import-detail-list dd { overflow: hidden; margin: 0; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .client-import-json-preview { max-height: 190px; margin: 0; overflow: auto; padding: 18px; color: #4b3b3e; background: #fbf9f7; font-size: 11px; line-height: 1.65; }
+.client-import-json-preview:focus-visible { outline: 2px solid var(--import-accent); outline-offset: -2px; }
+.client-import-file-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; padding: 10px 16px; border-bottom: 1px solid #ecece7; }
+.client-import-file-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.client-import-json-preview.is-command { max-height: 320px; }
+.client-import-file-tabs { height: 32px; background: #efefeb; }
+.client-import-file-tabs button { height: 24px; gap: 6px; padding-inline: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.client-import-file-name { display: inline-flex; align-items: center; gap: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; font-weight: 600; }
+.client-import-file-tabs svg, .client-import-file-name svg { flex: 0 0 auto; color: var(--import-accent); }
+.client-import-file-bar small { min-width: 0; color: var(--import-muted); font-size: 11px; overflow-wrap: anywhere; }
+.client-import-file-bar code { color: var(--import-ink); font-size: 11px; }
 .client-import-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
 .client-import-actions a { text-decoration: none; }
 .client-import-manual-note { display: flex; align-items: flex-start; gap: 8px; margin: 16px 0 0; color: var(--import-muted); font-size: 12px; }

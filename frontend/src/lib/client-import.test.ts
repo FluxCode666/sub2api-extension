@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { allowedClientTargets, buildCCSwitchImportURL, buildConfigFile, buildDirectImportURL, defaultImportBaseURL, describeKeyGroup, formatGroupPlatform, hasKeyGroup, isClientAllowedForKey, maskAPIKey, mergeClientModels, normalizeImportBaseURL, normalizeKeyModels, supportsMultiModel } from './client-import'
+import { allowedClientTargets, buildCCSwitchImportURL, buildClientConfigFiles, buildConfigFile, buildDirectImportURL, defaultImportBaseURL, describeKeyGroup, fallbackClientModel, formatGroupPlatform, hasKeyGroup, isClientAllowedForKey, maskAPIKey, mergeClientModels, normalizeImportBaseURL, normalizeKeyModels, supportsConfigFile, supportsMultiModel, targetsForKind } from './client-import'
 
 const key = {
   id: 1,
@@ -175,6 +175,73 @@ describe('client-import helpers', () => {
     const decoded = new TextDecoder().decode(Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0)))
     expect(JSON.parse(decoded)).toEqual(config)
     expect(link.href).not.toContain(key.key)
+  })
+})
+
+describe('native client configuration files', () => {
+  const baseURL = 'https://api.example.com'
+  const openaiKey = { ...key, group: { name: 'OpenAI', platform: 'openai' } }
+
+  it('lists CC Switch clients with native files in the config-file tab without duplicating ids', () => {
+    expect(targetsForKind('config-file').map((target) => target.id)).toEqual(['claude-code', 'codex', 'gemini', 'grok-build', 'opencode', 'openclaw', 'zcode', 'workbuddy', 'pi'])
+    expect(targetsForKind('cc-switch').map((target) => target.id)).toContain('claude-desktop')
+    expect(supportsConfigFile('claude-desktop')).toBe(false)
+    expect(supportsConfigFile('hermes')).toBe(false)
+    expect(supportsConfigFile('cherry-studio')).toBe(false)
+  })
+
+  it('writes Claude Code settings.json with the gateway root and omits an empty model', () => {
+    const [file] = buildClientConfigFiles('claude-code', key, baseURL, 'claude-opus-5', 'Gateway')
+    expect(file).toMatchObject({ fileName: 'settings.json', path: '~/.claude/settings.json', format: 'JSON' })
+    expect(JSON.parse(file.content)).toEqual({ env: { ANTHROPIC_BASE_URL: baseURL, ANTHROPIC_AUTH_TOKEN: key.key, ANTHROPIC_MODEL: 'claude-opus-5' } })
+    expect(JSON.parse(buildClientConfigFiles('claude-code', key, baseURL, ' ', 'Gateway')[0].content).env).not.toHaveProperty('ANTHROPIC_MODEL')
+  })
+
+  it('splits Codex into config.toml and auth.json and keeps the CC Switch fallback model', () => {
+    const files = buildClientConfigFiles('codex', openaiKey, baseURL, '', 'Gateway "主"')
+    expect(files.map((file) => [file.fileName, file.path, file.format])).toEqual([
+      ['config.toml', '~/.codex/config.toml', 'TOML'],
+      ['auth.json', '~/.codex/auth.json', 'JSON'],
+    ])
+    expect(files[0].content).toBe('model = "gpt-5.5"\nmodel_provider = "gateway"\ncli_auth_credentials_store = "file"\n\n[model_providers.gateway]\nname = "Gateway \\"主\\""\nbase_url = "https://api.example.com/v1"\nwire_api = "responses"\nrequires_openai_auth = true\n')
+    expect(files[0].content).not.toContain(key.key)
+    expect(JSON.parse(files[1].content)).toEqual({ OPENAI_API_KEY: key.key })
+    expect(fallbackClientModel('codex', 'openai')).toBe('gpt-5.5')
+  })
+
+  it('writes Gemini CLI variables to a .env file that the browser can download', () => {
+    const [file] = buildClientConfigFiles('gemini', key, baseURL, 'gemini-3-pro', 'Gateway')
+    expect(file).toMatchObject({ fileName: 'gemini.env', path: '~/.gemini/.env', format: 'ENV' })
+    expect(file.content).toBe(`GOOGLE_GEMINI_BASE_URL="${baseURL}"\nGEMINI_API_KEY="${key.key}"\nGEMINI_MODEL="gemini-3-pro"\n`)
+  })
+
+  it('registers the Grok Build model table on the /v1 endpoint', () => {
+    const [file] = buildClientConfigFiles('grok-build', key, baseURL, '', 'Gateway')
+    expect(file).toMatchObject({ fileName: 'config.toml', path: '~/.grok/config.toml' })
+    expect(file.content).toContain('[models]\ndefault = "grok-4.5"')
+    expect(file.content).toContain('[model."grok-4.5"]')
+    expect(file.content).toContain('base_url = "https://api.example.com/v1"')
+    expect(file.content).toContain('api_backend = "chat_completions"')
+  })
+
+  it('adds an OpenAI compatible provider to OpenCode and OpenClaw', () => {
+    expect(JSON.parse(buildClientConfigFiles('opencode', openaiKey, baseURL, 'gpt-5.5', '网关')[0].content)).toEqual({
+      $schema: 'https://opencode.ai/config.json',
+      model: 'gateway/gpt-5.5',
+      provider: { gateway: { npm: '@ai-sdk/openai-compatible', name: '网关', options: { baseURL: `${baseURL}/v1`, apiKey: key.key }, models: { 'gpt-5.5': { name: 'gpt-5.5' } } } },
+    })
+    expect(JSON.parse(buildClientConfigFiles('opencode', key, baseURL, '', 'Gateway')[0].content)).not.toHaveProperty('model')
+    expect(JSON.parse(buildClientConfigFiles('openclaw', openaiKey, baseURL, 'gpt-5.5', 'Gateway')[0].content)).toEqual({
+      models: { mode: 'merge', providers: { gateway: { baseUrl: `${baseURL}/v1`, apiKey: key.key, api: 'openai-completions', models: [{ id: 'gpt-5.5', name: 'gpt-5.5' }] } } },
+      agents: { defaults: { model: { primary: 'gateway/gpt-5.5' }, models: { 'gateway/gpt-5.5': {} } } },
+    })
+  })
+
+  it('wraps the existing JSON configurations without changing their content', () => {
+    const [pi] = buildClientConfigFiles('pi', key, baseURL, 'gpt-5.5', 'Gateway', ['gpt-5.5-mini'])
+    expect(pi).toMatchObject({ fileName: 'models.json', path: '~/.pi/agent/models.json', format: 'JSON' })
+    expect(JSON.parse(pi.content)).toEqual(buildConfigFile('pi', key, baseURL, 'gpt-5.5', 'Gateway', ['gpt-5.5-mini']))
+    expect(buildClientConfigFiles('chatbox', key, baseURL, 'gpt-5.5', 'Gateway')[0]).toMatchObject({ fileName: 'chatbox-provider.json', path: '' })
   })
 })
 

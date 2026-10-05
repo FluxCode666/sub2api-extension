@@ -1,5 +1,17 @@
 # Changelog
 
+## [未发布]
+
+### 新增
+
+- 客户端导入页的「配置文件」页签新增 Claude Code、Codex、Gemini CLI、Grok Build、OpenCode、OpenClaw：按当前 API Key、地址和模型生成各客户端的原生配置（`~/.claude/settings.json`、`~/.codex/config.toml` + `auth.json`、`~/.gemini/.env`、`~/.grok/config.toml`、`opencode.json`、`openclaw.json`），可预览（密钥遮盖）、下载和复制，并说明放置位置与合并方式。Codex 的两个文件通过文件页签分别查看和下载。端点与兜底模型和 CC Switch 深度链接保持一致；切换页签时保留当前客户端。
+- 客户端导入页为 Claude Code、Codex、Gemini CLI、Grok Build、OpenCode、OpenClaw、Pi 提供一键配置命令：「配置文件」页签默认显示「一键命令」，可切换 macOS / Linux（bash、zsh）与 Windows（PowerShell 5.1 / 7），复制后粘贴到终端运行即可写入当前 API Key、网关地址和模型；「手动配置」仍可预览和下载文件。命令会先把已有配置备份为同目录的 `.bak-时间戳` 文件，再只替换本平台的供应商条目、保留其他设置：Claude Code 合并 `settings.json` 的 `env` 并移除旧供应商的 `ANTHROPIC_API_KEY` 与模型映射变量；Codex 更新 `config.toml` 的 `model`、`model_provider` 与 `[model_providers.gateway]` 并替换 `auth.json`；Gemini CLI 更新 `~/.gemini/.env` 并在 `settings.json` 选择 API Key 认证；Grok Build 设置默认模型并替换同名模型表；OpenCode、Pi 合并对应 JSON；OpenClaw 通过 `openclaw config set --batch-file` 由 OpenClaw 校验后原子保存。重复运行结果不变，同一秒内的多次备份自动追加序号。CC Switch 页签新增「一键配置命令」按钮直达命令。预览中的密钥已遮盖，复制时才包含完整密钥。
+
+### 兼容性与升级
+
+- 仅前端变更，无数据库迁移、接口和环境变量变化；管理端「客户端导入限制」按客户端 ID 同时作用于深度链接和配置文件。回滚后「配置文件」页签恢复为 ZCode、WorkBuddy、Pi。
+- 一键配置命令在用户本机运行：macOS / Linux 版需要 bash；合并已有 JSON 配置时需要 Node.js 或 Python 3（文件不存在时无需），两者都没有或文件含注释等无法解析时不做修改并提示改用手动配置。Windows 版在 PowerShell 中运行，不支持 cmd；PowerShell 7 能解析带注释的 JSON，会去掉注释后合并（原文件已备份）。命令包含完整 API Key，可能保留在终端历史中。WorkBuddy 与 ZCode 仍只提供配置文件。
+
 ## [0.13.0] - 2026-09-30
 
 ### 新增

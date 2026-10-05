@@ -42,7 +42,7 @@ sub2api本地项目路径：`/Users/duegin/project/sub2api`
 | `/p/home` | 约定的 Sub2API 官网动态页，品牌名称读取公开系统配置 |
 | `/api-docs`（`/docs`） | Sub2API API 文档，可挂载菜单或嵌入其他系统 |
 | `/client-docs` | 客户端接入文档；目录按 Codex、Claude、Grok、Gemini、VS Code/Cursor 与其他客户端归类。支持 `?client=codex&method=manual` 直达手动配置，默认推荐 CC Switch，支持 `?embed=1` 嵌入 |
-| `/client-import` | 用户端客户端导入工具；选择有效 API Key 后，可一键唤起 CC Switch、Cherry Studio、Chatbox，也可下载或复制配置；另支持下载 ZCode 供应商参考文件、WorkBuddy 与 Pi 的 `models.json`；管理员可在系统配置中按分组平台或分组限制可导入的客户端，并控制 Chatbox、ZCode、WorkBuddy、Pi 是否允许配置多个候选模型 ID；需要从 Sub2API 用户菜单带 token 打开 |
+| `/client-import` | 用户端客户端导入工具；选择有效 API Key 后，可一键唤起 CC Switch、Cherry Studio、Chatbox，也可下载或复制配置；「配置文件」页签为 Claude Code、Codex、Gemini CLI、Grok Build、OpenCode、OpenClaw、Pi 提供可复制运行的一键配置命令（macOS / Linux 与 Windows PowerShell，先备份再合并），也可预览并下载这些客户端的原生配置，以及 ZCode 供应商参考文件、WorkBuddy 的 `models.json`；管理员可在系统配置中按分组平台或分组限制可导入的客户端，并控制 Chatbox、ZCode、WorkBuddy、Pi 是否允许配置多个候选模型 ID；需要从 Sub2API 用户菜单带 token 打开 |
 | `/async-tasks` | 用户端异步任务列表；展示当前用户近期的异步生图（`imgtask`）、视频生成（Grok / Seedance）和批量生图任务，表格分页并支持关键字、创建日期范围、类型、状态、模型和 API Key 筛选，进行中任务自动刷新；未结束任务可逐条手动查询进度（视频任务由后端用创建任务的 API Key 代查 Sub2API 网关，与调用端轮询等价，完成时可能计费）；由系统配置开关同步为 Sub2API 用户菜单 `aux-async-tasks`，需要从菜单带 token 打开 |
 | `/user-guide` | 面向普通用户的 API Key、分组切换、首次请求和客户端接入指南 |
 | `/login` | 独立管理员登录入口 |

@@ -2,6 +2,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
+import { toast } from 'sonner'
 import { apiClient, AuxApiError } from '@/lib/api-client'
 import { fetchHomepageConfig } from '@/lib/homepage'
 import { trackFeatureClick } from '@/lib/telemetry-sdk'
@@ -13,6 +14,7 @@ vi.mock('@/lib/api-client', async (importOriginal) => ({
 }))
 vi.mock('@/lib/homepage', () => ({ fetchHomepageConfig: vi.fn() }))
 vi.mock('@/lib/telemetry-sdk', () => ({ trackFeatureClick: vi.fn(), trackPageView: vi.fn() }))
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }, Toaster: () => null }))
 
 const key = {
   id: 3,
@@ -37,6 +39,16 @@ function mockAPI(keys: unknown[], models: unknown = keyModels, multiModelClients
       return { code: 0, data: { items: models } }
     }
     return { code: 0, data: { items: keys, multi_model_clients: multiModelClients } }
+  })
+}
+
+/** jsdom 的 Blob 不支持 text()，用 FileReader 读取下载内容。 */
+function readBlob(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(reader.error)
+    reader.readAsText(blob)
   })
 }
 
@@ -105,8 +117,8 @@ describe('ClientImportPage', () => {
 
     await screen.findByText('测试密钥')
     await user.click(screen.getByRole('tab', { name: '配置文件' }))
-    expect(screen.getByRole('radio', { name: /ZCode/ })).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: /WorkBuddy/ })).toBeInTheDocument()
+    await user.click(screen.getByRole('radio', { name: /ZCode/ }))
     expect(screen.getByRole('button', { name: '下载 ZCode 配置' })).toBeInTheDocument()
     expect(screen.getByLabelText('ZCode 配置预览')).not.toHaveTextContent(key.key)
     expect(screen.getByLabelText('ZCode 配置预览')).toHaveTextContent('anthropic-messages')
@@ -117,12 +129,131 @@ describe('ClientImportPage', () => {
     expect(screen.getByLabelText('WorkBuddy 配置预览')).not.toHaveTextContent(key.key)
 
     await user.click(screen.getByRole('radio', { name: /Pi/ }))
+    expect(screen.getByRole('button', { name: '复制配置命令' })).toBeEnabled()
+    await user.click(screen.getByRole('tab', { name: '手动配置' }))
     expect(screen.getByRole('button', { name: '下载 Pi 配置' })).toBeInTheDocument()
     const piPreview = screen.getByLabelText('Pi 配置预览')
     expect(piPreview).toHaveTextContent('openai-completions')
     expect(piPreview).toHaveTextContent('https://api.example.com/v1')
     expect(piPreview).not.toHaveTextContent(key.key)
     expect(screen.getByText(/CC Switch 暂不支持通过深度链接导入 Pi/)).toBeInTheDocument()
+  })
+
+  it('opens the native configuration of the current CC Switch client and downloads the full file', async () => {
+    const user = userEvent.setup()
+    const blobs: Blob[] = []
+    const downloads: string[] = []
+    const { createObjectURL, revokeObjectURL } = URL
+    URL.createObjectURL = vi.fn((blob: Blob) => { blobs.push(blob); return 'blob:client-config' })
+    URL.revokeObjectURL = vi.fn()
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { downloads.push(this.download) })
+    render(<MemoryRouter initialEntries={['/client-import?api_base=https%3A%2F%2Fapi.example.com']}><ClientImportPage /></MemoryRouter>)
+
+    await screen.findByText('测试密钥')
+    await user.click(screen.getByRole('button', { name: '一键配置命令' }))
+    expect(screen.getByRole('tab', { name: '配置文件' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('radio', { name: /Claude Code/ })).toHaveAttribute('aria-checked', 'true')
+    await user.click(screen.getByRole('tab', { name: '手动配置' }))
+    const preview = screen.getByLabelText('Claude Code 配置预览')
+    expect(preview).toHaveTextContent('"ANTHROPIC_BASE_URL": "https://api.example.com"')
+    expect(preview).toHaveTextContent('"ANTHROPIC_MODEL": "claude-opus-5"')
+    expect(preview).not.toHaveTextContent(key.key)
+    expect(screen.getByText('~/.claude/settings.json', { selector: 'code' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '下载 Claude Code 配置' }))
+    expect(downloads).toEqual(['settings.json'])
+    expect(JSON.parse(await readBlob(blobs[0]))).toEqual({ env: { ANTHROPIC_BASE_URL: 'https://api.example.com', ANTHROPIC_AUTH_TOKEN: key.key, ANTHROPIC_MODEL: 'claude-opus-5' } })
+    expect(toast.success).toHaveBeenCalledWith('settings.json 已下载', { description: expect.stringContaining('~/.claude/settings.json') })
+    expect(trackFeatureClick).toHaveBeenCalledWith('client-import', 'download-claude-code')
+    click.mockRestore()
+    Object.assign(URL, { createObjectURL, revokeObjectURL })
+  })
+
+  it('previews each Codex file separately and lists other native clients', async () => {
+    const user = userEvent.setup()
+    render(<MemoryRouter initialEntries={['/client-import?api_base=https%3A%2F%2Fapi.example.com']}><ClientImportPage /></MemoryRouter>)
+
+    await screen.findByText('测试密钥')
+    await user.click(screen.getByRole('tab', { name: '配置文件' }))
+    for (const name of [/Gemini CLI/, /Grok Build/, /OpenCode/, /OpenClaw/]) expect(screen.getByRole('radio', { name })).toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: /Claude Desktop/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: /Hermes/ })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('radio', { name: /Codex/ }))
+    await user.click(screen.getByRole('tab', { name: '手动配置' }))
+    const files = screen.getByRole('tablist', { name: 'Codex 配置文件' })
+    expect(within(files).getByRole('tab', { name: 'config.toml' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByLabelText('Codex 配置预览')).toHaveTextContent('base_url = "https://api.example.com/v1"')
+    expect(screen.getByLabelText('Codex 配置预览')).toHaveTextContent('wire_api = "responses"')
+    expect(screen.getByRole('button', { name: '复制 TOML' })).toBeEnabled()
+
+    await user.click(within(files).getByRole('tab', { name: 'auth.json' }))
+    expect(screen.getByLabelText('Codex 配置预览')).toHaveTextContent('OPENAI_API_KEY')
+    expect(screen.getByLabelText('Codex 配置预览')).not.toHaveTextContent(key.key)
+    expect(screen.getByRole('button', { name: '下载 auth.json' })).toBeEnabled()
+
+    await user.click(screen.getByRole('radio', { name: /OpenCode/ }))
+    expect(screen.queryByRole('tablist', { name: /配置文件$/ })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('OpenCode 配置预览')).toHaveTextContent('"model": "gateway/claude-opus-5"')
+    expect(screen.getByRole('button', { name: '下载 OpenCode 配置' })).toBeEnabled()
+  })
+
+  it('copies a one-click setup command with the full key while previewing it masked', async () => {
+    const user = userEvent.setup()
+    const writeText = vi.fn(async () => undefined)
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    render(<MemoryRouter initialEntries={['/client-import?api_base=https%3A%2F%2Fapi.example.com']}><ClientImportPage /></MemoryRouter>)
+
+    await screen.findByText('测试密钥')
+    await user.click(screen.getByRole('button', { name: '一键配置命令' }))
+    expect(screen.getByRole('tablist', { name: '配置方式' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: '一键命令' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'macOS / Linux' })).toHaveAttribute('aria-selected', 'true')
+    const preview = screen.getByLabelText('Claude Code 配置命令预览')
+    expect(preview).toHaveTextContent("bash <<'AUX_SETUP'")
+    expect(preview).toHaveTextContent('"ANTHROPIC_BASE_URL": "https://api.example.com"')
+    expect(preview).not.toHaveTextContent(key.key)
+    expect(screen.getByText('~/.claude/settings.json', { selector: 'code' })).toBeInTheDocument()
+    expect(screen.getByText(/需要本机安装 Node.js 或 Python 3/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '复制配置命令' }))
+    expect(writeText).toHaveBeenCalledTimes(1)
+    const [copied] = writeText.mock.calls[0] as unknown as [string]
+    expect(copied).toMatch(/^bash <<'AUX_SETUP'\n/)
+    expect(copied).toContain(`"ANTHROPIC_AUTH_TOKEN": "${key.key}"`)
+    expect(toast.success).toHaveBeenCalledWith('配置命令已复制', { description: expect.stringContaining('粘贴到终端运行') })
+    expect(trackFeatureClick).toHaveBeenCalledWith('client-import', 'copy-command-claude-code')
+
+    await user.click(screen.getByRole('tab', { name: 'Windows' }))
+    expect(screen.getByLabelText('Claude Code 配置命令预览')).toHaveTextContent('Merge-AuxJson')
+    expect(screen.getByText(/不支持 cmd/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '复制配置命令' }))
+    expect((writeText.mock.calls[1] as unknown as [string])[0]).toMatch(/^& \{\n/)
+    expect(toast.success).toHaveBeenLastCalledWith('配置命令已复制', { description: expect.stringContaining('PowerShell') })
+
+    // 切换客户端后保留配置方式与运行环境；没有命令的 ZCode 只显示配置文件。
+    await user.click(screen.getByRole('radio', { name: /Codex/ }))
+    expect(screen.getByRole('tab', { name: 'Windows' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('~/.codex/auth.json', { selector: 'code' })).toBeInTheDocument()
+    await user.click(screen.getByRole('radio', { name: /ZCode/ }))
+    expect(screen.queryByRole('tablist', { name: '配置方式' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '下载 ZCode 配置' })).toBeEnabled()
+  })
+
+  it('reports a failed command copy without showing an inline error', async () => {
+    const user = userEvent.setup()
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn(async () => { throw new Error('denied') }) } })
+    // jsdom 未实现 execCommand，这里模拟旧浏览器的复制兜底也失败。
+    Object.defineProperty(document, 'execCommand', { configurable: true, value: vi.fn(() => false) })
+    render(<MemoryRouter initialEntries={['/client-import?api_base=https%3A%2F%2Fapi.example.com']}><ClientImportPage /></MemoryRouter>)
+
+    await screen.findByText('测试密钥')
+    await user.click(screen.getByRole('button', { name: '一键配置命令' }))
+    await user.click(screen.getByRole('button', { name: '复制配置命令' }))
+    expect(toast.error).toHaveBeenCalledWith('复制配置命令失败', { description: expect.stringContaining('手动配置') })
+    expect(toast.success).not.toHaveBeenCalled()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    Reflect.deleteProperty(document, 'execCommand')
   })
 
   it('shows the group name and platform for each API Key', async () => {
@@ -153,9 +284,14 @@ describe('ClientImportPage', () => {
     expect(screen.getByRole('button', { name: '复制 JSON' })).toBeDisabled()
 
     await user.click(screen.getByRole('tab', { name: '配置文件' }))
-    expect(screen.getByRole('button', { name: '下载 ZCode 配置' })).toBeDisabled()
-    expect(screen.getByLabelText('ZCode 配置预览')).toHaveTextContent('API Key 未选择分组，无法生成配置')
-    expect(screen.getByLabelText('ZCode 配置预览')).not.toHaveTextContent(ungroupedKey.key)
+    expect(screen.getByRole('button', { name: '复制配置命令' })).toBeDisabled()
+    expect(screen.getByLabelText('Claude Code 配置命令预览')).toHaveTextContent('API Key 未选择分组，无法生成配置')
+    expect(screen.getByLabelText('Claude Code 配置命令预览')).not.toHaveTextContent(ungroupedKey.key)
+    await user.click(screen.getByRole('tab', { name: '手动配置' }))
+    expect(screen.getByRole('button', { name: '下载 Claude Code 配置' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '复制配置' })).toBeDisabled()
+    expect(screen.getByLabelText('Claude Code 配置预览')).toHaveTextContent('API Key 未选择分组，无法生成配置')
+    expect(screen.getByLabelText('Claude Code 配置预览')).not.toHaveTextContent(ungroupedKey.key)
   })
 
   it('switches to an allowed client and prevents selecting clients restricted by the admin policy', async () => {
@@ -178,13 +314,18 @@ describe('ClientImportPage', () => {
     // Cherry / Chatbox 下没有允许的客户端，整个页签不可切换。
     expect(screen.getByRole('tab', { name: /Cherry \/ Chatbox/ })).toBeDisabled()
 
+    // 配置文件页签同样列出 Codex，切换页签时保持当前选择。
     await user.click(screen.getByRole('tab', { name: '配置文件' }))
+    expect(screen.getByRole('radio', { name: /Codex/ })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('button', { name: '复制配置命令' })).toBeEnabled()
+    expect(screen.getByRole('radio', { name: /Claude Code/ })).toBeDisabled()
+    await user.click(screen.getByRole('radio', { name: /Pi/ }))
     expect(screen.getByRole('radio', { name: /Pi/ })).toHaveAttribute('aria-checked', 'true')
-    expect(screen.getByRole('button', { name: '下载 Pi 配置' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: '复制配置命令' })).toBeEnabled()
     expect(screen.getByRole('radio', { name: /ZCode/ })).toBeDisabled()
     await user.click(screen.getByRole('radio', { name: /ZCode/ }))
     expect(screen.getByRole('radio', { name: /Pi/ })).toHaveAttribute('aria-checked', 'true')
-    expect(screen.getByRole('button', { name: '下载 Pi 配置' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: '复制配置命令' })).toBeEnabled()
   })
 
   it('explains when the key group may not import any client', async () => {
@@ -269,6 +410,8 @@ describe('ClientImportPage', () => {
     expect(screen.queryByRole('combobox', { name: /候选模型 ID/ })).not.toBeInTheDocument()
     await user.click(screen.getByRole('tab', { name: '配置文件' }))
     await user.click(screen.getByRole('radio', { name: /Pi/ }))
+    // 配置方式在切换客户端时保留，后续 WorkBuddy、ZCode 继续显示配置文件预览。
+    await user.click(screen.getByRole('tab', { name: '手动配置' }))
 
     const trigger = await screen.findByRole('combobox', { name: /候选模型 ID/ })
     await waitFor(() => expect(trigger).toBeEnabled())
