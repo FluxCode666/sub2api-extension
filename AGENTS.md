@@ -376,10 +376,12 @@ Release 工作流只构建/发布镜像和 amd64/arm64 更新包，不直接连�
 - [ ] 未泄漏密码、JWT、Sub2API token、Webhook/SMTP 密钥或绝对路径。
 - [ ] 已运行对应的 Go/前端测试、类型检查、构建或部署健康检查。
 - [ ] 若行为改变，已同步 `README.md`、相关 `docs/`、skill 和 `CHANGELOG.md`。
+- [ ] 若新增、改造或废弃功能，已同步 `FEATURES.md` 对应条目，并在 `CHANGELOG.md` 记录变更。
 
 ## 12. 相关资料入口
 
 - `README.md`：产品定位、入口、快速开始和架构概览。
+- `FEATURES.md`：当前已实现的全部功能清单，按模块分类，标注引入版本；每次发版同步更新。
 - `docs/INTEGRATION.md`：Sub2API 菜单、官网、iframe 和域名集成。
 - `docs/PAGE_API.md`：动态页面管理 API、字段和鉴权。
 - `docs/WEBHOOK.md`：Webhook 协议和幂等建议。

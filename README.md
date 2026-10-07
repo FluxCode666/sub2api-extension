@@ -414,6 +414,7 @@ pnpm build           # tsc -b && vite build
 
 ## 文档
 
+- **[FEATURES.md](FEATURES.md)** —— 当前已实现的全部功能清单，按模块分类，标注引入版本；每次发版同步更新
 - **[CHANGELOG.md](CHANGELOG.md)** —— 版本变更记录
 - **Sub2API 用户使用指南 `/user-guide`** —— 面向普通用户的独立页面（API Key、分组、客户端接入与故障排查）
 - **[docs/INTEGRATION.md](docs/INTEGRATION.md)** —— sub2api 侧 `custom_menu_items` 集成配置指南（架构、部署、CSP、验收清单、故障排查）
