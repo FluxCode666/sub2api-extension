@@ -10,7 +10,7 @@
 2. 填写接收服务的 HTTPS URL。
 3. 如接收端需要鉴权，可填写 `Authorization`。
 4. 如需要共享密钥校验，可填写“请求头密钥”。系统会将它放在 `X-Webhook-Secret` 请求头中。
-5. 保存渠道后，在具体业务事件（当前是“发票申请通知”）中勾选该渠道并保存事件配置。
+5. 保存渠道后，在具体业务事件（“发票申请通知”或“新工单提醒”）中勾选该渠道并保存事件配置。新工单提醒同时覆盖用户追加回复。
 
 通用 Webhook 不需要填写收件人邮箱。目标地址、鉴权信息和密钥保存在渠道配置中；事件配置只决定哪些消息发送到该渠道。
 
@@ -56,6 +56,8 @@ X-Webhook-Secret: <your-secret>
 | `status` | string | 发票申请当前状态 |
 
 后续事件可能增加或调整字段。接收端建议忽略未知字段，不要要求字段顺序固定，并根据 `event` 分发处理逻辑。
+
+工单创建事件为 `ticket.created`，用户每次追加回复为 `ticket.user.replied`。两者都包含 `event`、`ticket_id`、`subject`、`user_id`、`user_email`、`user_name` 和 `message`；回复事件还包含当前 `status`（`OPEN`、`IN_PROGRESS` 或 `CLOSED`）。用户回复默认沿用新工单的渠道配置。管理员回复和状态变化通知发给工单用户，仅使用 SMTP/Resend，不投递到管理员 Webhook。详见 [工单系统](TICKETS.md#工单进展通知)。
 
 ## 4. 接收端示例
 
@@ -118,6 +120,7 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 - 接收端应在 10 秒内返回 `2xx`，耗时处理放入队列或后台任务。
 - 当前通用 Webhook 不自动重试；失败结果会写入系统消息通知日志，管理员可据此排查。
 - 接收端应按业务唯一键去重。发票事件可使用 `event + invoice_request_id` 作为幂等键。
+- 用户可能多次回复同一工单，不能按 `event + ticket_id` 去重，否则后续回复提醒会被丢弃。
 - 不要仅依赖来源 IP；优先校验 `X-Webhook-Secret` 或 `Authorization`，并使用 HTTPS。
 - 密钥只在管理端保存，不要写入前端代码、Webhook URL 的公开文档、日志或错误响应。
 - 建议记录请求接收时间、事件名和业务 ID，但不要记录完整的鉴权请求头。

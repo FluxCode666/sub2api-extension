@@ -10,8 +10,11 @@ import (
 )
 
 const (
-	TicketCreatedNotificationEvent = "ticket.created"
-	TicketFeatureSettingKey        = "ticket.feature.enabled"
+	TicketCreatedNotificationEvent       = "ticket.created"
+	TicketUserRepliedNotificationEvent   = "ticket.user.replied"
+	TicketAdminRepliedNotificationEvent  = "ticket.admin.replied"
+	TicketStatusUpdatedNotificationEvent = "ticket.status.updated"
+	TicketFeatureSettingKey              = "ticket.feature.enabled"
 )
 
 type TicketStatus string
@@ -142,6 +145,7 @@ func (s *TicketService) Create(ctx context.Context, userID int64, email, name st
 	}
 	if s.notifier != nil {
 		payload := map[string]interface{}{
+			"event":     TicketCreatedNotificationEvent,
 			"ticket_id": created.ID, "subject": created.Subject,
 			"user_id": userID, "user_email": strings.TrimSpace(email), "user_name": strings.TrimSpace(name),
 			"message": input.Body,
@@ -182,7 +186,12 @@ func (s *TicketService) ReplyAsUser(ctx context.Context, userID int64, userName 
 	if userID <= 0 || id <= 0 || body == "" || len([]rune(body)) > 10000 || len([]rune(userName)) > 100 {
 		return nil, ErrInvalidTicket
 	}
-	return s.store.AddUserReply(ctx, userID, id, TicketMessage{SenderType: "user", SenderName: strings.TrimSpace(userName), Body: body})
+	updated, err := s.store.AddUserReply(ctx, userID, id, TicketMessage{SenderType: "user", SenderName: strings.TrimSpace(userName), Body: body})
+	if err != nil {
+		return nil, err
+	}
+	s.notifyProgress(ctx, TicketUserRepliedNotificationEvent, updated, "用户回复工单", "用户已追加回复，请继续处理。", body)
+	return updated, nil
 }
 
 func (s *TicketService) ListForAdmin(ctx context.Context, filters TicketAdminFilters) (*TicketPage, error) {
@@ -218,7 +227,12 @@ func (s *TicketService) ReplyAsAdmin(ctx context.Context, id int, body string) (
 	if id <= 0 || body == "" || len([]rune(body)) > 10000 {
 		return nil, ErrInvalidTicket
 	}
-	return s.store.AddAdminReply(ctx, id, TicketMessage{SenderType: "admin", SenderName: "管理员", Body: body})
+	updated, err := s.store.AddAdminReply(ctx, id, TicketMessage{SenderType: "admin", SenderName: "管理员", Body: body})
+	if err != nil {
+		return nil, err
+	}
+	s.notifyProgress(ctx, TicketAdminRepliedNotificationEvent, updated, "工单收到管理员回复", "管理员已回复您的工单。", body)
+	return updated, nil
 }
 
 func (s *TicketService) UpdateStatus(ctx context.Context, id int, status TicketStatus) (*Ticket, error) {
@@ -228,7 +242,52 @@ func (s *TicketService) UpdateStatus(ctx context.Context, id int, status TicketS
 	if id <= 0 || !validTicketStatus(status) {
 		return nil, ErrInvalidTicket
 	}
-	return s.store.SetStatus(ctx, id, status)
+	current, err := s.store.GetForAdmin(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if current.Status == status {
+		return current, nil
+	}
+	updated, err := s.store.SetStatus(ctx, id, status)
+	if err != nil {
+		return nil, err
+	}
+	s.notifyProgress(ctx, TicketStatusUpdatedNotificationEvent, updated, "工单状态已更新", "管理员已更新您的工单状态。", "状态："+ticketStatusLabel(updated.Status))
+	return updated, nil
+}
+
+// notifyProgress 在持久化成功后提醒另一方；通知失败由投递日志记录，不撤销已保存的进展。
+func (s *TicketService) notifyProgress(ctx context.Context, event string, ticket *Ticket, title, intro, message string) {
+	if s.notifier == nil || ticket == nil {
+		return
+	}
+	payload := map[string]interface{}{
+		"event": event, "ticket_id": ticket.ID, "subject": ticket.Subject,
+		"user_id": ticket.UserID, "user_email": ticket.UserEmail, "user_name": ticket.UserName,
+		"status": ticket.Status, "message": message,
+	}
+	subject := title + " #" + strconv.Itoa(ticket.ID) + "：" + ticket.Subject
+	body := intro + "\n工单编号：#" + strconv.Itoa(ticket.ID) + "\n主题：" + ticket.Subject + "\n状态：" + ticketStatusLabel(ticket.Status) + "\n\n" + message
+	if event == TicketUserRepliedNotificationEvent {
+		body = intro + "\n工单编号：#" + strconv.Itoa(ticket.ID) + "\n主题：" + ticket.Subject + "\n用户：" + notificationUserLabel(ticket.UserEmail, ticket.UserName) + "\n\n" + message
+	}
+	if err := s.notifier.Notify(ctx, event, subject, body, payload); err != nil {
+		log.Printf("[TicketService.notifyProgress] notification failed ticket_id=%d event=%s: %v", ticket.ID, event, err)
+	}
+}
+
+func ticketStatusLabel(status TicketStatus) string {
+	switch status {
+	case TicketStatusOpen:
+		return "待处理"
+	case TicketStatusInProgress:
+		return "处理中"
+	case TicketStatusClosed:
+		return "已关闭"
+	default:
+		return string(status)
+	}
 }
 
 func normalizeTicketPaging(page, pageSize int) (int, int) {

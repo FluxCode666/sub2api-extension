@@ -16,7 +16,8 @@ describe('TicketNotificationSettings', () => {
 
   it('loads, edits, and saves ticket-specific channels and recipients', async () => {
     render(<TicketNotificationSettings channels={[{ id: 7, name: '运维邮箱', type: 'email', enabled: true }]} />)
-    const recipient = await screen.findByLabelText('提醒收件人')
+    const recipient = await screen.findByLabelText('管理员提醒收件人')
+    expect(screen.getByText(/管理员回复或更新状态后/)).toBeInTheDocument()
     expect(recipient).toHaveValue('ops@example.com')
     fireEvent.change(recipient, { target: { value: 'ops@example.com, support@example.com' } })
     fireEvent.click(screen.getByRole('button', { name: '保存工单提醒' }))

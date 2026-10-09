@@ -69,7 +69,7 @@ export default function TicketNotificationSettings({ channels }: { channels: Not
           <BellRing className="h-4 w-4 text-primary" aria-hidden="true" />
           新工单提醒
         </h2>
-        <p className="mt-1 text-xs text-muted-foreground">用户提交新工单后，向勾选渠道发送提醒；邮箱渠道可单独设置收件人。</p>
+        <p className="mt-1 text-xs text-muted-foreground">用户提交工单或追加回复后，向勾选渠道及管理员收件人发送提醒。管理员回复或更新状态后，使用勾选的 SMTP/Resend 渠道通知工单用户的邮箱；请至少选择一个邮箱渠道。</p>
       </div>
       <div className="space-y-4">
         {error && (
@@ -113,7 +113,7 @@ export default function TicketNotificationSettings({ channels }: { channels: Not
                   </div>
                   {supportsRecipients && checked && (
                     <div className="w-full space-y-1 sm:max-w-sm">
-                      <Label htmlFor={`ticket-recipient-${channel.id}`} className="text-xs text-muted-foreground">提醒收件人</Label>
+                      <Label htmlFor={`ticket-recipient-${channel.id}`} className="text-xs text-muted-foreground">管理员提醒收件人</Label>
                       <Input
                         id={`ticket-recipient-${channel.id}`}
                         value={recipients[String(channel.id)] ?? ''}

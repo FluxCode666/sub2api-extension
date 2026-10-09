@@ -36,11 +36,11 @@
 - 文件写入资源持久卷（容器内 `/app/data/assets`），数据库只保存安全相对路径和元数据
 - 上传流式落盘、随机文件名、MIME 魔数校验（PNG/JPEG/GIF/WebP），无固定体积上限
 
-### 1.5 工单管理 `/admin/tickets` — `v0.10.0`（最近更新 `v0.11.0`）
+### 1.5 工单管理 `/admin/tickets` — `v0.10.0`（最近更新 `v0.15.0`）
 管理员查看、回复 Sub2API 用户工单并更新状态（待处理、处理中、已关闭）。
 - 定高双栏工作台：列表与对话各自内部滚动，筛选、分页、状态切换和回复框固定可见
 - Markdown 原文保存及安全展示（禁用原始 HTML 和危险链接），带头像的气泡对话
-- 新工单提醒：通过 `ticket.created` 事件选择通知渠道和收件人
+- 双向进展通知：新工单和用户每次回复通知管理员；管理员每次回复及状态变化通过已选 SMTP/Resend 渠道通知工单用户，配置默认继承 `ticket.created`
 
 ### 1.6 运维看板：首字延迟 `/admin/ops/ttft` — `v0.3.0`
 首字延迟（TTFT）火焰图，直读 Sub2API PostgreSQL `usage_logs.first_token_ms`；支持日期、时间段、分组、账号筛选，以及分钟/小时/天三种时间粒度。
@@ -156,10 +156,10 @@ AI 客户端配置指南，目录按 Codex、Claude、Grok、Gemini、VS Code/Cu
 
 ## 8. 通知
 
-### 8.1 通知渠道与投递日志 `/admin/notifications` — `v0.4.3`
+### 8.1 通知渠道与投递日志 `/admin/notifications` — `v0.4.3`（最近更新 `v0.15.0`）
 管理员配置通知渠道，业务事件按配置投递；失败写入投递日志，不回滚业务操作。
 - 渠道：SMTP 邮件、Resend、Webhook（`Authorization` / `X-Webhook-Secret`）、飞书应用、飞书机器人（可签名，兼容 Lark 别名）、企业微信机器人、钉钉机器人（可加签）
-- 事件：`invoice.application.created`（发票申请）、`ticket.created`（新工单）；收件人在具体事件中配置
+- 事件：`invoice.application.created`（发票申请）、`ticket.created`（新工单）、`ticket.user.replied`（用户回复）、`ticket.admin.replied`（管理员回复）、`ticket.status.updated`（状态变化）；管理员收件人在事件中配置，用户进展通知自动使用工单所属邮箱
 - 发送器 10 秒 HTTP 超时，Webhook 以任意 2xx 判定成功
 - 消息通知日志支持开始/结束日期时间查询和分页
 
@@ -210,4 +210,4 @@ GitHub Actions 四条工作流：CI、安全扫描（Go 漏洞扫描、`pnpm aud
 
 ---
 
-_最后更新：`v0.14.0`（2026-10-05）。每次发版前随 `CHANGELOG.md` 同步更新。_
+_最后更新：`v0.15.0`（2026-10-09）。每次发版前随 `CHANGELOG.md` 同步更新。_

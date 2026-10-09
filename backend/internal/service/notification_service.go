@@ -319,6 +319,13 @@ func (s *NotificationService) SetEventChannelsWithRecipients(ctx context.Context
 			}
 		}
 		for _, item := range items {
+			if isTicketUserNotification(event) {
+				if !isEmailNotificationChannel(item.Type) {
+					return nil, errors.New("工单用户进展通知仅支持 SMTP 或 Resend 邮箱渠道")
+				}
+				// 收件人由工单归属决定，事件配置只选择发件渠道。
+				continue
+			}
 			if (item.Type == string(NotificationChannelEmail) || item.Type == string(NotificationChannelResend)) && containsInt(ids, item.ID) && len(recipients[item.ID]) == 0 && len(configStrings(item.Config, "to", "recipients")) == 0 {
 				return nil, fmt.Errorf("通知渠道 %q 需要在业务通知中填写收件人邮箱", item.Name)
 			}
@@ -459,49 +466,82 @@ func (s *NotificationService) Notify(ctx context.Context, event, subject, body s
 	if err != nil {
 		return err
 	}
-	encoded, _ := json.Marshal(payload)
+	encoded, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	userRecipients, recipientErr := ticketUserNotificationRecipients(event, payload)
+	if recipientErr != nil {
+		return errors.Join(recipientErr, s.recordDelivery(ctx, nil, "", "", event, "", subject, string(encoded), recipientErr))
+	}
 	if len(ids) == 0 {
 		reason := fmt.Errorf("未配置事件 %s 的通知渠道", event)
 		if event == InvoiceApplicationNotificationEvent {
 			reason = errors.New("未配置发票申请通知渠道")
 		}
-		return s.recordDelivery(ctx, nil, "", "", event, "", subject, string(encoded), reason)
+		return errors.Join(reason, s.recordDelivery(ctx, nil, "", "", event, strings.Join(userRecipients, ","), subject, string(encoded), reason))
 	}
-	var firstErr error
+	var deliveryErr error
+	emailChannels := 0
 	for _, id := range ids {
 		item, getErr := s.client.NotificationChannel.Get(ctx, id)
 		if ent.IsNotFound(getErr) {
 			err = fmt.Errorf("通知渠道 %d 不存在", id)
-			if firstErr == nil {
-				firstErr = err
-			}
-			_ = s.recordDelivery(ctx, &id, "", "", event, "", subject, string(encoded), err)
+			deliveryErr = errors.Join(deliveryErr, err, s.recordDelivery(ctx, &id, "", "", event, "", subject, string(encoded), err))
 			continue
 		}
 		if getErr != nil {
-			return getErr
+			deliveryErr = errors.Join(deliveryErr, getErr, s.recordDelivery(ctx, &id, "", "", event, "", subject, string(encoded), getErr))
+			continue
+		}
+		values := recipients[id]
+		if isTicketUserNotification(event) {
+			// 管理员群聊、机器人和 Webhook 不能作为工单用户的收件人。
+			if !isEmailNotificationChannel(item.Type) {
+				continue
+			}
+			emailChannels++
+			values = userRecipients
 		}
 		if !item.Enabled {
 			err = fmt.Errorf("通知渠道 %q 已停用", item.Name)
-			if firstErr == nil {
-				firstErr = err
-			}
-			_ = s.recordDelivery(ctx, &id, item.Name, item.Type, event, deliveryRecipient(item.Config, recipients[id]), subject, string(encoded), err)
+			deliveryErr = errors.Join(deliveryErr, err, s.recordDelivery(ctx, &id, item.Name, item.Type, event, deliveryRecipient(item.Config, values), subject, string(encoded), err))
 			continue
 		}
 		sendConfig := cloneMap(item.Config)
-		if values := recipients[id]; len(values) > 0 && (item.Type == string(NotificationChannelEmail) || item.Type == string(NotificationChannelResend)) {
+		if len(values) > 0 && isEmailNotificationChannel(item.Type) {
+			delete(sendConfig, "recipients")
 			sendConfig["to"] = values
 		}
 		sendErr := s.send(ctx, item.Type, sendConfig, subject, body, payload)
-		if recordErr := s.recordDelivery(ctx, &id, item.Name, item.Type, event, deliveryRecipient(item.Config, recipients[id]), subject, string(encoded), sendErr); recordErr != nil && firstErr == nil {
-			firstErr = recordErr
-		}
-		if sendErr != nil && firstErr == nil {
-			firstErr = sendErr
-		}
+		recordErr := s.recordDelivery(ctx, &id, item.Name, item.Type, event, deliveryRecipient(sendConfig, values), subject, string(encoded), sendErr)
+		deliveryErr = errors.Join(deliveryErr, sendErr, recordErr)
 	}
-	return firstErr
+	if isTicketUserNotification(event) && emailChannels == 0 {
+		reason := errors.New("未配置工单用户进展通知的 SMTP 或 Resend 邮箱渠道")
+		deliveryErr = errors.Join(deliveryErr, reason, s.recordDelivery(ctx, nil, "", "", event, strings.Join(userRecipients, ","), subject, string(encoded), reason))
+	}
+	return deliveryErr
+}
+
+func isEmailNotificationChannel(typ string) bool {
+	return typ == string(NotificationChannelEmail) || typ == string(NotificationChannelResend)
+}
+
+func isTicketUserNotification(event string) bool {
+	return event == TicketAdminRepliedNotificationEvent || event == TicketStatusUpdatedNotificationEvent
+}
+
+func ticketUserNotificationRecipients(event string, payload map[string]interface{}) ([]string, error) {
+	if !isTicketUserNotification(event) {
+		return nil, nil
+	}
+	email, _ := payload["user_email"].(string)
+	email = strings.TrimSpace(email)
+	if email == "" || validateRecipientEmails([]string{email}) != nil {
+		return nil, errors.New("工单用户邮箱缺失或无效，无法发送进展通知")
+	}
+	return []string{email}, nil
 }
 
 func (s *NotificationService) recordDelivery(ctx context.Context, channelID *int, name, typ, event, recipient, subject, payload string, sendErr error) error {
@@ -984,6 +1024,13 @@ func normalizeRecipientMap(values map[int][]string) map[int][]string {
 func (s *NotificationService) readEventConfig(ctx context.Context, event string) ([]int, map[int][]string, error) {
 	meta, err := s.client.SystemMeta.Query().Where(systemmeta.KeyEQ(notificationEventConfigPrefix + event)).Only(ctx)
 	if ent.IsNotFound(err) {
+		// 旧的新工单配置自动覆盖双方后续回复，显式空配置仍表示关闭该事件。
+		switch event {
+		case TicketUserRepliedNotificationEvent, TicketAdminRepliedNotificationEvent:
+			return s.readEventConfig(ctx, TicketCreatedNotificationEvent)
+		case TicketStatusUpdatedNotificationEvent:
+			return s.readEventConfig(ctx, TicketAdminRepliedNotificationEvent)
+		}
 		return []int{}, map[int][]string{}, nil
 	}
 	if err != nil {

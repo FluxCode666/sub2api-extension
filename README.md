@@ -14,7 +14,7 @@ sub2api本地项目路径：`/Users/duegin/project/sub2api`
 
 - **附属管理端** —— 通过 sub2api 的 `custom_menu_items` 以 iframe 方式打开，也支持独立登录。
 - **Sub2API API 文档** —— 内置 OpenAI/Anthropic/Gemini 兼容接口说明，可挂载到 sub2api 菜单，也可作为公开 iframe 嵌入其他系统。
-- **工单中心** —— Sub2API 用户从「工单中心」菜单提交问题并跟进回复；管理员在当前系统查看、回复和更新状态，新工单可按通知事件配置发送提醒。
+- **工单中心** —— Sub2API 用户从「工单中心」菜单提交问题并跟进回复；管理员在当前系统查看、回复和更新状态。新工单和每次用户回复通知管理员，管理员每次回复及状态变化通过已选邮件渠道通知工单用户。
 - **系统配置** —— 在管理端动态设置系统名称、系统 Logo、系统定位（ToC/ToB）、系统域名、扩展系统公网地址（Sub2API 菜单 URL 前缀，优先于 `SUB2API_EXTENSION_PUBLIC_URL`）与 API 文档调用示例的默认模型；Logo 支持选择或拖拽 PNG、JPEG、GIF、WebP 图片上传。
 - **动态页面编写** —— 管理员可以创建、编辑、启停和删除数据库页面，不需要改动前端源码。
 - **页面分析与埋点** —— 统计当前页面的访问量和功能点击，在分析仪表盘中查看使用情况。
@@ -269,7 +269,7 @@ make dev
 数据库只保存相对路径、原始文件名和备注。
 Docker 生产环境默认在 `aux-system` 启动时执行幂等 Ent 自动迁移；设置 `AUTO_MIGRATE=false` 时需先显式执行 `make migrate`。
 
-通知渠道管理位于管理端 `/admin/notifications`。邮箱 SMTP 和 Resend 渠道只保存发件人、连接信息和凭据；收件人需要在具体业务事件（发票申请或新工单提醒）中填写，可填写多个邮箱地址，支持逗号、分号或空格分隔。新工单事件为 `ticket.created`。
+通知渠道管理位于管理端 `/admin/notifications`。邮箱 SMTP 和 Resend 渠道只保存发件人、连接信息和凭据；管理员收件人需要在具体业务事件（发票申请或新工单提醒）中填写，可填写多个邮箱地址，支持逗号、分号或空格分隔。新工单事件为 `ticket.created`，用户每次追加回复（`ticket.user.replied`）默认沿用该配置通知管理员；管理员回复（`ticket.admin.replied`）和状态变化（`ticket.status.updated`）通过已选的 SMTP/Resend 渠道通知工单所属用户，收件人自动使用创建工单时记录的账户邮箱。请至少选择一个邮箱渠道；发送失败会记录到投递日志，不撤销已保存的回复或状态。详见 [工单进展通知](docs/TICKETS.md#工单进展通知)。
 消息通知日志支持开始/结束日期时间查询及分页浏览。
 
 通知渠道列表中可直接选择 Webhook、飞书应用、飞书机器人、企业微信机器人或钉钉机器人。Webhook 发送系统统一 JSON，并支持 `Authorization`、`X-Webhook-Secret`；企业微信使用机器人 URL 中的 `key`，飞书机器人可填写安全设置中的签名密钥，钉钉使用 URL 中的 `access_token` 并可填写加签密钥，签名参数均由服务端自动生成。
